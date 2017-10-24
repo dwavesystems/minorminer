@@ -1,0 +1,122 @@
+%FIND_EMBEDDING_MEX Find am embedding of a QUBO/Ising in a graph.
+%
+%  embeddings = find_embedding_mex(Q, A, params)
+%  (can be interrupted by Ctrl-C, will return the best embedding found so far.)
+%
+%  Attempts to find an embedding of a QUBO in a graph. This function
+%  is entirely heuristic: failure to return an embedding does not
+%  prove that no embedding exists.
+%
+%  Input parameters:
+%
+%    Q: Edge structures of a problem, can be Qubo/Ising. The embedder only cares
+%       about the edge structure (i.e. which variables have a nontrivial
+%       interactions), not the coefficient values.
+%
+%    A: Adjacency matrix of the graph, as returned by
+%       getChimeraAdjacency() or getHardwareAdjacency().
+%
+%    params: structure of parameters. Must be a structure.
+%
+%  Output:
+%
+%    embeddings: A cell array of embeddings, embeddings{i} is the set of qubits
+%                representing logical variable i. The index is 0-based.
+%                This embeddings return value can be used in sapiEmbeddingSolver.
+%                If the algorithm fails, the output is an empty cell array.
+%
+%    success: A logical value with 1 indicating that the embedding returned is valid
+%
+%   parameters for find_embedding_mex:
+%
+%   fast_embedding: true/false, tries to get an embedding quickly, without worrying about
+%                   chain length.
+%                   (must be a boolean, default = false)
+%
+%   max_no_improvement: number of rounds of the algorithm to try from the current
+%                       solution with no improvement. Each round consists of an attempt to find an
+%                       embedding for each variable of Q such that it is adjacent to all its
+%                       neighbours.
+%                       (must be an integer >= 0, default = 10)
+%
+%   random_seed: seed for random number generator that find_embedding_mex uses
+%                (must be an integer >= 0, default is randomly set)
+%
+%   timeout: Algorithm gives up after timeout seconds.
+%            (must be a number >= 0, default is approximately 1000 seconds)
+%
+%   tries: The algorithm stops after this number of restart attempts. On Vesuvius,
+%          each restart takes between 1 and 60 seconds typically.
+%          (must be an integer >= 0, default = 10)
+%
+%   inner_rounds: the algorithm takes at most this many passes between restart attempts;
+%                 restart attempts are typically terminated due to max_no_improvement
+%                 (must be an integer >= 0, default = effectively infinite)
+%
+%   chainlength_patience: similar to max_no_improvement, but for the chainlength improvement
+%                         passes.
+%                         (must be an integer >= 0, default = 2)
+%
+%   max_fill: until a valid embedding is found, this restricts the the maximum number
+%             of variables whose chain may contain a given qubit.
+%             (must be an integer >= 0, default = effectively infinite)
+%
+%   threads: maximum number of threads to use.  note that the parallelization is only
+%            advantageous where the expected degree of variables is (significantly?)
+%            greater than the number of threads.
+%            (must be an integer >= 1, default = 1)
+%
+%   return_overlap: return an embedding whether or not qubits are used by multiple
+%                   variables -- capture both return values to determine whether or
+%                   not the returned embedding is valid
+%                   (must be a logical 0/1 integer, default = 0)
+%
+%   skip_initialization: skip the initialization pass -- NOTE: this only works  if the
+%                        chains passed in through initial_chains and fixed_chains are
+%                        semi-valid.  A semi-valid embedding is a collection of chains
+%                        such that every adjacent pair of variables (u,v) has a coupler
+%                        (p,q) in the hardware graph where p is in chain(u) and q is in
+%                        chain(v).  This can be used on a valid embedding to immediately
+%                        skip to the chainlength improvement phase.  Another good source
+%                        of semi-valid embeddings is the output of this function with
+%                        the return_overlap parameter enabled.
+%                        (must be a logical 0/1 integer, default = 0)
+%
+%   verbose: 0/1.
+%            (must be an integer [0, 1], default = 0)
+%            when verbose is 1, the output information will be like:
+%            try ...
+%            overfill pass: quit total = ..., max overfill = ...
+%            embedding found
+%            chainlength pass: qubit total = ..., max chainlength = ...
+%            detailed explanation of the output information:
+%              try: ith (0-based) try
+%              max overfill: largest number of variables represented in a qubit (omitted when 1)
+%              num maxfill: the number of qubits that has max overfill (omitted when max is 1)
+%              max chainlength: largest number of qubits representing a single variable
+%              num max chains: the number of variables that has max chain size
+%              qubit total: the total number of qubits used to represent variables
+%
+%   initial_chains: A 0-indexed cell array, where chain(i) a matrix whose entries are
+%                   the qubits representing variable i.  These chains are inserted
+%                   into an embedding before fixed_chains are placed, which occurs
+%                   before the initialization pass.  This can be used to restart the
+%                   algorithm in a similar state to a previous embedding, for example
+%                   to improve chainlength of a valid embedding or to reduce overlap
+%                   in a semi-valid embedding previously returned by the algorithm.
+%                   (same data format as embeddings output -- empty cells are ignored)
+%
+%   fixed_chains: A 0-indexed cell array, where chain(i) a matrix whose entries are
+%                   the qubits representing variable i.  These chains are inserted into
+%                   an embedding before the initialization pass.  As the algorithm
+%                   proceeds, these chains are not allowed to change.
+%                   (same data format as embeddings output -- empty cells are ignored)
+%
+%
+
+
+% Proprietary Information D-Wave Systems Inc.
+% Copyright (c) 2015 by D-Wave Systems Inc. All rights reserved.
+% Notice this code is licensed to authorized users only under the
+% applicable license agreement see eula.txt
+% D-Wave Systems Inc., 3033 Beta Ave., Burnaby, BC, V5G 4M9, Canada.

@@ -1,0 +1,8 @@
+*.pyc
+*~
+python/build
+python/dist
+python/minorminer.cpp
+python/minorminer.egg-info
+env/
+build/
