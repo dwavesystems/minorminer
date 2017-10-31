@@ -136,29 +136,27 @@ def GridChimeraEmbedding(n):
 def mask_wxw(n,w=2,l=4):
     return {(X/w,Y/w): [(x,y,u,k) for x in xrange(X,X+w) for y in xrange(Y,Y+w) for u in (0,1) for k in xrange(l)] for X in xrange(0,n,w) for Y in xrange(0,n,w)}
 
-
-def accept_confidence(s,n,S,N):
-    import scipy.stats as st
-    D = (S*(N-S)/N/N/(N-1))**.5
-    a,b = st.t.interval(0.95, N-1, loc=S/N, scale=D)
-    return a<=s/n
-
 success_count_functions = []
 def success_count(n,*a,**k):
     from functools import wraps
+    from math import log
     def count_successes(f):
-        global success_count_functions, accept
+        global success_count_functions
         success_count_functions.append([f,n,a,k])
         if os.path.exists(os.path.join("calibration", f.func_name)):
             S,N = load_success_count_calibration(f)
+            N+= (S==N)
+            accept_prob = .01 # 1% false negative rate
+            tts = int(log(accept_prob*S/N, 1-S/N)+1)
+            false_prob = (S/N)*(1-S/N)**tts
+
             @wraps(f)
             def test_run():
-                succ = 0
-                for trial in range(1,n+1):
-                    succ += bool(f(*a,**k))
-                    if accept_confidence(succ, trial, S, N):
-                        return True
-                assert False, "not enough successes: %s of %s (threshold is %s)"%(succ, n, t)
+                for i in range(tts):
+                    if f(*a,**k):
+                        break
+                else:
+                    assert False, "took %d tries without success, this should only happen %.02f%% of the time"%(tts, false_prob*100)
         else:
             def test_run():
                 raise RuntimeError, "%s is not calibrated -- run calibrate_all_tests() or calibrate_new_tests()"%(f.func_name)
