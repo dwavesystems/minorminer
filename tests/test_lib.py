@@ -5,8 +5,14 @@
 """
 from minorminer import find_embedding as find_embedding_orig
 from warnings import warn
-from cPickle import dump, load
-import os, sys, time
+import os
+import sys
+import time
+
+# Given that this test is in the tests directory, the calibration data should be
+# in a sub directory. Use the path of this source file to find the calibration
+calibration_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibration")
+
 
 def find_embedding(Q,A,return_overlap=False,**args):
 #    args['verbose']=0
@@ -143,7 +149,7 @@ def success_count(n,*a,**k):
     def count_successes(f):
         global success_count_functions
         success_count_functions.append([f,n,a,k])
-        if os.path.exists(os.path.join("calibration", f.func_name)):
+        if os.path.exists(os.path.join(calibration_dir, f.func_name)):
             S,N = load_success_count_calibration(f)
             N+= (S==N)
             accept_prob = .01 # 1% false negative rate
@@ -165,7 +171,7 @@ def success_count(n,*a,**k):
         return test_run
     return count_successes
 
-def calibrate_success_count(f,n,a,k, directory="calibration"):
+def calibrate_success_count(f,n,a,k, directory=calibration_dir):
     succ = 0
     N = 10000*n
     print "calibrating %s, %d trials"%(f.func_name, N),
@@ -181,12 +187,12 @@ def calibrate_success_count(f,n,a,k, directory="calibration"):
     with open(os.path.join(directory, f.func_name),"w") as cal_f:
         cal_f.write(`succ,float(N)`);
 
-def load_success_count_calibration(f, directory="calibration"):
+def load_success_count_calibration(f, directory=calibration_dir):
     with open(os.path.join(directory, f.func_name)) as cal_f:
         return eval(cal_f.read())
 
 
-def calibrate_all(directory="calibration"):
+def calibrate_all(directory=calibration_dir):
     global success_count_functions
 
     if not os.path.exists(directory):
@@ -196,7 +202,7 @@ def calibrate_all(directory="calibration"):
         calibrate_success_count(f,n,a,k, directory=directory)
         print
 
-def calibrate_new(directory="calibration"):
+def calibrate_new(directory=calibration_dir):
     for f,n,a,k in success_count_functions:
         if os.path.exists(os.path.join(directory, f.func_name)):
             continue
