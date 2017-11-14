@@ -473,11 +473,16 @@ def test_clique(n,k):
 
 @success_perfect(20, 25, 25)
 def test_clique_clique(n,k):
-    chim = Chimera(n)
     cliq = Clique(k)
 
     return find_embedding(cliq, cliq, fast_embedding=True)
 
+@success_perfect(3, 16)
+def test_clique_large_nosegfault(n):
+    chim = Chimera(n)
+    cliq = Clique(4*n+2)
+
+    return not find_embedding(cliq, chim, fast_embedding=True, timeout=1)
 
 @success_count(30, 6, 25)
 def test_clique_parallel(n,k):
