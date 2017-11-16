@@ -1,4 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import setup, extension
 from setuptools.command.build_ext import build_ext
 from Cython.Build import cythonize
 
@@ -28,6 +28,8 @@ class build_ext_compiler_check(build_ext):
 
         build_ext.build_extensions(self)
 
+class Extension(extension.Extension, object):
+    pass
 
 setup(
     name="minorminer",
