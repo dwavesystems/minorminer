@@ -1,17 +1,23 @@
 from setuptools import setup, extension
 from setuptools.command.build_ext import build_ext
 from Cython.Build import cythonize
+import sys
+import os
 
 extra_compile_args = {
     'msvc': ['/std:c++latest', '/MT', '/EHsc'],
-    'unix': ['-std=c++1y', '-Wextra', '-Wno-format-security', '-Ofast', '-fomit-frame-pointer', '-DNDEBUG', '-fno-rtti'],
-#    'unix': ['-std=c++1y','-w','-O0', '-g', '-fipa-pure-const', '-DCPPDEBUG'],
+    'unix': ['-std=c++11', '-Wextra', '-Wno-format-security', '-Ofast', '-fomit-frame-pointer', '-DNDEBUG', '-fno-rtti'],
 }
 
 extra_link_args = {
     'msvc': [],
     'unix': ['-std=c++11'],
 }
+
+
+if '--debug' in sys.argv or '-g' in sys.argv or 'CPPDEBUG' in os.environ:
+    extra_compile_args['msvc'].append('/DCPPDEBUG')
+    extra_compile_args['unix'] = ['-std=c++1y', '-w', '-O0', '-g', '-fipa-pure-const', '-DCPPDEBUG']
 
 
 class build_ext_compiler_check(build_ext):
