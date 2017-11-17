@@ -8,7 +8,7 @@ if "%SPHINXBUILD%" == "" (
 	set SPHINXBUILD=sphinx-build
 )
 set SOURCEDIR=source
-set BUILDDIR=build
+set BUILDDIR=build-python
 set SPHINXPROJ=minorminer
 
 if "%1" == "" goto help
@@ -25,6 +25,11 @@ if errorlevel 9009 (
 	echo.http://sphinx-doc.org/
 	exit /b 1
 )
+
+REM This will generate the XML dump of the docstrings from the c++
+doxygen Doxyfile
+python -m breathe.apidoc -o source\cpp build-cpp\xml
+
 
 %SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS%
 goto end
