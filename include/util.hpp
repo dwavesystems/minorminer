@@ -47,10 +47,9 @@ using pairing_queue::pairing_queue_fast_reset;
 using distance_queue = pairing_queue::pairing_queue_fast_reset<distance_t>;
 using int_queue = pairing_queue::pairing_queue_fast_reset<int>;
 
-// LocalInteraction provides a set of callback functions used for communication
-// between the library and any set of bindings using it.
-//
-// Any bindings of this library need to provide a concrete subclass.
+//! Interface for communication between the library and various bindings.
+//!
+//! Any bindings of this library need to provide a concrete subclass.
 class LocalInteraction {
   public:
     virtual ~LocalInteraction() {}

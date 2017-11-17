@@ -1,56 +1,14 @@
+"""
+minorminer is a heuristic tool for finding graph minors.
+
+For complete details on underlying algorithm see the paper: https://arxiv.org/abs/1406.2741
+"""
 include "minorminer.pxi"
 
 
-cdef int get_chainmap(C, chainmap &CMap, QL, AL) except -1:
-    cdef vector[int] chain
-    CMap.clear();
-    try:
-        if isinstance(C, (tuple, list)):
-            R = xrange(len(C))
-        else:
-            R = C
-        for a in R:
-            chain.clear()
-            if C[a]:
-                if AL is None:
-                    for x in C[a]:
-                        chain.push_back(<int> x)
-                else:
-                    for x in C[a]:
-                        chain.push_back(<int> AL[x])
-                if QL is None:
-                    CMap.insert(pair[int,vector[int]](a, chain))
-                else:
-                    CMap.insert(pair[int,vector[int]](QL[a], chain))
-
-    except (TypeError, ValueError):
-        try:
-            nc = next(C)
-        except:
-            nc = None
-        if nc is None:
-            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints or lists/tuples of the same; C has type %s and I can't iterate over it"%type(C)
-        else:
-            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints or lists/tuples of the same; C has type %s and next(C) has type %s"%(type(C), type(nc))
-
-cdef read_graph(input_graph &g, E):
-    try:
-        for a,b in E:
-            if a<0 or b<0:
-                g.clear()
-                raise TypeError
-            g.push_back(a,b)
-        return None
-    except:
-        L = labeldict()
-        for a,b in E:
-            g.push_back(L[a],L[b])
-        return L
-
-
-
-def find_embedding(Q,A,**params):
+def find_embedding(Q, A, **params):
     """
+    find_embedding(Q, A, **params)
     Find an embedding of a QUBO/Ising in a graph.
 
     (can be interrupted by Ctrl-C, will return the best embedding found so far.)
@@ -170,7 +128,7 @@ def find_embedding(Q,A,**params):
                        chains are inserted into an embedding before the initialization pass.
                        As the algorithm proceeds, these chains are not allowed to change. Missing
                        or empty entries are ignored.
-                       
+
 
          restrict_chains: A dictionary or list, where restrict_chains[i] is a list of qubit labels.
                           Throughout the algorithm, we maintain the condition that chain[i] is a
@@ -233,12 +191,12 @@ def find_embedding(Q,A,**params):
     cdef input_graph Qg
     cdef input_graph Ag
 
-    cdef labeldict QL = read_graph(Qg,Q)
-    cdef labeldict AL = read_graph(Ag,A)
+    cdef labeldict QL = _read_graph(Qg,Q)
+    cdef labeldict AL = _read_graph(Ag,A)
 
-    get_chainmap(params.get("fixed_chains",[]), opts.fixed_chains, QL, AL)
-    get_chainmap(params.get("initial_chains",[]), opts.initial_chains, QL, AL)
-    get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, QL, AL)
+    _get_chainmap(params.get("fixed_chains",[]), opts.fixed_chains, QL, AL)
+    _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, QL, AL)
+    _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, QL, AL)
 
     cdef vector[vector[int]] chains
     cdef int success = findEmbedding(Qg, Ag, opts, chains)
@@ -267,3 +225,48 @@ def find_embedding(Q,A,**params):
     else:
         return rchain
 
+cdef int _get_chainmap(C, chainmap &CMap, QL, AL) except -1:
+    cdef vector[int] chain
+    CMap.clear();
+    try:
+        if isinstance(C, (tuple, list)):
+            R = xrange(len(C))
+        else:
+            R = C
+        for a in R:
+            chain.clear()
+            if C[a]:
+                if AL is None:
+                    for x in C[a]:
+                        chain.push_back(<int> x)
+                else:
+                    for x in C[a]:
+                        chain.push_back(<int> AL[x])
+                if QL is None:
+                    CMap.insert(pair[int,vector[int]](a, chain))
+                else:
+                    CMap.insert(pair[int,vector[int]](QL[a], chain))
+
+    except (TypeError, ValueError):
+        try:
+            nc = next(C)
+        except:
+            nc = None
+        if nc is None:
+            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints or lists/tuples of the same; C has type %s and I can't iterate over it"%type(C)
+        else:
+            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints or lists/tuples of the same; C has type %s and next(C) has type %s"%(type(C), type(nc))
+
+cdef _read_graph(input_graph &g, E):
+    try:
+        for a,b in E:
+            if a<0 or b<0:
+                g.clear()
+                raise TypeError
+            g.push_back(a,b)
+        return None
+    except:
+        L = labeldict()
+        for a,b in E:
+            g.push_back(L[a],L[b])
+        return L
