@@ -165,7 +165,7 @@ def success_count(n,*a,**k):
                     assert False, "took %d tries without success, this should only happen %.02f%% of the time"%(tts, false_prob*100)
         else:
             def test_run():
-                raise RuntimeError, "%s is not calibrated -- run calibrate_all_tests() or calibrate_new_tests()"%(f.func_name)
+                raise RuntimeError, "%s is not calibrated -- run calibrate_all() or calibrate_new()"%(f.func_name)
 
             test_run.original=f
         return test_run
@@ -467,7 +467,7 @@ def test_biclique_chimera(n):
     chim = Chimera(n)
     kliq = Biclique(4*n)
 
-    return find_embedding(kliq, chim, fast_embedding=True, verbose=1)
+    return find_embedding(kliq, chim, fast_embedding=True)
 
 @success_count(30, 5)
 def test_path_cheat_domain(n):

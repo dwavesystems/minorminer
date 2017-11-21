@@ -133,7 +133,7 @@ class pathfinder_base {
         emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
 
         bool improved = false;
-        for (auto &u : ep.var_order(VARORDER_BFS)) {
+        for (auto &u : ep.var_order(VARORDER_SHUFFLE)) {
             if (!find_chain(emb, u)) return -1;
 
             emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
