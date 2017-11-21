@@ -12,12 +12,13 @@ using std::set;
 using std::max;
 using std::min;
 
-// Represents an undirected graph as a list of edges, and provides
-// methods to extract those edges into neighbor lists (with options
-// to relabel and produce directed graphs).
-//
-// As an input to the library this may be a disconnected graph,
-// but when returned from components it is a connected sub graph.
+//! Represents an undirected graph as a list of edges.
+//!
+//! Provides methods to extract those edges into neighbor lists (with options
+//! to relabel and produce directed graphs).
+//!
+//! As an input to the library this may be a disconnected graph,
+//! but when returned from components it is a connected sub graph.
 class input_graph {
   private:
     // In
@@ -40,35 +41,44 @@ class input_graph {
     }
 
   public:
+    //! Constructs an empty graph.
     input_graph() : edges_aside(), edges_bside(), _num_nodes(0) {}
+    //! Constructs a graph from the provided edges.
+    //! The ends of edge ii are aside[ii] and bside[ii].
+    //! @param n_v Number of nodes in the graph.
+    //! @param aside List of nodes describing edges.
+    //! @param bside List of nodes describing edges.
     input_graph(int n_v, const vector<int>& aside, const vector<int>& bside)
             : edges_aside(aside), edges_bside(bside), _num_nodes(n_v) {
         minorminer_assert(aside.size() == bside.size());
     }
 
+    //! Remove all edges and nodes from a graph.
     void clear() {
         edges_aside.clear();
         edges_bside.clear();
         _num_nodes = 0;
     }
 
-    // Return the nodes on either end of edge `i`
+    //! Return the nodes on either end of edge `i`
     int a(const int i) const { return edges_aside[i]; }
+    //! Return the nodes on either end of edge `i`
     int b(const int i) const { return edges_bside[i]; }
 
-    // Return the size of the graph in nodes, and edges
+    //! Return the size of the graph in nodes
     int num_nodes() const { return _num_nodes; }
+    //! Return the size of the graph in edges
     int num_edges() const { return edges_aside.size(); }
 
-    // Add an edge to the graph
+    //! Add an edge to the graph
     void push_back(int ai, int bi) {
         edges_aside.push_back(ai);
         edges_bside.push_back(bi);
         _num_nodes = max(_num_nodes, max(ai, bi) + 1);
     }
 
-    // produce the node->nodelist mapping for our graph, where certain nodes are
-    // marked as sources (no incoming edges)
+    //! produce the node->nodelist mapping for our graph, where certain nodes are
+    //! marked as sources (no incoming edges)
     void get_neighbors_sources(vector<vector<int> >& nbrs, const vector<int>& sources) const {
         vector<set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
@@ -79,8 +89,8 @@ class input_graph {
         _to_vectorhoods(_nbrs, nbrs);
     }
 
-    // produce the node->nodelist mapping for our graph, where certain nodes are
-    // marked as sinks (no outgoing edges)
+    //! produce the node->nodelist mapping for our graph, where certain nodes are
+    //! marked as sinks (no outgoing edges)
     void get_neighbors_sinks(vector<vector<int> >& nbrs, const vector<int>& sinks) const {
         vector<set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
@@ -91,8 +101,8 @@ class input_graph {
         _to_vectorhoods(_nbrs, nbrs);
     }
 
-    // produce the node->nodelist mapping for our graph, where certain nodes are
-    // marked as sinks (no outgoing edges), relabeling all nodes along the way
+    //! produce the node->nodelist mapping for our graph, where certain nodes are
+    //! marked as sinks (no outgoing edges), relabeling all nodes along the way
     void get_neighbors_sinks_relabel(vector<vector<int> >& nbrs, const vector<int>& sinks,
                                      const vector<int>& relabel) const {
         vector<set<int> > _nbrs(_num_nodes);
@@ -105,7 +115,7 @@ class input_graph {
         _to_vectorhoods(_nbrs, nbrs);
     }
 
-    // produce the node->nodelist mapping for our graph, relabeling all nodes along the way
+    //! produce the node->nodelist mapping for our graph, relabeling all nodes along the way
     void get_neighbors_relabel(vector<vector<int> >& nbrs, const vector<int>& relabel) const {
         vector<set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
@@ -116,7 +126,7 @@ class input_graph {
         _to_vectorhoods(_nbrs, nbrs);
     }
 
-    // produce the node->nodelist mapping for our graph
+    //! produce the node->nodelist mapping for our graph
     void get_neighbors(vector<vector<int> >& nbrs) const {
         vector<set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
@@ -128,10 +138,10 @@ class input_graph {
     }
 };
 
-// Represents a graph as a series of connected components.
-//
-// The input graph may consist of many components, they will be separated
-// in the construction.
+//! Represents a graph as a series of connected components.
+//!
+//! The input graph may consist of many components, they will be separated
+//! in the construction.
 class components {
   public:
     template <class rng_t>

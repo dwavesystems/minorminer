@@ -1,8 +1,13 @@
+# Ignore temporary/cache files
 *.pyc
+*.gch
 *~
-python/build
-python/dist
-python/minorminer.cpp
-python/minorminer.egg-info
+
+# Ignore output paths
+/python/build
+/python/dist
+/python/minorminer.cpp
+/python/minorminer.egg-info
+/build/
+
 env/
-build/
