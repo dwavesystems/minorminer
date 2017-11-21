@@ -90,7 +90,7 @@ def Clique(n):
     return [(u,v) for u in xrange(n) for v in xrange(u)]
 
 def Biclique(n):
-    return [(u,v) for u in xrange(n) for v in xrange(n,2*n+1)]
+    return [(u,v) for u in xrange(n) for v in xrange(n,2*n)]
 
 def Chimera(n,l=4):
     return [((x,y,u,k),(x+dx,y+dy,u,k))
@@ -455,6 +455,13 @@ def test_grid_cheat_domain(n):
     cheat = GridChimeraEmbedding(2*n)
 
     return find_embedding(grid, chim, restrict_chains=cheat, fast_embedding=True)
+
+@success_count(30, 2)
+def test_biclique_chimera(n):
+    chim = Chimera(n)
+    kliq = Biclique(4*n)
+
+    return find_embedding(kliq, chim, fast_embedding=True, verbose=1)
 
 @success_count(30, 5)
 def test_path_cheat_domain(n):
