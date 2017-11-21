@@ -118,7 +118,7 @@ class pathfinder_base {
     }
 
     int initialization_pass(embedding_t &emb) {
-        for (auto &u : ep.var_order()) {
+        for (auto &u : ep.var_order(VARORDER_PFS)) {
             //                if( emb.chainsize(u) && emb.linked(u) )
             //                    continue;
             if (!find_chain(emb, u)) return -1;
@@ -133,7 +133,7 @@ class pathfinder_base {
         emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
 
         bool improved = false;
-        for (auto &u : ep.var_order()) {
+        for (auto &u : ep.var_order(VARORDER_BFS)) {
             if (!find_chain(emb, u)) return -1;
 
             emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
@@ -169,7 +169,7 @@ class pathfinder_base {
         int oldbound = ep.weight_bound;
 
         bool improved = false;
-        for (auto &u : ep.var_order()) {
+        for (auto &u : ep.var_order(VARORDER_BFS)) {
             int r = 0;
             if (pushback < num_vars) {
                 int maxfill = 0;
@@ -223,7 +223,7 @@ class pathfinder_base {
     int improve_chainlength_pass(embedding_t &emb) {
         emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
         bool improved = false;
-        for (auto &u : ep.var_order()) {
+        for (auto &u : ep.var_order(VARORDER_SHUFFLE)) {
             ep.target_chainsize = maxChainSize - 1;
 
             if (!find_chain(emb, u)) return -1;

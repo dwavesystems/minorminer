@@ -13,6 +13,8 @@
 
 namespace find_embedding {
 
+enum VARORDER { VARORDER_SHUFFLE, VARORDER_DFS, VARORDER_BFS, VARORDER_PFS, VARORDER_RPFS };
+
 // This file contains component classes for constructing embedding problems.  Presently, an embedding_problem class is
 // constructed by combining the embedding_problem_base class with a domain_handler class and a fixed_handler class.
 // This is used to accomplish dynamic dispatch for code in/around the inner loops without fouling their performance.
@@ -171,6 +173,8 @@ class embedding_problem_base {
     vector<int> var_order_visited;
     vector<int> var_order_shuffle;
 
+    int_queue var_order_pq;
+
   public:
     int alpha, initialized, embedded, desperate, target_chainsize, weight_bound;
 
@@ -187,6 +191,7 @@ class embedding_problem_base {
               var_order_space(n_v),
               var_order_visited(n_v, 0),
               var_order_shuffle(n_v),
+              var_order_pq(n_q + n_r),
               initialized(0),
               embedded(0),
               desperate(0),
@@ -222,15 +227,32 @@ class embedding_problem_base {
         std::shuffle(a, b, params.rng);
     }
 
-    const vector<int> &var_order() {
+    const vector<int> &var_order(VARORDER order = VARORDER_SHUFFLE) {
         var_order_space.clear();
         var_order_shuffle.clear();
-        var_order_visited.assign(num_v, 0);
-        var_order_visited.resize(num_v + num_f, 1);
         for (int v = num_v; v--;) var_order_shuffle.push_back(v);
         shuffle(begin(var_order_shuffle), end(var_order_shuffle));
+        if (order == VARORDER_SHUFFLE) return var_order_shuffle;
+
+        var_order_visited.assign(num_v, 0);
+        var_order_visited.resize(num_v + num_f, 1);
         for (auto &v : var_order_shuffle)
-            if (!var_order_visited[v]) dfs_component(v, var_nbrs, var_order_space, var_order_visited);
+            if (!var_order_visited[v]) switch (order) {
+                    case VARORDER_DFS:
+                        dfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                        break;
+                    case VARORDER_BFS:
+                        bfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                        break;
+                    case VARORDER_PFS:
+                        pfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                        break;
+                    case VARORDER_RPFS:
+                        rpfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                        break;
+                    case VARORDER_SHUFFLE:
+                        throw - 1;
+                }
         return var_order_space;
     }
 
@@ -249,6 +271,62 @@ class embedding_problem_base {
                 }
             }
         }
+    }
+
+    // Perform a priority first search (priority = #of visited neighbors)
+    void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
+        int d;
+        var_order_pq.reset();
+        var_order_pq.set_value(x, 0);
+        while (var_order_pq.pop_min(x, d)) {
+            visited[x] = 1;
+            component.push_back(x);
+            for (auto &y : neighbors[x])
+                if (!visited[y])
+                    if (!var_order_pq.check_decrease_value(y, 0)) {
+                        d = var_order_pq.get_value(y);
+                        var_order_pq.decrease_value(y, d - 1);
+                    }
+        }
+    }
+
+    // Perform a reverse priority first search (reverse priority = #of unvisited neighbors)
+    void rpfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
+        int d;
+        var_order_pq.reset();
+        var_order_pq.set_value(x, 0);
+        while (var_order_pq.pop_min(x, d)) {
+            visited[x] = 1;
+            component.push_back(x);
+            for (auto &y : neighbors[x]) {
+                if (!visited[y]) {
+                    int z = 0;
+                    for (auto &w : neighbors[z])
+                        if (!visited[w]) z++;
+                    var_order_pq.set_value(y, z);
+                }
+            }
+        }
+    }
+
+    // Perform a breadth first search, shuffling level sets
+    void bfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
+        size_t front = component.size();
+        int d = 0, d0 = 0;
+        var_order_pq.reset();
+        var_order_pq.set_value(x, 0);
+        while (var_order_pq.pop_min(x, d)) {
+            if (d > d0) {
+                shuffle(begin(component) + front, end(component));
+                d0 = d;
+                front = component.size();
+            }
+            visited[x] = 1;
+            component.push_back(x);
+            for (auto &y : neighbors[x])
+                if (!visited[y]) var_order_pq.check_decrease_value(y, d + 1);
+        }
+        shuffle(begin(component) + front, end(component));
     }
 };
 
