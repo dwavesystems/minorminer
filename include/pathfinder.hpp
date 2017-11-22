@@ -110,7 +110,7 @@ class pathfinder_base {
         if (ep.initialized) emb.covfefe(u);
         emb.tear_out(u);
         if (ep.embedded && ep.desperate)
-            return find_short_chain(emb, u, num_qubits);
+            return find_short_chain(emb, u, 10);
         else if (ep.desperate)
             return find_short_chain(emb, u, 2);
         else
@@ -140,7 +140,7 @@ class pathfinder_base {
         emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
 
         bool improved = false;
-        for (auto &u : ep.var_order(VARORDER_DFS)) {
+        for (auto &u : ep.var_order(ep.improved ? VARORDER_BFS : VARORDER_SHUFFLE)) {
             if (!find_chain(emb, u)) return -1;
 
             emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
@@ -176,21 +176,17 @@ class pathfinder_base {
         int oldbound = ep.weight_bound;
 
         bool improved = false;
-        for (auto &u : ep.var_order(VARORDER_BFS)) {
+        for (auto &u : ep.var_order(ep.improved ? VARORDER_KEEP : VARORDER_PFS)) {
             int r = 0;
             if (pushback < num_vars) {
                 int maxfill = 0;
                 emb.covfefe(u);
                 for (auto &q : emb.get_chain(u)) maxfill = max(maxfill, emb.weight(q));
-                if (pushback < num_vars / 2) {
-                    ep.weight_bound = maxfill;
-                    ep.target_chainsize = maxChainSize - 1;
-                } else {
-                    ep.weight_bound = maxfill + 1;
-                    ep.target_chainsize = 0;
-                }
+
+                ep.weight_bound = max(0, maxfill - 1);
+                ep.target_chainsize = maxChainSize - 1;
                 r = find_chain(emb, u);
-                if (!r) pushback++;
+                if (!r) pushback += 3;
             }
             if (!r) {
                 ep.target_chainsize = 0;
@@ -230,7 +226,7 @@ class pathfinder_base {
     int improve_chainlength_pass(embedding_t &emb) {
         emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
         bool improved = false;
-        for (auto &u : ep.var_order(VARORDER_DFS)) {
+        for (auto &u : ep.var_order(ep.improved ? VARORDER_KEEP : VARORDER_PFS)) {
             ep.target_chainsize = maxChainSize - 1;
 
             if (!find_chain(emb, u)) return -1;
@@ -416,7 +412,7 @@ class pathfinder_base {
         }
         ep.initialized = 1;
         bestEmbedding.statistics(bestEmbeddingSum, bestWidth, bestNumMaxBags, bestChainSize, bestNumMaxChains);
-
+        ep.improved = 1;
         for (int trial_patience = params.tries; trial_patience-- && (bestWidth > 1);) {
             int improvement_patience = params.max_no_improvement;
             currEmbedding = lastEmbedding = bestEmbedding;
@@ -441,10 +437,12 @@ class pathfinder_base {
                         break;
                     case 0:
                         improvement_patience--;
+                        ep.improved = 0;
                         break;
                     case 1:
                         improvement_patience = params.max_no_improvement;
                         pushback = 0;
+                        ep.improved = 1;
                         break;
                 }
             }
@@ -480,9 +478,11 @@ class pathfinder_base {
                         break;  // interrupting here is inconsequential; bestEmbedding is valid
                     case 0:
                         improvement_patience--;
+                        ep.improved = 0;
                         break;
                     case 1:
                         improvement_patience = params.chainlength_patience;
+                        ep.improved = 1;
                         break;
                 }
             }
