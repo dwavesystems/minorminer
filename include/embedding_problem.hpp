@@ -13,7 +13,7 @@
 
 namespace find_embedding {
 
-enum VARORDER { VARORDER_SHUFFLE, VARORDER_DFS, VARORDER_BFS, VARORDER_PFS, VARORDER_RPFS };
+enum VARORDER { VARORDER_SHUFFLE, VARORDER_DFS, VARORDER_BFS, VARORDER_PFS, VARORDER_RPFS, VARORDER_KEEP };
 
 // This file contains component classes for constructing embedding problems.  Presently, an embedding_problem class is
 // constructed by combining the embedding_problem_base class with a domain_handler class and a fixed_handler class.
@@ -176,7 +176,7 @@ class embedding_problem_base {
     int_queue var_order_pq;
 
   public:
-    int alpha, initialized, embedded, desperate, target_chainsize, weight_bound;
+    int alpha, initialized, embedded, desperate, target_chainsize, improved, weight_bound;
 
     embedding_problem_base(optional_parameters &p_, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
                            vector<vector<int>> &q_n)
@@ -195,7 +195,8 @@ class embedding_problem_base {
               initialized(0),
               embedded(0),
               desperate(0),
-              target_chainsize(0) {
+              target_chainsize(0),
+              improved(0) {
         alpha = 8 * sizeof(distance_t);
         int N = num_q;
         while (N /= 2) alpha--;
@@ -232,31 +233,37 @@ class embedding_problem_base {
     }
 
     const vector<int> &var_order(VARORDER order = VARORDER_SHUFFLE) {
+        if (order == VARORDER_KEEP) {
+            minorminer_assert(var_order_space.size() > 0);
+            return var_order_space;
+        }
         var_order_space.clear();
         var_order_shuffle.clear();
         for (int v = num_v; v--;) var_order_shuffle.push_back(v);
         shuffle(begin(var_order_shuffle), end(var_order_shuffle));
-        if (order == VARORDER_SHUFFLE) return var_order_shuffle;
-
-        var_order_visited.assign(num_v, 0);
-        var_order_visited.resize(num_v + num_f, 1);
-        for (auto &v : var_order_shuffle)
-            if (!var_order_visited[v]) switch (order) {
-                    case VARORDER_DFS:
-                        dfs_component(v, var_nbrs, var_order_space, var_order_visited);
-                        break;
-                    case VARORDER_BFS:
-                        bfs_component(v, var_nbrs, var_order_space, var_order_visited);
-                        break;
-                    case VARORDER_PFS:
-                        pfs_component(v, var_nbrs, var_order_space, var_order_visited);
-                        break;
-                    case VARORDER_RPFS:
-                        rpfs_component(v, var_nbrs, var_order_space, var_order_visited);
-                        break;
-                    case VARORDER_SHUFFLE:
-                        throw - 1;
-                }
+        if (order == VARORDER_SHUFFLE) {
+            var_order_shuffle.swap(var_order_space);
+        } else {
+            var_order_visited.assign(num_v, 0);
+            var_order_visited.resize(num_v + num_f, 1);
+            for (auto &v : var_order_shuffle)
+                if (!var_order_visited[v]) switch (order) {
+                        case VARORDER_DFS:
+                            dfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                            break;
+                        case VARORDER_BFS:
+                            bfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                            break;
+                        case VARORDER_PFS:
+                            pfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                            break;
+                        case VARORDER_RPFS:
+                            rpfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                            break;
+                        default:
+                            throw - 1;
+                    }
+        }
         return var_order_space;
     }
 

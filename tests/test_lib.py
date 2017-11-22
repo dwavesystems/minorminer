@@ -167,13 +167,15 @@ def success_count(n,*a,**k):
             def test_run():
                 raise RuntimeError, "%s is not calibrated -- run calibrate_all() or calibrate_new()"%(f.func_name)
 
-            test_run.original=f
+        test_run.original=f
         return test_run
     return count_successes
 
-def calibrate_success_count(f,n,a,k, directory=calibration_dir):
+def calibrate_success_count(f,n,a,k, directory=calibration_dir, M=None):
     succ = 0
-    N = 10000*n
+    if M is None:
+        M = 10000
+    N = M*n
     print "calibrating %s, %d trials"%(f.func_name, N),
     t0 = time.clock()
     for i in range(N):
@@ -197,22 +199,22 @@ def load_success_count_calibration(f, directory=calibration_dir):
         return eval(cal_f.read())
 
 
-def calibrate_all(directory=calibration_dir):
+def calibrate_all(directory=calibration_dir, M=None):
     global success_count_functions
 
     if not os.path.exists(directory):
         os.mkdir(directory)
 
     for f,n,a,k in success_count_functions:
-        calibrate_success_count(f,n,a,k, directory=directory)
+        calibrate_success_count(f,n,a,k, directory=directory, M=M)
         print
 
-def calibrate_new(directory=calibration_dir):
+def calibrate_new(directory=calibration_dir, M=None):
     for f,n,a,k in success_count_functions:
         if os.path.exists(os.path.join(directory, f.func_name)):
             continue
         else:
-            calibrate_success_count(f,n,a,k)
+            calibrate_success_count(f,n,a,k, directory=directory, M=M)
 
 def success_perfect(n,*a,**k):
     from functools import wraps
