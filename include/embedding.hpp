@@ -32,16 +32,7 @@ class embedding {
     int num_qubits, num_reserved;
     int num_vars, num_fixed;
 
-    // WEIRD THING:
-    // var_embedding contains "parent masks" for chains.  most of the time,
-    // typically, veu = var_embedding[u] will contain the description of
-    // a tree.
-    //  * veu[q]-1 can be interpreted as the parent of q in the tree
-    //  * if veu[q] == 0, then q is not contained in the tree
-    //  * if veu[q] == q+1, then q is the root of the tree
-    // having the tree info is handy to some internals but we don't expose
-    // it to users or require that they provide this info -- sometimes,
-    // every qubit in the chain it its own parent
+    // this is where we store chains -- see chain.hpp for how
     vector<chain> var_embedding;
 
 #ifdef CPPDEBUG

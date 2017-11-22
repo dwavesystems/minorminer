@@ -110,17 +110,24 @@ class pathfinder_base {
         if (ep.initialized) emb.covfefe(u);
         emb.tear_out(u);
         if (ep.embedded && ep.desperate)
-            return find_short_chain(emb, u, 10);
-        else if (ep.desperate)
             return find_short_chain(emb, u, num_qubits);
+        else if (ep.desperate)
+            return find_short_chain(emb, u, 2);
         else
             return find_chain(emb, u, ep.target_chainsize);
     }
 
     int initialization_pass(embedding_t &emb) {
-        for (auto &u : ep.var_order(VARORDER_PFS)) {
-            //                if( emb.chainsize(u) && emb.linked(u) )
-            //                    continue;
+        for (auto &u : ep.var_order(params.restrict_chains.size() ? VARORDER_BFS : VARORDER_PFS)) {
+            if (emb.chainsize(u) && emb.linked(u)) {
+                vector<int> tmp_component;
+                vector<int> tmp_visited;
+                tmp_visited.assign(num_qubits + num_reserved, 1);
+                int p = 0;
+                for (auto &q : emb.get_chain(u)) tmp_visited[p = q] = 0;
+                ep.qubit_component(p, tmp_component, tmp_visited);
+                if (tmp_component.size() == emb.chainsize(u)) continue;
+            }
             if (!find_chain(emb, u)) return -1;
         }
         if (params.localInteractionPtr->cancelled(stoptime))
@@ -133,7 +140,7 @@ class pathfinder_base {
         emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
 
         bool improved = false;
-        for (auto &u : ep.var_order(VARORDER_SHUFFLE)) {
+        for (auto &u : ep.var_order(VARORDER_DFS)) {
             if (!find_chain(emb, u)) return -1;
 
             emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
@@ -223,7 +230,7 @@ class pathfinder_base {
     int improve_chainlength_pass(embedding_t &emb) {
         emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
         bool improved = false;
-        for (auto &u : ep.var_order(VARORDER_SHUFFLE)) {
+        for (auto &u : ep.var_order(VARORDER_DFS)) {
             ep.target_chainsize = maxChainSize - 1;
 
             if (!find_chain(emb, u)) return -1;
@@ -444,6 +451,7 @@ class pathfinder_base {
             if (trial_patience && (bestWidth > 1) && (improvement_patience == 0)) {
                 ep.initialized = 0;
                 ep.desperate = 1;
+                bestEmbedding = initEmbedding;
                 if (initialization_pass(bestEmbedding) <= 0) {
                     ep.display_message("failed during restart. embeddings may be invalid.\n");
                     return 0;
