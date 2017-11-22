@@ -227,6 +227,10 @@ class embedding_problem_base {
         std::shuffle(a, b, params.rng);
     }
 
+    void qubit_component(int q0, vector<int> component, vector<int> visited) {
+        dfs_component(q0, qubit_nbrs, component, visited);
+    }
+
     const vector<int> &var_order(VARORDER order = VARORDER_SHUFFLE) {
         var_order_space.clear();
         var_order_shuffle.clear();
@@ -256,7 +260,6 @@ class embedding_problem_base {
         return var_order_space;
     }
 
-  private:
     // Perform a depth first search
     void dfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         size_t front = component.size();
@@ -264,15 +267,18 @@ class embedding_problem_base {
         visited[x] = 1;
         while (front < component.size()) {
             int x = component[front++];
+            int lastback = component.size();
             for (auto &y : neighbors[x]) {
                 if (!visited[y]) {
                     visited[y] = 1;
                     component.push_back(y);
                 }
             }
+            if (lastback != component.size()) shuffle(begin(component) + lastback, end(component));
         }
     }
 
+  private:
     // Perform a priority first search (priority = #of visited neighbors)
     void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         int d;
@@ -285,7 +291,7 @@ class embedding_problem_base {
                 if (!visited[y])
                     if (!var_order_pq.check_decrease_value(y, 0)) {
                         d = var_order_pq.get_value(y);
-                        var_order_pq.decrease_value(y, d - 1);
+                        var_order_pq.decrease_value(y, (d - 1) * 256 + randint(256));
                     }
         }
     }
@@ -303,7 +309,7 @@ class embedding_problem_base {
                     int z = 0;
                     for (auto &w : neighbors[z])
                         if (!visited[w]) z++;
-                    var_order_pq.set_value(y, z);
+                    var_order_pq.set_value(y, z * 256 + randint(256));
                 }
             }
         }

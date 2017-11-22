@@ -183,7 +183,12 @@ def calibrate_success_count(f,n,a,k, directory=calibration_dir):
         succ+= bool(f(*a,**k))
     print
     dt = time.clock()-t0
-    print "%s: %.04e per trial; success rate %.01f%%"%(f.func_name, dt/N, succ*100./N)
+    print "%s: %.04e per trial; success rate %.01f%%"%(f.func_name, dt/N, succ*100./N),
+    if directory != calibration_dir and os.path.exists(os.path.join(calibration_dir, f.func_name)):
+        olds, oldn = load_success_count_calibration(f)
+        print "standard is %.01f%%"%(olds*100./oldn)
+    else:
+        print
     with open(os.path.join(directory, f.func_name),"w") as cal_f:
         cal_f.write(`succ,float(N)`);
 
