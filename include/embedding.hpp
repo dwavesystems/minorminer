@@ -56,7 +56,7 @@ class embedding {
               last_diagnostic(nullptr),
 #endif
               qub_weight(num_qubits, 0) {
-        for (int q = 0; q < num_qubits + num_fixed; q++) var_embedding.emplace_back(q);
+        for (int q = 0; q < num_vars + num_fixed; q++) var_embedding.emplace_back(q);
         DIAGNOSE("post base_construct");
     }
 
