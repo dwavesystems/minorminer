@@ -94,7 +94,7 @@ class optional_parameters {
     // Number of seconds before the process unconditionally stops
     double timeout = 1000;
     int tries = 10;
-    bool verbose = false;
+    int verbose = 0;
     int inner_rounds = numeric_limits<int>::max();
     int max_fill = numeric_limits<int>::max();
     bool return_overlap = false;
@@ -104,6 +104,20 @@ class optional_parameters {
     map<int, vector<int> > fixed_chains;
     map<int, vector<int> > initial_chains;
     map<int, vector<int> > restrict_chains;
+
+    void error(const std::string& message) { localInteractionPtr->displayOutput(message + "\n\n"); }
+
+    void info(const std::string& message) {
+        if (verbose >= 1) localInteractionPtr->displayOutput(message + "\n\n");
+    }
+
+    void debug(const std::string& message) {
+        if (verbose >= 2) localInteractionPtr->displayOutput(message + "\n\n");
+    }
+
+    void trace(const std::string& message) {
+        if (verbose >= 3) localInteractionPtr->displayOutput(message + "\n\n");
+    }
 
     optional_parameters() : localInteractionPtr(), rng() {}
     void seed(unsigned int randomSeed) { rng.seed(randomSeed); }

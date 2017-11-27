@@ -101,8 +101,8 @@ def find_embedding(Q, A, **params):
                               the return_overlap parameter enabled.
                               (must be a logical 0/1 integer, default = 0)
 
-         verbose: 0/1.
-                  (must be an integer [0, 1], default = 0)
+         verbose: 0/1/2/3.
+                  (must be an integer [0, 1, 2, 3], default = 0)
                   when verbose is 1, the output information will be like:
                   try ...
                   overfill pass: quit total = ..., max overfill = ...
