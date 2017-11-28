@@ -86,10 +86,47 @@ print(embedding)
 ### Matlab
 
 #### Installation
-**TODO** Explain how to build or use the matlab package.
+
+The mex bindings for this library will work with some versions of 2013 and earlier,
+and versions from 2016b an onward. An example build command used in Ubuntu is
+found in the makefile `matlab/make.m`.
+
+If you run `make` in the `matlab` directory on Ubuntu it should generate
+`find_embedding.mexa64`, which can be added to the MATLAB path.
 
 #### Examples
-**TODO** Usage example?
+```Matlab
+% A triangle is a minor of a square.
+triangle = triu(ones(3),1);
+square = sparse([1,2,3,4],[2,3,4,1],[1,1,1,1],4,4);
+
+% Find an assignment of sets of square variables to the triangle variables
+options = struct('random_seed',10);
+embedding = find_embedding_matlab_wrapper(triangle, square, options)
+% typically in matlab we use indices starting at one rather than 0:
+embedding = cellfun(@(x)x+1,embedding,'UniformOutput',false);
+embedding{:}
+```
+
+```Matlab
+% We can insist that variable 0 of the triangle will always be assigned to
+% [2] (zero-indexed)
+chains = cell(1);
+chains{1} = 2;
+options = struct();
+options.fixed_chains = chains;
+embedding = find_embedding(triangle, square, options)
+embedding{:}
+```
+
+```Matlab
+% If we didn't want to force variable 0 to stay as [2], but we thought that
+% was a good start we could provide it as an initialization hint instead.
+options = struct();
+options.initial_chains = chains;
+embedding = find_embedding(triangle, square, options)
+embedding{:}
+```
 
 ### C++
 
