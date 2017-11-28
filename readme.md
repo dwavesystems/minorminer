@@ -94,7 +94,62 @@ print(embedding)
 ### C++
 
 #### Installation
-**TODO** Should we include a CMake file to make it easier to use this package as a c++ library?
+
+C++11 programs should be able to use this as a header only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externs/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
+
+```CMake
+set(MINORMINER_BUILD_TESTS OFF)
+add_subdirectory(externals/minorminer)
+
+# After your target is defined
+target_link_libraries(your_target minorminer pthread)
+```
 
 #### Examples
-**TODO** Usage example?
+
+A minimal example that can be built in the root of this repo as `example.cpp`.
+
+```bash
+g++ example.cpp -std=c++11 -o example -pthread
+```
+
+```c++
+#include "include/find_embedding.hpp"
+#include <iostream>
+
+class MyCppInteractions : public find_embedding::LocalInteraction {
+public:
+    bool _canceled = false;
+    void cancel() { _canceled = true; }
+
+private:
+    virtual void displayOutputImpl(const std::string& mess) const {
+        std::cout << mess << std::endl;
+    }
+    virtual bool cancelledImpl() const {
+        return _canceled;
+    }
+};
+
+int main(){
+
+    graph::input_graph triangle(3, {0, 1, 2}, {1, 2, 0});
+    graph::input_graph square(4, {0, 1, 2, 3}, {1, 2, 3, 0});
+    find_embedding::optional_parameters params;
+    params.localInteractionPtr.reset(new MyCppInteractions());
+
+    std::vector<std::vector<int>> chains;
+
+    if(find_embedding::findEmbedding(triangle, square, params, chains)) {
+        for(auto chain : chains){
+            for(auto var : chain)
+                std::cout << var << " ";
+            std::cout << std::endl;
+        }
+    } else {
+        std::cout << "Couldn't find embedding." << std::endl;
+    }
+
+    return 0;
+}
+```
