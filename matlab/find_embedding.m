@@ -1,6 +1,6 @@
-%FIND_EMBEDDING_MEX Find am embedding of a QUBO/Ising in a graph.
+%FIND_EMBEDDING Find am embedding of a QUBO/Ising in a graph.
 %
-%  embeddings = find_embedding_mex(Q, A, params)
+%  embeddings = find_embedding(Q, A, params)
 %  (can be interrupted by Ctrl-C, will return the best embedding found so far.)
 %
 %  Attempts to find an embedding of a QUBO in a graph. This function
