@@ -104,7 +104,7 @@ class LocalInteractionMATLAB : public find_embedding::LocalInteraction {
 };
 
 void checkFindEmbeddingParameters(const mxArray* paramsArray,
-                                  find_embedding::optional_parameters findEmbeddingExternalParams) {
+                                  find_embedding::optional_parameters& findEmbeddingExternalParams) {
     // mxIsEmpty(paramsArray) handles the case when paramsArray is: struct('a', {}), since isempty(struct('a', {})) is
     // true !!!
     // mxGetM(paramsArray) != 1 || mxGetN(paramsArray) != 1 handles the case when paramsArray is: struct('a', {1 1}) or
