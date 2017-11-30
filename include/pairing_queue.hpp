@@ -9,6 +9,8 @@
 #include <limits>
 #include <vector>
 
+#include "debug.hpp"
+
 // Macros local to this file, undefined at the end
 #define nullval int(0xffffffff)
 #define max_P (numeric_limits<P>::max())
@@ -127,6 +129,8 @@ class pairing_queue {
     inline int merge_roots(int a, int b) {
         // even this version of merge_roots is slightly unsafe -- we never call it with a null, so let's not check!
         // * doesn't check for nullval
+        minorminer_assert(!empty(a));
+
         if (empty(b)) return a;
         int c = merge_roots_unsafe(a, b);
         prev[c] = nullval;
@@ -137,6 +141,8 @@ class pairing_queue {
         // this unsafe version of merge_roots which
         // * doesn't check for nullval
         // * doesn't ensure that the returned node has prev[a] = nullval
+        minorminer_assert(!empty(a));
+        minorminer_assert(!empty(b));
 
         if (val[a] < val[b]) return merge_roots_unchecked(a, b);
         if (val[b] < val[a]) return merge_roots_unchecked(b, a);
@@ -149,6 +155,9 @@ class pairing_queue {
         // * doesn't check for nullval
         // * doesn't ensure that the returned node has prev[a] = nullval
         // * doesn't check that a < b
+        minorminer_assert(!empty(a));
+        minorminer_assert(!empty(b));
+        minorminer_assert(a < b);
 
         next[b] = desc[a];
         if (!empty(desc[a])) prev[desc[a]] = b;
