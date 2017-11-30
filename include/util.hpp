@@ -5,19 +5,8 @@
 #include <random>
 #include <thread>
 #include <unordered_map>
+#include "debug.hpp"
 #include "pairing_queue.hpp"
-
-#ifdef CPPDEBUG
-#ifdef NDBUG
-#undef NDBUG
-#endif
-#include <assert.h>
-#define minorminer_assert(X) assert(X)
-#else
-#ifndef minorminer_assert
-#define minorminer_assert(X)
-#endif
-#endif
 
 namespace find_embedding {
 // Import some things from the std library
@@ -121,10 +110,6 @@ class FindEmbeddingException {
 class ProblemCancelledException : public FindEmbeddingException {
   public:
     ProblemCancelledException(const string& m = "problem cancelled exception") : FindEmbeddingException(m) {}
-    const string& what() const { return message; }
-
-  private:
-    string message;
 };
 
 // Fill output with the index of all of the minimum and equal values in input
