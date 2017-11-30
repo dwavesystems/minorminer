@@ -35,6 +35,7 @@ class pairing_queue {
 
   public:
     pairing_queue(int n) : val(n, 0), next(n, 0), desc(n, 0), prev(n, 0), root(nullval) {}
+    virtual ~pairing_queue() {}
 
     // Reset the queue and fill the values with a default
     inline void reset_fill(const P &v) {
@@ -225,6 +226,7 @@ class pairing_queue_fast_reset : public pairing_queue<P> {
 
   public:
     pairing_queue_fast_reset(int n) : super(n), time(n), now(0) {}
+    virtual ~pairing_queue_fast_reset() {}
 
     inline void reset() {
         super::root = nullval;  // super::nullval;

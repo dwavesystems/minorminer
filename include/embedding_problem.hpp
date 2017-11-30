@@ -29,6 +29,7 @@ enum VARORDER { VARORDER_SHUFFLE, VARORDER_DFS, VARORDER_BFS, VARORDER_PFS, VARO
 class domain_handler_universe {
   public:
     domain_handler_universe(optional_parameters & /*p*/, int /*n_v*/, int /*n_f*/, int /*n_q*/, int /*n_r*/) {}
+    virtual ~domain_handler_universe() {}
 
     static inline void prepare_visited(vector<int> &visited, int /*u*/, int /*v*/) {
         std::fill(begin(visited), end(visited), 0);
@@ -71,6 +72,7 @@ class domain_handler_masked {
             }
         }
     }
+    virtual ~domain_handler_masked() {}
 
     inline void prepare_visited(vector<int> &visited, const int u, const int v) {
         vector<int> &uMask = masks[u];
@@ -110,6 +112,7 @@ class domain_handler_masked {
 class fixed_handler_none {
   public:
     fixed_handler_none(optional_parameters & /*p*/, int /*n_v*/, int /*n_f*/, int /*n_q*/, int /*n_r*/) {}
+    virtual ~fixed_handler_none() {}
 
     static inline bool fixed(int /*u*/) { return false; }
 
@@ -125,6 +128,8 @@ class fixed_handler_hival {
   public:
     fixed_handler_hival(optional_parameters & /*p*/, int n_v, int /*n_f*/, int n_q, int /*n_r*/)
             : num_v(n_v), num_q(n_q) {}
+    virtual ~fixed_handler_hival() {}
+
     inline bool fixed(const int u) { return u >= num_v; }
 
     inline bool reserved(const int q) { return q >= num_q; }
@@ -147,6 +152,7 @@ class fixed_handler_list {
         minorminer_assert(n_r == 0);
         for (auto &vC : p.fixed_chains) var_fixed[vC.first] = 1;
     }
+    virtual ~fixed_handler_list() {}
 
     inline bool fixed(const int u) { return static_cast<bool>(var_fixed[u]); }
 
@@ -202,6 +208,7 @@ class embedding_problem_base {
         while (N /= 2) alpha--;
         weight_bound = min(params.max_fill, alpha);
     }
+    virtual ~embedding_problem_base() {}
 
     const vector<int> &var_neighbors(int u) const { return var_nbrs[u]; }
 
@@ -358,5 +365,6 @@ class embedding_problem : public embedding_problem_base, public fixed_handler, p
             : embedding_problem_base(p, n_v, n_f, n_q, n_r, v_n, q_n),
               fixed_handler(p, n_v, n_f, n_q, n_r),
               domain_handler(p, n_v, n_f, n_q, n_r) {}
+    virtual ~embedding_problem() {}
 };
 }
