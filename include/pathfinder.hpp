@@ -126,7 +126,7 @@ class pathfinder_base {
                 int p = 0;
                 for (auto &q : emb.get_chain(u)) tmp_visited[p = q] = 0;
                 ep.qubit_component(p, tmp_component, tmp_visited);
-                if (tmp_component.size() == emb.chainsize(u)) continue;
+                if ((int)tmp_component.size() == emb.chainsize(u)) continue;
             }
             if (!find_chain(emb, u)) return -1;
         }
@@ -612,10 +612,10 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
         if (maxwid > super::ep.weight_bound) maxwid = super::ep.weight_bound - 1;
         int alpha = maxwid > 1 ? super::ep.alpha / maxwid : super::ep.alpha - 1;
 
-        exec_chunked([this, &emb, alpha](int a, int b) { super::compute_qubit_weights(emb, alpha, a, b); });
+        exec_chunked([this, &emb, alpha](int a, int b) { this->compute_qubit_weights(emb, alpha, a, b); });
 
         exec_chunked(
-                [this, u](int a, int b) { super::ep.prepare_distances(super::total_distance, u, max_distance, a, b); });
+                [this, u](int a, int b) { this->ep.prepare_distances(this->total_distance, u, max_distance, a, b); });
 
         nbr_i = 0;
         neighbors_embedded = 0;
@@ -626,7 +626,7 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
         for (auto &v : super::ep.var_neighbors(u)) {
             if (emb.chainsize(v)) {
                 exec_chunked(
-                        [this, &emb, v](int a, int b) { super::accumulate_distance(emb, v, visited_list[v], a, b); });
+                        [this, &emb, v](int a, int b) { this->accumulate_distance(emb, v, visited_list[v], a, b); });
             }
         }
     }

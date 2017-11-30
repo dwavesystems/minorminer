@@ -3,11 +3,15 @@
 
     TODO ADD MORE
 """
+from __future__ import print_function
 from minorminer import find_embedding as find_embedding_orig
 from warnings import warn
 import os
 import sys
 import time
+from builtins import range
+
+
 
 # Given that this test is in the tests directory, the calibration data should be
 # in a sub directory. Use the path of this source file to find the calibration
@@ -26,12 +30,12 @@ def find_embedding(Q,A,return_overlap=False,**args):
                 warn(check_embedding.warning, RuntimeWarning)
             return emb, succ
         else:
-            raise RuntimeError, "bad embedding reported as success (%s)"%(check_embedding.errcode)
+            raise RuntimeError("bad embedding reported as success (%s)"%(check_embedding.errcode))
     else:
         emb = find_embedding_orig(Q,A,return_overlap=return_overlap,**args)
         if emb:
             if not check_embedding(Q,A,emb,**args):
-                raise RuntimeError, "bad embedding reported as success (%s)"%(check_embedding.errcode)
+                raise RuntimeError("bad embedding reported as success (%s)"%(check_embedding.errcode))
             elif check_embedding.warning:
                 warn(check_embedding.warning, RuntimeWarning)
         return emb
@@ -87,30 +91,30 @@ def check_embedding(Q,A,emb, **args):
     return True
 
 def Path(n):
-    return [(i,i+1) for i in xrange(n-1)]
+    return [(i,i+1) for i in range(n-1)]
 
 def Grid(n):
-    return [((x,y),(x+dx,y+dy)) for a in xrange(n) for b in xrange(n-1) for (x,y,dx,dy) in (a,b,0,1), (b,a,1,0)]
+    return [((x,y),(x+dx,y+dy)) for a in range(n) for b in range(n-1) for (x,y,dx,dy) in ((a,b,0,1), (b,a,1,0))]
 
 def Clique(n):
-    return [(u,v) for u in xrange(n) for v in xrange(u)]
+    return [(u,v) for u in range(n) for v in range(u)]
 
 def Biclique(n):
-    return [(u,v) for u in xrange(n) for v in xrange(n,2*n)]
+    return [(u,v) for u in range(n) for v in range(n,2*n)]
 
 def Chimera(n,l=4):
     return [((x,y,u,k),(x+dx,y+dy,u,k))
-                for a in xrange(n)
-                     for b in xrange(n-1)
-                         for k in xrange(l)
+                for a in range(n)
+                     for b in range(n-1)
+                         for k in range(l)
                             for x,y,u,dx,dy in [(b,a,0,1,0),(a,b,1,0,1)]
-           ]+[((x,y,0,k),(x,y,1,kk)) for x in xrange(n) for y in xrange(n) for k in xrange(l) for kk in xrange(l)]
+           ]+[((x,y,0,k),(x,y,1,kk)) for x in range(n) for y in range(n) for k in range(l) for kk in range(l)]
 
 def NAE3SAT(n):
     import networkx
     from math import ceil
     from random import seed, randint
-    seed(18293447845779813366L)
+    seed(18293447845779813366)
     c = int(ceil(sum(randint(1,ceil(n*4.2)) for _ in range(100))/100.))
     return networkx.generators.k_random_intersection_graph(c,n,3).edges()
 
@@ -133,14 +137,14 @@ def CartesianProduct(n):
 def GridChimeraEmbedding(n):
     emb = {}
     M = [[0,2,2,0],[1,3,3,1],[1,3,3,1],[0,2,2,0]]
-    for x in xrange(n):
-        for y in xrange(n):
+    for x in range(n):
+        for y in range(n):
             emb[x,y] = [(x/2, y/2, 0, M[x%4][y%4]),
                         (x/2, y/2, 1, M[y%4][x%4])]
     return emb
 
 def mask_wxw(n,w=2,l=4):
-    return {(X/w,Y/w): [(x,y,u,k) for x in xrange(X,X+w) for y in xrange(Y,Y+w) for u in (0,1) for k in xrange(l)] for X in xrange(0,n,w) for Y in xrange(0,n,w)}
+    return {(X/w,Y/w): [(x,y,u,k) for x in range(X,X+w) for y in range(Y,Y+w) for u in (0,1) for k in range(l)] for X in range(0,n,w) for Y in range(0,n,w)}
 
 success_count_functions = []
 def success_count(n,*a,**k):
@@ -149,7 +153,7 @@ def success_count(n,*a,**k):
     def count_successes(f):
         global success_count_functions
         success_count_functions.append([f,n,a,k])
-        if os.path.exists(os.path.join(calibration_dir, f.func_name)):
+        if os.path.exists(os.path.join(calibration_dir, f.__name__)):
             S,N = load_success_count_calibration(f)
             N+= (S==N)
             accept_prob = .01 # 1% false negative rate
@@ -165,7 +169,7 @@ def success_count(n,*a,**k):
                     assert False, "took %d tries without success, this should only happen %.02f%% of the time"%(tts, false_prob*100)
         else:
             def test_run():
-                raise RuntimeError, "%s is not calibrated -- run calibrate_all() or calibrate_new()"%(f.func_name)
+                raise RuntimeError("%s is not calibrated -- run calibrate_all() or calibrate_new()"%(f.func_name))
 
         test_run.original=f
         return test_run
@@ -176,26 +180,26 @@ def calibrate_success_count(f,n,a,k, directory=calibration_dir, M=None):
     if M is None:
         M = 10000
     N = M*n
-    print "calibrating %s, %d trials"%(f.func_name, N),
+    print("calibrating %s, %d trials"%(f.func_name, N), end='')
     t0 = time.clock()
     for i in range(N):
         if i%(N/10)==0:
-            print (10*i/N),
+            print((10*i/N), end='')
             sys.stdout.flush()
         succ+= bool(f(*a,**k))
-    print
+    print()
     dt = time.clock()-t0
-    print "%s: %.04e per trial; success rate %.01f%%"%(f.func_name, dt/N, succ*100./N),
+    print("%s: %.04e per trial; success rate %.01f%%"%(f.func_name, dt/N, succ*100./N), end='')
     if directory != calibration_dir and os.path.exists(os.path.join(calibration_dir, f.func_name)):
         olds, oldn = load_success_count_calibration(f)
-        print "standard is %.01f%%"%(olds*100./oldn)
+        print("standard is %.01f%%"%(olds*100./oldn))
     else:
-        print
+        print()
     with open(os.path.join(directory, f.func_name),"w") as cal_f:
-        cal_f.write(`succ,float(N)`);
+        cal_f.write(repr('succ,float(N)'))
 
 def load_success_count_calibration(f, directory=calibration_dir):
-    with open(os.path.join(directory, f.func_name)) as cal_f:
+    with open(os.path.join(directory, f.__name__)) as cal_f:
         return eval(cal_f.read())
 
 
@@ -207,7 +211,7 @@ def calibrate_all(directory=calibration_dir, M=None):
 
     for f,n,a,k in success_count_functions:
         calibrate_success_count(f,n,a,k, directory=directory, M=M)
-        print
+        print()
 
 def calibrate_new(directory=calibration_dir, M=None):
     for f,n,a,k in success_count_functions:
@@ -317,8 +321,8 @@ def test_grid_init_restrict(n):
     mask = mask_wxw(n,1,l=4)
     grid = Grid(2*n)
 
-    init = {(x,y): [choice(mask[x/2, y/2])] for x in xrange(2*n) for y in xrange(2*n)}
-    doms = {(x,y): mask[x/2, y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    init = {(x,y): [choice(mask[x/2, y/2])] for x in range(2*n) for y in range(2*n)}
+    doms = {(x,y): mask[x/2, y/2] for x in range(2*n) for y in range(2*n)}
 
     return find_embedding(grid, chim, initial_chains = init, restrict_chains=doms, skip_initialization=False)
 
@@ -329,7 +333,7 @@ def test_grid_init(n):
     mask = mask_wxw(n,1,l=2)
     grid = Grid(2*n)
 
-    init = {(x,y): mask[x/2, y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    init = {(x,y): mask[x/2, y/2] for x in range(2*n) for y in range(2*n)}
 
     return find_embedding(grid, chim, initial_chains = init, skip_initialization=False)
 
@@ -387,7 +391,7 @@ def test_grid_restrict(n):
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
 
-    doms = {(x,y): mask[x/2, y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    doms = {(x,y): mask[x/2, y/2] for x in range(2*n) for y in range(2*n)}
 
     check_args(grid, chim, restrict_chains=doms)
 
@@ -424,10 +428,10 @@ def test_grid_suspend(n):
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
 
-    suspg = [((x,y),(x/2,y/2,0)) for x in xrange(2*n) for y in xrange(2*n)]
-    suspc = [((x,y,0),m) for x in xrange(n) for y in xrange(n) for m in mask[x,y]]
+    suspg = [((x,y),(x/2,y/2,0)) for x in range(2*n) for y in range(2*n)]
+    suspc = [((x,y,0),m) for x in range(n) for y in range(n) for m in mask[x,y]]
 
-    suspension = {(x,y,0):[(x,y,0)] for x in xrange(n) for y in xrange(n)}
+    suspension = {(x,y,0):[(x,y,0)] for x in range(n) for y in range(n)}
 
     return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, fast_embedding=True)
 
@@ -437,11 +441,11 @@ def test_grid_plant_suspend(n):
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
 
-    suspg = [((x,y),(x/2,y/2,0)) for x in xrange(2*n) for y in xrange(2*n)]
-    suspc = [(m,(x,y,0)) for x in xrange(n) for y in xrange(n) for m in mask[x,y]]
+    suspg = [((x,y),(x/2,y/2,0)) for x in range(2*n) for y in range(2*n)]
+    suspc = [(m,(x,y,0)) for x in range(n) for y in range(n) for m in mask[x,y]]
 
-    suspension = {(x,y,0):[(x,y,0)] for x in xrange(n) for y in xrange(n)}
-    init = {(x,y): mask[x/2, y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    suspension = {(x,y,0):[(x,y,0)] for x in range(n) for y in range(n)}
+    init = {(x,y): mask[x/2, y/2] for x in range(2*n) for y in range(2*n)}
 
     return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, initial_chains = init, fast_embedding=True)
 
@@ -451,11 +455,11 @@ def test_grid_cheat_suspend(n):
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
 
-    suspg = [((x,y),(x/2,y/2,0)) for x in xrange(2*n) for y in xrange(2*n)]
-    suspc = [((x,y,0),m) for x in xrange(n) for y in xrange(n) for m in mask[x,y]]
+    suspg = [((x,y),(x/2,y/2,0)) for x in range(2*n) for y in range(2*n)]
+    suspc = [((x,y,0),m) for x in range(n) for y in range(n) for m in mask[x,y]]
 
-    suspension = {(x,y,0):[(x,y,0)] for x in xrange(n) for y in xrange(n)}
-    doms = {(x,y):mask[x/2,y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    suspension = {(x,y,0):[(x,y,0)] for x in range(n) for y in range(n)}
+    doms = {(x,y):mask[x/2,y/2] for x in range(2*n) for y in range(2*n)}
 
     check_args(grid+suspg, chim+suspc, fixed_chains=suspension, skip_initialization=False, restrict_chains=doms)
 
@@ -479,7 +483,7 @@ def test_biclique_chimera(n):
 @success_count(30, 5)
 def test_path_cheat_domain(n):
     P = Path(n)
-    cheat = {p:[p] for p in xrange(n)}
+    cheat = {p:[p] for p in range(n)}
 
     return find_embedding(P, P, restrict_chains=cheat, fast_embedding=True)
 
@@ -511,13 +515,14 @@ def test_clique_parallel(n,k):
 
     return find_embedding(cliq, chim, fast_embedding=True, threads=2)
 
+
 @success_count(30, 3, 13)
-def test_clique_term(n,k):
+def test_clique_term(n, k):
     chim = Chimera(n)
     cliq = Clique(k)
-    cterm = [((n/2,n/2,0,0),k)]
-    kterm = [(0,k)]
-    fix = {k:[k]}
+    cterm = [((n/2, n/2, 0, 0), k)]
+    kterm = [(0, k)]
+    fix = {k: [k]}
     return find_embedding(cliq+kterm, chim+cterm, fixed_chains=fix, fast_embedding=True)
 
 @success_count(30, 8)
