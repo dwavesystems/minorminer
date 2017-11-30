@@ -86,6 +86,7 @@ class pathfinder_base {
               intqueue(num_qubits),
               qubit_weight(num_qubits, 0),
               dijkstras(num_vars + num_fixed, distance_queue(num_qubits)) {}
+    virtual ~pathfinder_base() {}
 
     void display_statistics(const char *stage) const {
         display_statistics(stage, bestEmbeddingSum, bestWidth, bestNumMaxBags, bestChainSize, bestNumMaxChains);
@@ -505,6 +506,7 @@ class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
     pathfinder_serial(optional_parameters &p_, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
                       vector<vector<int>> &q_n)
             : super(p_, n_v, n_f, n_q, n_r, v_n, q_n), visited(super::num_qubits + super::num_reserved) {}
+    virtual ~pathfinder_serial() {}
 
     virtual void prepare_root_distances(const embedding_t &emb, const int u) override {
         super::ep.prepare_distances(super::total_distance, u, max_distance);
@@ -604,6 +606,7 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
               visited_list(n_v + n_f, vector<int>(super::num_qubits)),
               futures(num_threads),
               thread_weight(num_threads) {}
+    virtual ~pathfinder_parallel() {}
 
     virtual void prepare_root_distances(const embedding_t &emb, const int u) override {
         exec_indexed([this, &emb](int i, int a, int b) { thread_weight[i] = emb.max_weight(a, b); });
