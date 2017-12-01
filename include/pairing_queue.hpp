@@ -37,7 +37,6 @@ class pairing_queue {
 
   public:
     pairing_queue(int n) : val(n, 0), next(n, 0), desc(n, 0), prev(n, 0), root(nullval) {}
-    virtual ~pairing_queue() {}
 
     // Reset the queue and fill the values with a default
     inline void reset_fill(const P &v) {
@@ -84,6 +83,8 @@ class pairing_queue {
     // Decrease the value of k to v
     // NOTE: Assumes that v is lower than the current value of k
     inline void decrease_value(int k, const P &v) {
+        minorminer_assert(0 <= k and k < val.size());
+        minorminer_assert(v < val[k]);
         val[k] = v;
         decrease(k);
     }
@@ -100,6 +101,9 @@ class pairing_queue {
     }
 
     inline void set_value(int k, const P &v) {
+        minorminer_assert(0 <= k and k < val.size());
+        minorminer_assert(0 <= k and k < prev.size());
+
         if (prev[k] == k) {
             val[k] = v;
             root = merge_roots(k, root);
@@ -157,7 +161,7 @@ class pairing_queue {
         // * doesn't check that a < b
         minorminer_assert(!empty(a));
         minorminer_assert(!empty(b));
-        minorminer_assert(a < b);
+        // minorminer_assert(a < b);
 
         next[b] = desc[a];
         if (!empty(desc[a])) prev[desc[a]] = b;
@@ -223,8 +227,12 @@ class pairing_queue_fast_reset : public pairing_queue<P> {
     int now;
 
     inline bool current(int k) {
+        minorminer_assert(0 <= k and k < time.size());
         if (time[k] != now) {
             time[k] = now;
+            minorminer_assert(0 <= k and k < super::prev.size());
+            minorminer_assert(0 <= k and k < super::next.size());
+            minorminer_assert(0 <= k and k < super::desc.size());
             super::prev[k] = k;
             super::next[k] = nullval;  // super::nullval;
             super::desc[k] = nullval;  // super::nullval;
@@ -235,7 +243,6 @@ class pairing_queue_fast_reset : public pairing_queue<P> {
 
   public:
     pairing_queue_fast_reset(int n) : super(n), time(n), now(0) {}
-    virtual ~pairing_queue_fast_reset() {}
 
     inline void reset() {
         super::root = nullval;  // super::nullval;
@@ -266,6 +273,8 @@ class pairing_queue_fast_reset : public pairing_queue<P> {
     }
 
     inline P get_value(int k) const {
+        minorminer_assert(0 <= k and k < time.size());
+        minorminer_assert(0 <= k and k < super::val.size());
         if (time[k] == now)
             return super::val[k];
         else
