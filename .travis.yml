@@ -60,6 +60,7 @@ matrix:
 
 script:
   - docker pull $DOCKER_IMAGE
+  - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/ci/travis/linux-debug-wheels.sh
   - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/ci/travis/linux-build-wheels.sh
   - ls wheelhouse/
 

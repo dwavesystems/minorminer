@@ -197,7 +197,7 @@ class embedding_problem_base {
               var_order_space(n_v),
               var_order_visited(n_v, 0),
               var_order_shuffle(n_v),
-              var_order_pq(n_q + n_r),
+              var_order_pq(std::max(n_v, n_q + n_r)),
               initialized(0),
               embedded(0),
               desperate(0),
@@ -253,7 +253,7 @@ class embedding_problem_base {
         } else {
             var_order_visited.assign(num_v, 0);
             var_order_visited.resize(num_v + num_f, 1);
-            for (auto &v : var_order_shuffle)
+            for (auto v : var_order_shuffle)
                 if (!var_order_visited[v]) switch (order) {
                         case VARORDER_DFS:
                             dfs_component(v, var_nbrs, var_order_space, var_order_visited);
@@ -281,7 +281,7 @@ class embedding_problem_base {
         visited[x] = 1;
         while (front < component.size()) {
             int x = component[front++];
-            int lastback = component.size();
+            auto lastback = component.size();
             for (auto &y : neighbors[x]) {
                 if (!visited[y]) {
                     visited[y] = 1;
@@ -295,25 +295,29 @@ class embedding_problem_base {
   private:
     // Perform a priority first search (priority = #of visited neighbors)
     void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
-        int d;
+        int_queue::value_type d;
         var_order_pq.reset();
+        minorminer_assert(var_order_pq.has(x));
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             visited[x] = 1;
             component.push_back(x);
-            for (auto &y : neighbors[x])
-                if (!visited[y])
-                    if (!var_order_pq.check_decrease_value(y, 0)) {
-                        d = var_order_pq.get_value(y);
-                        var_order_pq.decrease_value(y, (d - 1) * 256 + randint(256));
+            for (auto adjacent_var : neighbors[x]) {
+                if (!visited[adjacent_var]) {
+                    if (!var_order_pq.check_decrease_value(adjacent_var, 0)) {
+                        d = var_order_pq.get_value(adjacent_var) >> 8;
+                        var_order_pq.decrease_value(adjacent_var, ((d - 1) << 8) + randint(256));
                     }
+                }
+            }
         }
     }
 
     // Perform a reverse priority first search (reverse priority = #of unvisited neighbors)
     void rpfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
-        int d;
+        int_queue::value_type d;
         var_order_pq.reset();
+        minorminer_assert(var_order_pq.has(x));
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             visited[x] = 1;
@@ -332,8 +336,9 @@ class embedding_problem_base {
     // Perform a breadth first search, shuffling level sets
     void bfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         size_t front = component.size();
-        int d = 0, d0 = 0;
+        int_queue::value_type d = 0, d0 = 0;
         var_order_pq.reset();
+        minorminer_assert(var_order_pq.has(x));
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             if (d > d0) {

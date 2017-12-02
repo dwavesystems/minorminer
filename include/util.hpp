@@ -34,7 +34,7 @@ using RANDOM = default_random_engine;
 using clock = std::chrono::high_resolution_clock;
 using pairing_queue::pairing_queue_fast_reset;
 using distance_queue = pairing_queue::pairing_queue_fast_reset<distance_t>;
-using int_queue = pairing_queue::pairing_queue_fast_reset<int>;
+using int_queue = pairing_queue::pairing_queue_fast_reset<int64_t>;
 
 //! Interface for communication between the library and various bindings.
 //!

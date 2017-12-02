@@ -26,6 +26,9 @@ using std::numeric_limits;
 // A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
 template <typename P>
 class pairing_queue {
+  public:
+    typedef P value_type;
+
   protected:
     vector<P> val;
 
@@ -47,6 +50,8 @@ class pairing_queue {
         int n = 0;
         for (auto &p : prev) p = n++;
     }
+
+    inline bool has(int index) const { return 0 <= index < val.size(); }
 
     // Reset the queue and set the default to the maximum value
     inline void reset() { reset_fill(max_P); }
