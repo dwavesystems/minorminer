@@ -2,6 +2,7 @@
 set -e -x
 
 # Move to a virtualenv to isolate the debug install later
+pip install virtualenv
 python -m virtualenv debug_env
 source debug_env/bin/activate
 
