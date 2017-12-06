@@ -67,7 +67,7 @@ cdef extern from "../include/util.hpp" namespace "find_embedding":
         default_random_engine rng
         double timeout
         int tries
-        bint verbose
+        int verbose
         int inner_rounds
         int max_fill
         int chainlength_patience

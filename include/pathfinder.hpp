@@ -169,7 +169,7 @@ class pathfinder_base {
 
     int improve_overfill_pass(embedding_t &emb) {
         bool improved = false;
-        VARORDER order = ep.desperate ? VARORDER_SHUFFLE : (ep.improved ? VARODER_BFS : VARORDER_KEEP);
+        VARORDER order = ep.desperate ? VARORDER_SHUFFLE : (ep.improved ? VARORDER_BFS : VARORDER_KEEP);
         for (auto &u : ep.var_order(order)) {
             if (!find_chain(emb, u)) return -1;
 
@@ -179,7 +179,7 @@ class pathfinder_base {
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
-            ep.minor_info("finished overfill pass");
+            ep.minor_info("finished overfill pass\n");
             return improved;
         }
     }
@@ -212,7 +212,7 @@ class pathfinder_base {
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
-            ep.minor_info("finished overfill pass (pushdown)");
+            ep.minor_info("finished overfill pass (pushdown)\n");
             return improved;
         }
     }
@@ -227,7 +227,7 @@ class pathfinder_base {
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
-            ep.minor_info("finished chainlength pass");
+            ep.minor_info("finished chainlength pass\n");
             return improved;
         }
     }
