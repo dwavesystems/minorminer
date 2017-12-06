@@ -57,8 +57,8 @@ class pathfinder_base {
 
     vector<distance_t> qubit_weight;
 
-    int embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains;
-    int bestEmbeddingSum, bestWidth, bestNumMaxBags, bestChainSize, bestNumMaxChains;
+    vector<int> best_stats;
+    vector<int> tmp_stats;
 
     int pushback;
 
@@ -85,29 +85,60 @@ class pathfinder_base {
               min_list(num_qubits, 0),
               intqueue(num_qubits),
               qubit_weight(num_qubits, 0),
+              tmp_stats(),
+              best_stats(),
               dijkstras(num_vars + num_fixed, distance_queue(num_qubits)) {}
 
-    void display_statistics(const char *stage) const {
-        display_statistics(stage, bestEmbeddingSum, bestWidth, bestNumMaxBags, bestChainSize, bestNumMaxChains);
-    }
-
-    void display_statistics(const char *stage, int eSum, int bWidth, int nMaxB, int cSize, int nMaxC) const {
-        if (bWidth > 1) {
-            char stats[] =
-                    "%s qubit fill total = %d, max overfill = %d, num maxfill = %d, max chainlength = %d, num max "
-                    "chains = %d\n";
-            ep.display_message(stats, stage, eSum, bWidth, nMaxB, cSize, nMaxC);
-        } else {
-            char stats[] = "%s qubit total = %d, max chainlength = %d, num max chains = %d\n";
-            ep.display_message(stats, stage, eSum, cSize, nMaxC);
+    int check_improvement(const embedding_t &emb) {
+        bool better = 0;
+        if (emb.statistics(tmp_stats) > ep.embedded) {
+            params.major_info("Embedding found.\n");
+            better = ep.embedded = 1;
         }
+        // params.error("stats: ");
+        // for(int i=0;i<tmp_stats.size();i++)params.error("%d ", tmp_stats[i]);
+        // params.error("\n");
+        int major = best_stats.size() - tmp_stats.size();
+        int minor = best_stats[ep.embedded] - tmp_stats[ep.embedded];
+        better |= major > 0;
+        if (better) {
+            if (ep.embedded) {
+                params.major_info("max chain length %d\n", tmp_stats.size() - 1);
+                ep.target_chainsize = tmp_stats.size() - 1;
+            } else {
+                params.major_info("max overfill %d\n", tmp_stats.size());
+            }
+        }
+        better |= (major == 0) && (minor > 0);
+        if (better) {
+            if (ep.embedded) {
+                params.minor_info("        num max chains=%d\n", tmp_stats[1]);
+            } else {
+                params.minor_info("        num max qubits=%d\n", tmp_stats[0]);
+            }
+        }
+        if (!better && (major == 0) && (minor == 0)) {
+            for (int i = 0; i < tmp_stats.size(); i++) {
+                if (tmp_stats[i] > best_stats[i]) {
+                    break;
+                } else if (tmp_stats[i] < best_stats[i]) {
+                    better = 1;
+                    break;
+                }
+            }
+        }
+        if (better) {
+            bestEmbedding = emb;
+            tmp_stats.swap(best_stats);
+        }
+        return better;
     }
 
     const chain &get_chain(int u) const { return bestEmbedding.get_chain(u); }
 
   protected:
     int find_chain(embedding_t &emb, const int u) {
-        if (ep.initialized) emb.covfefe(u);
+        if (ep.embedded || ep.desperate) emb.covfefe(u);
         emb.tear_out(u);
         if (ep.embedded && ep.desperate)
             return find_short_chain(emb, u, 10);
@@ -137,42 +168,23 @@ class pathfinder_base {
     }
 
     int improve_overfill_pass(embedding_t &emb) {
-        emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
-
         bool improved = false;
-        for (auto &u : ep.var_order(ep.improved ? VARORDER_BFS : VARORDER_SHUFFLE)) {
+        VARORDER order = ep.desperate ? VARORDER_SHUFFLE : (ep.improved ? VARODER_BFS : VARORDER_KEEP);
+        for (auto &u : ep.var_order(order)) {
             if (!find_chain(emb, u)) return -1;
 
-            emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
-
-            if (maxBagWidth < bestWidth || (maxBagWidth <= bestWidth && numMaxBags < bestNumMaxBags) ||
-                (maxBagWidth <= bestWidth && numMaxBags <= bestNumMaxBags && maxChainSize < bestChainSize)) {
-                improved = true;
-                bestEmbeddingSum = embeddingSum;
-                bestWidth = maxBagWidth;
-                bestNumMaxBags = numMaxBags;
-                bestChainSize = maxChainSize;
-                bestNumMaxChains = numMaxChains;
-                bestEmbedding = emb;
-                if (maxBagWidth == 1) {
-                    ep.display_message("embedding found\n");
-                    break;
-                }
-            }
-            if (maxBagWidth > bestWidth || numMaxBags > bestNumMaxBags + 4) {
-                emb = bestEmbedding;
-            }
+            improved = check_improvement(emb);
+            if (ep.embedded) break;
         }
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
-            display_statistics("overfill pass");
+            ep.minor_info("finished overfill pass");
             return improved;
         }
     }
 
     int pushdown_overfill_pass(embedding_t &emb) {
-        emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
         int oldbound = ep.weight_bound;
 
         bool improved = false;
@@ -183,8 +195,7 @@ class pathfinder_base {
                 emb.covfefe(u);
                 for (auto &q : emb.get_chain(u)) maxfill = max(maxfill, emb.weight(q));
 
-                ep.weight_bound = max(0, maxfill - 1);
-                ep.target_chainsize = maxChainSize - 1;
+                ep.weight_bound = max(0, maxfill);
                 r = find_chain(emb, u);
                 if (!r) pushback += 3;
             }
@@ -193,61 +204,30 @@ class pathfinder_base {
                 ep.weight_bound = oldbound;
                 if (!find_chain(emb, u)) return -1;
             }
-            emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
-
-            if (maxBagWidth < bestWidth || (maxBagWidth <= bestWidth && numMaxBags < bestNumMaxBags) ||
-                (maxBagWidth <= bestWidth && numMaxBags <= bestNumMaxBags && maxChainSize < bestChainSize)) {
-                improved = true;
-                bestEmbeddingSum = embeddingSum;
-                bestWidth = maxBagWidth;
-                bestNumMaxBags = numMaxBags;
-                bestChainSize = maxChainSize;
-                bestNumMaxChains = numMaxChains;
-                bestEmbedding = emb;
-                if (maxBagWidth == 1) {
-                    ep.display_message("embedding found\n");
-                    break;
-                }
-            }
-            if (maxBagWidth > bestWidth || numMaxBags > bestNumMaxBags + 4) {
-                emb = bestEmbedding;
-            }
+            improved = check_improvement(emb);
+            if (ep.embedded) break;
         }
         ep.weight_bound = oldbound;
         ep.target_chainsize = 0;
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
-            display_statistics("overfill pass");
+            ep.minor_info("finished overfill pass (pushdown)");
             return improved;
         }
     }
 
     int improve_chainlength_pass(embedding_t &emb) {
-        emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
         bool improved = false;
         for (auto &u : ep.var_order(ep.improved ? VARORDER_KEEP : VARORDER_PFS)) {
-            ep.target_chainsize = maxChainSize - 1;
-
             if (!find_chain(emb, u)) return -1;
 
-            emb.statistics(embeddingSum, maxBagWidth, numMaxBags, maxChainSize, numMaxChains);
-
-            if (maxChainSize < bestChainSize || (maxChainSize == bestChainSize && numMaxChains < bestNumMaxChains) ||
-                (maxChainSize == bestChainSize && numMaxChains == bestNumMaxChains &&
-                 embeddingSum < bestEmbeddingSum)) {
-                improved = true;
-                bestChainSize = maxChainSize;
-                bestNumMaxChains = numMaxChains;
-                bestWidth = maxBagWidth;
-                bestEmbeddingSum = embeddingSum;
-                bestEmbedding = emb;
-            }
+            improved = check_improvement(emb);
         }
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
-            display_statistics("chainlength pass");
+            ep.minor_info("finished chainlength pass");
             return improved;
         }
     }
@@ -398,7 +378,7 @@ class pathfinder_base {
             if (initEmbedding.linked()) {
                 bestEmbedding = initEmbedding;
             } else {
-                ep.display_message(
+                ep.error(
                         "cannot bootstrap from initial embedding.  stopping.  disable skip_initialization or throw "
                         "this embedding away");
                 return 0;
@@ -406,20 +386,20 @@ class pathfinder_base {
         } else {
             bestEmbedding = initEmbedding;
             if (initialization_pass(bestEmbedding) <= 0) {
-                ep.display_message("failed during initialization. embeddings may be invalid.\n");
+                ep.error("failed during initialization. embeddings may be invalid.\n");
                 return 0;
             }
         }
         ep.initialized = 1;
-        bestEmbedding.statistics(bestEmbeddingSum, bestWidth, bestNumMaxBags, bestChainSize, bestNumMaxChains);
+        bestEmbedding.statistics(best_stats);
         ep.improved = 1;
-        for (int trial_patience = params.tries; trial_patience-- && (bestWidth > 1);) {
+        for (int trial_patience = params.tries; trial_patience-- && (!ep.embedded);) {
             int improvement_patience = params.max_no_improvement;
             currEmbedding = lastEmbedding = bestEmbedding;
-            ep.display_message("try %d\n", params.tries - trial_patience);
+            ep.major_info("Embedding trial %d\n", params.tries - trial_patience);
             pushback = 0;
             for (int round_patience = params.inner_rounds;
-                 round_patience-- && improvement_patience && (bestWidth > 1);) {
+                 round_patience-- && improvement_patience && (!ep.embedded);) {
                 int r;
                 ep.desperate = (improvement_patience <= 1) | (!trial_patience) | (!round_patience);
                 if (pushback < num_vars) {
@@ -430,8 +410,7 @@ class pathfinder_base {
                 }
                 switch (r) {
                     case -1:
-                        ep.display_message(
-                                "connectivity failure in singleVertexAdditionHeuristic.  embeddings are invalid\n");
+                        ep.error("connectivity failure in singleVertexAdditionHeuristic.  embeddings are invalid\n");
                     case -2:
                         improvement_patience = 0;
                         break;
@@ -446,21 +425,20 @@ class pathfinder_base {
                         break;
                 }
             }
-            if (trial_patience && (bestWidth > 1) && (improvement_patience == 0)) {
+            if (trial_patience && (ep.embedded) && (improvement_patience == 0)) {
                 ep.initialized = 0;
                 ep.desperate = 1;
                 bestEmbedding = initEmbedding;
                 if (initialization_pass(bestEmbedding) <= 0) {
-                    ep.display_message("failed during restart. embeddings may be invalid.\n");
+                    ep.error("failed during restart. embeddings may be invalid.\n");
                     return 0;
                 }
-                bestEmbedding.statistics(bestEmbeddingSum, bestWidth, bestNumMaxBags, bestChainSize, bestNumMaxChains);
+                bestEmbedding.statistics(best_stats);
                 ep.initialized = 1;
                 ep.desperate = 0;
             }
         }
-        if (bestWidth == 1) ep.embedded = 1;
-        if (bestWidth == 1 && !params.fast_embedding) {
+        if (ep.embedded && !params.fast_embedding) {
             int improvement_patience = params.chainlength_patience;
             ep.weight_bound = 1;
             currEmbedding = bestEmbedding;
@@ -487,7 +465,7 @@ class pathfinder_base {
                 }
             }
         }
-        return bestWidth == 1;
+        return ep.embedded;
     }
 };
 

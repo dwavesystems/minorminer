@@ -163,9 +163,6 @@ class embedding_problem_base {
     // Mutable references to qubit numbers and variable numbers
     vector<vector<int>> &qubit_nbrs, &var_nbrs;
 
-    // A mutable reference to the user specified parameters
-    optional_parameters &params;
-
     // distribution over [0, 0xffffffff]
     uniform_int_distribution<> rand;
 
@@ -176,6 +173,9 @@ class embedding_problem_base {
     int_queue var_order_pq;
 
   public:
+    // A mutable reference to the user specified parameters
+    optional_parameters &params;
+
     int alpha, initialized, embedded, desperate, target_chainsize, improved, weight_bound;
 
     embedding_problem_base(optional_parameters &p_, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
@@ -186,12 +186,12 @@ class embedding_problem_base {
               num_r(n_r),
               qubit_nbrs(q_n),
               var_nbrs(v_n),
-              params(p_),
               rand(0, 0xffffffff),
               var_order_space(n_v),
               var_order_visited(n_v, 0),
               var_order_shuffle(n_v),
               var_order_pq(n_q + n_r),
+              params(p_),
               initialized(0),
               embedded(0),
               desperate(0),
@@ -213,12 +213,23 @@ class embedding_problem_base {
     inline int num_reserved() const { return num_r; }
 
     template <typename... Args>
-    void display_message(const char *format, Args... args) const {
-        if (params.verbose) {
-            char buffer[1024];
-            snprintf(buffer, 1024, format, args...);
-            params.localInteractionPtr->displayOutput(buffer);
-        }
+    void error(const char *format, Args... args) const {
+        params.error(format, args...);
+    }
+
+    template <typename... Args>
+    void major_info(const char *format, Args... args) const {
+        params.major_info(format, args...);
+    }
+
+    template <typename... Args>
+    void minor_info(const char *format, Args... args) const {
+        params.minor_info(format, args...);
+    }
+
+    template <typename... Args>
+    void debug(const char *format, Args... args) const {
+        params.debug(format, args...);
     }
 
     int randint(int m) { return rand(params.rng, typename decltype(rand)::param_type(0, m - 1)); }
@@ -329,7 +340,7 @@ class embedding_problem_base {
         var_order_pq.reset();
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
-            if (d > d0) {
+            if (d0 && d > d0) {
                 shuffle(begin(component) + front, end(component));
                 d0 = d;
                 front = component.size();
