@@ -183,26 +183,30 @@ class embedding {
         DIAGNOSE("covfefe")
     }
 
-    void statistics(int &embeddingSum, int &bagWidth, int &numMaxBags, int &maxChainSize, int &numMaxChains) const {
-        embeddingSum = bagWidth = numMaxBags = maxChainSize = numMaxChains = 0;
+    int statistics(vector<int> &stats) const {
+        int W = 0;
+        stats.assign(num_vars + num_fixed, 0);
         for (int q = num_qubits; q--;) {
-            if (qub_weight[q] > bagWidth) {
-                bagWidth = qub_weight[q];
-                numMaxBags = 1;
-            } else if (qub_weight[q] == bagWidth) {
-                numMaxBags++;
-            }
+            int w = qub_weight[q];
+            W = max(W, w);
+            if (w > 1) stats[w - 2]++;
         }
+        if (W > 1) {
+            stats.resize(W - 1);
+            reverse(begin(stats), end(stats));
+            return 0;
+        }
+
+        W = 0;
+        stats.assign(num_qubits + num_reserved + 1, 0);
         for (int v = num_vars; v--;) {
-            int s = chainsize(v);
-            embeddingSum += s;
-            if (chainsize(v) > maxChainSize) {
-                maxChainSize = s;
-                numMaxChains = 1;
-            } else if (s == maxChainSize) {
-                numMaxChains++;
-            }
+            int w = chainsize(v);
+            W = max(W, w);
+            stats[w]++;
         }
+        stats.resize(W + 1);
+        reverse(begin(stats), end(stats));
+        return 1;
     }
 
     // check if the embedding is fully linked -- that is, if each pair of adjacent
@@ -275,27 +279,26 @@ class embedding {
 
   public:
     void print() const {
-        ep.display_message("var_embedding = [");
+        ep.error("var_embedding = [");
         for (int u = 0; u < num_vars; u++) {
-            ep.display_message("[");
+            ep.error("[");
             for (auto &q : var_embedding[u])
-                ep.display_message("%d:(%d,%d),", q, var_embedding[u].parent(q), var_embedding[u].refcount(q));
-            ep.display_message("],");
+                ep.error("%d:(%d,%d),", q, var_embedding[u].parent(q), var_embedding[u].refcount(q));
+            ep.error("],");
         }
-        ep.display_message("]\n");
+        ep.error("]\n");
 
-        ep.display_message("var_edges = {");
+        ep.error("var_edges = {");
         for (int u = 0; u < num_vars + num_fixed; u++) {
             for (auto &v : ep.var_neighbors(u))
-                if (var_embedding[u].get_link(v) >= 0)
-                    ep.display_message("(%d,%d):%d,", u, v, var_embedding[u].get_link(v));
+                if (var_embedding[u].get_link(v) >= 0) ep.error("(%d,%d):%d,", u, v, var_embedding[u].get_link(v));
         }
-        ep.display_message("}\n");
+        ep.error("}\n");
 
-        ep.display_message("var_roots = {");
+        ep.error("var_roots = {");
         for (int u = 0; u < num_vars; u++)
-            if (var_embedding[u].get_link(u) >= 0) ep.display_message("%d:%d,", u, var_embedding[u].get_link(u));
-        ep.display_message("}\n");
+            if (var_embedding[u].get_link(u) >= 0) ep.error("%d:%d,", u, var_embedding[u].get_link(u));
+        ep.error("}\n");
     }
 
     void long_diagnostic(char *current_state) {
@@ -323,7 +326,7 @@ class embedding {
                         for (auto &p : ep.qubit_neighbors(z))
                             if (p == q) got = true;
                         if (!got) {
-                            ep.display_message("parent of qubit %d in chain %d is not a neighbor of %d\n", q, v, q);
+                            ep.debug("parent of qubit %d in chain %d is not a neighbor of %d\n", q, v, q);
                             err = 1;
                         }
                     }
@@ -340,19 +343,19 @@ class embedding {
                         z = var_embedding[v].parent(z);
                     }
                     if (n < 0) {
-                        ep.display_message("cycle detected in parents for %d, entry point is %d\n", v, q);
+                        ep.debug("cycle detected in parents for %d, entry point is %d\n", v, q);
                         err = 1;
                     }
                 }
             } else {
-                ep.display_message("chain datastructure invalid for %d\n", v);
+                ep.debug("chain datastructure invalid for %d\n", v);
                 err = 1;
             }
             if (!var_embedding[v].size()) zeros++;
         }
 
         if (zeros > 1 && ep.initialized) {
-            ep.display_message(
+            ep.debug(
                     "more than one (%d) chains empty after initialization (should be 0 unless we've just torn a "
                     "variable out, thence 1)\n",
                     zeros);
@@ -368,15 +371,13 @@ class embedding {
                     int link_v = var_embedding[v].get_link(u);
                     if (!chainsize(u)) {
                         if (link_u != -1) {
-                            ep.display_message(
-                                    "link qubit for problem interaction (%d -> %d) is set but %d's chain is empty\n", u,
-                                    v, u);
+                            ep.debug("link qubit for problem interaction (%d -> %d) is set but %d's chain is empty\n",
+                                     u, v, u);
                             err = 1;
                         }
                         if (link_v != -1) {
-                            ep.display_message(
-                                    "link qubit for problem interaction (%d -> %d) is set but %d's chain is empty\n", v,
-                                    u, v);
+                            ep.debug("link qubit for problem interaction (%d -> %d) is set but %d's chain is empty\n",
+                                     v, u, v);
                             err = 1;
                         }
                         continue;
@@ -384,26 +385,24 @@ class embedding {
                     int link = 0;
                     if (link_v == -1) {
                         if (ep.initialized) {
-                            ep.display_message("link qubit for problem interaction (%d -> %d) is not set\n", v, u);
+                            ep.debug("link qubit for problem interaction (%d -> %d) is not set\n", v, u);
                             err = 1;
                         }
                     } else if (!has_qubit(v, link_v)) {
-                        ep.display_message(
-                                "link qubit for problem interaction (%d -> %d) is not present in chain for %d\n", v, u,
-                                v);
+                        ep.debug("link qubit for problem interaction (%d -> %d) is not present in chain for %d\n", v, u,
+                                 v);
                         err = 1;
                     } else
                         link++;
 
                     if (link_u == -1) {
                         if (ep.initialized) {
-                            ep.display_message("link qubit for problem interaction (%d -> %d) is not set\n", u, v);
+                            ep.debug("link qubit for problem interaction (%d -> %d) is not set\n", u, v);
                             err = 1;
                         }
                     } else if (!has_qubit(u, link_u)) {
-                        ep.display_message(
-                                "link qubit for problem interaction (%d -> %d) is not present in chain for %d\n", u, v,
-                                u);
+                        ep.debug("link qubit for problem interaction (%d -> %d) is not present in chain for %d\n", u, v,
+                                 u);
                         err = 1;
                     } else
                         link++;
@@ -416,9 +415,8 @@ class embedding {
                             if (z == link_v) t = 1;
 
                         if (!t && link_u != link_v) {
-                            ep.display_message(
-                                    "link for problem interaction (%d,%d) uses coupler (%d,%d) which does not exist\n",
-                                    u, v, link_v, link_u);
+                            ep.debug("link for problem interaction (%d,%d) uses coupler (%d,%d) which does not exist\n",
+                                     u, v, link_v, link_u);
                             err = 1;
                         } else {
                             good_links[u] = 1;
@@ -445,7 +443,7 @@ class embedding {
                             }
                         }
                         if (chainsize(v) != component.size()) {
-                            ep.display_message("chain for %d is disconnected but qubit root is set\n", v);
+                            ep.debug("chain for %d is disconnected but qubit root is set\n", v);
                             err = 1;
                         }
                     }
@@ -455,21 +453,21 @@ class embedding {
 
         for (int q = num_qubits; q--;) {
             if (tmp_weight[q] != qub_weight[q]) {
-                ep.display_message("qubit weight is out of date for %d (truth is %d, memo is %d)\n", q, tmp_weight[q],
-                                   qub_weight[q]);
+                ep.debug("qubit weight is out of date for %d (truth is %d, memo is %d)\n", q, tmp_weight[q],
+                         qub_weight[q]);
                 err = 1;
             }
             if (ep.embedded && tmp_weight[q] > 1) {
-                ep.display_message("qubit %d is overlapped after embedding success\n", q);
+                ep.debug("qubit %d is overlapped after embedding success\n", q);
                 err = 1;
             }
         }
 
         if (err) {
 #ifdef CPPDEBUG
-            if (last_diagnostic != nullptr) ep.display_message("last state was %s\n", last_diagnostic);
+            if (last_diagnostic != nullptr) ep.debug("last state was %s\n", last_diagnostic);
 #endif
-            ep.display_message("errors found in data structure, current state is '%s'.  quitting\n", current_state);
+            ep.error("errors found in data structure, current state is '%s'.  quitting\n", current_state);
             print();
             std::flush(std::cout);
             throw - 1;

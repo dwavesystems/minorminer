@@ -105,18 +105,33 @@ class optional_parameters {
     map<int, vector<int> > initial_chains;
     map<int, vector<int> > restrict_chains;
 
-    void error(const std::string& message) { localInteractionPtr->displayOutput(message + "\n\n"); }
-
-    void info(const std::string& message) {
-        if (verbose >= 1) localInteractionPtr->displayOutput(message + "\n\n");
+    template <typename... Args>
+    void printx(const char* format, Args... args) const {
+        char buffer[1024];
+        snprintf(buffer, 1024, format, args...);
+        localInteractionPtr->displayOutput(buffer);
     }
 
-    void debug(const std::string& message) {
-        if (verbose >= 2) localInteractionPtr->displayOutput(message + "\n\n");
+    template <typename... Args>
+    void error(const char* format, Args... args) const {
+        if (verbose >= 0) printx(format, args...);
     }
 
-    void trace(const std::string& message) {
-        if (verbose >= 3) localInteractionPtr->displayOutput(message + "\n\n");
+    template <typename... Args>
+    void major_info(const char* format, Args... args) const {
+        if (verbose >= 1) printx(format, args...);
+    }
+
+    template <typename... Args>
+    void minor_info(const char* format, Args... args) const {
+        if (verbose >= 2) printx(format, args...);
+    }
+
+    template <typename... Args>
+    void debug(const char* format, Args... args) const {
+#ifdef CPPDEBUG
+        if (verbose >= 3) printx(format, args...);
+#endif
     }
 
     optional_parameters() : localInteractionPtr(), rng() {}

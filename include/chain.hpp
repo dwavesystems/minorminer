@@ -152,7 +152,7 @@ class chain {
     // by `this`; starting with the qubit links and updating qubit
     // links after all
     template <typename embedding_problem_t>
-    inline void steal(chain &other, embedding_problem_t &ep, int chainsize = 0) {
+    inline void steal(chain &other, embedding_problem_t &ep, int chainsize = 1) {
         int q = drop_link(other.label);
         int p = other.drop_link(label);
 
