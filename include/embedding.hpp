@@ -89,6 +89,13 @@ class embedding {
     // Get the size of a chain
     inline int chainsize(int v) const { return var_embedding[v].size(); }
 
+    // Update qubit weights
+    inline void compute_weights() {
+        fill(begin(qub_weight), end(qub_weight), 0);
+        for (int v = num_vars; v--;)
+            for (auto &q : var_embedding[v]) qub_weight[q]++;
+    }
+
     // Get the weight of a qubit
     inline int weight(int q) const { return qub_weight[q]; }
 
@@ -106,13 +113,7 @@ class embedding {
     // Assign a chain for variable u
     inline void set_chain(const int u, const vector<int> &incoming) {
         // remove the current chain and account for its qubits
-        for (auto &q : var_embedding[u]) {
-            qub_weight[q]--;
-        }
         var_embedding[u] = incoming;
-        for (auto &q : var_embedding[u]) {
-            qub_weight[q]++;
-        }
         DIAGNOSE("set_chain");
     }
 
@@ -145,9 +146,6 @@ class embedding {
         for (auto &v : ep.var_neighbors(u))
             if (chainsize(v)) extract_path(u, v, q, parents[v]);
 
-        // account for the weight of new qubits
-        for (auto &q : var_embedding[u]) qub_weight[q]++;
-
         // distribute path segments to the neighboring chains -- path segments are the qubits
         // that are ONLY used to join link_qubit[u][v] to link_qubit[u][u] and aren't used
         // for any other variable
@@ -162,7 +160,6 @@ class embedding {
     void tear_out(int u) {
         // short tearout procedure
         // blank out the chain, its linking qubits, and account for the qubits being freed
-        for (auto &q : var_embedding[u]) qub_weight[q]--;
         var_embedding[u].clear();
         for (auto &v : ep.var_neighbors(u)) var_embedding[v].drop_link(u);
         DIAGNOSE("tear_out")
@@ -170,16 +167,12 @@ class embedding {
 
     void covfefe(int u) {
         // grow the chain for `u`, stealing all available qubits from neighboring variables
-        for (auto &q : var_embedding[u]) qub_weight[q]--;
         for (auto &v : ep.var_neighbors(u)) {
             if (ep.fixed(v)) continue;
             if (var_embedding[u].get_link(v) == -1) continue;
             if (var_embedding[v].get_link(u) == -1) continue;
-            for (auto &q : var_embedding[v]) qub_weight[q]--;
             var_embedding[u].steal(var_embedding[v], ep);
-            for (auto &q : var_embedding[v]) qub_weight[q]++;
         }
-        for (auto &q : var_embedding[u]) qub_weight[q]++;
         DIAGNOSE("covfefe")
     }
 
@@ -310,14 +303,11 @@ class embedding {
 
     void run_long_diagnostic(char *current_state) const {
         int err = 0;
-        vector<int> tmp_weight;
-        tmp_weight.assign(num_qubits + num_reserved, 0);
         int zeros = 0;
         int bad_parents = false;
         for (int v = 0; v < num_vars + num_fixed; v++) {
             for (auto &q : var_embedding[v]) {
                 if (!ep.fixed(v)) {
-                    tmp_weight[q]++;
                     auto z = var_embedding[v].parent(q);
                     if (z != q) {
                         bool got = false;
@@ -448,18 +438,6 @@ class embedding {
                         }
                     }
                 }
-            }
-        }
-
-        for (int q = num_qubits; q--;) {
-            if (tmp_weight[q] != qub_weight[q]) {
-                ep.debug("qubit weight is out of date for %d (truth is %d, memo is %d)\n", q, tmp_weight[q],
-                         qub_weight[q]);
-                err = 1;
-            }
-            if (ep.embedded && tmp_weight[q] > 1) {
-                ep.debug("qubit %d is overlapped after embedding success\n", q);
-                err = 1;
             }
         }
 
