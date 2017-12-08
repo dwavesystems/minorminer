@@ -160,6 +160,7 @@ class chain {
         minorminer_assert(p != -1);
         while (other.size() > chainsize && ep.accepts_qubit(label, p)) {
             int r = other.trim_leaf(p);
+            minorminer_assert(other.size() >= 1);
             if (r == p) break;
             if (!count(p))
                 add_leaf(p, q);

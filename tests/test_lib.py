@@ -287,7 +287,7 @@ def check_args(prob, hard, initial_chains=None, fixed_chains=None, restrict_chai
 @success_count(100, 5)
 def test_path_label_00(n):
     p = Path(n)
-    return find_embedding(p, p)
+    return find_embedding(p, p, verbose=0)
 
 @success_count(100, 5)
 def test_path_label_01(n):
@@ -378,7 +378,7 @@ def test_geometric_hint(n, m):
     prob = GeometricGraph(n,pos)
     chim = Chimera(m)
 
-    return find_embedding(prob, chim, initial_chains=chains, verbose=0)
+    return find_embedding(prob, chim, initial_chains=chains)
 
 
 @success_count(30, 3)
@@ -429,7 +429,7 @@ def test_grid_suspend(n):
 
     suspension = {(x,y,0):[(x,y,0)] for x in xrange(n) for y in xrange(n)}
 
-    return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, fast_embedding=True)
+    return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, fast_embedding=True, verbose=0)
 
 @success_count(30, 5)
 def test_grid_plant_suspend(n):
@@ -459,7 +459,7 @@ def test_grid_cheat_suspend(n):
 
     check_args(grid+suspg, chim+suspc, fixed_chains=suspension, skip_initialization=False, restrict_chains=doms)
 
-    return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, restrict_chains=doms, fast_embedding=True)
+    return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, restrict_chains=doms, fast_embedding=True, verbose=3)
 
 @success_count(30, 5)
 def test_grid_cheat_domain(n):
