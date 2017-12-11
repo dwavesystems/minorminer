@@ -55,8 +55,8 @@ class embedding {
 #ifdef CPPDEBUG
               last_diagnostic(nullptr),
 #endif
-              qub_weight(num_qubits, 0) {
-        for (int q = 0; q < num_vars + num_fixed; q++) var_embedding.emplace_back(q);
+              qub_weight(num_qubits + num_reserved, 0) {
+        for (int q = 0; q < num_vars + num_fixed; q++) var_embedding.emplace_back(qub_weight, q);
         DIAGNOSE("post base_construct");
     }
 
@@ -76,10 +76,7 @@ class embedding {
     }
 
     embedding<embedding_problem_t> &operator=(const embedding<embedding_problem_t> &other) {
-        if (this != &other) {
-            qub_weight = other.qub_weight;
-            var_embedding = other.var_embedding;
-        }
+        if (this != &other) var_embedding = other.var_embedding;
         return *this;
     }
 
@@ -89,18 +86,11 @@ class embedding {
     // Get the size of a chain
     inline int chainsize(int v) const { return var_embedding[v].size(); }
 
-    // Update qubit weights
-    inline void compute_weights() {
-        fill(begin(qub_weight), end(qub_weight), 0);
-        for (int v = num_vars; v--;)
-            for (auto &q : var_embedding[v]) qub_weight[q]++;
-    }
-
     // Get the weight of a qubit
     inline int weight(int q) const { return qub_weight[q]; }
 
     // Get the maximum of all qubit weights
-    inline int max_weight() const { return *max_element(begin(qub_weight), end(qub_weight)); }
+    inline int max_weight() const { return *max_element(begin(qub_weight), begin(qub_weight) + num_qubits); }
 
     // Get the maximum of all qubit weights in a range
     inline int max_weight(const int start, const int stop) const {
@@ -303,11 +293,14 @@ class embedding {
 
     void run_long_diagnostic(char *current_state) const {
         int err = 0;
+        vector<int> tmp_weight;
+        tmp_weight.assign(num_qubits + num_reserved, 0);
         int zeros = 0;
         int bad_parents = false;
         for (int v = 0; v < num_vars + num_fixed; v++) {
-            for (auto &q : var_embedding[v]) {
-                if (!ep.fixed(v)) {
+            if (!ep.fixed(v)) {
+                for (auto &q : var_embedding[v]) {
+                    tmp_weight[q]++;
                     auto z = var_embedding[v].parent(q);
                     if (z != q) {
                         bool got = false;
@@ -438,6 +431,18 @@ class embedding {
                         }
                     }
                 }
+            }
+        }
+
+        for (int q = num_qubits; q--;) {
+            if (tmp_weight[q] != qub_weight[q]) {
+                ep.debug("qubit weight is out of date for %d (truth is %d, memo is %d)\n", q, tmp_weight[q],
+                         qub_weight[q]);
+                err = 1;
+            }
+            if (ep.embedded && tmp_weight[q] > 1) {
+                ep.debug("qubit %d is overlapped after embedding success\n", q);
+                err = 1;
             }
         }
 
