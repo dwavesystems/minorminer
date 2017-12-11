@@ -134,7 +134,7 @@ class embedding {
 
         // extract the paths from each parents list
         for (auto &v : ep.var_neighbors(u))
-            if (chainsize(v)) extract_path(u, v, q, parents[v]);
+            if (chainsize(v)) var_embedding[u].link_path(var_embedding[v], q, parents[v]);
 
         // distribute path segments to the neighboring chains -- path segments are the qubits
         // that are ONLY used to join link_qubit[u][v] to link_qubit[u][u] and aren't used
@@ -232,32 +232,6 @@ class embedding {
             }
         }
         return false;
-    }
-
-    inline void extract_path(const int u, const int v, int curr_q, const vector<int> &parent) {
-        // read off the path from u to v, starting from curr_q and
-        // following parent until we fall off the end -- typically,
-        // curr_q will be in the chain of u and "the end" is in the
-        // chain of v
-        minorminer_assert(curr_q >= 0);
-        int prev_q = curr_q;
-        int next_q = parent[curr_q];
-
-        while (next_q != -1) {
-            if (has_qubit(u, curr_q))
-                var_embedding[u].trim_branch(prev_q);
-            else
-                var_embedding[u].add_leaf(curr_q, prev_q);
-
-            prev_q = curr_q;
-            curr_q = next_q;
-            next_q = parent[curr_q];
-        }
-
-        minorminer_assert(has_qubit(u, prev_q));
-        minorminer_assert(has_qubit(v, curr_q));
-        var_embedding[u].set_link(v, prev_q);
-        var_embedding[v].set_link(u, curr_q);
     }
 
   public:
