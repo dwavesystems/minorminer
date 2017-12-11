@@ -9,16 +9,20 @@ namespace find_embedding {
 
 class chain {
   private:
+    vector<int> &qubit_weight;
     unordered_map<int, pair<int, int>> data;
     unordered_map<int, int> links;
     const int label;
 
   public:
-    chain(int l) : data(), links(), label(l) {}
+    chain(vector<int> &w, int l) : qubit_weight(w), data(), links(), label(l) {}
 
     chain &operator=(const vector<int> &c) {
         clear();
-        for (auto &q : c) data.emplace(q, pair<int, int>(q, 1));
+        for (auto &q : c) {
+            data.emplace(q, pair<int, int>(q, 1));
+            qubit_weight[q]++;
+        }
         DIAGNOSE("operator=vector");
         return *this;
     }
@@ -26,6 +30,7 @@ class chain {
     chain &operator=(const chain &c) {
         clear();
         data = c.data;
+        for (auto &q : c) qubit_weight[q]++;
         links = c.links;
         DIAGNOSE("operator=chain");
         return *this;
@@ -79,11 +84,13 @@ class chain {
         minorminer_assert(links.size() == 0);
         links.emplace(label, q);
         data.emplace(q, pair<int, int>(q, 2));
+        qubit_weight[q]++;
         DIAGNOSE("set_root");
     }
 
     // empty this data structure
     inline void clear() {
+        for (auto &q : *this) qubit_weight[q]--;
         data.clear();
         links.clear();
         DIAGNOSE("clear");
@@ -94,6 +101,7 @@ class chain {
         minorminer_assert(data.count(q) == 0);
         minorminer_assert(data.count(parent) == 1);
         data.emplace(q, pair<int, int>(parent, 0));
+        qubit_weight[q]++;
         retrieve(parent).second++;
         DIAGNOSE("add leaf");
     }
@@ -106,6 +114,7 @@ class chain {
         auto z = data.find(q);
         auto p = (*z).second;
         while (p.second == 0) {
+            qubit_weight[q]--;
             data.erase(z);
             z = data.find(p.first);
             p = (*z).second;
@@ -124,6 +133,7 @@ class chain {
         auto z = data.find(q);
         auto p = (*z).second;
         if (p.second == 0) {
+            qubit_weight[q]--;
             retrieve(p.first).second--;
             data.erase(z);
             q = p.first;
