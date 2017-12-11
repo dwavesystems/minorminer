@@ -2,8 +2,12 @@
 namespace find_embedding {
 
 #ifdef CPPDEBUG
+#define DIAGNOSE2(other, X) \
+    diagnostic(X);          \
+    other.diagnostic(X);
 #define DIAGNOSE(X) diagnostic(X);
 #else
+#define DIAGNOSE2(other, X)
 #define DIAGNOSE(X)
 #endif
 
@@ -171,7 +175,25 @@ class chain {
         }
         set_link(other.label, q);
         other.set_link(label, p);
-        DIAGNOSE("steal");
+        DIAGNOSE2(other, "steal");
+    }
+
+    void link_path(chain &other, int q, const vector<int> &parents) {
+        minorminer_assert(count(q) == 1);
+        minorminer_assert(link.count(other.label) == 0);
+        minorminer_assert(other.link.count(label) == 0);
+        int p = parents[q];
+        while (other.count(p) == 0) {
+            if (count(p))
+                trim_branch(q);
+            else
+                add_leaf(p, q);
+            q = p;
+            p = parents[p];
+        }
+        set_link(other.label, q);
+        other.set_link(label, p);
+        DIAGNOSE2(other, "link_path");
     }
 
     class iterator {
