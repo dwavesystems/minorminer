@@ -198,8 +198,9 @@ class embedding_problem_base {
               target_chainsize(0),
               improved(0) {
         alpha = 8 * sizeof(distance_t);
-        int N = num_q;
+        int N = 2 * num_q;
         while (N /= 2) alpha--;
+        alpha = max(1, alpha);
         weight_bound = min(params.max_fill, alpha);
     }
 
@@ -243,23 +244,15 @@ class embedding_problem_base {
         dfs_component(q0, qubit_nbrs, component, visited);
     }
 
-    const vector<int> &var_order(VARORDER order = VARORDER_SHUFFLE, vector<int> seeds = {}) {
+    const vector<int> &var_order(VARORDER order = VARORDER_SHUFFLE) {
         if (order == VARORDER_KEEP) {
             minorminer_assert(var_order_space.size() > 0);
             return var_order_space;
         }
         var_order_space.clear();
         var_order_shuffle.clear();
-        int start = 0;
-        if (seeds.size()) {
-            var_order_shuffle.swap(seeds);
-            start = var_order_shuffle.size();
-            shuffle(begin(var_order_shuffle), end(var_order_shuffle));
-        } else {
-            start = 0;
-        }
         for (int v = num_v; v--;) var_order_shuffle.push_back(v);
-        shuffle(begin(var_order_shuffle) + start, end(var_order_shuffle));
+        shuffle(begin(var_order_shuffle), end(var_order_shuffle));
         if (order == VARORDER_SHUFFLE) {
             var_order_shuffle.swap(var_order_space);
         } else {

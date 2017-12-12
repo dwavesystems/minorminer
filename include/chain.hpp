@@ -16,9 +16,9 @@ class chain {
     vector<int> &qubit_weight;
     unordered_map<int, pair<int, int>> data;
     unordered_map<int, int> links;
-    const int label;
 
   public:
+    const int label;
     chain(vector<int> &w, int l) : qubit_weight(w), data(), links(), label(l) {}
 
     chain &operator=(const vector<int> &c) {
@@ -116,17 +116,12 @@ class chain {
     // return the first ancestor which cannot be deleted
     inline int trim_branch(int q) {
         minorminer_assert(data.count(q) == 1);
-        auto z = data.find(q);
-        auto p = (*z).second;
-        while (p.second == 0) {
-            qubit_weight[q]--;
-            data.erase(z);
-            z = data.find(p.first);
-            p = (*z).second;
-            p.second--;
-            q = p.first;
-            minorminer_assert(data.count(q) == 1);
+        int p = trim_leaf(q);
+        while (p != q) {
+            q = p;
+            p = trim_leaf(q);
         }
+        minorminer_assert(data.count(q) == 1);
         DIAGNOSE("trim_branch");
         return q;
     }
@@ -192,8 +187,8 @@ class chain {
 
     void link_path(chain &other, int q, const vector<int> &parents) {
         minorminer_assert(count(q) == 1);
-        minorminer_assert(link.count(other.label) == 0);
-        minorminer_assert(other.link.count(label) == 0);
+        minorminer_assert(links.count(other.label) == 0);
+        minorminer_assert(other.get_link(label) == -1);
         int p = parents[q];
         if (p == -1) {
             q = p;
