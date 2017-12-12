@@ -208,7 +208,7 @@ class chain {
             }
         }
         minorminer_assert(other.count(p) == 1);
-        minorminer_assert(other.count(q) == 1);
+        minorminer_assert(count(q) == 1);
         set_link(other.label, q);
         other.set_link(label, p);
         DIAGNOSE2(other, "link_path");
