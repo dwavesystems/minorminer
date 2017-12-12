@@ -211,23 +211,11 @@ def find_embedding(Q, A, **params):
 
     cdef int nc = chains.size()
 
-    if (QL is not None) and (AL is not None):
-        rchain = {}
-        for v in range(nc):
-            chain = chains[v]
-            rchain[QL.label(v)] = [AL.label(z) for z in chain]
-    elif (QL is not None):
-        rchain = {}
-        for v in range(nc):
-            chain = chains[v]
-            rchain[QL.label(v)] = [z for z in chain]
-    elif (AL is not None):
-        rchain = []
-        for v in range(nc):
-            chain = chains[v]
-            rchain.append([AL.label(z) for z in chain])
-    else:
-        rchain = chains
+    rchain = {}
+    for v in range(nc):
+        chain = chains[v]
+        rchain[QL.label(v)] = [AL.label(z) for z in chain]
+
     if opts.return_overlap:
         return rchain, success
     else:
