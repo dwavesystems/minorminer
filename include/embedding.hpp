@@ -156,283 +156,281 @@ class embedding {
         // blank out the chain, its linking qubits, and account for the qubits being freed
         var_embedding[u].clear();
         for (auto &v : ep.var_neighbors(u)) var_embedding[v].drop_link(u);
-        DIAGNOSE("tear_out")
     }
+    DIAGNOSE("tear_out")
+}
 
-    void steal_all(int u) {
-        // grow the chain for `u`, stealing all available qubits from neighboring variables
-        for (auto &v : ep.var_neighbors(u)) {
-            if (ep.fixed(v)) continue;
-            if (var_embedding[u].get_link(v) == -1) continue;
-            if (var_embedding[v].get_link(u) == -1) continue;
-            var_embedding[u].steal(var_embedding[v], ep);
-        }
-        DIAGNOSE("steal_all")
+        void steal_all(int u) {
+    // grow the chain for `u`, stealing all available qubits from neighboring variables
+    for (auto &v : ep.var_neighbors(u)) {
+        if (ep.fixed(v)) continue;
+        if (var_embedding[u].get_link(v) == -1) continue;
+        if (var_embedding[v].get_link(u) == -1) continue;
+        var_embedding[u].steal(var_embedding[v], ep);
     }
+    DIAGNOSE("steal_all")
+}
 
-    int statistics(vector<int> &stats) const {
-        int W = 0;
-        stats.assign(num_vars + num_fixed, 0);
-        for (int q = num_qubits; q--;) {
-            int w = qub_weight[q];
-            W = max(W, w);
-            if (w > 1) stats[w - 2]++;
-        }
-        if (W > 1) {
-            stats.resize(W - 1);
-            reverse(begin(stats), end(stats));
-            return 0;
-        }
-
-        W = 0;
-        stats.assign(num_qubits + num_reserved + 1, 0);
-        for (int v = num_vars; v--;) {
-            int w = chainsize(v);
-            W = max(W, w);
-            stats[w]++;
-        }
-        stats.resize(W + 1);
+int statistics(vector<int> &stats) const {
+    int W = 0;
+    stats.assign(num_vars + num_fixed, 0);
+    for (int q = num_qubits; q--;) {
+        int w = qub_weight[q];
+        W = max(W, w);
+        if (w > 1) stats[w - 2]++;
+    }
+    if (W > 1) {
+        stats.resize(W - 1);
         reverse(begin(stats), end(stats));
-        return 1;
+        return 0;
     }
 
-    // check if the embedding is fully linked -- that is, if each pair of adjacent
-    // variables is known to correspond to a pair of adjacent qubits
-    bool linked() const {
-        for (int u = num_vars; u--;)
-            if (!linked(u)) return false;
+    W = 0;
+    stats.assign(num_qubits + num_reserved + 1, 0);
+    for (int v = num_vars; v--;) {
+        int w = chainsize(v);
+        W = max(W, w);
+        stats[w]++;
+    }
+    stats.resize(W + 1);
+    reverse(begin(stats), end(stats));
+    return 1;
+}
+
+// check if the embedding is fully linked -- that is, if each pair of adjacent
+// variables is known to correspond to a pair of adjacent qubits
+bool linked() const {
+    for (int u = num_vars; u--;)
+        if (!linked(u)) return false;
+    return true;
+}
+
+// check if a single variable is linked with all adjacent variables.
+bool linked(int u) const {
+    if (var_embedding[u].get_link(u) < 0) return false;
+    for (auto &v : ep.var_neighbors(u))
+        if (var_embedding[u].get_link(v) < 0) return false;
+    return true;
+}
+
+private:
+// This method attempts to find the linking qubits for a pair of adjacent variables, and
+// returns true/false on success/failure in finding that pair.
+bool linkup(int u, int v) {
+    if ((var_embedding[u].get_link(v) >= 0) && (var_embedding[v].get_link(u) >= 0)) {
         return true;
     }
-
-    // check if a single variable is linked with all adjacent variables.
-    bool linked(int u) const {
-        if (var_embedding[u].get_link(u) < 0) return false;
-        for (auto &v : ep.var_neighbors(u))
-            if (var_embedding[u].get_link(v) < 0) return false;
-        return true;
-    }
-
-  private:
-    // This method attempts to find the linking qubits for a pair of adjacent variables, and
-    // returns true/false on success/failure in finding that pair.
-    bool linkup(int u, int v) {
-        if ((var_embedding[u].get_link(v) >= 0) && (var_embedding[v].get_link(u) >= 0)) {
-            return true;
-        }
-        for (auto &q : var_embedding[v]) {  // hax!  this plays nicely with reserved qubits being sources
-            for (auto &p : ep.qubit_neighbors(q)) {
-                if (has_qubit(u, p)) {
-                    var_embedding[u].set_link(v, p);
-                    var_embedding[v].set_link(u, q);
-                    return true;
-                }
-            }
-        }
-        for (auto &q : var_embedding[u]) {
-            if (has_qubit(v, q)) {
-                var_embedding[u].set_link(v, q);
+    for (auto &q : var_embedding[v]) {  // hax!  this plays nicely with reserved qubits being sources
+        for (auto &p : ep.qubit_neighbors(q)) {
+            if (has_qubit(u, p)) {
+                var_embedding[u].set_link(v, p);
                 var_embedding[v].set_link(u, q);
                 return true;
             }
         }
-        return false;
     }
-
-  public:
-    void print() const {
-        ep.error("var_embedding = [");
-        for (int u = 0; u < num_vars; u++) {
-            ep.error("[");
-            for (auto &q : var_embedding[u])
-                ep.error("%d:(%d,%d),", q, var_embedding[u].parent(q), var_embedding[u].refcount(q));
-            ep.error("],");
+    for (auto &q : var_embedding[u]) {
+        if (has_qubit(v, q)) {
+            var_embedding[u].set_link(v, q);
+            var_embedding[v].set_link(u, q);
+            return true;
         }
-        ep.error("]\n");
-
-        ep.error("var_edges = {");
-        for (int u = 0; u < num_vars + num_fixed; u++) {
-            for (auto &v : ep.var_neighbors(u))
-                if (var_embedding[u].get_link(v) >= 0) ep.error("(%d,%d):%d,", u, v, var_embedding[u].get_link(v));
-        }
-        ep.error("}\n");
-
-        ep.error("var_roots = {");
-        for (int u = 0; u < num_vars; u++)
-            if (var_embedding[u].get_link(u) >= 0) ep.error("%d:%d,", u, var_embedding[u].get_link(u));
-        ep.error("}\n");
     }
+    return false;
+}
 
-    void long_diagnostic(char *current_state) {
-        run_long_diagnostic(current_state);
+public:
+void print() const {
+    ep.error("var_embedding = [");
+    for (int u = 0; u < num_vars; u++) {
+        ep.error("[");
+        for (auto &q : var_embedding[u])
+            ep.error("%d:(%d,%d),", q, var_embedding[u].parent(q), var_embedding[u].refcount(q));
+        ep.error("],");
+    }
+    ep.error("]\n");
+
+    ep.error("var_edges = {");
+    for (int u = 0; u < num_vars + num_fixed; u++) {
+        for (auto &v : ep.var_neighbors(u))
+            if (var_embedding[u].get_link(v) >= 0) ep.error("(%d,%d):%d,", u, v, var_embedding[u].get_link(v));
+    }
+    ep.error("}\n");
+
+    ep.error("var_roots = {");
+    for (int u = 0; u < num_vars; u++)
+        if (var_embedding[u].get_link(u) >= 0) ep.error("%d:%d,", u, var_embedding[u].get_link(u));
+    ep.error("}\n");
+}
+
+void long_diagnostic(char *current_state) {
+    run_long_diagnostic(current_state);
 #ifdef CPPDEBUG
-        last_diagnostic = current_state;
+    last_diagnostic = current_state;
 #endif
-    }
+}
 
-    void run_long_diagnostic(char *current_state) const {
-        int err = 0;
-        vector<int> tmp_weight;
-        tmp_weight.assign(num_qubits + num_reserved, 0);
-        int zeros = 0;
-        int bad_parents = false;
-        for (int v = 0; v < num_vars + num_fixed; v++) {
-            if (!ep.fixed(v)) {
-                for (auto &q : var_embedding[v]) {
-                    tmp_weight[q]++;
-                    auto z = var_embedding[v].parent(q);
-                    if (z != q) {
-                        bool got = false;
-                        for (auto &p : ep.qubit_neighbors(q))
-                            if (p == z) got = true;
-                        for (auto &p : ep.qubit_neighbors(z))
-                            if (p == q) got = true;
-                        if (!got) {
-                            ep.debug("parent of qubit %d in chain %d is not a neighbor of %d\n", q, v, q);
-                            err = 1;
-                        }
-                    }
-                }
-            }
-            int errcode = var_embedding[v].run_diagnostic();
-            if (!errcode) {
-                for (auto &q : var_embedding[v]) {
-                    int n = num_qubits + 1;
-                    int z = var_embedding[v].parent(q);
-                    int last_z = q;
-                    while (z != last_z && n--) {
-                        last_z = z;
-                        z = var_embedding[v].parent(z);
-                    }
-                    if (n < 0) {
-                        ep.debug("cycle detected in parents for %d, entry point is %d\n", v, q);
+void run_long_diagnostic(char *current_state) const {
+    int err = 0;
+    vector<int> tmp_weight;
+    tmp_weight.assign(num_qubits + num_reserved, 0);
+    int zeros = 0;
+    int bad_parents = false;
+    for (int v = 0; v < num_vars + num_fixed; v++) {
+        if (!ep.fixed(v)) {
+            for (auto &q : var_embedding[v]) {
+                tmp_weight[q]++;
+                auto z = var_embedding[v].parent(q);
+                if (z != q) {
+                    bool got = false;
+                    for (auto &p : ep.qubit_neighbors(q))
+                        if (p == z) got = true;
+                    for (auto &p : ep.qubit_neighbors(z))
+                        if (p == q) got = true;
+                    if (!got) {
+                        ep.debug("parent of qubit %d in chain %d is not a neighbor of %d\n", q, v, q);
                         err = 1;
                     }
                 }
-            } else {
-                ep.debug("chain datastructure invalid for %d\n", v);
-                err = 1;
             }
-            if (!var_embedding[v].size()) zeros++;
         }
-
-        if (zeros > 1 && ep.initialized) {
-            ep.debug(
-                    "more than one (%d) chains empty after initialization (should be 0 unless we've just torn a "
-                    "variable out, thence 1)\n",
-                    zeros);
+        int errcode = var_embedding[v].run_diagnostic();
+        if (!errcode) {
+            for (auto &q : var_embedding[v]) {
+                int n = num_qubits + 1;
+                int z = var_embedding[v].parent(q);
+                int last_z = q;
+                while (z != last_z && n--) {
+                    last_z = z;
+                    z = var_embedding[v].parent(z);
+                }
+                if (n < 0) {
+                    ep.debug("cycle detected in parents for %d, entry point is %d\n", v, q);
+                    err = 1;
+                }
+            }
+        } else {
+            ep.debug("chain datastructure invalid for %d\n", v);
             err = 1;
         }
-        for (int v = num_vars + num_fixed; v--;) {
-            int n = chainsize(v);
-            vector<int> good_links;
-            good_links.assign(num_vars + num_fixed, 0);
-            if (chainsize(v)) {
-                for (auto &u : ep.var_neighbors(v)) {
-                    int link_u = var_embedding[u].get_link(v);
-                    int link_v = var_embedding[v].get_link(u);
-                    if (!chainsize(u)) {
-                        if (link_u != -1) {
-                            ep.debug("link qubit for problem interaction (%d -> %d) is set but %d's chain is empty\n",
-                                     u, v, u);
-                            err = 1;
-                        }
-                        if (link_v != -1) {
-                            ep.debug("link qubit for problem interaction (%d -> %d) is set but %d's chain is empty\n",
-                                     v, u, v);
-                            err = 1;
-                        }
-                        continue;
-                    }
-                    int link = 0;
-                    if (link_v == -1) {
-                        if (ep.initialized) {
-                            ep.debug("link qubit for problem interaction (%d -> %d) is not set\n", v, u);
-                            err = 1;
-                        }
-                    } else if (!has_qubit(v, link_v)) {
-                        ep.debug("link qubit for problem interaction (%d -> %d) is not present in chain for %d\n", v, u,
-                                 v);
-                        err = 1;
-                    } else
-                        link++;
+        if (!var_embedding[v].size()) zeros++;
+    }
 
-                    if (link_u == -1) {
-                        if (ep.initialized) {
-                            ep.debug("link qubit for problem interaction (%d -> %d) is not set\n", u, v);
-                            err = 1;
-                        }
-                    } else if (!has_qubit(u, link_u)) {
-                        ep.debug("link qubit for problem interaction (%d -> %d) is not present in chain for %d\n", u, v,
+    if (zeros > 1 && ep.initialized) {
+        ep.debug(
+                "more than one (%d) chains empty after initialization (should be 0 unless we've just torn a variable "
+                "out, thence 1)\n",
+                zeros);
+        err = 1;
+    }
+    for (int v = num_vars + num_fixed; v--;) {
+        int n = chainsize(v);
+        vector<int> good_links;
+        good_links.assign(num_vars + num_fixed, 0);
+        if (chainsize(v)) {
+            for (auto &u : ep.var_neighbors(v)) {
+                int link_u = var_embedding[u].get_link(v);
+                int link_v = var_embedding[v].get_link(u);
+                if (!chainsize(u)) {
+                    if (link_u != -1) {
+                        ep.debug("link qubit for problem interaction (%d -> %d) is set but %d's chain is empty\n", u, v,
                                  u);
                         err = 1;
-                    } else
-                        link++;
+                    }
+                    if (link_v != -1) {
+                        ep.debug("link qubit for problem interaction (%d -> %d) is set but %d's chain is empty\n", v, u,
+                                 v);
+                        err = 1;
+                    }
+                    continue;
+                }
+                int link = 0;
+                if (link_v == -1) {
+                    if (ep.initialized) {
+                        ep.debug("link qubit for problem interaction (%d -> %d) is not set\n", v, u);
+                        err = 1;
+                    }
+                } else if (!has_qubit(v, link_v)) {
+                    ep.debug("link qubit for problem interaction (%d -> %d) is not present in chain for %d\n", v, u, v);
+                    err = 1;
+                } else
+                    link++;
 
-                    if (link == 2) {
-                        int t = 0;
-                        for (auto &z : ep.qubit_neighbors(link_v))
-                            if (z == link_u) t = 1;
-                        for (auto &z : ep.qubit_neighbors(link_u))
-                            if (z == link_v) t = 1;
+                if (link_u == -1) {
+                    if (ep.initialized) {
+                        ep.debug("link qubit for problem interaction (%d -> %d) is not set\n", u, v);
+                        err = 1;
+                    }
+                } else if (!has_qubit(u, link_u)) {
+                    ep.debug("link qubit for problem interaction (%d -> %d) is not present in chain for %d\n", u, v, u);
+                    err = 1;
+                } else
+                    link++;
 
-                        if (!t && link_u != link_v) {
-                            ep.debug("link for problem interaction (%d,%d) uses coupler (%d,%d) which does not exist\n",
-                                     u, v, link_v, link_u);
-                            err = 1;
-                        } else {
-                            good_links[u] = 1;
-                        }
+                if (link == 2) {
+                    int t = 0;
+                    for (auto &z : ep.qubit_neighbors(link_v))
+                        if (z == link_u) t = 1;
+                    for (auto &z : ep.qubit_neighbors(link_u))
+                        if (z == link_v) t = 1;
+
+                    if (!t && link_u != link_v) {
+                        ep.debug("link for problem interaction (%d,%d) uses coupler (%d,%d) which does not exist\n", u,
+                                 v, link_v, link_u);
+                        err = 1;
+                    } else {
+                        good_links[u] = 1;
                     }
                 }
-                int root = var_embedding[v].get_link(v);
-                bool rooted = (root > -1);
-                if (rooted) {
-                    if (!ep.fixed(v)) {
-                        vector<int> component;
-                        component.push_back(root);
-                        vector<int> visited;
-                        visited.assign(num_qubits, 0);
-                        visited[root] = 1;
-                        unsigned int front = 0;
-                        while (front < component.size()) {
-                            int q = component[front++];
-                            for (auto &p : ep.qubit_neighbors(q)) {
-                                if (!visited[p] && has_qubit(v, p)) {
-                                    visited[p] = 1;
-                                    component.push_back(p);
-                                }
+            }
+            int root = var_embedding[v].get_link(v);
+            bool rooted = (root > -1);
+            if (rooted) {
+                if (!ep.fixed(v)) {
+                    vector<int> component;
+                    component.push_back(root);
+                    vector<int> visited;
+                    visited.assign(num_qubits, 0);
+                    visited[root] = 1;
+                    unsigned int front = 0;
+                    while (front < component.size()) {
+                        int q = component[front++];
+                        for (auto &p : ep.qubit_neighbors(q)) {
+                            if (!visited[p] && has_qubit(v, p)) {
+                                visited[p] = 1;
+                                component.push_back(p);
                             }
                         }
-                        if (chainsize(v) != component.size()) {
-                            ep.debug("chain for %d is disconnected but qubit root is set\n", v);
-                            err = 1;
-                        }
+                    }
+                    if (chainsize(v) != component.size()) {
+                        ep.debug("chain for %d is disconnected but qubit root is set\n", v);
+                        err = 1;
                     }
                 }
             }
         }
+    }
 
-        for (int q = num_qubits; q--;) {
-            if (tmp_weight[q] != qub_weight[q]) {
-                ep.debug("qubit weight is out of date for %d (truth is %d, memo is %d)\n", q, tmp_weight[q],
-                         qub_weight[q]);
-                err = 1;
-            }
-            if (ep.embedded && tmp_weight[q] > 1) {
-                ep.debug("qubit %d is overlapped after embedding success\n", q);
-                err = 1;
-            }
+    for (int q = num_qubits; q--;) {
+        if (tmp_weight[q] != qub_weight[q]) {
+            ep.debug("qubit weight is out of date for %d (truth is %d, memo is %d)\n", q, tmp_weight[q], qub_weight[q]);
+            err = 1;
         }
-
-        if (err) {
-#ifdef CPPDEBUG
-            if (last_diagnostic != nullptr) ep.debug("last state was %s\n", last_diagnostic);
-#endif
-            ep.error("errors found in data structure, current state is '%s'.  quitting\n", current_state);
-            print();
-            std::flush(std::cout);
-            throw - 1;
+        if (ep.embedded && tmp_weight[q] > 1) {
+            ep.debug("qubit %d is overlapped after embedding success\n", q);
+            err = 1;
         }
     }
+
+    if (err) {
+#ifdef CPPDEBUG
+        if (last_diagnostic != nullptr) ep.debug("last state was %s\n", last_diagnostic);
+#endif
+        ep.error("errors found in data structure, current state is '%s'.  quitting\n", current_state);
+        print();
+        std::flush(std::cout);
+        throw - 1;
+    }
+}
 };
 }
