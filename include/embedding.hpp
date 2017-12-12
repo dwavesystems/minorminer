@@ -77,6 +77,7 @@ class embedding {
 
     embedding<embedding_problem_t> &operator=(const embedding<embedding_problem_t> &other) {
         if (this != &other) var_embedding = other.var_embedding;
+        DIAGNOSE("operator=");
         return *this;
     }
 
@@ -129,13 +130,17 @@ class embedding {
         return true;
     }
 
-    void construct_chain(const int u, const int q, const int target_chainsize, const vector<vector<int>> &parents) {
+    void construct_chain(const int u, const int q, const vector<vector<int>> &parents) {
         var_embedding[u].set_root(q);
 
         // extract the paths from each parents list
         for (auto &v : ep.var_neighbors(u))
             if (chainsize(v)) var_embedding[u].link_path(var_embedding[v], q, parents[v]);
 
+        DIAGNOSE("construct_chain")
+    }
+
+    void flip_back(int u, const int target_chainsize) {
         // distribute path segments to the neighboring chains -- path segments are the qubits
         // that are ONLY used to join link_qubit[u][v] to link_qubit[u][u] and aren't used
         // for any other variable
@@ -143,8 +148,7 @@ class embedding {
         // * if the target chainsize is k, dump the largest portion of the segment
         for (auto &v : ep.var_neighbors(u))
             if (chainsize(v) && !(ep.fixed(v))) var_embedding[v].steal(var_embedding[u], ep, target_chainsize);
-
-        DIAGNOSE("construct_chain")
+        DIAGNOSE("flip_back")
     }
 
     void tear_out(int u) {
@@ -155,7 +159,7 @@ class embedding {
         DIAGNOSE("tear_out")
     }
 
-    void covfefe(int u) {
+    void steal_all(int u) {
         // grow the chain for `u`, stealing all available qubits from neighboring variables
         for (auto &v : ep.var_neighbors(u)) {
             if (ep.fixed(v)) continue;
@@ -163,7 +167,7 @@ class embedding {
             if (var_embedding[v].get_link(u) == -1) continue;
             var_embedding[u].steal(var_embedding[v], ep);
         }
-        DIAGNOSE("covfefe")
+        DIAGNOSE("steal_all")
     }
 
     int statistics(vector<int> &stats) const {

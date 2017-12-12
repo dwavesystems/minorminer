@@ -138,14 +138,9 @@ class pathfinder_base {
 
   protected:
     int find_chain(embedding_t &emb, const int u) {
-        if (ep.embedded || ep.desperate) emb.covfefe(u);
+        if (ep.embedded || ep.desperate) emb.steal_all(u);
         emb.tear_out(u);
-        if (ep.embedded && ep.desperate)
-            return find_short_chain(emb, u, 10);
-        else if (ep.desperate)
-            return find_short_chain(emb, u, 2);
-        else
-            return find_chain(emb, u, ep.target_chainsize);
+        return find_chain(emb, u, ep.target_chainsize);
     }
 
     int initialization_pass(embedding_t &emb) {
@@ -203,7 +198,7 @@ class pathfinder_base {
             int r = 0;
             if (pushback < num_vars) {
                 int maxfill = 0;
-                emb.covfefe(u);
+                emb.steal_all(u);
                 for (auto &q : emb.get_chain(u)) maxfill = max(maxfill, emb.weight(q));
 
                 ep.weight_bound = max(0, maxfill - 1);
@@ -286,44 +281,9 @@ class pathfinder_base {
         int q0 = min_list[ep.randint(min_list.size())];
         if (total_distance[q0] == max_distance) return 0;  // oops all qubits were overfull or unreachable
 
-        emb.construct_chain(u, q0, target_chainsize, parents);
+        emb.construct_chain(u, q0, parents);
+        emb.flip_back(u, target_chainsize);
 
-        return 1;
-    }
-
-    int find_short_chain(embedding_t &emb, const int u, int roots_to_try = 10) {
-        prepare_root_distances(emb, u);
-
-        int better = 1;
-        int q0 = -1;
-        int q0_size = num_qubits + num_reserved + 1;
-        int tried = 0;
-
-        while (better && tried < roots_to_try) {
-            better = 0;
-            collectMinima(total_distance, min_list);
-            if (!min_list.size() || total_distance[min_list[0]] == max_distance) break;
-            ep.shuffle(begin(min_list), end(min_list));
-            for (auto &q1 : min_list) {
-                if (tried++) emb.tear_out(u);
-
-                total_distance[q1] = max_distance;
-                emb.construct_chain(u, q1, num_qubits + num_reserved + 1, parents);
-
-                if (emb.chainsize(u) < q0_size) {
-                    q0_size = emb.chainsize(u);
-                    q0 = q1;
-                    better = 1;
-                }
-                if (tried >= roots_to_try) break;
-            }
-        }
-
-        if (q0 == -1) return 0;
-        if (tried > 1) {
-            emb.tear_out(u);
-            emb.construct_chain(u, q0, ep.target_chainsize, parents);
-        }
         return 1;
     }
 

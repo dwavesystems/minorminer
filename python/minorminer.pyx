@@ -4,6 +4,7 @@ minorminer is a heuristic tool for finding graph minors.
 For complete details on underlying algorithm see the paper: https://arxiv.org/abs/1406.2741
 """
 include "minorminer.pxi"
+from random import randint
 
 
 def find_embedding(Q, A, **params):
@@ -137,7 +138,6 @@ def find_embedding(Q, A, **params):
     """
 
 
-    from random import randint
     cdef vector[int] chain
 
     cdef optional_parameters opts
@@ -194,9 +194,17 @@ def find_embedding(Q, A, **params):
     cdef labeldict QL = _read_graph(Qg,Q)
     cdef labeldict AL = _read_graph(Ag,A)
 
+    cdef int checksize = len(QL)+len(AL)
+
     _get_chainmap(params.get("fixed_chains",[]), opts.fixed_chains, QL, AL)
+    if checksize < len(QL)+len(AL):
+        raise RuntimeError, "fixed_chains use source or target node labels that weren't referred to by any edges"
     _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, QL, AL)
+    if checksize < len(QL)+len(AL):
+        raise RuntimeError, "initial_chains use source or target node labels that weren't referred to by any edges"
     _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, QL, AL)
+    if checksize < len(QL)+len(AL):
+        raise RuntimeError, "restrict_chains use source or target node labels that weren't referred to by any edges"
 
     cdef vector[vector[int]] chains
     cdef int success = findEmbedding(Qg, Ag, opts, chains)
@@ -258,15 +266,9 @@ cdef int _get_chainmap(C, chainmap &CMap, QL, AL) except -1:
             raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints or lists/tuples of the same; C has type %s and next(C) has type %s"%(type(C), type(nc))
 
 cdef _read_graph(input_graph &g, E):
-    try:
-        for a,b in E:
-            if a<0 or b<0:
-                g.clear()
-                raise TypeError
-            g.push_back(a,b)
-        return None
-    except:
-        L = labeldict()
-        for a,b in E:
-            g.push_back(L[a],L[b])
-        return L
+    L = labeldict()
+    for a,b in E:
+        g.push_back(L[a],L[b])
+    return L
+
+__all__ = ["find_embedding"]
