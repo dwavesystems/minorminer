@@ -91,13 +91,12 @@ class pathfinder_base {
 
     int check_improvement(const embedding_t &emb) {
         int better = 0;
-        if (emb.statistics(tmp_stats) > ep.embedded) {
+        int embedded = emb.statistics(tmp_stats);
+        if (embedded > ep.embedded) {
             params.major_info("Embedding found.\n");
             better = ep.embedded = 1;
         }
-        // params.error("stats: ");
-        // for(int i=0;i<tmp_stats.size();i++)params.error("%d ", tmp_stats[i]);
-        // params.error("\n");
+        if (embedded < ep.embedded) return 0;
         int major = best_stats.size() - tmp_stats.size();
         int minor = best_stats[ep.embedded] - tmp_stats[ep.embedded];
         better |= major > 0;
@@ -363,9 +362,9 @@ class pathfinder_base {
         ep.initialized = 1;
         bestEmbedding.statistics(best_stats);
         ep.improved = 1;
+        currEmbedding = bestEmbedding;
         for (int trial_patience = params.tries; trial_patience-- && (!ep.embedded);) {
             int improvement_patience = params.max_no_improvement;
-            currEmbedding = lastEmbedding = bestEmbedding;
             ep.major_info("Embedding trial %d\n", params.tries - trial_patience);
             pushback = 0;
             for (int round_patience = params.inner_rounds;
@@ -398,12 +397,19 @@ class pathfinder_base {
             if (trial_patience && (ep.embedded) && (improvement_patience == 0)) {
                 ep.initialized = 0;
                 ep.desperate = 1;
-                bestEmbedding = initEmbedding;
-                if (initialization_pass(bestEmbedding) <= 0) {
-                    ep.error("failed during restart. embeddings may be invalid.\n");
-                    return 0;
+                currEmbedding = bestEmbedding;
+                int r = initialization_pass(currEmbedding);
+                switch (r) {
+                    case -2:
+                        trial_patience = 0;
+                        break;
+                    case -1:
+                        currEmbedding = bestEmbedding;
+                        break;
+                    case 1:
+                        check_improvement(currEmbedding);
+                        break;
                 }
-                bestEmbedding.statistics(best_stats);
                 ep.initialized = 1;
                 ep.desperate = 0;
             }
