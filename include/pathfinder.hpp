@@ -204,7 +204,6 @@ class pathfinder_base {
             if (pushback < num_vars) {
                 int maxfill = 0;
                 emb.covfefe(u);
-                emb.compute_weights();
                 for (auto &q : emb.get_chain(u)) maxfill = max(maxfill, emb.weight(q));
 
                 ep.weight_bound = max(0, maxfill - 1);
@@ -279,7 +278,6 @@ class pathfinder_base {
     virtual void prepare_root_distances(const embedding_t &emb, const int u) = 0;
 
     int find_chain(embedding_t &emb, const int u, int target_chainsize) {
-        emb.compute_weights();
         prepare_root_distances(emb, u);
 
         // select a random root among those qubits at minimum heuristic distance
@@ -289,13 +287,11 @@ class pathfinder_base {
         if (total_distance[q0] == max_distance) return 0;  // oops all qubits were overfull or unreachable
 
         emb.construct_chain(u, q0, target_chainsize, parents);
-        emb.compute_weights();
 
         return 1;
     }
 
     int find_short_chain(embedding_t &emb, const int u, int roots_to_try = 10) {
-        emb.compute_weights();
         prepare_root_distances(emb, u);
 
         int better = 1;
@@ -328,7 +324,6 @@ class pathfinder_base {
             emb.tear_out(u);
             emb.construct_chain(u, q0, ep.target_chainsize, parents);
         }
-        emb.compute_weights();
         return 1;
     }
 
