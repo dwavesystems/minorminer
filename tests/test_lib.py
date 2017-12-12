@@ -15,7 +15,7 @@ calibration_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cali
 
 
 def find_embedding(Q,A,return_overlap=False,**args):
-#    args['verbose']=0
+    args['verbose']=0
     args['tries']=1
     if return_overlap:
         emb,succ = find_embedding_orig(Q,A,return_overlap=return_overlap,**args)

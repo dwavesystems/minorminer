@@ -199,7 +199,7 @@ class chain {
             q = p;
         } else {
             while (other.count(p) == 0) {
-                if (count(p) && p != q)
+                if (count(p))
                     trim_branch(q);
                 else
                     add_leaf(p, q);
