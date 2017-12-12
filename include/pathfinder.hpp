@@ -156,7 +156,7 @@ class pathfinder_base {
                         break;
                     }
         }
-        for (auto &u : ep.var_order((params.restrict_chains.size()) ? VARORDER_BFS : VARORDER_PFS, seeds)) {
+        for (auto &u : ep.var_order((params.restrict_chains.size()) ? VARORDER_DFS : VARORDER_PFS, seeds)) {
             if (emb.chainsize(u) && emb.linked(u)) {
                 vector<int> tmp_component;
                 vector<int> tmp_visited;
