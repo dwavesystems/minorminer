@@ -123,6 +123,10 @@ def ChordalCycle(p):
 def GeometricGraph(n,pos=None):
     import networkx
     G = networkx.generators.geometric.random_geometric_graph(n, n**-.333, dim=2, pos=pos)
+    if pos is not None:
+        for g in G:
+            if len(list(G[g]))==0:
+                del pos[g]
     return G.edges()
 
 def CartesianProduct(n):
@@ -354,7 +358,7 @@ def test_cartesian(n):
     prob = CartesianProduct(n)
     chim = Chimera(n,l=n)
 
-    return find_embedding(prob, chim)
+    return find_embedding(prob, chim, verbose=3)
 
 @success_count(30, 45, 6)
 def test_geometric_nohint(n, m):
@@ -378,7 +382,7 @@ def test_geometric_hint(n, m):
     prob = GeometricGraph(n,pos)
     chim = Chimera(m)
 
-    return find_embedding(prob, chim, initial_chains=chains)
+    return find_embedding(prob, chim, initial_chains={i:c for i,c in chains.items() if i in pos})
 
 
 @success_count(30, 3)

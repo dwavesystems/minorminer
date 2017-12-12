@@ -25,6 +25,7 @@ class chain {
         clear();
         for (auto &q : c) {
             data.emplace(q, pair<int, int>(q, 1));
+            minorminer_assert(0 <= q < qubit_weight.size());
             qubit_weight[q]++;
         }
         DIAGNOSE("operator=vector");
@@ -107,7 +108,7 @@ class chain {
         data.emplace(q, pair<int, int>(parent, 0));
         qubit_weight[q]++;
         retrieve(parent).second++;
-        DIAGNOSE("add leaf");
+        DIAGNOSE("add_leaf");
     }
 
     // try to delete the qubit `q` from this chain, and keep
@@ -126,7 +127,7 @@ class chain {
             q = p.first;
             minorminer_assert(data.count(q) == 1);
         }
-        DIAGNOSE("trim branch");
+        DIAGNOSE("trim_branch");
         return q;
     }
 
@@ -142,7 +143,7 @@ class chain {
             data.erase(z);
             q = p.first;
         }
-        DIAGNOSE("trim leaf");
+        DIAGNOSE("trim_leaf");
         return q;
     }
 
@@ -166,13 +167,14 @@ class chain {
     // by `this`; starting with the qubit links and updating qubit
     // links after all
     template <typename embedding_problem_t>
-    inline void steal(chain &other, embedding_problem_t &ep, int chainsize = 1) {
+    inline void steal(chain &other, embedding_problem_t &ep, int chainsize = 0) {
         int q = drop_link(other.label);
         int p = other.drop_link(label);
 
         minorminer_assert(q != -1);
         minorminer_assert(p != -1);
-        while (other.size() > chainsize && ep.accepts_qubit(label, p)) {
+
+        while ((chainsize == 0 || size() < chainsize) && ep.accepts_qubit(label, p)) {
             int r = other.trim_leaf(p);
             minorminer_assert(other.size() >= 1);
             if (r == p) break;
@@ -193,14 +195,20 @@ class chain {
         minorminer_assert(link.count(other.label) == 0);
         minorminer_assert(other.link.count(label) == 0);
         int p = parents[q];
-        while (other.count(p) == 0) {
-            if (count(p))
-                trim_branch(q);
-            else
-                add_leaf(p, q);
+        if (p == -1) {
             q = p;
-            p = parents[p];
+        } else {
+            while (other.count(p) == 0) {
+                if (count(p) && p != q)
+                    trim_branch(q);
+                else
+                    add_leaf(p, q);
+                q = p;
+                p = parents[p];
+            }
         }
+        minorminer_assert(other.count(p) == 1);
+        minorminer_assert(other.count(q) == 1);
         set_link(other.label, q);
         other.set_link(label, p);
         DIAGNOSE2(other, "link_path");
