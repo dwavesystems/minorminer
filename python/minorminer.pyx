@@ -18,14 +18,6 @@ def find_embedding(Q, A, **params):
     is entirely heuristic: failure to return an embedding does not
     prove that no embedding exists.
 
-    PERFORMANCE NOTE ON NODE LABELS:
-        The inputs Q and A are lists of edges.  An edge is specified by a pair
-        (a,b).  If the labels for either Q or A are set of integers [0,...,n-1],
-        then we are able to skip a normalization step.  If you plan to run this
-        embedding problem many times, consider pre-normalizing.  When Q satisfies
-        this criterion, the returned embedding object is a list -- otherwise,
-        it's a dict.
-
     Input parameters:
 
       Q: an iterable of label pairs
@@ -38,9 +30,8 @@ def find_embedding(Q, A, **params):
 
       (default / when return_overlap = False, see below)
 
-        emb: A list or dictionary, where emb[v] is a list of labels from A for
-             each label v mentioned in Q -- when all labels are positive integers,
-             this is a list -- otherwise, a dictionary
+        emb: A dictionary, where emb[v] is a list of labels from A for each
+             label v mentioned in Q
 
       (when return_overlap = True)
 
@@ -117,7 +108,7 @@ def find_embedding(Q, A, **params):
                     num max chains: the number of variables that has max chain size
                     qubit total: the total number of qubits used to represent variables
 
-         initial_chains: A dictionary or list, where initial_chains[i] is a list of qubit labels.
+         initial_chains: A dictionary, where initial_chains[i] is a list of qubit labels.
                          These chains are inserted into an embedding before fixed_chains are
                          placed, which occurs before the initialization pass.  This can be
                          used to restart the algorithm in a similar state to a previous
@@ -125,13 +116,13 @@ def find_embedding(Q, A, **params):
                          or to reduce overlap in a semi-valid embedding (see skip_initialization)
                          previously returned by the algorithm. Missing or empty entries are ignored.
 
-         fixed_chains: A dictionary or list, where fixed_chains[i] is a list of qubit labels.  These
+         fixed_chains: A dictionary, where fixed_chains[i] is a list of qubit labels.  These
                        chains are inserted into an embedding before the initialization pass.
                        As the algorithm proceeds, these chains are not allowed to change. Missing
                        or empty entries are ignored.
 
 
-         restrict_chains: A dictionary or list, where restrict_chains[i] is a list of qubit labels.
+         restrict_chains: A dictionary, where restrict_chains[i] is a list of qubit labels.
                           Throughout the algorithm, we maintain the condition that chain[i] is a
                           subset of restrict_chains[i] for each i -- except those with missing or
                           empty entries.
@@ -225,11 +216,7 @@ cdef int _get_chainmap(C, chainmap &CMap, QL, AL) except -1:
     cdef vector[int] chain
     CMap.clear();
     try:
-        if isinstance(C, (tuple, list)):
-            R = xrange(len(C))
-        else:
-            R = C
-        for a in R:
+        for a in C:
             chain.clear()
             if C[a]:
                 if AL is None:
@@ -249,9 +236,9 @@ cdef int _get_chainmap(C, chainmap &CMap, QL, AL) except -1:
         except:
             nc = None
         if nc is None:
-            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints or lists/tuples of the same; C has type %s and I can't iterate over it"%type(C)
+            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints; C has type %s and I can't iterate over it"%type(C)
         else:
-            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints or lists/tuples of the same; C has type %s and next(C) has type %s"%(type(C), type(nc))
+            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints; C has type %s and next(C) has type %s"%(type(C), type(nc))
 
 cdef _read_graph(input_graph &g, E):
     L = labeldict()
