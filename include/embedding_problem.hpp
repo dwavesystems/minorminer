@@ -63,11 +63,11 @@ class domain_handler_masked {
         for (int v = n_v + n_f; v--;) {
             auto chain = params.restrict_chains.find(v);
             if (chain != nostrix) {
-                masks[v].resize(n_q, -1);
+                masks[v].resize(n_q + n_r, -1);
                 auto vC = *chain;
                 for (auto &q : vC.second) masks[v][q] = 0;
             } else {
-                masks[v].resize(n_q, 0);
+                masks[v].resize(n_q + n_r, 0);
             }
         }
     }
@@ -198,8 +198,9 @@ class embedding_problem_base {
               target_chainsize(0),
               improved(0) {
         alpha = 8 * sizeof(distance_t);
-        int N = num_q;
+        int N = 2 * num_q;
         while (N /= 2) alpha--;
+        alpha = max(1, alpha);
         weight_bound = min(params.max_fill, alpha);
     }
 
@@ -285,7 +286,7 @@ class embedding_problem_base {
         visited[x] = 1;
         while (front < component.size()) {
             int x = component[front++];
-            int lastback = component.size();
+            unsigned int lastback = component.size();
             for (auto &y : neighbors[x]) {
                 if (!visited[y]) {
                     visited[y] = 1;

@@ -55,8 +55,8 @@ class embedding {
 #ifdef CPPDEBUG
               last_diagnostic(nullptr),
 #endif
-              qub_weight(num_qubits, 0) {
-        for (int q = 0; q < num_vars + num_fixed; q++) var_embedding.emplace_back(q);
+              qub_weight(num_qubits + num_reserved, 0) {
+        for (int q = 0; q < num_vars + num_fixed; q++) var_embedding.emplace_back(qub_weight, q);
         DIAGNOSE("post base_construct");
     }
 
@@ -76,10 +76,8 @@ class embedding {
     }
 
     embedding<embedding_problem_t> &operator=(const embedding<embedding_problem_t> &other) {
-        if (this != &other) {
-            qub_weight = other.qub_weight;
-            var_embedding = other.var_embedding;
-        }
+        if (this != &other) var_embedding = other.var_embedding;
+        DIAGNOSE("operator=");
         return *this;
     }
 
@@ -93,7 +91,7 @@ class embedding {
     inline int weight(int q) const { return qub_weight[q]; }
 
     // Get the maximum of all qubit weights
-    inline int max_weight() const { return *max_element(begin(qub_weight), end(qub_weight)); }
+    inline int max_weight() const { return *max_element(begin(qub_weight), begin(qub_weight) + num_qubits); }
 
     // Get the maximum of all qubit weights in a range
     inline int max_weight(const int start, const int stop) const {
@@ -106,13 +104,7 @@ class embedding {
     // Assign a chain for variable u
     inline void set_chain(const int u, const vector<int> &incoming) {
         // remove the current chain and account for its qubits
-        for (auto &q : var_embedding[u]) {
-            qub_weight[q]--;
-        }
         var_embedding[u] = incoming;
-        for (auto &q : var_embedding[u]) {
-            qub_weight[q]++;
-        }
         DIAGNOSE("set_chain");
     }
 
@@ -138,16 +130,17 @@ class embedding {
         return true;
     }
 
-    void construct_chain(const int u, const int q, const int target_chainsize, const vector<vector<int>> &parents) {
+    void construct_chain(const int u, const int q, const vector<vector<int>> &parents) {
         var_embedding[u].set_root(q);
 
         // extract the paths from each parents list
         for (auto &v : ep.var_neighbors(u))
-            if (chainsize(v)) extract_path(u, v, q, parents[v]);
+            if (chainsize(v)) var_embedding[u].link_path(var_embedding[v], q, parents[v]);
 
-        // account for the weight of new qubits
-        for (auto &q : var_embedding[u]) qub_weight[q]++;
+        DIAGNOSE("construct_chain")
+    }
 
+    void flip_back(int u, const int target_chainsize) {
         // distribute path segments to the neighboring chains -- path segments are the qubits
         // that are ONLY used to join link_qubit[u][v] to link_qubit[u][u] and aren't used
         // for any other variable
@@ -155,32 +148,26 @@ class embedding {
         // * if the target chainsize is k, dump the largest portion of the segment
         for (auto &v : ep.var_neighbors(u))
             if (chainsize(v) && !(ep.fixed(v))) var_embedding[v].steal(var_embedding[u], ep, target_chainsize);
-
-        DIAGNOSE("construct_chain")
+        DIAGNOSE("flip_back")
     }
 
     void tear_out(int u) {
         // short tearout procedure
         // blank out the chain, its linking qubits, and account for the qubits being freed
-        for (auto &q : var_embedding[u]) qub_weight[q]--;
         var_embedding[u].clear();
         for (auto &v : ep.var_neighbors(u)) var_embedding[v].drop_link(u);
         DIAGNOSE("tear_out")
     }
 
-    void covfefe(int u) {
+    void steal_all(int u) {
         // grow the chain for `u`, stealing all available qubits from neighboring variables
-        for (auto &q : var_embedding[u]) qub_weight[q]--;
         for (auto &v : ep.var_neighbors(u)) {
             if (ep.fixed(v)) continue;
             if (var_embedding[u].get_link(v) == -1) continue;
             if (var_embedding[v].get_link(u) == -1) continue;
-            for (auto &q : var_embedding[v]) qub_weight[q]--;
             var_embedding[u].steal(var_embedding[v], ep);
-            for (auto &q : var_embedding[v]) qub_weight[q]++;
         }
-        for (auto &q : var_embedding[u]) qub_weight[q]++;
-        DIAGNOSE("covfefe")
+        DIAGNOSE("steal_all")
     }
 
     int statistics(vector<int> &stats) const {
@@ -251,32 +238,6 @@ class embedding {
         return false;
     }
 
-    inline void extract_path(const int u, const int v, int curr_q, const vector<int> &parent) {
-        // read off the path from u to v, starting from curr_q and
-        // following parent until we fall off the end -- typically,
-        // curr_q will be in the chain of u and "the end" is in the
-        // chain of v
-        minorminer_assert(curr_q >= 0);
-        int prev_q = curr_q;
-        int next_q = parent[curr_q];
-
-        while (next_q != -1) {
-            if (has_qubit(u, curr_q))
-                var_embedding[u].trim_branch(prev_q);
-            else
-                var_embedding[u].add_leaf(curr_q, prev_q);
-
-            prev_q = curr_q;
-            curr_q = next_q;
-            next_q = parent[curr_q];
-        }
-
-        minorminer_assert(has_qubit(u, prev_q));
-        minorminer_assert(has_qubit(v, curr_q));
-        var_embedding[u].set_link(v, prev_q);
-        var_embedding[v].set_link(u, curr_q);
-    }
-
   public:
     void print() const {
         ep.error("var_embedding = [");
@@ -315,8 +276,8 @@ class embedding {
         int zeros = 0;
         int bad_parents = false;
         for (int v = 0; v < num_vars + num_fixed; v++) {
-            for (auto &q : var_embedding[v]) {
-                if (!ep.fixed(v)) {
+            if (!ep.fixed(v)) {
+                for (auto &q : var_embedding[v]) {
                     tmp_weight[q]++;
                     auto z = var_embedding[v].parent(q);
                     if (z != q) {

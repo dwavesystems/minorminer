@@ -2,23 +2,61 @@
 namespace find_embedding {
 
 #ifdef CPPDEBUG
+#define DIAGNOSE2(other, X) \
+    diagnostic(X);          \
+    other.diagnostic(X);
 #define DIAGNOSE(X) diagnostic(X);
 #else
+#define DIAGNOSE2(other, X)
 #define DIAGNOSE(X)
 #endif
 
+// This class stores chains for embeddings, and performs qubit-use
+// accounting.  The `label` is the index number for the variable
+// represented by this chain.  The `links` member of a chain is an
+// unordered map storing the linking information for this chain.
+// The `data` member of a chain stores the connectivity information
+// for the chain.
+//
+// Links:
+// If `u` and `v` are variables which are connected by an edge,
+// the following must be true:
+//    either chain_u or chain_v is empty,
+//
+//    or
+//
+//    chain_u.links[v] is a key in chain_u.data,
+//    chain_v.links[u] is a key in chain_v.data, and
+//    (chain_u.links[v], chain_v.links[u]) are adjacent in the qubit graph
+//
+// Moreover, (chain_u.links[u]) must exist if chain_u is not empty,
+// and this is considered the root of the chain.
+//
+// Data:
+// The `data` member stores the connectivity information.  More
+// precisely, `data` is a mapping `qubit->(parent, refs)` where:
+//     `parent` is also contained in the chain
+//     `refs` is the total number of references to `qubit`, counting
+//            both parents and links
+//     the chain root is its own parent.
+
 class chain {
   private:
+    vector<int> &qubit_weight;
     unordered_map<int, pair<int, int>> data;
     unordered_map<int, int> links;
-    const int label;
 
   public:
-    chain(int l) : data(), links(), label(l) {}
+    const int label;
+    chain(vector<int> &w, int l) : qubit_weight(w), data(), links(), label(l) {}
 
     chain &operator=(const vector<int> &c) {
         clear();
-        for (auto &q : c) data.emplace(q, pair<int, int>(q, 1));
+        for (auto &q : c) {
+            data.emplace(q, pair<int, int>(q, 1));
+            minorminer_assert(0 <= q && q < qubit_weight.size());
+            qubit_weight[q]++;
+        }
         DIAGNOSE("operator=vector");
         return *this;
     }
@@ -26,6 +64,7 @@ class chain {
     chain &operator=(const chain &c) {
         clear();
         data = c.data;
+        for (auto &q : c) qubit_weight[q]++;
         links = c.links;
         DIAGNOSE("operator=chain");
         return *this;
@@ -79,11 +118,13 @@ class chain {
         minorminer_assert(links.size() == 0);
         links.emplace(label, q);
         data.emplace(q, pair<int, int>(q, 2));
+        qubit_weight[q]++;
         DIAGNOSE("set_root");
     }
 
     // empty this data structure
     inline void clear() {
+        for (auto &q : *this) qubit_weight[q]--;
         data.clear();
         links.clear();
         DIAGNOSE("clear");
@@ -94,8 +135,9 @@ class chain {
         minorminer_assert(data.count(q) == 0);
         minorminer_assert(data.count(parent) == 1);
         data.emplace(q, pair<int, int>(parent, 0));
+        qubit_weight[q]++;
         retrieve(parent).second++;
-        DIAGNOSE("add leaf");
+        DIAGNOSE("add_leaf");
     }
 
     // try to delete the qubit `q` from this chain, and keep
@@ -103,17 +145,13 @@ class chain {
     // return the first ancestor which cannot be deleted
     inline int trim_branch(int q) {
         minorminer_assert(data.count(q) == 1);
-        auto z = data.find(q);
-        auto p = (*z).second;
-        while (p.second == 0) {
-            data.erase(z);
-            z = data.find(p.first);
-            p = (*z).second;
-            p.second--;
-            q = p.first;
-            minorminer_assert(data.count(q) == 1);
+        int p = trim_leaf(q);
+        while (p != q) {
+            q = p;
+            p = trim_leaf(q);
         }
-        DIAGNOSE("trim branch");
+        minorminer_assert(data.count(q) == 1);
+        DIAGNOSE("trim_branch");
         return q;
     }
 
@@ -124,11 +162,12 @@ class chain {
         auto z = data.find(q);
         auto p = (*z).second;
         if (p.second == 0) {
+            qubit_weight[q]--;
             retrieve(p.first).second--;
             data.erase(z);
             q = p.first;
         }
-        DIAGNOSE("trim leaf");
+        DIAGNOSE("trim_leaf");
         return q;
     }
 
@@ -152,14 +191,16 @@ class chain {
     // by `this`; starting with the qubit links and updating qubit
     // links after all
     template <typename embedding_problem_t>
-    inline void steal(chain &other, embedding_problem_t &ep, int chainsize = 1) {
+    inline void steal(chain &other, embedding_problem_t &ep, int chainsize = 0) {
         int q = drop_link(other.label);
         int p = other.drop_link(label);
 
         minorminer_assert(q != -1);
         minorminer_assert(p != -1);
-        while (other.size() > chainsize && ep.accepts_qubit(label, p)) {
+
+        while ((chainsize == 0 || size() < chainsize) && ep.accepts_qubit(label, p)) {
             int r = other.trim_leaf(p);
+            minorminer_assert(other.size() >= 1);
             if (r == p) break;
             if (!count(p))
                 add_leaf(p, q);
@@ -170,7 +211,31 @@ class chain {
         }
         set_link(other.label, q);
         other.set_link(label, p);
-        DIAGNOSE("steal");
+        DIAGNOSE2(other, "steal");
+    }
+
+    void link_path(chain &other, int q, const vector<int> &parents) {
+        minorminer_assert(count(q) == 1);
+        minorminer_assert(links.count(other.label) == 0);
+        minorminer_assert(other.get_link(label) == -1);
+        int p = parents[q];
+        if (p == -1) {
+            q = p;
+        } else {
+            while (other.count(p) == 0) {
+                if (count(p))
+                    trim_branch(q);
+                else
+                    add_leaf(p, q);
+                q = p;
+                p = parents[p];
+            }
+        }
+        minorminer_assert(other.count(p) == 1);
+        minorminer_assert(count(q) == 1);
+        set_link(other.label, q);
+        other.set_link(label, p);
+        DIAGNOSE2(other, "link_path");
     }
 
     class iterator {

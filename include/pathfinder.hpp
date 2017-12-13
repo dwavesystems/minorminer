@@ -57,8 +57,8 @@ class pathfinder_base {
 
     vector<distance_t> qubit_weight;
 
-    vector<int> best_stats;
     vector<int> tmp_stats;
+    vector<int> best_stats;
 
     int pushback;
 
@@ -90,17 +90,16 @@ class pathfinder_base {
               dijkstras(num_vars + num_fixed, distance_queue(num_qubits)) {}
 
     int check_improvement(const embedding_t &emb) {
-        bool better = 0;
-        if (emb.statistics(tmp_stats) > ep.embedded) {
+        int better = 0;
+        int embedded = emb.statistics(tmp_stats);
+        if (embedded > ep.embedded) {
             params.major_info("Embedding found.\n");
             better = ep.embedded = 1;
         }
-        // params.error("stats: ");
-        // for(int i=0;i<tmp_stats.size();i++)params.error("%d ", tmp_stats[i]);
-        // params.error("\n");
+        if (embedded < ep.embedded) return 0;
         int major = best_stats.size() - tmp_stats.size();
-        int minor = best_stats[ep.embedded] - tmp_stats[ep.embedded];
-        better |= major > 0;
+        int minor = (best_stats.size() == 0) ? 0 : best_stats[0] - tmp_stats[0];
+        better |= (major > 0) || (best_stats.size() == 0);
         if (better) {
             if (ep.embedded) {
                 params.major_info("max chain length %d\n", tmp_stats.size() - 1);
@@ -112,13 +111,13 @@ class pathfinder_base {
         better |= (major == 0) && (minor > 0);
         if (better) {
             if (ep.embedded) {
-                params.minor_info("        num max chains=%d\n", tmp_stats[1]);
+                params.minor_info("    num max chains=%d\n", tmp_stats[0]);
             } else {
-                params.minor_info("        num max qubits=%d\n", tmp_stats[0]);
+                params.minor_info("    num max qubits=%d\n", tmp_stats[0]);
             }
         }
         if (!better && (major == 0) && (minor == 0)) {
-            for (int i = 0; i < tmp_stats.size(); i++) {
+            for (unsigned int i = 0; i < tmp_stats.size(); i++) {
                 if (tmp_stats[i] > best_stats[i]) {
                     break;
                 } else if (tmp_stats[i] < best_stats[i]) {
@@ -138,18 +137,13 @@ class pathfinder_base {
 
   protected:
     int find_chain(embedding_t &emb, const int u) {
-        if (ep.embedded || ep.desperate) emb.covfefe(u);
+        if (ep.embedded || ep.desperate) emb.steal_all(u);
         emb.tear_out(u);
-        if (ep.embedded && ep.desperate)
-            return find_short_chain(emb, u, 10);
-        else if (ep.desperate)
-            return find_short_chain(emb, u, 2);
-        else
-            return find_chain(emb, u, ep.target_chainsize);
+        return find_chain(emb, u, ep.target_chainsize);
     }
 
     int initialization_pass(embedding_t &emb) {
-        for (auto &u : ep.var_order(params.restrict_chains.size() ? VARORDER_BFS : VARORDER_PFS)) {
+        for (auto &u : ep.var_order((params.restrict_chains.size()) ? VARORDER_DFS : VARORDER_PFS)) {
             if (emb.chainsize(u) && emb.linked(u)) {
                 vector<int> tmp_component;
                 vector<int> tmp_visited;
@@ -157,7 +151,7 @@ class pathfinder_base {
                 int p = 0;
                 for (auto &q : emb.get_chain(u)) tmp_visited[p = q] = 0;
                 ep.qubit_component(p, tmp_component, tmp_visited);
-                if (tmp_component.size() == emb.chainsize(u)) continue;
+                if (tmp_component.size() == static_cast<unsigned int>(emb.chainsize(u))) continue;
             }
             if (!find_chain(emb, u)) return -1;
         }
@@ -169,8 +163,7 @@ class pathfinder_base {
 
     int improve_overfill_pass(embedding_t &emb) {
         bool improved = false;
-        VARORDER order = ep.desperate ? VARORDER_SHUFFLE : (ep.improved ? VARORDER_BFS : VARORDER_KEEP);
-        for (auto &u : ep.var_order(order)) {
+        for (auto &u : ep.var_order(VARORDER_PFS)) {
             if (!find_chain(emb, u)) return -1;
 
             improved = check_improvement(emb);
@@ -188,19 +181,20 @@ class pathfinder_base {
         int oldbound = ep.weight_bound;
 
         bool improved = false;
-        for (auto &u : ep.var_order(ep.improved ? VARORDER_KEEP : VARORDER_PFS)) {
+        for (auto &u : ep.var_order()) {
             int r = 0;
             if (pushback < num_vars) {
                 int maxfill = 0;
-                emb.covfefe(u);
+                emb.steal_all(u);
                 for (auto &q : emb.get_chain(u)) maxfill = max(maxfill, emb.weight(q));
 
                 ep.weight_bound = max(0, maxfill);
-                r = find_chain(emb, u);
+
+                emb.tear_out(u);
+                r = find_chain(emb, u, 0);
                 if (!r) pushback += 3;
             }
             if (!r) {
-                ep.target_chainsize = 0;
                 ep.weight_bound = oldbound;
                 if (!find_chain(emb, u)) return -1;
             }
@@ -208,11 +202,11 @@ class pathfinder_base {
             if (ep.embedded) break;
         }
         ep.weight_bound = oldbound;
-        ep.target_chainsize = 0;
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
             ep.minor_info("finished overfill pass (pushdown)\n");
+            if (!improved) pushback += (num_vars * 2) / params.inner_rounds;
             return improved;
         }
     }
@@ -276,44 +270,9 @@ class pathfinder_base {
         int q0 = min_list[ep.randint(min_list.size())];
         if (total_distance[q0] == max_distance) return 0;  // oops all qubits were overfull or unreachable
 
-        emb.construct_chain(u, q0, target_chainsize, parents);
+        emb.construct_chain(u, q0, parents);
+        emb.flip_back(u, target_chainsize);
 
-        return 1;
-    }
-
-    int find_short_chain(embedding_t &emb, const int u, int roots_to_try = 10) {
-        prepare_root_distances(emb, u);
-
-        int better = 1;
-        int q0 = -1;
-        int q0_size = num_qubits + num_reserved + 1;
-        int tried = 0;
-
-        while (better && tried < roots_to_try) {
-            better = 0;
-            collectMinima(total_distance, min_list);
-            if (!min_list.size() || total_distance[min_list[0]] == max_distance) break;
-            ep.shuffle(begin(min_list), end(min_list));
-            for (auto &q1 : min_list) {
-                if (tried++) emb.tear_out(u);
-
-                total_distance[q1] = max_distance;
-                emb.construct_chain(u, q1, num_qubits + num_reserved + 1, parents);
-
-                if (emb.chainsize(u) < q0_size) {
-                    q0_size = emb.chainsize(u);
-                    q0 = q1;
-                    better = 1;
-                }
-                if (tried >= roots_to_try) break;
-            }
-        }
-
-        if (q0 == -1) return 0;
-        if (tried > 1) {
-            emb.tear_out(u);
-            emb.construct_chain(u, q0, ep.target_chainsize, parents);
-        }
         return 1;
     }
 
@@ -327,7 +286,7 @@ class pathfinder_base {
         pq.reset();
         // scan through the qubits.
         // * qubits in the chain of v have distance 0,
-        // * overfull qubits are tagged as visited with a special value of 2
+        // * overfull qubits are tagged as visited with a special value of -1
         if (ep.fixed(v)) {
             for (auto &q : emb.get_chain(v)) {
                 parent[q] = -1;
@@ -357,15 +316,16 @@ class pathfinder_base {
 
     void compute_qubit_weights(const embedding_t &emb) {
         // first, find the maximum value of alpha that won't result in arithmetic overflow
-        int maxwid = emb.max_weight();
-        if (maxwid > ep.weight_bound) maxwid = ep.weight_bound - 1;
+        int maxwid = min(emb.max_weight(), ep.alpha);
+        if (maxwid > ep.weight_bound) maxwid = ep.weight_bound;
         int alpha = maxwid > 1 ? ep.alpha / maxwid : ep.alpha - 1;
-        compute_qubit_weights(emb, alpha, 0, num_qubits);
+        compute_qubit_weights(emb, alpha, maxwid, 0, num_qubits);
     }
 
-    void compute_qubit_weights(const embedding_t &emb, const int alpha, const int start, const int stop) {
+    void compute_qubit_weights(const embedding_t &emb, const int alpha, const int maxwid, const int start,
+                               const int stop) {
         for (int q = start; q < stop; q++)
-            qubit_weight[q] = static_cast<const distance_t>(1) << (alpha * emb.weight(q));
+            qubit_weight[q] = static_cast<const distance_t>(1) << (alpha * min(maxwid, emb.weight(q)));
     }
 
   public:
@@ -373,29 +333,30 @@ class pathfinder_base {
         auto timeout0 = duration<double>(params.timeout);
         auto timeout = duration_cast<clock::duration>(timeout0);
         stoptime = clock::now() + timeout;
-
+        ep.target_chainsize = 0;
         if (params.skip_initialization) {
             if (initEmbedding.linked()) {
-                bestEmbedding = initEmbedding;
+                currEmbedding = initEmbedding;
             } else {
                 ep.error(
                         "cannot bootstrap from initial embedding.  stopping.  disable skip_initialization or throw "
-                        "this embedding away");
+                        "this embedding away\n");
                 return 0;
             }
         } else {
-            bestEmbedding = initEmbedding;
-            if (initialization_pass(bestEmbedding) <= 0) {
+            currEmbedding = initEmbedding;
+            if (initialization_pass(currEmbedding) <= 0) {
                 ep.error("failed during initialization. embeddings may be invalid.\n");
                 return 0;
             }
         }
         ep.initialized = 1;
-        bestEmbedding.statistics(best_stats);
+        best_stats.clear();
+        check_improvement(currEmbedding);
         ep.improved = 1;
+        currEmbedding = bestEmbedding;
         for (int trial_patience = params.tries; trial_patience-- && (!ep.embedded);) {
             int improvement_patience = params.max_no_improvement;
-            currEmbedding = lastEmbedding = bestEmbedding;
             ep.major_info("Embedding trial %d\n", params.tries - trial_patience);
             pushback = 0;
             for (int round_patience = params.inner_rounds;
@@ -409,11 +370,11 @@ class pathfinder_base {
                     r = improve_overfill_pass(currEmbedding);
                 }
                 switch (r) {
-                    case -1:
-                        ep.error("connectivity failure in singleVertexAdditionHeuristic.  embeddings are invalid\n");
                     case -2:
                         improvement_patience = 0;
                         break;
+                    case -1:
+                        currEmbedding = bestEmbedding;  // fallthrough
                     case 0:
                         improvement_patience--;
                         ep.improved = 0;
@@ -428,12 +389,19 @@ class pathfinder_base {
             if (trial_patience && (ep.embedded) && (improvement_patience == 0)) {
                 ep.initialized = 0;
                 ep.desperate = 1;
-                bestEmbedding = initEmbedding;
-                if (initialization_pass(bestEmbedding) <= 0) {
-                    ep.error("failed during restart. embeddings may be invalid.\n");
-                    return 0;
+                currEmbedding = bestEmbedding;
+                int r = initialization_pass(currEmbedding);
+                switch (r) {
+                    case -2:
+                        trial_patience = 0;
+                        break;
+                    case -1:
+                        currEmbedding = bestEmbedding;
+                        break;
+                    case 1:
+                        check_improvement(currEmbedding);
+                        break;
                 }
-                bestEmbedding.statistics(best_stats);
                 ep.initialized = 1;
                 ep.desperate = 0;
             }
@@ -587,10 +555,12 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
         exec_indexed([this, &emb](int i, int a, int b) { thread_weight[i] = emb.max_weight(a, b); });
 
         int maxwid = *std::max_element(begin(thread_weight), end(thread_weight));
-        if (maxwid > super::ep.weight_bound) maxwid = super::ep.weight_bound - 1;
+        maxwid = min(super::ep.alpha, maxwid);
+        if (maxwid > super::ep.weight_bound) maxwid = super::ep.weight_bound;
         int alpha = maxwid > 1 ? super::ep.alpha / maxwid : super::ep.alpha - 1;
 
-        exec_chunked([this, &emb, alpha](int a, int b) { super::compute_qubit_weights(emb, alpha, a, b); });
+        exec_chunked(
+                [this, &emb, alpha, maxwid](int a, int b) { super::compute_qubit_weights(emb, alpha, maxwid, a, b); });
 
         exec_chunked(
                 [this, u](int a, int b) { super::ep.prepare_distances(super::total_distance, u, max_distance, a, b); });
