@@ -11,6 +11,35 @@ namespace find_embedding {
 #define DIAGNOSE(X)
 #endif
 
+// This class stores chains for embeddings, and performs qubit-use
+// accounting.  The `label` is the index number for the variable
+// represented by this chain.  The `links` member of a chain is an
+// unordered map storing the linking information for this chain.
+// The `data` member of a chain stores the connectivity information
+// for the chain.
+//
+// Links:
+// If `u` and `v` are variables which are connected by an edge,
+// the following must be true:
+//    either chain_u or chain_v is empty,
+//
+//    or
+//
+//    chain_u.links[v] is a key in chain_u.data,
+//    chain_v.links[u] is a key in chain_v.data, and
+//    (chain_u.links[v], chain_v.links[u]) are adjacent in the qubit graph
+//
+// Moreover, (chain_u.links[u]) must exist if chain_u is not empty,
+// and this is considered the root of the chain.
+//
+// Data:
+// The `data` member stores the connectivity information.  More
+// precisely, `data` is a mapping `qubit->(parent, refs)` where:
+//     `parent` is also contained in the chain
+//     `refs` is the total number of references to `qubit`, counting
+//            both parents and links
+//     the chain root is its own parent.
+
 class chain {
   private:
     vector<int> &qubit_weight;
@@ -25,7 +54,7 @@ class chain {
         clear();
         for (auto &q : c) {
             data.emplace(q, pair<int, int>(q, 1));
-            minorminer_assert(0 <= q < qubit_weight.size());
+            minorminer_assert(0 <= q && q < qubit_weight.size());
             qubit_weight[q]++;
         }
         DIAGNOSE("operator=vector");

@@ -98,12 +98,12 @@ class pathfinder_base {
         }
         if (embedded < ep.embedded) return 0;
         int major = best_stats.size() - tmp_stats.size();
-        int minor = best_stats[ep.embedded] - tmp_stats[ep.embedded];
-        better |= major > 0;
+        int minor = (best_stats.size() == 0) ? 0 : best_stats[0] - tmp_stats[0];
+        better |= (major > 0) || (best_stats.size() == 0);
         if (better) {
             if (ep.embedded) {
                 params.major_info("max chain length %d\n", tmp_stats.size() - 1);
-                ep.target_chainsize = tmp_stats.size() - 1;  // TODO -- should this be -1 or not?
+                ep.target_chainsize = tmp_stats.size() - 1;
             } else {
                 params.major_info("max overfill %d\n", tmp_stats.size());
             }
@@ -111,12 +111,12 @@ class pathfinder_base {
         better |= (major == 0) && (minor > 0);
         if (better) {
             if (ep.embedded) {
-                params.minor_info("        num max chains=%d\n", tmp_stats[1]);
+                params.minor_info("    num max chains=%d\n", tmp_stats[0]);
             } else {
-                params.minor_info("        num max qubits=%d\n", tmp_stats[0]);
+                params.minor_info("    num max qubits=%d\n", tmp_stats[0]);
             }
         }
-        if (false && !better && (major == 0) && (minor == 0)) {
+        if (!better && (major == 0) && (minor == 0)) {
             for (unsigned int i = 0; i < tmp_stats.size(); i++) {
                 if (tmp_stats[i] > best_stats[i]) {
                     break;
@@ -336,7 +336,7 @@ class pathfinder_base {
         ep.target_chainsize = 0;
         if (params.skip_initialization) {
             if (initEmbedding.linked()) {
-                bestEmbedding = initEmbedding;
+                currEmbedding = initEmbedding;
             } else {
                 ep.error(
                         "cannot bootstrap from initial embedding.  stopping.  disable skip_initialization or throw "
@@ -344,14 +344,15 @@ class pathfinder_base {
                 return 0;
             }
         } else {
-            bestEmbedding = initEmbedding;
-            if (initialization_pass(bestEmbedding) <= 0) {
+            currEmbedding = initEmbedding;
+            if (initialization_pass(currEmbedding) <= 0) {
                 ep.error("failed during initialization. embeddings may be invalid.\n");
                 return 0;
             }
         }
         ep.initialized = 1;
-        bestEmbedding.statistics(best_stats);
+        best_stats.clear();
+        check_improvement(currEmbedding);
         ep.improved = 1;
         currEmbedding = bestEmbedding;
         for (int trial_patience = params.tries; trial_patience-- && (!ep.embedded);) {
