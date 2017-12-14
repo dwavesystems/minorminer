@@ -10,4 +10,6 @@
 /python/minorminer.egg-info
 /build/
 
-env/
+# Virtual environments
+/env/
+/venv/
