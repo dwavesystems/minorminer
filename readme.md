@@ -132,7 +132,17 @@ embedding{:}
 
 #### Installation
 
-C++11 programs should be able to use this as a header only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externs/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
+The `CMakeLists.txt` in the root of this repo will build the library and run a series of tests. On linux the commands would be something like this:
+
+```
+mkdir build; cd build
+cmake ..
+make
+```
+
+#### Library Usage
+
+C++11 programs should be able to use this as a header only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externals/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
 
 ```CMake
 set(MINORMINER_BUILD_TESTS OFF)
