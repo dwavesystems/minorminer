@@ -17,8 +17,6 @@ Getting Started
 
 #### Installation
 
-Note: currently only Python 2 is supported.
-
 If a wheel for your platform has been precompiled and posted to pypi
 installing it with pip is recommended.
 
