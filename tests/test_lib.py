@@ -9,6 +9,10 @@ import os
 import sys
 import time
 
+_PY3 = sys.version_info[0] == 3
+if _PY3:
+    xrange = range
+
 # Given that this test is in the tests directory, the calibration data should be
 # in a sub directory. Use the path of this source file to find the calibration
 calibration_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibration")
@@ -26,12 +30,12 @@ def find_embedding(Q,A,return_overlap=False,**args):
                 warn(check_embedding.warning, RuntimeWarning)
             return emb, succ
         else:
-            raise RuntimeError, "bad embedding reported as success (%s)"%(check_embedding.errcode)
+            raise RuntimeError("bad embedding reported as success (%s)"%(check_embedding.errcode))
     else:
         emb = find_embedding_orig(Q,A,return_overlap=return_overlap,**args)
         if emb:
             if not check_embedding(Q,A,emb,**args):
-                raise RuntimeError, "bad embedding reported as success (%s)"%(check_embedding.errcode)
+                raise RuntimeError("bad embedding reported as success (%s)"%(check_embedding.errcode))
             elif check_embedding.warning:
                 warn(check_embedding.warning, RuntimeWarning)
         return emb
@@ -90,7 +94,7 @@ def Path(n):
     return [(i,i+1) for i in xrange(n-1)]
 
 def Grid(n):
-    return [((x,y),(x+dx,y+dy)) for a in xrange(n) for b in xrange(n-1) for (x,y,dx,dy) in (a,b,0,1), (b,a,1,0)]
+    return [((x,y),(x+dx,y+dy)) for a in xrange(n) for b in xrange(n-1) for (x,y,dx,dy) in [(a,b,0,1), (b,a,1,0)]]
 
 def Clique(n):
     return [(u,v) for u in xrange(n) for v in xrange(u)]
@@ -110,7 +114,7 @@ def NAE3SAT(n):
     import networkx
     from math import ceil
     from random import seed, randint
-    seed(18293447845779813366L)
+    seed(18293447845779813366)
     c = int(ceil(sum(randint(1,ceil(n*4.2)) for _ in range(100))/100.))
     return networkx.generators.k_random_intersection_graph(c,n,3).edges()
 
@@ -153,7 +157,7 @@ def success_count(n,*a,**k):
     def count_successes(f):
         global success_count_functions
         success_count_functions.append([f,n,a,k])
-        if os.path.exists(os.path.join(calibration_dir, f.func_name)):
+        if os.path.exists(os.path.join(calibration_dir, f.__name__)):
             S,N = load_success_count_calibration(f)
             N+= (S==N)
             accept_prob = .01 # 1% false negative rate
@@ -169,7 +173,7 @@ def success_count(n,*a,**k):
                     assert False, "took %d tries without success, this should only happen %.02f%% of the time"%(tts, false_prob*100)
         else:
             def test_run():
-                raise RuntimeError, "%s is not calibrated -- run calibrate_all() or calibrate_new()"%(f.func_name)
+                raise RuntimeError("%s is not calibrated -- run calibrate_all() or calibrate_new()"%(f.__name__))
 
         test_run.original=f
         return test_run
@@ -180,26 +184,26 @@ def calibrate_success_count(f,n,a,k, directory=calibration_dir, M=None):
     if M is None:
         M = 10000
     N = M*n
-    print "calibrating %s, %d trials"%(f.func_name, N),
+    print("calibrating %s, %d trials "%(f.__name__, N))
     t0 = time.clock()
     for i in range(N):
         if i%(N/10)==0:
-            print (10*i/N),
+            print("%d "%(10*i/N))
             sys.stdout.flush()
         succ+= bool(f(*a,**k))
-    print
+    print()
     dt = time.clock()-t0
-    print "%s: %.04e per trial; success rate %.01f%%"%(f.func_name, dt/N, succ*100./N),
-    if directory != calibration_dir and os.path.exists(os.path.join(calibration_dir, f.func_name)):
+    print("%s: %.04e per trial; success rate %.01f%% "%(f.__name__, dt/N, succ*100./N))
+    if directory != calibration_dir and os.path.exists(os.path.join(calibration_dir, f.__name__)):
         olds, oldn = load_success_count_calibration(f)
-        print "standard is %.01f%%"%(olds*100./oldn)
+        print("standard is %.01f%%"%(olds*100./oldn))
     else:
-        print
-    with open(os.path.join(directory, f.func_name),"w") as cal_f:
-        cal_f.write(`succ,float(N)`);
+        print()
+    with open(os.path.join(directory, f.__name__),"w") as cal_f:
+        cal_f.write("succ,float(N)")
 
 def load_success_count_calibration(f, directory=calibration_dir):
-    with open(os.path.join(directory, f.func_name)) as cal_f:
+    with open(os.path.join(directory, f.__name__)) as cal_f:
         return eval(cal_f.read())
 
 
@@ -211,11 +215,11 @@ def calibrate_all(directory=calibration_dir, M=None):
 
     for f,n,a,k in success_count_functions:
         calibrate_success_count(f,n,a,k, directory=directory, M=M)
-        print
+        print()
 
 def calibrate_new(directory=calibration_dir, M=None):
     for f,n,a,k in success_count_functions:
-        if os.path.exists(os.path.join(directory, f.func_name)):
+        if os.path.exists(os.path.join(directory, f.__name__)):
             continue
         else:
             calibrate_success_count(f,n,a,k, directory=directory, M=M)
