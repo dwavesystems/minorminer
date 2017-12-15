@@ -1,4 +1,6 @@
 #pragma once
+#include "util.hpp"
+
 namespace find_embedding {
 
 #ifdef CPPDEBUG
