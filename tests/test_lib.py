@@ -11,7 +11,7 @@ import time
 
 _PY3 = sys.version_info[0] == 3
 if _PY3:
-    xrange = range
+    range = range
 
 # Given that this test is in the tests directory, the calibration data should be
 # in a sub directory. Use the path of this source file to find the calibration
@@ -91,24 +91,24 @@ def check_embedding(Q,A,emb, **args):
     return True
 
 def Path(n):
-    return [(i,i+1) for i in xrange(n-1)]
+    return [(i,i+1) for i in range(n-1)]
 
 def Grid(n):
-    return [((x,y),(x+dx,y+dy)) for a in xrange(n) for b in xrange(n-1) for (x,y,dx,dy) in [(a,b,0,1), (b,a,1,0)]]
+    return [((x,y),(x+dx,y+dy)) for a in range(n) for b in range(n-1) for (x,y,dx,dy) in [(a,b,0,1), (b,a,1,0)]]
 
 def Clique(n):
-    return [(u,v) for u in xrange(n) for v in xrange(u)]
+    return [(u,v) for u in range(n) for v in range(u)]
 
 def Biclique(n):
-    return [(u,v) for u in xrange(n) for v in xrange(n,2*n)]
+    return [(u,v) for u in range(n) for v in range(n,2*n)]
 
 def Chimera(n,l=4):
     return [((x,y,u,k),(x+dx,y+dy,u,k))
-                for a in xrange(n)
-                     for b in xrange(n-1)
-                         for k in xrange(l)
+                for a in range(n)
+                     for b in range(n-1)
+                         for k in range(l)
                             for x,y,u,dx,dy in [(b,a,0,1,0),(a,b,1,0,1)]
-           ]+[((x,y,0,k),(x,y,1,kk)) for x in xrange(n) for y in xrange(n) for k in xrange(l) for kk in xrange(l)]
+           ]+[((x,y,0,k),(x,y,1,kk)) for x in range(n) for y in range(n) for k in range(l) for kk in range(l)]
 
 def NAE3SAT(n):
     import networkx
@@ -121,7 +121,7 @@ def NAE3SAT(n):
 def ChordalCycle(p):
     import networkx
     G = networkx.generators.chordal_cycle_graph(p)
-    G.remove_edges_from(G.selfloop_edges())
+    G.remove_edges_from(list(G.selfloop_edges()))
     return G.edges()
 
 def GeometricGraph(n,pos=None):
@@ -141,14 +141,14 @@ def CartesianProduct(n):
 def GridChimeraEmbedding(n):
     emb = {}
     M = [[0,2,2,0],[1,3,3,1],[1,3,3,1],[0,2,2,0]]
-    for x in xrange(n):
-        for y in xrange(n):
-            emb[x,y] = [(x/2, y/2, 0, M[x%4][y%4]),
-                        (x/2, y/2, 1, M[y%4][x%4])]
+    for x in range(n):
+        for y in range(n):
+            emb[x,y] = [(x//2, y//2, 0, M[x%4][y%4]),
+                        (x//2, y//2, 1, M[y%4][x%4])]
     return emb
 
 def mask_wxw(n,w=2,l=4):
-    return {(X/w,Y/w): [(x,y,u,k) for x in xrange(X,X+w) for y in xrange(Y,Y+w) for u in (0,1) for k in xrange(l)] for X in xrange(0,n,w) for Y in xrange(0,n,w)}
+    return {(X//w,Y//w): [(x,y,u,k) for x in range(X,X+w) for y in range(Y,Y+w) for u in (0,1) for k in range(l)] for X in range(0,n,w) for Y in range(0,n,w)}
 
 success_count_functions = []
 def success_count(n,*a,**k):
@@ -188,7 +188,7 @@ def calibrate_success_count(f,n,a,k, directory=calibration_dir, M=None):
     t0 = time.clock()
     for i in range(N):
         if i%(N/10)==0:
-            print("%d "%(10*i/N))
+            print("%d "%(10*i//N))
             sys.stdout.flush()
         succ+= bool(f(*a,**k))
     print()
@@ -259,7 +259,7 @@ def check_args(prob, hard, initial_chains=None, fixed_chains=None, restrict_chai
     assert networkx.is_connected(probg), "problem graph not connected"
 
     if fixed_chains is not None:
-        for v,chain in fixed_chains.iteritems():
+        for v,chain in fixed_chains.items():
             assert probg.has_node(v), "fixed_chains vars not contained in problem graph"
             for q in chain:
                 assert hardg.has_node(q), "fixed_chains chains not contained in hardware graph"
@@ -271,7 +271,7 @@ def check_args(prob, hard, initial_chains=None, fixed_chains=None, restrict_chai
                 assert v not in restrict_chains, "fixed_chains chains are restricted"
 
     if initial_chains is not None:
-        for v,chain in initial_chains.iteritems():
+        for v,chain in initial_chains.items():
             assert probg.has_node(v), "initial vars not contained in problem graph"
             for q in chain:
                 assert hardg.has_node(q), "initial chains not contained in hardware graph"
@@ -282,7 +282,7 @@ def check_args(prob, hard, initial_chains=None, fixed_chains=None, restrict_chai
 
     if restrict_chains is not None:
         fullset = set(hardg.nodes())
-        for v,chain in restrict_chains.iteritems():
+        for v,chain in restrict_chains.items():
             assert probg.has_node(v), "restricted vars not contained in problem graph"
             for q in chain:
                 assert hardg.has_node(q), "restricted chains not contained in hardware graph"
@@ -300,22 +300,22 @@ def test_path_label_00(n):
 @success_count(100, 5)
 def test_path_label_01(n):
     p = Path(n)
-    L = map(str,range(n))
+    L = [str(i) for i in range(n)]
     Lp = [(L[x],L[y]) for x,y in p]
     return find_embedding(p, Lp)
 
 @success_count(100, 5)
 def test_path_label_10(n):
     p = Path(n)
-    L = map(str,range(n))
+    L = [str(i) for i in range(n)]
     Lp = [(L[x],L[y]) for x,y in p]
     return find_embedding(Lp, p)
 
 @success_count(100, 5)
 def test_path_label_11(n):
     p = Path(n)
-    L = map(str,range(n))
-    Lp = [(L[x],L[y]) for x,y in p]
+    L = [str(i) for i in range(n)]
+    Lp = [(L[x], L[y]) for x, y in p]
     return find_embedding(Lp, Lp)
 
 @success_count(30, 3)
@@ -325,8 +325,8 @@ def test_grid_init_restrict(n):
     mask = mask_wxw(n,1,l=4)
     grid = Grid(2*n)
 
-    init = {(x,y): [choice(mask[x/2, y/2])] for x in xrange(2*n) for y in xrange(2*n)}
-    doms = {(x,y): mask[x/2, y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    init = {(x,y): [choice(mask[x//2, y//2])] for x in range(2*n) for y in range(2*n)}
+    doms = {(x,y): mask[x//2, y//2] for x in range(2*n) for y in range(2*n)}
 
     return find_embedding(grid, chim, initial_chains = init, restrict_chains=doms, skip_initialization=False)
 
@@ -337,7 +337,7 @@ def test_grid_init(n):
     mask = mask_wxw(n,1,l=2)
     grid = Grid(2*n)
 
-    init = {(x,y): mask[x/2, y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    init = {(x,y): mask[x//2, y//2] for x in range(2*n) for y in range(2*n)}
 
     return find_embedding(grid, chim, initial_chains = init, skip_initialization=False)
 
@@ -395,7 +395,7 @@ def test_grid_restrict(n):
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
 
-    doms = {(x,y): mask[x/2, y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    doms = {(x,y): mask[x//2, y//2] for x in range(2*n) for y in range(2*n)}
 
     check_args(grid, chim, restrict_chains=doms)
 
@@ -432,10 +432,10 @@ def test_grid_suspend(n):
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
 
-    suspg = [((x,y),(x/2,y/2,0)) for x in xrange(2*n) for y in xrange(2*n)]
-    suspc = [((x,y,0),m) for x in xrange(n) for y in xrange(n) for m in mask[x,y]]
+    suspg = [((x,y),(x//2,y//2,0)) for x in range(2*n) for y in range(2*n)]
+    suspc = [((x,y,0),m) for x in range(n) for y in range(n) for m in mask[x,y]]
 
-    suspension = {(x,y,0):[(x,y,0)] for x in xrange(n) for y in xrange(n)}
+    suspension = {(x,y,0):[(x,y,0)] for x in range(n) for y in range(n)}
 
     return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, fast_embedding=True)
 
@@ -445,11 +445,11 @@ def test_grid_plant_suspend(n):
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
 
-    suspg = [((x,y),(x/2,y/2,0)) for x in xrange(2*n) for y in xrange(2*n)]
-    suspc = [(m,(x,y,0)) for x in xrange(n) for y in xrange(n) for m in mask[x,y]]
+    suspg = [((x,y),(x//2,y//2,0)) for x in range(2*n) for y in range(2*n)]
+    suspc = [(m,(x,y,0)) for x in range(n) for y in range(n) for m in mask[x,y]]
 
-    suspension = {(x,y,0):[(x,y,0)] for x in xrange(n) for y in xrange(n)}
-    init = {(x,y): mask[x/2, y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    suspension = {(x,y,0):[(x,y,0)] for x in range(n) for y in range(n)}
+    init = {(x,y): mask[x//2, y//2] for x in range(2*n) for y in range(2*n)}
 
     return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, initial_chains = init, fast_embedding=True)
 
@@ -459,11 +459,11 @@ def test_grid_cheat_suspend(n):
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
 
-    suspg = [((x,y),(x/2,y/2,0)) for x in xrange(2*n) for y in xrange(2*n)]
-    suspc = [((x,y,0),m) for x in xrange(n) for y in xrange(n) for m in mask[x,y]]
+    suspg = [((x,y),(x//2,y//2,0)) for x in range(2*n) for y in range(2*n)]
+    suspc = [((x,y,0),m) for x in range(n) for y in range(n) for m in mask[x,y]]
 
-    suspension = {(x,y,0):[(x,y,0)] for x in xrange(n) for y in xrange(n)}
-    doms = {(x,y):mask[x/2,y/2] for x in xrange(2*n) for y in xrange(2*n)}
+    suspension = {(x,y,0):[(x,y,0)] for x in range(n) for y in range(n)}
+    doms = {(x,y):mask[x//2,y//2] for x in range(2*n) for y in range(2*n)}
 
     check_args(grid+suspg, chim+suspc, fixed_chains=suspension, skip_initialization=False, restrict_chains=doms)
 
@@ -487,7 +487,7 @@ def test_biclique_chimera(n):
 @success_count(30, 5)
 def test_path_cheat_domain(n):
     P = Path(n)
-    cheat = {p:[p] for p in xrange(n)}
+    cheat = {p:[p] for p in range(n)}
 
     return find_embedding(P, P, restrict_chains=cheat, fast_embedding=True)
 
@@ -523,7 +523,7 @@ def test_clique_parallel(n,k):
 def test_clique_term(n,k):
     chim = Chimera(n)
     cliq = Clique(k)
-    cterm = [((n/2,n/2,0,0),k)]
+    cterm = [((n//2,n//2,0,0),k)]
     kterm = [(0,k)]
     fix = {k:[k]}
     return find_embedding(cliq+kterm, chim+cterm, fixed_chains=fix, fast_embedding=True)
@@ -538,7 +538,7 @@ def test_grid_heal_A(n):
 
     emb = GridChimeraEmbedding(2*n)
     i_emb = {}
-    for v,chain in emb.iteritems():
+    for v,chain in emb.items():
         remainder = {(x+1,y+1,u,k) for x,y,u,k in chain}.difference(breaks)
         if remainder:
             i_emb[v] = remainder
