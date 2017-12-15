@@ -31,7 +31,7 @@ in the python directory.
 pip install -r requirements.txt
 python setup.py install
 # optionally, run the tests to check your build
-pip install -r test_requirements.txt
+pip install -r ../tests/requirements.txt
 python -m nose .. --exe
 ```
 
