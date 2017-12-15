@@ -13,3 +13,5 @@
 # Virtual environments
 /env/
 /venv/
+
+/wheelhouse/

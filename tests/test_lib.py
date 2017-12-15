@@ -3,11 +3,14 @@
 
     TODO ADD MORE
 """
+from __future__ import print_function, division
 from minorminer import find_embedding as find_embedding_orig
 from warnings import warn
 import os
 import sys
 import time
+from builtins import range
+from future.utils import iteritems
 
 _PY3 = sys.version_info[0] == 3
 if _PY3:
@@ -80,11 +83,11 @@ def check_embedding(Q,A,emb, **args):
             check_embedding.errcode = "missing edge"
             return False
 
-    for x,chain in args.get("fixed_chains", {}).items():
+    for x, chain in iteritems(args.get("fixed_chains", {})):
         if set(chain) != set(emb[x]):
             check_embedding.errcode = "fixed chain mismatch"
             return False
-    for x,domain in args.get("restrict_chains", {}).items():
+    for x, domain in iteritems(args.get("restrict_chains", {})):
         if not set(domain) >= set(emb[x]):
             check_embedding.warning = "restrict chain mismatch"
 
@@ -429,7 +432,7 @@ def test_grid_with_answer_slow(n):
 @success_count(30, 5)
 def test_grid_suspend(n):
     chim = Chimera(n)
-    mask = mask_wxw(n,1)
+    mask = mask_wxw(n, 1)
     grid = Grid(2*n)
 
     suspg = [((x,y),(x//2,y//2,0)) for x in range(2*n) for y in range(2*n)]
@@ -519,8 +522,9 @@ def test_clique_parallel(n,k):
 
     return find_embedding(cliq, chim, fast_embedding=True, threads=2)
 
+
 @success_count(30, 3, 13)
-def test_clique_term(n,k):
+def test_clique_term(n, k):
     chim = Chimera(n)
     cliq = Clique(k)
     cterm = [((n//2,n//2,0,0),k)]
