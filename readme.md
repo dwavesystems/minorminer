@@ -136,7 +136,7 @@ embedding{:}
 
 The `CMakeLists.txt` in the root of this repo will build the library and run a series of tests. On linux the commands would be something like this:
 
-```
+```bash
 mkdir build; cd build
 cmake ..
 make
