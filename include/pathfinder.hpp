@@ -29,8 +29,19 @@ namespace find_embedding {
 // The execution of Dijkstra's algorithm is responsible for 99% of our runtime.  It's easily parallelized when variables
 // have a large number of neighbors.  The serial/parallel versions occur below.
 
+// look at me, forward-declaring liek an adult
+template <typename T>
+class pathfinder_base;
+template <typename T>
+class pathfinder_serial;
+template <typename T>
+class pathfinder_parallel;
+
 template <typename embedding_problem_t>
 class pathfinder_base {
+    friend class pathfinder_serial<embedding_problem_t>;
+    friend class pathfinder_parallel<embedding_problem_t>;
+
   public:
     using embedding_t = embedding<embedding_problem_t>;
 
@@ -118,12 +129,9 @@ class pathfinder_base {
         }
         if (!better && (major == 0) && (minor == 0)) {
             for (unsigned int i = 0; i < tmp_stats.size(); i++) {
-                if (tmp_stats[i] > best_stats[i]) {
-                    break;
-                } else if (tmp_stats[i] < best_stats[i]) {
-                    better = 1;
-                    break;
-                }
+                if (tmp_stats[i] == best_stats[i]) continue;
+                if (tmp_stats[i] < best_stats[i]) better = 1;
+                break;
             }
         }
         if (better) {
