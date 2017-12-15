@@ -16,6 +16,7 @@ Getting Started
 ### Python
 
 #### Installation
+
 If a wheel for your platform has been precompiled and posted to pypi
 installing it with pip is recommended.
 
@@ -27,9 +28,10 @@ If your platform doesn't have a precompiled wheel, try to run the `setuptools` s
 in the python directory.
 
 ```bash
+pip install -r requirements.txt
 python setup.py install
-# optionally, install nose and run the tests to check your build
-pip install nose
+# optionally, run the tests to check your build
+pip install -r test_requirements.txt
 python -m nose .. --exe
 ```
 
@@ -132,7 +134,17 @@ embedding{:}
 
 #### Installation
 
-C++11 programs should be able to use this as a header only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externs/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
+The `CMakeLists.txt` in the root of this repo will build the library and run a series of tests. On linux the commands would be something like this:
+
+```
+mkdir build; cd build
+cmake ..
+make
+```
+
+#### Library Usage
+
+C++11 programs should be able to use this as a header only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externals/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
 
 ```CMake
 set(MINORMINER_BUILD_TESTS OFF)
