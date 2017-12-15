@@ -141,7 +141,7 @@ def find_embedding(Q, A, **params):
 
     for name in params:
         if name not in names:
-            raise ValueError, "%s is not a valid parameter for find_embedding"%name
+            raise ValueError("%s is not a valid parameter for find_embedding"%name)
 
     try: opts.fast_embedding = int( params["fast_embedding"] )
     except KeyError: pass
@@ -189,13 +189,13 @@ def find_embedding(Q, A, **params):
 
     _get_chainmap(params.get("fixed_chains",[]), opts.fixed_chains, QL, AL)
     if checksize < len(QL)+len(AL):
-        raise RuntimeError, "fixed_chains use source or target node labels that weren't referred to by any edges"
+        raise RuntimeError("fixed_chains use source or target node labels that weren't referred to by any edges")
     _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, QL, AL)
     if checksize < len(QL)+len(AL):
-        raise RuntimeError, "initial_chains use source or target node labels that weren't referred to by any edges"
+        raise RuntimeError("initial_chains use source or target node labels that weren't referred to by any edges")
     _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, QL, AL)
     if checksize < len(QL)+len(AL):
-        raise RuntimeError, "restrict_chains use source or target node labels that weren't referred to by any edges"
+        raise RuntimeError("restrict_chains use source or target node labels that weren't referred to by any edges")
 
     cdef vector[vector[int]] chains
     cdef int success = findEmbedding(Qg, Ag, opts, chains)
@@ -236,9 +236,9 @@ cdef int _get_chainmap(C, chainmap &CMap, QL, AL) except -1:
         except:
             nc = None
         if nc is None:
-            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints; C has type %s and I can't iterate over it"%type(C)
+            raise ValueError("initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints; C has type %s and I can't iterate over it"%type(C))
         else:
-            raise ValueError, "initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints; C has type %s and next(C) has type %s"%(type(C), type(nc))
+            raise ValueError("initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints; C has type %s and next(C) has type %s"%(type(C), type(nc)))
 
 cdef _read_graph(input_graph &g, E):
     L = labeldict()
