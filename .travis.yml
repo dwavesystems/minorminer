@@ -9,24 +9,35 @@ os: linux
 
 matrix:
   include:
-    # - language: c
-    #   script: ./ci/travis/cpp-coverage.sh
-    #   deploy:
-    #   env: C_COMPILER=gcc CXX_COMPILER=g++
-    # - language: c
-    #   script: ./ci/travis/cpp-coverage.sh
-    #   deploy:
-    #   env: C_COMPILER=clang CXX_COMPILER=clang++
-    # - language: c
-    #   os: osx
-    #   script: ./ci/travis/osx-cpp-coverage.sh
-    #   deploy:
-    #   env: C_COMPILER=gcc CXX_COMPILER=g++
-    # - language: c
-    #   os: osx
-    #   script: ./ci/travis/osx-cpp-coverage.sh
-    #   deploy:
-    #   env: C_COMPILER=clang CXX_COMPILER=clang++
+    - language: c
+      script: ./ci/travis/cpp-coverage.sh
+      deploy:
+      env: C_COMPILER=gcc CXX_COMPILER=g++
+    - language: c
+      script: ./ci/travis/cpp-coverage.sh
+      deploy:
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.8
+      env:
+         - C_COMPILER=gcc-4.8 CXX_COMPILER=g++-4.8
+    - language: c
+      script: ./ci/travis/cpp-coverage.sh
+      deploy:
+      env: C_COMPILER=clang CXX_COMPILER=clang++
+    - language: c
+      os: osx
+      script: ./ci/travis/osx-cpp-coverage.sh
+      deploy:
+      env: C_COMPILER=gcc CXX_COMPILER=g++
+    - language: c
+      os: osx
+      script: ./ci/travis/osx-cpp-coverage.sh
+      deploy:
+      env: C_COMPILER=clang CXX_COMPILER=clang++
     - language: python
       sudo: required
       services:
