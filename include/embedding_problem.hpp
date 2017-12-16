@@ -236,6 +236,11 @@ class embedding_problem_base {
     }
 
     template <typename... Args>
+    void extra_info(const char *format, Args... args) const {
+        params.extra_info(format, args...);
+    }
+
+    template <typename... Args>
     void debug(const char *format, Args... args) const {
         params.debug(format, args...);
     }

@@ -117,9 +117,14 @@ class optional_parameters {
     }
 
     template <typename... Args>
+    void extra_info(const char* format, Args... args) const {
+        if (verbose >= 3) printx(format, args...);
+    }
+
+    template <typename... Args>
     void debug(const char* format, Args... args) const {
 #ifdef CPPDEBUG
-        if (verbose >= 3) printx(format, args...);
+        if (verbose >= 4) printx(format, args...);
 #endif
     }
 

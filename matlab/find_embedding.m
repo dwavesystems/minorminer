@@ -82,20 +82,38 @@
 %                        the return_overlap parameter enabled.
 %                        (must be a logical 0/1 integer, default = 0)
 %
-%   verbose: 0/1.
-%            (must be an integer [0, 1], default = 0)
-%            when verbose is 1, the output information will be like:
-%            try ...
-%            overfill pass: quit total = ..., max overfill = ...
-%            embedding found
-%            chainlength pass: qubit total = ..., max chainlength = ...
-%            detailed explanation of the output information:
-%              try: ith (0-based) try
-%              max overfill: largest number of variables represented in a qubit (omitted when 1)
-%              num maxfill: the number of qubits that has max overfill (omitted when max is 1)
-%              max chainlength: largest number of qubits representing a single variable
-%              num max chains: the number of variables that has max chain size
-%              qubit total: the total number of qubits used to represent variables
+%         verbose: 0/1/2/3/(4).
+%                  (must be an integer [0, 1, 2, 3, (4)], default = 0)
+%                  when verbose is 1, the output information will look like:
+%
+%                    initialized
+%                    max qubit fill 3; num maxfull qubits=3
+%                    embedding trial 1
+%                    max qubit fill 2; num maxfull qubits=21
+%                    embedding trial 2
+%                    embedding trial 3
+%                    embedding trial 4
+%                    embedding trial 5
+%                    embedding found.
+%                    max chain length 4; num max chains=1
+%                    reducing chain lengths
+%                    max chain length 3; num max chains=5
+%
+%                  additional verbosity levels will
+%                    2: report progress on minor statistics (when searching for an embedding, this is
+%                         when the number of maxfull qubits decreases; when improving, this is when the
+%                         number of max chains decreases)
+%                    3: report before each before each pass -- look here when tweaking `tries`,
+%                         `inner_rounds`, and `chainlength_patience`
+%                    (4): report additional debugging information.  by default, this package is built
+%                         without this functionality -- in the c++ headers, this is controlled by the
+%                         CPPDEBUG flag
+%
+%                  detailed explanation of the output information:
+%                    max qubit fill: largest number of variables represented in a qubit
+%                    num maxfull: the number of qubits that has max overfill
+%                    max chain length: largest number of qubits representing a single variable
+%                    num max chains: the number of variables that has max chain size
 %
 %   initial_chains: A 0-indexed cell array, where chain(i) a matrix whose entries are
 %                   the qubits representing variable i.  These chains are inserted

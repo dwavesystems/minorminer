@@ -105,7 +105,7 @@ class pathfinder_base {
         int better = 0;
         int embedded = emb.statistics(tmp_stats);
         if (embedded > ep.embedded) {
-            params.major_info("Embedding found.\n");
+            params.major_info("embedding found.\n");
             better = ep.embedded = 1;
         }
         if (embedded < ep.embedded) return 0;
@@ -114,19 +114,19 @@ class pathfinder_base {
         better |= (major > 0) || (best_stats.size() == 0);
         if (better) {
             if (ep.embedded) {
-                params.major_info("max chain length %d\n", tmp_stats.size() - 1);
+                params.major_info("max chain length %d; num max chains=%d\n", tmp_stats.size() - 1, tmp_stats[0]);
                 ep.target_chainsize = tmp_stats.size() - 1;
             } else {
-                params.major_info("max overfill %d\n", tmp_stats.size());
+                params.major_info("max qubit fill %d; num maxfull qubits=%d\n", tmp_stats.size() + 1, tmp_stats[0]);
             }
         }
-        better |= (major == 0) && (minor > 0);
-        if (better) {
+        if ((!better) && (major == 0) && (minor > 0)) {
             if (ep.embedded) {
                 params.minor_info("    num max chains=%d\n", tmp_stats[0]);
             } else {
                 params.minor_info("    num max qubits=%d\n", tmp_stats[0]);
             }
+            better = 1;
         }
         if (!better && (major == 0) && (minor == 0)) {
             for (unsigned int i = 0; i < tmp_stats.size(); i++) {
@@ -160,8 +160,12 @@ class pathfinder_base {
                 int p = 0;
                 for (auto &q : emb.get_chain(u)) tmp_visited[p = q] = 0;
                 ep.qubit_component(p, tmp_component, tmp_visited);
-                if (tmp_component.size() == static_cast<unsigned int>(emb.chainsize(u))) continue;
+                if (tmp_component.size() == static_cast<unsigned int>(emb.chainsize(u))) {
+                    ep.debug("chain for %d kept during initialization\n", u);
+                    continue;
+                }
             }
+            ep.debug("finding a new chain for %d\n", u);
             if (!find_chain(emb, u)) return -1;
         }
         if (params.localInteractionPtr->cancelled(stoptime))
@@ -173,6 +177,7 @@ class pathfinder_base {
     int improve_overfill_pass(embedding_t &emb) {
         bool improved = false;
         for (auto &u : ep.var_order(VARORDER_PFS)) {
+            ep.debug("finding a new chain for %d\n", u);
             if (!find_chain(emb, u)) return -1;
 
             improved = check_improvement(emb);
@@ -181,7 +186,6 @@ class pathfinder_base {
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
-            ep.minor_info("finished overfill pass\n");
             return improved;
         }
     }
@@ -193,6 +197,7 @@ class pathfinder_base {
         for (auto &u : ep.var_order()) {
             int r = 0;
             if (pushback < num_vars) {
+                ep.debug("finding a new chain for %d (pushdown)\n", u);
                 int maxfill = 0;
                 emb.steal_all(u);
                 for (auto &q : emb.get_chain(u)) maxfill = max(maxfill, emb.weight(q));
@@ -204,6 +209,7 @@ class pathfinder_base {
                 if (!r) pushback += 3;
             }
             if (!r) {
+                ep.debug("finding a new chain for %d (pushdown pause/repeat)\n", u);
                 ep.weight_bound = oldbound;
                 if (!find_chain(emb, u)) return -1;
             }
@@ -214,7 +220,6 @@ class pathfinder_base {
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
-            ep.minor_info("finished overfill pass (pushdown)\n");
             if (!improved) pushback += (num_vars * 2) / params.inner_rounds;
             return improved;
         }
@@ -223,6 +228,7 @@ class pathfinder_base {
     int improve_chainlength_pass(embedding_t &emb) {
         bool improved = false;
         for (auto &u : ep.var_order(ep.improved ? VARORDER_KEEP : VARORDER_PFS)) {
+            ep.debug("finding a new chain for %d\n", u);
             if (!find_chain(emb, u)) return -1;
 
             improved = check_improvement(emb);
@@ -230,7 +236,6 @@ class pathfinder_base {
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
         else {
-            ep.minor_info("finished chainlength pass\n");
             return improved;
         }
     }
@@ -359,6 +364,7 @@ class pathfinder_base {
                 return 0;
             }
         }
+        ep.major_info("initialized\n");
         ep.initialized = 1;
         best_stats.clear();
         check_improvement(currEmbedding);
@@ -366,11 +372,14 @@ class pathfinder_base {
         currEmbedding = bestEmbedding;
         for (int trial_patience = params.tries; trial_patience-- && (!ep.embedded);) {
             int improvement_patience = params.max_no_improvement;
-            ep.major_info("Embedding trial %d\n", params.tries - trial_patience);
+            ep.major_info("embedding trial %d\n", params.tries - trial_patience);
             pushback = 0;
             for (int round_patience = params.inner_rounds;
                  round_patience-- && improvement_patience && (!ep.embedded);) {
                 int r;
+                ep.extra_info("overfill improvement pass (%d more before giving up on this trial)\n",
+                              min(improvement_patience, round_patience) - 1);
+                ep.extra_info("max qubit fill %d, num max qubits %d\n", best_stats.size() + 1, best_stats[0]);
                 ep.desperate = (improvement_patience <= 1) | (!trial_patience) | (!round_patience);
                 if (pushback < num_vars) {
                     r = pushdown_overfill_pass(currEmbedding);
@@ -416,11 +425,14 @@ class pathfinder_base {
             }
         }
         if (ep.embedded && !params.fast_embedding) {
+            ep.major_info("reducing chain lengths\n");
             int improvement_patience = params.chainlength_patience;
             ep.weight_bound = 1;
             currEmbedding = bestEmbedding;
             while (improvement_patience) {
                 lastEmbedding = currEmbedding;
+                ep.extra_info("chainlength improvement pass (%d more before giving up)\n", improvement_patience - 1);
+                ep.extra_info("max chain length %d, num of max chains %d\n", best_stats.size() - 1, best_stats[0]);
                 ep.desperate = (improvement_patience == 1);
                 int r = improve_chainlength_pass(currEmbedding);
                 switch (r) {
