@@ -9,10 +9,6 @@ import os
 import sys
 import time
 
-_PY3 = sys.version_info[0] == 3
-if _PY3:
-    range = range
-
 # Given that this test is in the tests directory, the calibration data should be
 # in a sub directory. Use the path of this source file to find the calibration
 calibration_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibration")

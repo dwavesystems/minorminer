@@ -99,6 +99,7 @@ class pathfinder_base {
               tmp_stats(),
               best_stats(),
               dijkstras(num_vars + num_fixed, distance_queue(num_qubits)) {}
+    virtual ~pathfinder_base() {}
 
     int check_improvement(const embedding_t &emb) {
         int better = 0;
@@ -459,6 +460,7 @@ class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
     pathfinder_serial(optional_parameters &p_, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
                       vector<vector<int>> &q_n)
             : super(p_, n_v, n_f, n_q, n_r, v_n, q_n), visited(super::num_qubits + super::num_reserved) {}
+    virtual ~pathfinder_serial() {}
 
     virtual void prepare_root_distances(const embedding_t &emb, const int u) override {
         super::ep.prepare_distances(super::total_distance, u, max_distance);
@@ -558,6 +560,7 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
               visited_list(n_v + n_f, vector<int>(super::num_qubits)),
               futures(num_threads),
               thread_weight(num_threads) {}
+    virtual ~pathfinder_parallel() {}
 
     virtual void prepare_root_distances(const embedding_t &emb, const int u) override {
         exec_indexed([this, &emb](int i, int a, int b) { thread_weight[i] = emb.max_weight(a, b); });
@@ -571,7 +574,7 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
                 [this, &emb, alpha, maxwid](int a, int b) { super::compute_qubit_weights(emb, alpha, maxwid, a, b); });
 
         exec_chunked(
-                [this, u](int a, int b) { super::ep.prepare_distances(super::total_distance, u, max_distance, a, b); });
+                [this, u](int a, int b) { this->ep.prepare_distances(this->total_distance, u, max_distance, a, b); });
 
         nbr_i = 0;
         neighbors_embedded = 0;
@@ -582,7 +585,7 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
         for (auto &v : super::ep.var_neighbors(u)) {
             if (emb.chainsize(v)) {
                 exec_chunked(
-                        [this, &emb, v](int a, int b) { super::accumulate_distance(emb, v, visited_list[v], a, b); });
+                        [this, &emb, v](int a, int b) { this->accumulate_distance(emb, v, visited_list[v], a, b); });
             }
         }
     }

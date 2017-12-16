@@ -4,10 +4,13 @@
 #include <string>
 #include <vector>
 
+#include <iso646.h>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <vector>
+
+#include "debug.hpp"
 
 // Macros local to this file, undefined at the end
 #define nullval int(0xffffffff)
@@ -24,6 +27,9 @@ using std::numeric_limits;
 // A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
 template <typename P>
 class pairing_queue {
+  public:
+    typedef P value_type;
+
   protected:
     vector<P> val;
 
@@ -45,6 +51,8 @@ class pairing_queue {
         int n = 0;
         for (auto &p : prev) p = n++;
     }
+
+    inline bool has(int index) const { return 0 <= index < val.size(); }
 
     // Reset the queue and set the default to the maximum value
     inline void reset() { reset_fill(max_P); }
@@ -81,6 +89,8 @@ class pairing_queue {
     // Decrease the value of k to v
     // NOTE: Assumes that v is lower than the current value of k
     inline void decrease_value(int k, const P &v) {
+        minorminer_assert(0 <= k and k < val.size());
+        minorminer_assert(v < val[k]);
         val[k] = v;
         decrease(k);
     }
@@ -97,6 +107,9 @@ class pairing_queue {
     }
 
     inline void set_value(int k, const P &v) {
+        minorminer_assert(0 <= k and k < val.size());
+        minorminer_assert(0 <= k and k < prev.size());
+
         if (prev[k] == k) {
             val[k] = v;
             root = merge_roots(k, root);
@@ -126,6 +139,8 @@ class pairing_queue {
     inline int merge_roots(int a, int b) {
         // even this version of merge_roots is slightly unsafe -- we never call it with a null, so let's not check!
         // * doesn't check for nullval
+        minorminer_assert(!empty(a));
+
         if (empty(b)) return a;
         int c = merge_roots_unsafe(a, b);
         prev[c] = nullval;
@@ -136,6 +151,8 @@ class pairing_queue {
         // this unsafe version of merge_roots which
         // * doesn't check for nullval
         // * doesn't ensure that the returned node has prev[a] = nullval
+        minorminer_assert(!empty(a));
+        minorminer_assert(!empty(b));
 
         if (val[a] < val[b]) return merge_roots_unchecked(a, b);
         if (val[b] < val[a]) return merge_roots_unchecked(b, a);
@@ -148,6 +165,9 @@ class pairing_queue {
         // * doesn't check for nullval
         // * doesn't ensure that the returned node has prev[a] = nullval
         // * doesn't check that a < b
+        minorminer_assert(!empty(a));
+        minorminer_assert(!empty(b));
+        // minorminer_assert(a < b);
 
         next[b] = desc[a];
         if (!empty(desc[a])) prev[desc[a]] = b;
@@ -213,8 +233,12 @@ class pairing_queue_fast_reset : public pairing_queue<P> {
     int now;
 
     inline bool current(int k) {
+        minorminer_assert(0 <= k and k < time.size());
         if (time[k] != now) {
             time[k] = now;
+            minorminer_assert(0 <= k and k < super::prev.size());
+            minorminer_assert(0 <= k and k < super::next.size());
+            minorminer_assert(0 <= k and k < super::desc.size());
             super::prev[k] = k;
             super::next[k] = nullval;  // super::nullval;
             super::desc[k] = nullval;  // super::nullval;
@@ -255,6 +279,8 @@ class pairing_queue_fast_reset : public pairing_queue<P> {
     }
 
     inline P get_value(int k) const {
+        minorminer_assert(0 <= k and k < time.size());
+        minorminer_assert(0 <= k and k < super::val.size());
         if (time[k] == now)
             return super::val[k];
         else

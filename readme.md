@@ -31,7 +31,7 @@ in the python directory.
 pip install -r requirements.txt
 python setup.py install
 # optionally, run the tests to check your build
-pip install -r test_requirements.txt
+pip install -r ../tests/requirements.txt
 python -m nose .. --exe
 ```
 
@@ -136,7 +136,7 @@ embedding{:}
 
 The `CMakeLists.txt` in the root of this repo will build the library and run a series of tests. On linux the commands would be something like this:
 
-```
+```bash
 mkdir build; cd build
 cmake ..
 make
