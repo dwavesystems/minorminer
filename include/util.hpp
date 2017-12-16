@@ -5,19 +5,8 @@
 #include <random>
 #include <thread>
 #include <unordered_map>
+#include "debug.hpp"
 #include "pairing_queue.hpp"
-
-#ifdef CPPDEBUG
-#ifdef NDBUG
-#undef NDBUG
-#endif
-#include <assert.h>
-#define minorminer_assert(X) assert(X)
-#else
-#ifndef minorminer_assert
-#define minorminer_assert(X)
-#endif
-#endif
 
 namespace find_embedding {
 // Import some things from the std library
@@ -45,7 +34,7 @@ using RANDOM = default_random_engine;
 using clock = std::chrono::high_resolution_clock;
 using pairing_queue::pairing_queue_fast_reset;
 using distance_queue = pairing_queue::pairing_queue_fast_reset<distance_t>;
-using int_queue = pairing_queue::pairing_queue_fast_reset<int>;
+using int_queue = pairing_queue::pairing_queue_fast_reset<int64_t>;
 
 //! Interface for communication between the library and various bindings.
 //!
@@ -150,10 +139,6 @@ class FindEmbeddingException {
 class ProblemCancelledException : public FindEmbeddingException {
   public:
     ProblemCancelledException(const string& m = "problem cancelled exception") : FindEmbeddingException(m) {}
-    const string& what() const { return message; }
-
-  private:
-    string message;
 };
 
 // Fill output with the index of all of the minimum and equal values in input
