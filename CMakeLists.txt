@@ -5,7 +5,7 @@ project(minorminer)
 # set(VERSION_MINOR 5)
 # set(VERSION_PATCH 0)
 
-option(MINORMINER_BUILD_TESTS "Build unit tests." ON)
+option(MINORMINER_BUILD_TESTS "Build unit tests." OFF)
 
 
 add_library(minorminer INTERFACE)
