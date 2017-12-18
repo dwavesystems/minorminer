@@ -39,7 +39,8 @@ TEST(components, construction_three_disconnected) {
 
     ASSERT_EQ(components.size(), 1);
     ASSERT_EQ(components.num_reserved(0), 0);
-    ASSERT_EQ(components.nodes(0), std::vector<int>({0, 1}));
+    auto nodes = components.nodes(0);
+    ASSERT_EQ(std::set<int>(nodes.begin(), nodes.end()), std::set<int>({0, 1}));
     ASSERT_EQ(components.size(0), 2);
 
     auto out_graph = components.component_graph(0);
@@ -54,7 +55,8 @@ TEST(components, construction_three_disconnected_again) {
 
     ASSERT_EQ(components.size(), 1);
     ASSERT_EQ(components.num_reserved(0), 0);
-    ASSERT_EQ(components.nodes(0), std::vector<int>({1, 2}));
+    auto nodes = components.nodes(0);
+    ASSERT_EQ(std::set<int>(nodes.begin(), nodes.end()), std::set<int>({1, 2}));
     ASSERT_EQ(components.size(0), 2);
 
     auto out_graph = components.component_graph(0);
