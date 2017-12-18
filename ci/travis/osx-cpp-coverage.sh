@@ -13,7 +13,7 @@ cmake .. -DMINORMINER_BUILD_TESTS=ON;
 make CC=$CC CXX=$CXX;
 
 # Run the tests
-./tests/all_tests;
+./tests/run_tests;
 
 # Stop after running the unit tests, the linux builds will submit the coverage data
 #
