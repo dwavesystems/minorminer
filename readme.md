@@ -134,13 +134,15 @@ embedding{:}
 
 #### Installation
 
-The `CMakeLists.txt` in the root of this repo will build the library and run a series of tests. On linux the commands would be something like this:
+The `CMakeLists.txt` in the root of this repo will build the library and optionally run a series of tests. On linux the commands would be something like this:
 
 ```bash
 mkdir build; cd build
 cmake ..
 make
 ```
+
+To build the tests turn the cmake option `MINORMINER_BUILD_TESTS` on. The command line option for cmake to do this would be `-DMINORMINER_BUILD_TESTS=ON`.
 
 #### Library Usage
 
