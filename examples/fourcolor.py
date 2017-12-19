@@ -1,5 +1,3 @@
-from dwave_sapi2.util import linear_index_to_chimera, chimera_to_linear_index
-
 def ParseBlocks(G, blocks, block_good, eblock_good):
     """
     Extract the blocks from a graph, and returns a
@@ -9,11 +7,11 @@ def ParseBlocks(G, blocks, block_good, eblock_good):
     Inputs:
         G: a networkx graph
         blocks: a partition of G.nodes()
-        block_good: a function 
+        block_good: a function
                 f(blocks[i], G)
             which is true if the node `i` should be
             represented in the quotient, and false otherwise
-        eblock_good: a function 
+        eblock_good: a function
                 f(blocks[i], blocks[j], G)
             which is true if the edge `(i,j)` should be
             represented in the quotient, and false otherwise
@@ -27,7 +25,7 @@ def ParseBlocks(G, blocks, block_good, eblock_good):
             continue
         for q in b:
             if q in blockid:
-                raise RuntimeError, "two blocks overlap"
+                raise(RuntimeError, "two blocks overlap")
             blockid[q] = i
 
     BG = Graph()
@@ -89,7 +87,7 @@ def ChimeraBlocks(M=16,N=16,L=4):
 
 def FourColor(source_graph,target_graph,M=16,N=16,L=4):
     """
-    Produce an embedding in target_graph suitable to 
+    Produce an embedding in target_graph suitable to
     check if source_graph is 4-colorable.  More generally,
     if target_graph is a (M,N,L) Chimera subgraph, the
     test is for L-colorability.  This depends heavily upon
@@ -100,7 +98,7 @@ def FourColor(source_graph,target_graph,M=16,N=16,L=4):
         M,N,L: integers defining the base chimera topology
 
     Outputs:
-        emb: a dictionary mapping (v,i) 
+        emb: a dictionary mapping (v,i)
 
     """
 
@@ -119,7 +117,7 @@ def FourColor(source_graph,target_graph,M=16,N=16,L=4):
 
     #Construct the hints:
     # Goal: each source node must be connected to one horizontal block and one
-    #       vertical block (by Chimera structure, each source node will 
+    #       vertical block (by Chimera structure, each source node will
     #       contain a full (horizontal and vertical) unit cell
     # Construction:
     #   0. for each source node `z`, construct two dummy nodes (z,0) and (z,1)
@@ -189,4 +187,4 @@ graph = networkx.generators.complete_multipartite_graph(2,3,4,2)
 emb = FourColor(graph, H, 16,16,4)
 #and then translate back to integer indices
 newemb = {v:[unlab[q] for q in c] for v, c in emb.items()}
-print newemb
+print(newemb)
