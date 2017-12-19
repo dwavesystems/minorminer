@@ -53,6 +53,7 @@ print(embedding)
 # [[0, 1], [2], [3]]
 # [[3], [1, 0], [2]]
 ```
+
 ```python
 # We can insist that variable 0 of the triangle will always be assigned to [2]
 embedding = find_embedding(triangle, square, fixed_chains={0: [2]})
@@ -61,6 +62,7 @@ print(embedding)
 # [[2], [1], [0, 3]]
 # And more, but all of them start with [2]
 ```
+
 ```python
 # If we didn't want to force variable 0 to stay as [2], but we thought that
 # was a good start we could provide it as an initialization hint instead.
@@ -70,6 +72,7 @@ print(embedding)
 # [[0], [3], [1, 2]]
 # Output where variable 0 has switched to something else is possible again.
 ```
+
 ```python
 import networkx as nx
 
@@ -87,6 +90,12 @@ print(embedding)
 ```
 
 A more fleshed out example can be found under `examples/fourcolor.py`
+
+```bash
+cd examples
+pip install -r requirements.txt
+python fourcolor.py
+```
 
 ### Matlab
 
