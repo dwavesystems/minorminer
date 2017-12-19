@@ -8,9 +8,7 @@ from random import randint
 
 
 def find_embedding(Q, A, **params):
-    """
-    find_embedding(Q, A, **params)
-    Find an embedding of a QUBO/Ising in a graph.
+    """Find an embedding of a QUBO/Ising in a graph.
 
     (can be interrupted by Ctrl-C, will return the best embedding found so far.)
 
@@ -18,103 +16,106 @@ def find_embedding(Q, A, **params):
     is entirely heuristic: failure to return an embedding does not
     prove that no embedding exists.
 
-    Input parameters:
+    Parameters
+    ----------
+    Q : an iterable of label pairs
 
-      Q: an iterable of label pairs
+    A : an iterable of label pairs
 
-      A: an iterable of label pairs
+    **optional parameters : (see below)
 
-      **optional parameters (see below)
+    Returns
+    -------
+    (default / when return_overlap = False, see below)
+    emb : A dictionary
+        where emb[v] is a list of labels from A for each label v mentioned in Q
 
-    Output:
+    (when return_overlap = True)
+    emb : as above
+    success : True/False
+        according to whether or not a valid embedding was found
 
-      (default / when return_overlap = False, see below)
+    Optional parameters
+    -------------------
 
-        emb: A dictionary, where emb[v] is a list of labels from A for each
-             label v mentioned in Q
+    fast_embedding : True/False (must be a boolean, default = False)
+        tries to get an embedding quickly, without worrying about
+        chain length.
 
-      (when return_overlap = True)
+    max_no_improvement : must be an integer >= 0, default = 10
+        number of rounds of the algorithm to try from the current
+        solution with no improvement. Each round consists of an attempt to find an
+        embedding for each variable of Q such that it is adjacent to all its
+        neighbours.
 
-        emb: as above
-        success: True/False according to whether or not a valid embedding was found
+    random_seed : (must be an integer >=0, default is randomly set)
+        seed for random number generator that find_embedding uses
 
-     Optional parameters::
+    timeout : (must be a number >= 0, default is approximately 1000 seconds)
+        Algorithm gives up after timeout seconds.
 
-         fast_embedding: True/False, tries to get an embedding quickly, without worrying about
-                         chain length.
-                         (must be a boolean, default = False)
+    tries : (must be an integer >= 0, default = 10)
+        The algorithm stops after this number of restart attempts. On Vesuvius,
+        each restart takes between 1 and 60 seconds typically.
 
-         max_no_improvement: number of rounds of the algorithm to try from the current
-                             solution with no improvement. Each round consists of an attempt to find an
-                             embedding for each variable of Q such that it is adjacent to all its
-                             neighbours.
-                             (must be an integer >= 0, default = 10)
+    inner_rounds : (must be an integer >= 0, default = effectively infinite)
+        the algorithm takes at most this many passes between restart attempts;
+        restart attempts are typically terminated due to max_no_improvement
 
-         random_seed: seed for random number generator that find_embedding uses
-                      (must be an integer >=0, default is randomly set)
 
-         timeout: Algorithm gives up after timeout seconds.
-                  (must be a number >= 0, default is approximately 1000 seconds)
+    chainlength_patience : (must be an integer >= 0, default = 2)
+        similar to max_no_improvement, but for the chainlength improvement
+        passes.
 
-         tries: The algorithm stops after this number of restart attempts. On Vesuvius,
-                each restart takes between 1 and 60 seconds typically.
-                (must be an integer >= 0, default = 10)
 
-         inner_rounds: the algorithm takes at most this many passes between restart attempts;
-                       restart attempts are typically terminated due to max_no_improvement
-                       (must be an integer >= 0, default = effectively infinite)
+    max_fill : (must be an integer >= 0, default = effectively infinite)
+        until a valid embedding is found, this restricts the the maximum number
+        of variables whose chain may contain a given qubit.
 
-         chainlength_patience: similar to max_no_improvement, but for the chainlength improvement
-                               passes.
-                               (must be an integer >= 0, default = 2)
+    threads : (must be an integer >= 1, default = 1)
+        maximum number of threads to use.  note that the parallelization is only
+        advantageous where the expected degree of variables is (significantly?)
+        greater than the number of threads.
 
-         max_fill: until a valid embedding is found, this restricts the the maximum number
-                   of variables whose chain may contain a given qubit.
-                   (must be an integer >= 0, default = effectively infinite)
+    return_overlap : (must be a logical 0/1 integer, default = 0)
+        return an embedding whether or not qubits are used by multiple
+        variables -- capture both return values to determine whether or
+        not the returned embedding is valid
 
-         threads: maximum number of threads to use.  note that the parallelization is only
-                  advantageous where the expected degree of variables is (significantly?)
-                  greater than the number of threads.
-                  (must be an integer >= 1, default = 1)
 
-         return_overlap: return an embedding whether or not qubits are used by multiple
-                         variables -- capture both return values to determine whether or
-                         not the returned embedding is valid
-                         (must be a logical 0/1 integer, default = 0)
+    skip_initialization : (must be a logical 0/1 integer, default = 0)
+        skip the initialization pass -- NOTE: this only works  if the
+        chains passed in through initial_chains and fixed_chains are
+        semi-valid.  A semi-valid embedding is a collection of chains
+        such that every adjacent pair of variables (u,v) has a coupler
+        (p,q) in the hardware graph where p is in chain(u) and q is in
+        chain(v).  This can be used on a valid embedding to immediately
+        skip to the chainlength improvement phase.  Another good source
+        of semi-valid embeddings is the output of this function with
+        the return_overlap parameter enabled.
 
-         skip_initialization: skip the initialization pass -- NOTE: this only works  if the
-                              chains passed in through initial_chains and fixed_chains are
-                              semi-valid.  A semi-valid embedding is a collection of chains
-                              such that every adjacent pair of variables (u,v) has a coupler
-                              (p,q) in the hardware graph where p is in chain(u) and q is in
-                              chain(v).  This can be used on a valid embedding to immediately
-                              skip to the chainlength improvement phase.  Another good source
-                              of semi-valid embeddings is the output of this function with
-                              the return_overlap parameter enabled.
-                              (must be a logical 0/1 integer, default = 0)
 
-         verbose: 0/1/2/3/(4).
-                  (must be an integer [0, 1, 2, 3, (4)], default = 0)
-                  when verbose is 1, the output information will look like:
+    verbose : 0/1/2/3/(4). (must be an integer [0, 1, 2, 3, (4)], default = 0)
+        when verbose is 1, the output information will look like:
 
-                    initialized
-                    max qubit fill 3; num maxfull qubits=3
-                    embedding trial 1
-                    max qubit fill 2; num maxfull qubits=21
-                    embedding trial 2
-                    embedding trial 3
-                    embedding trial 4
-                    embedding trial 5
-                    embedding found.
-                    max chain length 4; num max chains=1
-                    reducing chain lengths
-                    max chain length 3; num max chains=5
+        initialized
+        max qubit fill 3; num maxfull qubits=3
+        embedding trial 1
+        max qubit fill 2; num maxfull qubits=21
+        embedding trial 2
+        embedding trial 3
+        embedding trial 4
+        embedding trial 5
+        embedding found.
+        max chain length 4; num max chains=1
+        reducing chain lengths
+        max chain length 3; num max chains=5
 
-                  additional verbosity levels will
-                    2: report progress on minor statistics (when searching for an embedding, this is
+        additional verbosity levels will
+            2: report progress on minor statistics (when searching for an embedding, this is
                          when the number of maxfull qubits decreases; when improving, this is when the
                          number of max chains decreases)
-                    3: report before each before each pass -- look here when tweaking `tries`,
+            3: report before each before each pass -- look here when tweaking `tries`,
                          `inner_rounds`, and `chainlength_patience`
                     (4): report additional debugging information.  by default, this package is built
                          without this functionality -- in the c++ headers, this is controlled by the
@@ -126,7 +127,7 @@ def find_embedding(Q, A, **params):
                     max chain length: largest number of qubits representing a single variable
                     num max chains: the number of variables that has max chain size
 
-         initial_chains: A dictionary, where initial_chains[i] is a list of qubit labels.
+    initial_chains : A dictionary, where initial_chains[i] is a list of qubit labels.
                          These chains are inserted into an embedding before fixed_chains are
                          placed, which occurs before the initialization pass.  This can be
                          used to restart the algorithm in a similar state to a previous
@@ -134,13 +135,13 @@ def find_embedding(Q, A, **params):
                          or to reduce overlap in a semi-valid embedding (see skip_initialization)
                          previously returned by the algorithm. Missing or empty entries are ignored.
 
-         fixed_chains: A dictionary, where fixed_chains[i] is a list of qubit labels.  These
+    fixed_chains : A dictionary, where fixed_chains[i] is a list of qubit labels.  These
                        chains are inserted into an embedding before the initialization pass.
                        As the algorithm proceeds, these chains are not allowed to change. Missing
                        or empty entries are ignored.
 
 
-         restrict_chains: A dictionary, where restrict_chains[i] is a list of qubit labels.
+    restrict_chains : A dictionary, where restrict_chains[i] is a list of qubit labels.
                           Throughout the algorithm, we maintain the condition that chain[i] is a
                           subset of restrict_chains[i] for each i -- except those with missing or
                           empty entries.
