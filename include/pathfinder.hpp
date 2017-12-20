@@ -458,7 +458,7 @@ class pathfinder_base {
     }
 };
 
-// A pathfinder where the Dijkstra-from-neighboring-chain passes are done serially.
+//! A pathfinder where the Dijkstra-from-neighboring-chain passes are done serially.
 template <typename embedding_problem_t>
 class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
   public:
@@ -493,7 +493,7 @@ class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
     }
 };
 
-// A pathfinder where the Dijkstra-from-neighboring-chain passes are done serially.
+//! A pathfinder where the Dijkstra-from-neighboring-chain passes are done serially.
 template <typename embedding_problem_t>
 class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
   public:

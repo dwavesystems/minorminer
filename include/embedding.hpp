@@ -15,16 +15,15 @@
 
 namespace find_embedding {
 
-// This class is how we represent and manipulate embedding objects, using as
-// much encapsulation as possible.  We provide methods to view and modify
-// chains.
-
 #ifdef CPPDEBUG
 #define DIAGNOSE(X) long_diagnostic(X);
 #else
 #define DIAGNOSE(X)
 #endif
 
+//! This class is how we represent and manipulate embedding objects, using as
+//! much encapsulation as possible.  We provide methods to view and modify
+//! chains.
 template <typename embedding_problem_t>
 class embedding {
   private:
@@ -32,16 +31,16 @@ class embedding {
     int num_qubits, num_reserved;
     int num_vars, num_fixed;
 
-    // this is where we store chains -- see chain.hpp for how
+    //! this is where we store chains -- see chain.hpp for how
     vector<chain> var_embedding;
 
 #ifdef CPPDEBUG
     char *last_diagnostic;
 #endif
 
-    // weights, that is, the number of non-fixed chains that use each qubit
-    // this is used in pathfinder clases to determine non-overlapped, or
-    // or least-overlapped paths through the qubit graph
+    //! weights, that is, the number of non-fixed chains that use each qubit
+    //! this is used in pathfinder clases to determine non-overlapped, or
+    //! or least-overlapped paths through the qubit graph
     vector<int> qub_weight;
 
   public:
@@ -81,35 +80,35 @@ class embedding {
         return *this;
     }
 
-    // Get the variables in a chain
+    //! Get the variables in a chain
     inline const chain &get_chain(int v) const { return var_embedding[v]; }
 
-    // Get the size of a chain
+    //! Get the size of a chain
     inline int chainsize(int v) const { return var_embedding[v].size(); }
 
-    // Get the weight of a qubit
+    //! Get the weight of a qubit
     inline int weight(int q) const { return qub_weight[q]; }
 
-    // Get the maximum of all qubit weights
+    //! Get the maximum of all qubit weights
     inline int max_weight() const { return *max_element(begin(qub_weight), begin(qub_weight) + num_qubits); }
 
-    // Get the maximum of all qubit weights in a range
+    //! Get the maximum of all qubit weights in a range
     inline int max_weight(const int start, const int stop) const {
         return *max_element(begin(qub_weight) + start, begin(qub_weight) + stop);
     }
 
-    // Check if variable v is includes qubit q in its chain
+    //! Check if variable v is includes qubit q in its chain
     inline bool has_qubit(const int v, const int q) const { return static_cast<bool>(var_embedding[v].count(q)); }
 
-    // Assign a chain for variable u
+    //! Assign a chain for variable u
     inline void set_chain(const int u, const vector<int> &incoming) {
         // remove the current chain and account for its qubits
         var_embedding[u] = incoming;
         DIAGNOSE("set_chain");
     }
 
-    // Permanently assign a chain for variable u.
-    // NOTE: This must be done before any chain is assigned to u.
+    //! Permanently assign a chain for variable u.
+    //! NOTE: This must be done before any chain is assigned to u.
     inline void fix_chain(const int u, const vector<int> &incoming) {
 // assume this embedding doesn't have a chain for u yet
 #ifdef CPPDEBUG
@@ -196,15 +195,15 @@ class embedding {
         return 1;
     }
 
-    // check if the embedding is fully linked -- that is, if each pair of adjacent
-    // variables is known to correspond to a pair of adjacent qubits
+    //! check if the embedding is fully linked -- that is, if each pair of adjacent
+    //! variables is known to correspond to a pair of adjacent qubits
     bool linked() const {
         for (int u = num_vars; u--;)
             if (!linked(u)) return false;
         return true;
     }
 
-    // check if a single variable is linked with all adjacent variables.
+    //! check if a single variable is linked with all adjacent variables.
     bool linked(int u) const {
         if (var_embedding[u].get_link(u) < 0) return false;
         for (auto &v : ep.var_neighbors(u))
@@ -213,8 +212,8 @@ class embedding {
     }
 
   private:
-    // This method attempts to find the linking qubits for a pair of adjacent variables, and
-    // returns true/false on success/failure in finding that pair.
+    //! This method attempts to find the linking qubits for a pair of adjacent variables, and
+    //! returns true/false on success/failure in finding that pair.
     bool linkup(int u, int v) {
         if ((var_embedding[u].get_link(v) >= 0) && (var_embedding[v].get_link(u) >= 0)) {
             return true;

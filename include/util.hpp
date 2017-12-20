@@ -42,10 +42,10 @@ using int_queue = pairing_queue::pairing_queue_fast_reset<int64_t>;
 class LocalInteraction {
   public:
     virtual ~LocalInteraction() {}
-    // Print a message through the local output method
+    //! Print a message through the local output method
     void displayOutput(const string& msg) const { displayOutputImpl(msg); }
 
-    // Check if someone is trying to cancel the embedding process
+    //! Check if someone is trying to cancel the embedding process
     bool cancelled(const clock::time_point stoptime) const {
         if (cancelledImpl()) {
             displayOutput("caught interrupt; embedding cancelled\n");
@@ -59,28 +59,28 @@ class LocalInteraction {
     }
 
   private:
-    // Print the string to a binding specified sink
+    //! Print the string to a binding specified sink
     virtual void displayOutputImpl(const string&) const = 0;
 
-    // Check if the embedding process has timed out.
+    //! Check if the embedding process has timed out.
     virtual bool timedOutImpl(const clock::time_point stoptime) const { return clock::now() >= stoptime; }
 
-    // Check if someone has tried to cancel the embedding process
+    //! Check if someone has tried to cancel the embedding process
     virtual bool cancelledImpl() const = 0;
 };
 
 typedef shared_ptr<LocalInteraction> LocalInteractionPtr;
 
-// Set of parameters used to control the embedding process.
+//! Set of parameters used to control the embedding process.
 class optional_parameters {
   public:
-    // trades off quality for speed
+    //! trades off quality for speed
     bool fast_embedding = false;
-    // actually not controlled by user, not initialized here, but initialized in Python, MATLAB, C wrappers level
+    //! actually not controlled by user, not initialized here, but initialized in Python, MATLAB, C wrappers level
     LocalInteractionPtr localInteractionPtr;
     int max_no_improvement = 10;
     RANDOM rng;
-    // Number of seconds before the process unconditionally stops
+    //! Number of seconds before the process unconditionally stops
     double timeout = 1000;
     int tries = 10;
     int verbose = 0;
@@ -146,7 +146,7 @@ class ProblemCancelledException : public FindEmbeddingException {
     ProblemCancelledException(const string& m = "problem cancelled exception") : FindEmbeddingException(m) {}
 };
 
-// Fill output with the index of all of the minimum and equal values in input
+//! Fill output with the index of all of the minimum and equal values in input
 template <typename T>
 void collectMinima(const vector<T>& input, vector<int>& output) {
     output.clear();

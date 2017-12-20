@@ -25,7 +25,7 @@ enum VARORDER { VARORDER_SHUFFLE, VARORDER_DFS, VARORDER_BFS, VARORDER_PFS, VARO
 //   * setting unavailable qubits to an effectively infinite cost for root selection
 //   * checking if a particular qubit is available for a particular variable
 
-// this is the trivial domain handler, where every variable is allowed to use every qubit
+//! this is the trivial domain handler, where every variable is allowed to use every qubit
 class domain_handler_universe {
   public:
     domain_handler_universe(optional_parameters & /*p*/, int /*n_v*/, int /*n_f*/, int /*n_q*/, int /*n_r*/) {}
@@ -47,8 +47,8 @@ class domain_handler_universe {
     static inline bool accepts_qubit(int /*u*/, int /*q*/) { return 1; }
 };
 
-// this domain handler stores masks for each variable so that prepare_visited and prepare_distances are barely more
-// expensive than a memcopy
+//! this domain handler stores masks for each variable so that prepare_visited and prepare_distances are barely more
+//! expensive than a memcopy
 class domain_handler_masked {
     optional_parameters &params;
     vector<vector<int>> masks;
@@ -108,7 +108,7 @@ class domain_handler_masked {
 // the future in fixed_handler_list.  Fixed variables are assumed to have chains; reserved qubits are not available for
 // use in producing new chains (currently TODO this only happens because they belong to the chains of fixed variables).
 
-// This fixed handler is used when there are no fixed variables.
+//! This fixed handler is used when there are no fixed variables.
 class fixed_handler_none {
   public:
     fixed_handler_none(optional_parameters & /*p*/, int /*n_v*/, int /*n_f*/, int /*n_q*/, int /*n_r*/) {}
@@ -119,8 +119,8 @@ class fixed_handler_none {
     static inline bool reserved(int /*u*/) { return false; }
 };
 
-// This fixed handler is used when the fixed variables are processed before instantiation and relabeled such that
-// variables v >= num_v are fixed and qubits q >= num_q are reserved
+//! This fixed handler is used when the fixed variables are processed before instantiation and relabeled such that
+//! variables v >= num_v are fixed and qubits q >= num_q are reserved
 class fixed_handler_hival {
   private:
     int num_v, num_q;
@@ -135,13 +135,13 @@ class fixed_handler_hival {
     inline bool reserved(const int q) { return q >= num_q; }
 };
 
-// This fixed handler is used when variables are allowed to be fixed after instantiation.  For that functionality, we
-// probably need...
-// * dynamic modification of var_neighbors and qubit_neighbors to maintain speed gains: fixed variables are sinks,
-// reserved qubits are sources.
-// * access to / ownership of var_neighbors and qubit_neighbors in this data structure
-// * move existing initialization code from find_embedding.hpp into fixed_handler_hival (note the interplay with
-// shuffling qubit labels, this might get gross)
+//! This fixed handler is used when variables are allowed to be fixed after instantiation.  For that functionality, we
+//! probably need...
+//! * dynamic modification of var_neighbors and qubit_neighbors to maintain speed gains: fixed variables are sinks,
+//! reserved qubits are sources.
+//! * access to / ownership of var_neighbors and qubit_neighbors in this data structure
+//! * move existing initialization code from find_embedding.hpp into fixed_handler_hival (note the interplay with
+//! shuffling qubit labels, this might get gross)
 class fixed_handler_list {
   private:
     vector<int> var_fixed;
@@ -159,17 +159,17 @@ class fixed_handler_list {
     inline bool reserved(const int) { return 0; }
 };
 
-// Common form for all embedding problems.
-//
-// Needs to be extended with a fixed handler and domain handler to be complete.
+//! Common form for all embedding problems.
+//!
+//! Needs to be extended with a fixed handler and domain handler to be complete.
 class embedding_problem_base {
   protected:
     int num_v, num_f, num_q, num_r;
 
-    // Mutable references to qubit numbers and variable numbers
+    //! Mutable references to qubit numbers and variable numbers
     vector<vector<int>> &qubit_nbrs, &var_nbrs;
 
-    // distribution over [0, 0xffffffff]
+    //! distribution over [0, 0xffffffff]
     uniform_int_distribution<> rand;
 
     vector<int> var_order_space;
@@ -179,7 +179,7 @@ class embedding_problem_base {
     int_queue var_order_pq;
 
   public:
-    // A mutable reference to the user specified parameters
+    //! A mutable reference to the user specified parameters
     optional_parameters &params;
 
     int alpha, initialized, embedded, desperate, target_chainsize, improved, weight_bound;
@@ -291,7 +291,7 @@ class embedding_problem_base {
         return var_order_space;
     }
 
-    // Perform a depth first search
+    //! Perform a depth first search
     void dfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         size_t front = component.size();
         component.push_back(x);
@@ -310,7 +310,7 @@ class embedding_problem_base {
     }
 
   private:
-    // Perform a priority first search (priority = #of visited neighbors)
+    //! Perform a priority first search (priority = #of visited neighbors)
     void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         int_queue::value_type d;
         var_order_pq.reset();
@@ -330,7 +330,7 @@ class embedding_problem_base {
         }
     }
 
-    // Perform a reverse priority first search (reverse priority = #of unvisited neighbors)
+    //! Perform a reverse priority first search (reverse priority = #of unvisited neighbors)
     void rpfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         int_queue::value_type d;
         var_order_pq.reset();
@@ -350,7 +350,7 @@ class embedding_problem_base {
         }
     }
 
-    // Perform a breadth first search, shuffling level sets
+    //! Perform a breadth first search, shuffling level sets
     void bfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         size_t front = component.size();
         int_queue::value_type d = 0, d0 = 0;
@@ -372,8 +372,8 @@ class embedding_problem_base {
     }
 };
 
-// A template to construct a complete embedding problem by combining
-// `embedding_problem_base` with fixed/domain handlers.
+//! A template to construct a complete embedding problem by combining
+//! `embedding_problem_base` with fixed/domain handlers.
 template <class fixed_handler, class domain_handler>
 class embedding_problem : public embedding_problem_base, public fixed_handler, public domain_handler {
   private:
