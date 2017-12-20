@@ -12,9 +12,9 @@
 
 namespace find_embedding {
 
-// This function parses inputs, scrambles node labels, dispatches
-// the main embedding algorithm, pathfinder_base.heuristicEmbedding,
-// and finally unscrambles the resulting answer.
+//! This function parses inputs, scrambles node labels, dispatches
+//! the main embedding algorithm, pathfinder_base.heuristicEmbedding,
+//! and finally unscrambles the resulting answer.
 template <class pathfinder_t>
 int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_,
                            vector<vector<int>> &chains) {
@@ -141,22 +141,22 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
     return success;
 }
 
-// The main entry function of this library.
-//
-// This method primarily dispatches the proper implementation of the algorithm
-// where some parameters/behaviours have been fixed at compile time.
-//
-// In terms of dispatch, there are three dynamically-selected classes which
-// are combined, each according to a specific optional parameter.
-//   * a domain_handler, described in embedding_problem.hpp, manages
-//     constraints of the form "variable a's chain must be a subset of..."
-//   * a fixed_handler, described in embedding_problem.hpp, manages
-//     contstraints of the form "variable a's chain must be exactly..."
-//   * a pathfinder, described in pathfinder.hpp, which come in two flavors,
-//     serial and parallel
-// The optional parameters themselves can be found in util.hpp.  Respectively,
-// the controlling options for the above are restrict_chains, fixed_chains,
-// and threads.
+//! The main entry function of this library.
+//!
+//! This method primarily dispatches the proper implementation of the algorithm
+//! where some parameters/behaviours have been fixed at compile time.
+//!
+//! In terms of dispatch, there are three dynamically-selected classes which
+//! are combined, each according to a specific optional parameter.
+//!   * a domain_handler, described in embedding_problem.hpp, manages
+//!     constraints of the form "variable a's chain must be a subset of..."
+//!   * a fixed_handler, described in embedding_problem.hpp, manages
+//!     contstraints of the form "variable a's chain must be exactly..."
+//!   * a pathfinder, described in pathfinder.hpp, which come in two flavors,
+//!     serial and parallel
+//! The optional parameters themselves can be found in util.hpp.  Respectively,
+//! the controlling options for the above are restrict_chains, fixed_chains,
+//! and threads.
 
 inline int findEmbedding(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_,
                          vector<vector<int>> &chains) {
