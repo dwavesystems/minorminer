@@ -196,7 +196,7 @@ def calibrate_success_count(f,n,a,k, directory=calibration_dir, M=None):
     else:
         print()
     with open(os.path.join(directory, f.__name__),"w") as cal_f:
-        cal_f.write("succ,float(N)")
+        cal_f.write(repr((succ,float(N))))
 
 def load_success_count_calibration(f, directory=calibration_dir):
     with open(os.path.join(directory, f.__name__)) as cal_f:
