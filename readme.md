@@ -1,11 +1,11 @@
 minorminer
 ==========
 
-minorminer is a heuristic tool for finding graph minors. Given a possible minor and a target graph, it tries to find a mapping that embeds the minor into the target graph.
+minorminer is a heuristic tool for minor embedding: given a minor and target graph, it tries to find a mapping that embeds the minor into the target.
 
-The primary utility is a function called ```find_embedding```, which is an implementation of the algorithm described in [1].  Our implementation of this heuristic algorithm accepts various optional parameters, which are used to tune the algorithm's execution or constrain the problem in consideration.
+The primary utility function, ```find_embedding()```, is an implementation of the heuristic algorithm described in [1]. It accepts various optional parameters used to tune the algorithm's execution or constrain the given problem.
 
-The twin goal of this implementation is to provide enough hooks to the user that it will be easy to use this code as a basic building block in future research, without any degradation in performance when compared to well-tuned implementation of the algorithm which omits those parameters.
+This implementation aims to provide users with hooks to easily use the code as a basic building block in future research while maintaining performance on par with tuned non-configurable implementations.
 
 [1] https://arxiv.org/abs/1406.2741
 
@@ -17,8 +17,7 @@ Getting Started
 
 #### Installation
 
-If a wheel for your platform has been precompiled and posted to pypi
-installing it with pip is recommended.
+pip installation is recommended for platforms with precompiled wheels posted to pypi.
 
 ```bash
 pip install minorminer
@@ -28,6 +27,7 @@ If your platform doesn't have a precompiled wheel, try to run the `setuptools` s
 in the python directory.
 
 ```bash
+cd python
 pip install -r requirements.txt
 python setup.py install
 # optionally, run the tests to check your build
@@ -52,6 +52,7 @@ print(embedding)
 # [[0, 1], [2], [3]]
 # [[3], [1, 0], [2]]
 ```
+
 ```python
 # We can insist that variable 0 of the triangle will always be assigned to [2]
 embedding = find_embedding(triangle, square, fixed_chains={0: [2]})
@@ -60,6 +61,7 @@ print(embedding)
 # [[2], [1], [0, 3]]
 # And more, but all of them start with [2]
 ```
+
 ```python
 # If we didn't want to force variable 0 to stay as [2], but we thought that
 # was a good start we could provide it as an initialization hint instead.
@@ -69,6 +71,7 @@ print(embedding)
 # [[0], [3], [1, 2]]
 # Output where variable 0 has switched to something else is possible again.
 ```
+
 ```python
 import networkx as nx
 
@@ -83,6 +86,14 @@ embedding = find_embedding(clique, target_graph)
 print(embedding)
 # There are many possible outputs for this, sometimes it might even fail
 # and return an empty list
+```
+
+A more fleshed out example can be found under `examples/fourcolor.py`
+
+```bash
+cd examples
+pip install -r requirements.txt
+python fourcolor.py
 ```
 
 ### Matlab
@@ -134,7 +145,7 @@ embedding{:}
 
 #### Installation
 
-The `CMakeLists.txt` in the root of this repo will build the library and run a series of tests. On linux the commands would be something like this:
+The `CMakeLists.txt` in the root of this repo will build the library and optionally run a series of tests. On linux the commands would be something like this:
 
 ```bash
 mkdir build; cd build
@@ -142,9 +153,11 @@ cmake ..
 make
 ```
 
+To build the tests turn the cmake option `MINORMINER_BUILD_TESTS` on. The command line option for cmake to do this would be `-DMINORMINER_BUILD_TESTS=ON`.
+
 #### Library Usage
 
-C++11 programs should be able to use this as a header only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externals/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
+C++11 programs should be able to use this as a header-only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externals/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
 
 ```CMake
 set(MINORMINER_BUILD_TESTS OFF)
@@ -156,49 +169,11 @@ target_link_libraries(your_target minorminer pthread)
 
 #### Examples
 
-A minimal example that can be built in the root of this repo as `example.cpp`.
+A minimal example that can be built can be found in this repo under `examples/example.cpp`.
 
 ```bash
+cd examples
 g++ example.cpp -std=c++11 -o example -pthread
 ```
 
-```c++
-#include "include/find_embedding.hpp"
-#include <iostream>
-
-class MyCppInteractions : public find_embedding::LocalInteraction {
-public:
-    bool _canceled = false;
-    void cancel() { _canceled = true; }
-
-private:
-    virtual void displayOutputImpl(const std::string& mess) const {
-        std::cout << mess << std::endl;
-    }
-    virtual bool cancelledImpl() const {
-        return _canceled;
-    }
-};
-
-int main(){
-
-    graph::input_graph triangle(3, {0, 1, 2}, {1, 2, 0});
-    graph::input_graph square(4, {0, 1, 2, 3}, {1, 2, 3, 0});
-    find_embedding::optional_parameters params;
-    params.localInteractionPtr.reset(new MyCppInteractions());
-
-    std::vector<std::vector<int>> chains;
-
-    if(find_embedding::findEmbedding(triangle, square, params, chains)) {
-        for(auto chain : chains){
-            for(auto var : chain)
-                std::cout << var << " ";
-            std::cout << std::endl;
-        }
-    } else {
-        std::cout << "Couldn't find embedding." << std::endl;
-    }
-
-    return 0;
-}
-```
+This can also be built using the included `CMakeLists.txt` along with the main library build by turning the cmake option `MINORMINER_BUILD_EXAMPLES` on. The command line option for cmake to do this would be `-DMINORMINER_BUILD_EXAMPLES=ON`.

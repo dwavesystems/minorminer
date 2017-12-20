@@ -24,7 +24,7 @@ using std::numeric_limits;
 
 // static constexpr int nullval = 0xffffffff;
 
-// A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
+//! A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
 template <typename P>
 class pairing_queue {
   public:
@@ -42,7 +42,7 @@ class pairing_queue {
   public:
     pairing_queue(int n) : val(n, 0), next(n, 0), desc(n, 0), prev(n, 0), root(nullval) {}
 
-    // Reset the queue and fill the values with a default
+    //! Reset the queue and fill the values with a default
     inline void reset_fill(const P &v) {
         root = nullval;
         fill(begin(val), end(val), v);
@@ -54,11 +54,11 @@ class pairing_queue {
 
     inline bool has(int index) const { return 0 <= index < val.size(); }
 
-    // Reset the queue and set the default to the maximum value
+    //! Reset the queue and set the default to the maximum value
     inline void reset() { reset_fill(max_P); }
 
-    // Remove the minimum value
-    // return true if any change is made
+    //! Remove the minimum value
+    //! return true if any change is made
     inline bool delete_min() {
         if (empty()) return false;
 
@@ -75,7 +75,7 @@ class pairing_queue {
         return true;
     }
 
-    // Remove and return (in args) the minimum key, value pair
+    //! Remove and return (in args) the minimum key, value pair
     inline bool pop_min(int &key, P &value) {
         if (empty()) {
             return false;
@@ -86,8 +86,8 @@ class pairing_queue {
         return true;
     }
 
-    // Decrease the value of k to v
-    // NOTE: Assumes that v is lower than the current value of k
+    //! Decrease the value of k to v
+    //! NOTE: Assumes that v is lower than the current value of k
     inline void decrease_value(int k, const P &v) {
         minorminer_assert(0 <= k and k < val.size());
         minorminer_assert(v < val[k]);
@@ -95,8 +95,8 @@ class pairing_queue {
         decrease(k);
     }
 
-    // Decrease the value of k to v
-    // Does nothing if v isn't actually a decrease.
+    //! Decrease the value of k to v
+    //! Does nothing if v isn't actually a decrease.
     inline bool check_decrease_value(int k, const P &v) {
         if (v < val[k]) {
             decrease_value(k, v);
@@ -222,8 +222,8 @@ class pairing_queue {
     }
 };
 
-// This is a specialization of the pairing_queue that has a constant time
-// reset method, at the expense of an extra check when values are set or updated.
+//! This is a specialization of the pairing_queue that has a constant time
+//! reset method, at the expense of an extra check when values are set or updated.
 template <typename P>
 class pairing_queue_fast_reset : public pairing_queue<P> {
     using super = pairing_queue<P>;
