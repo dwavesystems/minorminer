@@ -26,11 +26,11 @@ class input_graph {
     vector<int> edges_bside;
     int _num_nodes;
 
-    // this method converts a vector of sets into a vector of sets, ensuring
-    // that element i is not contained in nbrs[i].  this method is called by
-    // methods which produce neighbor sets (killing parallel/overrepresented
-    // edges), in order to kill self-loops and also store each neighborhood
-    // in a contiguous memory segment.
+    //! this method converts a vector of sets into a vector of sets, ensuring
+    //! that element i is not contained in nbrs[i].  this method is called by
+    //! methods which produce neighbor sets (killing parallel/overrepresented
+    //! edges), in order to kill self-loops and also store each neighborhood
+    //! in a contiguous memory segment.
     void _to_vectorhoods(vector<set<int> >& _nbrs, vector<vector<int> >& nbrs) const {
         nbrs.clear();
         for (int i = 0; i < _num_nodes; i++) {
@@ -205,22 +205,22 @@ class components {
         }
     }
 
-    // Get the set of nodes in a component
+    //! Get the set of nodes in a component
     const vector<int>& nodes(int c) const { return component[c]; }
 
-    // Get the number of connected components in the graph
+    //! Get the number of connected components in the graph
     int size() const { return component_g.size(); }
 
-    // returns the number of reserved nodes in a component
+    //! returns the number of reserved nodes in a component
     int num_reserved(int c) const { return _num_reserved[c]; }
 
-    // Get the size (in nodes) of a component
+    //! Get the size (in nodes) of a component
     int size(int c) const { return component_g[c].num_nodes(); }
 
-    // Get a mutable reference to the graph object of a component
+    //! Get a mutable reference to the graph object of a component
     input_graph& component_graph(int c) { return component_g[c]; }
 
-    // translate nodes from the input graph, to their labels in component c
+    //! translate nodes from the input graph, to their labels in component c
     template <typename T>
     bool into_component(const int c, T& nodes_in, vector<int>& nodes_out) const {
         for (auto& x : nodes_in) {
@@ -230,7 +230,7 @@ class components {
         return true;
     }
 
-    // translate nodes from labels in component c, back to their original input labels
+    //! translate nodes from labels in component c, back to their original input labels
     template <typename T>
     void from_component(const int c, T& nodes_in, vector<int>& nodes_out) {
         vector<int>& comp = component[c];
