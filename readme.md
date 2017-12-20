@@ -28,6 +28,7 @@ If your platform doesn't have a precompiled wheel, try to run the `setuptools` s
 in the python directory.
 
 ```bash
+cd python
 pip install -r requirements.txt
 python setup.py install
 # optionally, run the tests to check your build
@@ -84,6 +85,8 @@ print(embedding)
 # There are many possible outputs for this, sometimes it might even fail
 # and return an empty list
 ```
+
+A more fleshed out example can be found under `examples/fourcolor.py`
 
 ### Matlab
 
@@ -158,49 +161,11 @@ target_link_libraries(your_target minorminer pthread)
 
 #### Examples
 
-A minimal example that can be built in the root of this repo as `example.cpp`.
+A minimal example that can be built can be found in this repo under `examples/example.cpp`.
 
 ```bash
+cd examples
 g++ example.cpp -std=c++11 -o example -pthread
 ```
 
-```c++
-#include "include/find_embedding.hpp"
-#include <iostream>
-
-class MyCppInteractions : public find_embedding::LocalInteraction {
-public:
-    bool _canceled = false;
-    void cancel() { _canceled = true; }
-
-private:
-    virtual void displayOutputImpl(const std::string& mess) const {
-        std::cout << mess << std::endl;
-    }
-    virtual bool cancelledImpl() const {
-        return _canceled;
-    }
-};
-
-int main(){
-
-    graph::input_graph triangle(3, {0, 1, 2}, {1, 2, 0});
-    graph::input_graph square(4, {0, 1, 2, 3}, {1, 2, 3, 0});
-    find_embedding::optional_parameters params;
-    params.localInteractionPtr.reset(new MyCppInteractions());
-
-    std::vector<std::vector<int>> chains;
-
-    if(find_embedding::findEmbedding(triangle, square, params, chains)) {
-        for(auto chain : chains){
-            for(auto var : chain)
-                std::cout << var << " ";
-            std::cout << std::endl;
-        }
-    } else {
-        std::cout << "Couldn't find embedding." << std::endl;
-    }
-
-    return 0;
-}
-```
+This can also be built using the included `CMakeLists.txt` along with the main library build by turning the cmake option `MINORMINER_BUILD_EXAMPLES` on. The command line option for cmake to do this would be `-DMINORMINER_BUILD_EXAMPLES=ON`.
