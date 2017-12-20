@@ -33,13 +33,16 @@ sys.path.insert(0, os.path.abspath(os.path.join(config_directory, '../../python'
 # ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'breathe'] #, 'sphinxcontrib.matlab']
 extensions += [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
-    'numpydoc',
     'sphinx.ext.autosummary',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.coverage',
     'sphinx.ext.doctest',
-    'sphinx.ext.inheritance_diagram']
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.todo',
+    'sphinx.ext.viewcode',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
