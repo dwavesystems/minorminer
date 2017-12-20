@@ -1,11 +1,11 @@
 minorminer
 ==========
 
-minorminer is a heuristic tool for finding graph minors. Given a possible minor and a target graph, it tries to find a mapping that embeds the minor into the target graph.
+minorminer is a heuristic tool for minor embedding: given a minor and target graph, it tries to find a mapping that embeds the minor into the target.
 
-The primary utility is a function called ```find_embedding```, which is an implementation of the algorithm described in [1].  Our implementation of this heuristic algorithm accepts various optional parameters, which are used to tune the algorithm's execution or constrain the problem in consideration.
+The primary utility function, ```find_embedding()```, is an implementation of the heuristic algorithm described in [1]. It accepts various optional parameters used to tune the algorithm's execution or constrain the given problem.
 
-The twin goal of this implementation is to provide enough hooks to the user that it will be easy to use this code as a basic building block in future research, without any degradation in performance when compared to well-tuned implementation of the algorithm which omits those parameters.
+This implementation aims to provide users with hooks to easily use the code as a basic building block in future research while maintaining performance on par with tuned non-configurable implementations.
 
 [1] https://arxiv.org/abs/1406.2741
 
@@ -17,8 +17,7 @@ Getting Started
 
 #### Installation
 
-If a wheel for your platform has been precompiled and posted to pypi
-installing it with pip is recommended.
+pip installation is recommended for platforms with precompiled wheels posted to pypi.
 
 ```bash
 pip install minorminer
@@ -158,7 +157,7 @@ To build the tests turn the cmake option `MINORMINER_BUILD_TESTS` on. The comman
 
 #### Library Usage
 
-C++11 programs should be able to use this as a header only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externals/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
+C++11 programs should be able to use this as a header-only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externals/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
 
 ```CMake
 set(MINORMINER_BUILD_TESTS OFF)
