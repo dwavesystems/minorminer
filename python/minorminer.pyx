@@ -10,138 +10,130 @@ from random import randint
 def find_embedding(Q, A, **params):
     """
     find_embedding(Q, A, **params)
-    Find an embedding of a QUBO/Ising in a graph.
-
-    (can be interrupted by Ctrl-C, will return the best embedding found so far.)
-
-    Attempts to find an embedding of a QUBO in a graph. This function
-    is entirely heuristic: failure to return an embedding does not
-    prove that no embedding exists.
+    Heuristically attempt to find a minor-embedding of a graph representing an Ising/QUBO into a target graph.
 
     Args:
 
-        Q: an iterable of label pairs
+        Q(iterable[pair]): the edges in the source graph
 
-        A: an iterable of label pairs
+        A(iterable[pair]): the edges in the target graph
 
         **params (optional): see below
 
     Returns:
 
-        (default / when return_overlap = False, see below)
+        When return_overlap = False (the default), returns a dict that maps labels in Q to lists of labels in A.
 
-        A dict mapping labels mentioned in Q to lists of labels mentioned in A
+        When return_overlap = True, returns a tuple consisting of a dict that maps labels in Q to lists of labels in A and a bool indicating whether or not a valid embedding was found
 
-        (when return_overlap = True)
-
-        A tuple consisting of a dict as above and a bool according to whether or not a valid embedding was found
+        When interrupted by Ctrl-C, returns the best embedding found so far
 
     Optional parameters::
 
         fast_embedding: True/False, tries to get an embedding quickly, without worrying about
-                        chain length.
-                        (must be a boolean, default = False)
+            chain length.
+            (must be a boolean, default = False)
 
         max_no_improvement: number of rounds of the algorithm to try from the current
-                            solution with no improvement. Each round consists of an attempt to find an
-                            embedding for each variable of Q such that it is adjacent to all its
-                            neighbours.
-                            (must be an integer >= 0, default = 10)
+            solution with no improvement. Each round consists of an attempt to find an
+            embedding for each variable of Q such that it is adjacent to all its
+            neighbours.
+            (must be an integer >= 0, default = 10)
 
         random_seed: seed for random number generator that find_embedding uses
-                     (must be an integer >=0, default is randomly set)
+            (must be an integer >=0, default is randomly set)
 
         timeout: Algorithm gives up after timeout seconds.
-                 (must be a number >= 0, default is approximately 1000 seconds)
+            (must be a number >= 0, default is approximately 1000 seconds)
 
-        tries: The algorithm stops after this number of restart attempts. On Vesuvius,
-               each restart takes between 1 and 60 seconds typically.
-               (must be an integer >= 0, default = 10)
+        tries: The algorithm stops after this number of restart attempts. On D-WAVE 2000Q,
+            each restart takes between 1 and 60 seconds typically.
+            (must be an integer >= 0, default = 10)
 
         inner_rounds: the algorithm takes at most this many passes between restart attempts;
-                      restart attempts are typically terminated due to max_no_improvement
-                      (must be an integer >= 0, default = effectively infinite)
+            restart attempts are typically terminated due to max_no_improvement
+            (must be an integer >= 0, default = effectively infinite)
 
         chainlength_patience: similar to max_no_improvement, but for the chainlength improvement
-                              passes.
-                              (must be an integer >= 0, default = 2)
+            passes.
+            (must be an integer >= 0, default = 2)
 
         max_fill: until a valid embedding is found, this restricts the the maximum number
-                  of variables whose chain may contain a given qubit.
-                  (must be an integer >= 0, default = effectively infinite)
+            of variables whose chain may contain a given qubit.
+            (must be an integer >= 0, default = effectively infinite)
 
         threads: maximum number of threads to use.  note that the parallelization is only
-                 advantageous where the expected degree of variables is (significantly?)
-                 greater than the number of threads.
-                 (must be an integer >= 1, default = 1)
+            advantageous where the expected degree of variables is (significantly?)
+            greater than the number of threads.
+            (must be an integer >= 1, default = 1)
 
         return_overlap: return an embedding whether or not qubits are used by multiple
-                        variables -- capture both return values to determine whether or
-                        not the returned embedding is valid
-                        (must be a logical 0/1 integer, default = 0)
+            variables -- capture both return values to determine whether or
+            not the returned embedding is valid
+            (must be a logical 0/1 integer, default = 0)
 
-        skip_initialization: skip the initialization pass -- NOTE: this only works  if the
-                             chains passed in through initial_chains and fixed_chains are
-                             semi-valid.  A semi-valid embedding is a collection of chains
-                             such that every adjacent pair of variables (u,v) has a coupler
-                             (p,q) in the hardware graph where p is in chain(u) and q is in
-                             chain(v).  This can be used on a valid embedding to immediately
-                             skip to the chainlength improvement phase.  Another good source
-                             of semi-valid embeddings is the output of this function with
-                             the return_overlap parameter enabled.
-                             (must be a logical 0/1 integer, default = 0)
+        skip_initialization: skip the initialization pass -- NOTE: this only works
+            if the chains passed in through initial_chains and fixed_chains are
+            semi-valid.  A semi-valid embedding is a collection of chains
+            such that every adjacent pair of variables (u,v) has a coupler
+            (p,q) in the hardware graph where p is in chain(u) and q is in
+            chain(v).  This can be used on a valid embedding to immediately
+            skip to the chainlength improvement phase.  Another good source
+            of semi-valid embeddings is the output of this function with
+            the return_overlap parameter enabled.
+            (must be a logical 0/1 integer, default = 0)
 
         verbose: 0/1/2/3/(4).
-                 (must be an integer [0, 1, 2, 3, (4)], default = 0)
-                 when verbose is 1, the output information will look like:
+            (must be an integer [0, 1, 2, 3, (4)], default = 0)
+            when verbose is 1, the output information will look like:
 
-                    initialized
-                    max qubit fill 3; num maxfull qubits=3
-                    embedding trial 1
-                    max qubit fill 2; num maxfull qubits=21
-                    embedding trial 2
-                    embedding trial 3
-                    embedding trial 4
-                    embedding trial 5
-                    embedding found.
-                    max chain length 4; num max chains=1
-                    reducing chain lengths
-                    max chain length 3; num max chains=5
+                initialized
+                max qubit fill 3; num maxfull qubits=3
+                embedding trial 1
+                max qubit fill 2; num maxfull qubits=21
+                embedding trial 2
+                embedding trial 3
+                embedding trial 4
+                embedding trial 5
+                embedding found.
+                max chain length 4; num max chains=1
+                reducing chain lengths
+                max chain length 3; num max chains=5
 
-                 additional verbosity levels will
-                    2: report progress on minor statistics (when searching for an embedding, this is
-                       when the number of maxfull qubits decreases; when improving, this is when the
-                       number of max chains decreases)
-                    3: report before each before each pass -- look here when tweaking `tries`,
-                       `inner_rounds`, and `chainlength_patience`
-                    (4): report additional debugging information.  by default, this package is built
-                         without this functionality -- in the c++ headers, this is controlled by the
-                         CPPDEBUG flag
+            additional verbosity levels will
+                2: report progress on minor statistics (when searching for an embedding, this is
+                    when the number of maxfull qubits decreases; when improving, this is when the
+                    number of max chains decreases)
+                3: report before each before each pass -- look here when tweaking `tries`,
+                    `inner_rounds`, and `chainlength_patience`
+                (4): report additional debugging information.  by default, this package is built
+                    without this functionality -- in the c++ headers, this is controlled by the
+                    CPPDEBUG flag
 
-                 detailed explanation of the output information:
-                    max qubit fill: largest number of variables represented in a qubit
-                    num maxfull: the number of qubits that has max overfill
-                    max chain length: largest number of qubits representing a single variable
-                    num max chains: the number of variables that has max chain size
+            detailed explanation of the output information:
+                max qubit fill: largest number of variables represented in a qubit
+                num maxfull: the number of qubits that has max overfill
+                max chain length: largest number of qubits representing a single variable
+                num max chains: the number of variables that has max chain size
 
         initial_chains: A dictionary, where initial_chains[i] is a list of qubit labels.
-                        These chains are inserted into an embedding before fixed_chains are
-                        placed, which occurs before the initialization pass.  This can be
-                        used to restart the algorithm in a similar state to a previous
-                        embedding, for example to improve chainlength of a valid embedding
-                        or to reduce overlap in a semi-valid embedding (see skip_initialization)
-                        previously returned by the algorithm. Missing or empty entries are ignored.
+            These chains are inserted into an embedding before fixed_chains are
+            placed, which occurs before the initialization pass.  This can be
+            used to restart the algorithm in a similar state to a previous
+            embedding, for example to improve chainlength of a valid embedding
+            or to reduce overlap in a semi-valid embedding (see skip_initialization)
+            previously returned by the algorithm. Missing or empty entries are ignored.
 
         fixed_chains: A dictionary, where fixed_chains[i] is a list of qubit labels.  These
-                      chains are inserted into an embedding before the initialization pass.
-                      As the algorithm proceeds, these chains are not allowed to change. Missing
-                      or empty entries are ignored.
+            chains are inserted into an embedding before the initialization pass.
+            As the algorithm proceeds, these chains are not allowed to change. Missing
+            or empty entries are ignored.
 
 
         restrict_chains: A dictionary, where restrict_chains[i] is a list of qubit labels.
-                         Throughout the algorithm, we maintain the condition that chain[i] is a
-                         subset of restrict_chains[i] for each i -- except those with missing or
-                         empty entries.
+            Throughout the algorithm, we maintain the condition that chain[i] is a
+            subset of restrict_chains[i] for each i -- except those with missing or
+            empty entries.
     """
 
 
