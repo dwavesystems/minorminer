@@ -450,7 +450,7 @@ def test_grid_plant_suspend(n):
     return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, initial_chains = init, fast_embedding=True)
 
 @success_count(30, 5)
-def test_grid_cheat_suspend(n):
+def test_grid_suspend_domain(n):
     chim = Chimera(n)
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
