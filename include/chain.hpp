@@ -13,34 +13,34 @@ namespace find_embedding {
 #define DIAGNOSE(X)
 #endif
 
-// This class stores chains for embeddings, and performs qubit-use
-// accounting.  The `label` is the index number for the variable
-// represented by this chain.  The `links` member of a chain is an
-// unordered map storing the linking information for this chain.
-// The `data` member of a chain stores the connectivity information
-// for the chain.
-//
-// Links:
-// If `u` and `v` are variables which are connected by an edge,
-// the following must be true:
-//    either chain_u or chain_v is empty,
-//
-//    or
-//
-//    chain_u.links[v] is a key in chain_u.data,
-//    chain_v.links[u] is a key in chain_v.data, and
-//    (chain_u.links[v], chain_v.links[u]) are adjacent in the qubit graph
-//
-// Moreover, (chain_u.links[u]) must exist if chain_u is not empty,
-// and this is considered the root of the chain.
-//
-// Data:
-// The `data` member stores the connectivity information.  More
-// precisely, `data` is a mapping `qubit->(parent, refs)` where:
-//     `parent` is also contained in the chain
-//     `refs` is the total number of references to `qubit`, counting
-//            both parents and links
-//     the chain root is its own parent.
+//! This class stores chains for embeddings, and performs qubit-use
+//! accounting.  The `label` is the index number for the variable
+//! represented by this chain.  The `links` member of a chain is an
+//! unordered map storing the linking information for this chain.
+//! The `data` member of a chain stores the connectivity information
+//! for the chain.
+//!
+//! Links:
+//! If `u` and `v` are variables which are connected by an edge,
+//! the following must be true:
+//!    either chain_u or chain_v is empty,
+//!
+//!    or
+//!
+//!    chain_u.links[v] is a key in chain_u.data,
+//!    chain_v.links[u] is a key in chain_v.data, and
+//!    (chain_u.links[v], chain_v.links[u]) are adjacent in the qubit graph
+//!
+//! Moreover, (chain_u.links[u]) must exist if chain_u is not empty,
+//! and this is considered the root of the chain.
+//!
+//! Data:
+//! The `data` member stores the connectivity information.  More
+//! precisely, `data` is a mapping `qubit->(parent, refs)` where:
+//!     `parent` is also contained in the chain
+//!     `refs` is the total number of references to `qubit`, counting
+//!            both parents and links
+//!     the chain root is its own parent.
 
 class chain {
   private:
@@ -72,14 +72,14 @@ class chain {
         return *this;
     }
 
-    // number of qubits in chain
+    //! number of qubits in chain
     inline int size() const { return data.size(); }
 
-    // returns 0 if `q` is not contained in `this`, 1 otherwise
+    //! returns 0 if `q` is not contained in `this`, 1 otherwise
     inline int count(const int q) const { return data.count(q); }
 
-    // get the qubit, in `this`, which links `this` to the chain of x
-    //(if x==label, interpret the linking qubit as the chain's root)
+    //! get the qubit, in `this`, which links `this` to the chain of x
+    //!(if x==label, interpret the linking qubit as the chain's root)
     inline int get_link(const int x) const {
         auto z = links.find(x);
         if (z == links.end())
@@ -88,8 +88,8 @@ class chain {
             return (*z).second;
     }
 
-    // set the qubit, in `this`, which links `this` to the chain of x
-    //(if x==label, interpret the linking qubit as the chain's root)
+    //! set the qubit, in `this`, which links `this` to the chain of x
+    //!(if x==label, interpret the linking qubit as the chain's root)
     inline void set_link(const int x, const int q) {
         minorminer_assert(get_link(x) == -1);
         minorminer_assert(count(q) == 1);
@@ -99,7 +99,7 @@ class chain {
         DIAGNOSE("set_link");
     }
 
-    // discard the linking information for `x`
+    //! discard the linking information for `x`
     inline int drop_link(const int x) {
         int q = -1;
         auto z = links.find(x);
@@ -113,8 +113,8 @@ class chain {
         return q;
     }
 
-    // insert the qubit `q` into `this`, and set `q` to be the root
-    //(represented as the linking qubit for `label`)
+    //! insert the qubit `q` into `this`, and set `q` to be the root
+    //!(represented as the linking qubit for `label`)
     inline void set_root(const int q) {
         minorminer_assert(data.size() == 0);
         minorminer_assert(links.size() == 0);
@@ -124,7 +124,7 @@ class chain {
         DIAGNOSE("set_root");
     }
 
-    // empty this data structure
+    //! empty this data structure
     inline void clear() {
         for (auto &q : *this) qubit_weight[q]--;
         data.clear();
@@ -132,7 +132,7 @@ class chain {
         DIAGNOSE("clear");
     }
 
-    // add the qubit `q` as a leaf, with `parent` as its parent
+    //! add the qubit `q` as a leaf, with `parent` as its parent
     inline void add_leaf(const int q, const int parent) {
         minorminer_assert(data.count(q) == 0);
         minorminer_assert(data.count(parent) == 1);
@@ -142,9 +142,9 @@ class chain {
         DIAGNOSE("add_leaf");
     }
 
-    // try to delete the qubit `q` from this chain, and keep
-    // deleting until no more qubits are free to be deleted.
-    // return the first ancestor which cannot be deleted
+    //! try to delete the qubit `q` from this chain, and keep
+    //! deleting until no more qubits are free to be deleted.
+    //! return the first ancestor which cannot be deleted
     inline int trim_branch(int q) {
         minorminer_assert(data.count(q) == 1);
         int p = trim_leaf(q);
@@ -157,8 +157,8 @@ class chain {
         return q;
     }
 
-    // try to delete the qubit `q` from this chain.  if `q`
-    // cannot be deleted, return it; otherwise return its parent
+    //! try to delete the qubit `q` from this chain.  if `q`
+    //! cannot be deleted, return it; otherwise return its parent
     inline int trim_leaf(int q) {
         minorminer_assert(data.count(q) == 1);
         auto z = data.find(q);
@@ -173,25 +173,25 @@ class chain {
         return q;
     }
 
-    // the parent of `q` in this chain -- which might be `q` but
-    // otherwise cycles should be impossible
+    //! the parent of `q` in this chain -- which might be `q` but
+    //! otherwise cycles should be impossible
     inline int parent(const int q) const {
         minorminer_assert(data.count(q) == 1);
         return fetch(q).first;
     }
 
-    // return the number of references that `this` makes to the qubit
-    //`q` -- where a "reference" is an occurrence of `q` as a parent
-    // or an occurrence of `q` as a linking qubit / root
+    //! return the number of references that `this` makes to the qubit
+    //!`q` -- where a "reference" is an occurrence of `q` as a parent
+    //! or an occurrence of `q` as a linking qubit / root
     inline int refcount(const int q) const {
         minorminer_assert(data.count(q) == 1);
         return fetch(q).second;
     }
 
-    // assumes `this` and `other` have links for eachother's labels
-    // steals all qubits from `other` which are available to be taken
-    // by `this`; starting with the qubit links and updating qubit
-    // links after all
+    //! assumes `this` and `other` have links for eachother's labels
+    //! steals all qubits from `other` which are available to be taken
+    //! by `this`; starting with the qubit links and updating qubit
+    //! links after all
     template <typename embedding_problem_t>
     inline void steal(chain &other, embedding_problem_t &ep, int chainsize = 0) {
         int q = drop_link(other.label);
@@ -289,10 +289,10 @@ class chain {
     }
 
   private:
-    // const unsafe data accessor
+    //! const unsafe data accessor
     inline const pair<int, int> &fetch(int q) const { return (*data.find(q)).second; }
 
-    // non-const unsafe data accessor
+    //! non-const unsafe data accessor
     inline pair<int, int> &retrieve(int q) { return (*data.find(q)).second; }
 };
 }
