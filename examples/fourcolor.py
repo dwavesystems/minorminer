@@ -1,82 +1,72 @@
-def ParseBlocks(G, blocks, block_good, eblock_good):
+"""
+This file contains a worked example of using minorminer to embed
+a structured problem, where that structure can be exploited for
+speed.
+
+The structured problem, 4-coloring, is to assign one of 4 colors
+to each node in a graph, such that no two adjacent nodes have the
+same color.  The QUBO structure for this problem is described in
+`graph_coloring_qubo`.
+
+The key observation is that the variables of this QUBO have the
+form (v,c) where v is a node in the original graph and c is a
+color; that edges ((v1,c1), (v2,c2)) have either v1=v2 or c1=c2.
+If we take a quotient of this qubo, identifying variables which
+have the same node label, we get the original graph back.
+
+Next, we describe a quotient of a Chimera graph, implemented in
+`chimera_blocks` and `chimera_block_quotient`.  The so-called
+"chimera index" is a 4-tuple of the form (x,y,u,k) where 
+0 <= k < 4 and 0 <= u < 2.  We take a quotient of this graph,
+identifying nodes which agree in the first three terms, (x,y,u).
+
+After taking these quotients, our problem is simple.  We need
+to embed the quotient QUBO into the block quotient of Chimera,
+with one additional requirement: the chain for each QUBO node
+must contain two blocks of the form (x1, y1, 0) and (x1, y1, 1).
+The function `embed_with_quotient` performs the reduction and 
+supplies those additional requirements to `find_embedding`.
+
+
+"""
+
+#before we get to anything else, let's get some imports out of the way.
+import networkx as nx, dwave_networkx as dnx
+from minorminer import find_embedding
+from time import clock
+
+def graph_coloring_qubo(graph, k):
     """
-    Extract the blocks from a graph, and returns a
-    block-quotient graph according to the acceptability
-    functions block_good and eblock_good
+    the QUBO for k-coloring a graph A is as follows:
 
-    Inputs:
-        G: a networkx graph
-        blocks: a partition of G.nodes()
-        block_good: a function
-                f(blocks[i], G)
-            which is true if the node `i` should be
-            represented in the quotient, and false otherwise
-        eblock_good: a function
-                f(blocks[i], blocks[j], G)
-            which is true if the edge `(i,j)` should be
-            represented in the quotient, and false otherwise
+    variables:
+    x_{v,c} = 1 if vertex v of A gets color c; x_{v,c} = 0 otherwise
+
+    constraints:
+    1)  each v in A gets exactly one color.
+       This constraint is enforced by including the term (\sum_c x_{v,c} - 1)^2 in the QUBO,
+       which is minimized when \sum_c x_{v,c} = 1.
+       
+    2) If u and v in A are adjacent, then they get different colors.
+       This constraint is enforced by including terms x_{v,c} x_{u,c} in the QUBO,
+       which is minimzed when at most one of u and v get color c.
+
+    Total QUBO:
+    Q(x) = \sum_v (\sum_c x_{v,c} - 1)^2  + \sum_{u ~ v} \sum_c x_{v,c} x_{u,c}
+
+    The graph of interactions for this QUBO consists of cliques of size k (with vertices {x_{v,c} for c = 0,...,k-1})
+    plus k disjoint copies of the graph A (one for each color).
 
     """
-    from networkx import Graph
 
-    blockid = {}
-    for i,b in enumerate(blocks):
-        if not block_good(b, G):
-            continue
-        for q in b:
-            if q in blockid:
-                raise(RuntimeError, "two blocks overlap")
-            blockid[q] = i
-
-    BG = Graph()
-    for q,u in blockid.items():
-        for p in G[q]:
-            if p not in blockid:
-                continue
-            v = blockid[p]
-            if BG.has_edge(u,v):
-                continue
-            if eblock_good(blocks[u], blocks[v], G):
-                BG.add_edge(u,v)
-
-    return BG
+    K = nx.complete_graph(k)
+    g1 = nx.cartesian_product(nx.create_empty_copy(graph),K)
+    g2 = nx.cartesian_product(graph, nx.create_empty_copy(K))
+    return nx.compose(g1, g2)
 
 
-def FullBlock(block, G):
-    """
-    true if every node in `block` is present in `G`
-    """
-    return all(G.has_node(x) for x in block)
 
-def BiCliqueBlocks(block0, block1, G):
-    """
-    true if every edge `(u,v)` is present in `G`,
-        for all `u` in block0 and
-                `v` in block1
-    """
-    return all(G.has_edge(x,y) for x in block0 for y in block1)
-
-def MatchBlocks(block0, block1, G):
-    """
-    true if every edge `(block0[i], block1[i])` is present in `G`
-        for all `i`
-    """
-    return all(G.has_edge(x,y) for x,y in zip(block0, block1))
-
-def ChimeraBlockEdge(block0, block1, G):
-    """
-    Chimera block edge quotient:
-        if block0 and block1 are the same orientation
-            in adjacent tiles, check with MatchBlocks
-        if block0 and block1 are opposite orientation
-            in the same tile, check with BlCliqueBlocks
-    """
-    if block0[0][2] == block1[0][2]:
-        return MatchBlocks(block0, block1, G)
-    else:
-        return BiCliqueBlocks(block0, block1, G)
-
-def ChimeraBlocks(M=16,N=16,L=4):
+def chimera_blocks(M=16,N=16,L=4):
     """
     Generator for blocks for a chimera block quotient
     """
@@ -85,7 +75,52 @@ def ChimeraBlocks(M=16,N=16,L=4):
             for u in (0,1):
                 yield tuple((x,y,u,k) for k in xrange(L))
 
-def FourColor(source_graph,target_graph,M=16,N=16,L=4):
+def chimera_block_quotient(G, blocks):
+    """
+    Extract the blocks from a graph, and returns a
+    block-quotient graph according to the acceptability
+    functions block_good and eblock_good
+
+    Inputs:
+        G: a networkx graph
+        blocks: a tuple of tuples
+
+    """
+    from networkx import Graph
+    from itertools import product
+
+    BG = Graph()
+    blockid = {}
+    for i,b in enumerate(blocks):
+        BG.add_node(i)
+        if not b or not all(G.has_node(x) for x in b):
+            continue
+        for q in b:
+            if q in blockid:
+                raise(RuntimeError, "two blocks overlap")
+            blockid[q] = i
+
+    for q,u in blockid.items():
+        ublock = blocks[u]
+        for p in G[q]:
+            if p not in blockid:
+                continue
+            v = blockid[p]
+            if BG.has_edge(u,v) or u==v:
+                continue
+            vblock = blocks[v]
+            
+            if ublock[0][2] == vblock[0][2]:
+                block_edges = zip(ublock, vblock)
+            else:
+                block_edges = product(ublock, vblock)
+
+            if all(G.has_edge(x,y) for x,y in block_edges):
+                BG.add_edge(u,v)
+
+    return BG
+
+def embed_with_quotient(source_graph,target_graph,M=16,N=16,L=4, **args):
     """
     Produce an embedding in target_graph suitable to
     check if source_graph is 4-colorable.  More generally,
@@ -101,14 +136,10 @@ def FourColor(source_graph,target_graph,M=16,N=16,L=4):
         emb: a dictionary mapping (v,i)
 
     """
-
-
     from random import sample
-    from networkx import Graph
-    from minorminer import find_embedding
-    blocks = list(ChimeraBlocks(M,N,L))
+    blocks = list(chimera_blocks(M,N,L))
 
-    BG = ParseBlocks(target_graph, blocks, FullBlock, ChimeraBlockEdge)
+    BG = chimera_block_quotient(target_graph, blocks)
 
     ublocks = {block:(block[0][2],i) for (i,block) in enumerate(blocks) if BG.has_node(i) }
     source_e = list(source_graph.edges())
@@ -136,25 +167,25 @@ def FourColor(source_graph,target_graph,M=16,N=16,L=4):
         for u,i in ublocks.values():
             fabric_e.append(((z,u), i))
 
-    #first, build up a pool of embeddings
-    embeddings = []
-    while len(embeddings) < 10:
-        emb = find_embedding(source_e, fabric_e, fixed_chains = fix_chains, verbose=1,
-                            chainlength_patience=10)
-        emb = {v:c for v,c in emb.items() if v not in fix_chains}
-        if emb:
-            embeddings.append(emb)
+    #first, grab a few embeddings in the quotient graph. this is super fast
+    embs = filter(None, [find_embedding(source_e, fabric_e, 
+                fixed_chains = fix_chains,
+                fast_embedding=True,
+                **args) for _ in range(10)])
 
+    #select the best-looking candidate so far
+    emb = min(embs, key = lambda e: sorted((len(c) for c in e.values()), reverse=True) )
 
-    #now, pick the best, and pass it through a few chainlength improvements
-    emb = min(embeddings, key=lambda emb:sorted((len(c) for c in emb.values()), reverse=True))
+    #work down the chainlengths in our embeding
     for _ in range(10):
-        emb = find_embedding(source_e, fabric_e, fixed_chains = fix_chains, verbose=1,
-                                initial_chains=emb,
-                                chainlength_patience=100, skip_initialization=True)
-        emb = {v:c for v,c in emb.items() if v not in fix_chains}
+        emb = find_embedding(source_e, fabric_e,
+                fixed_chains = fix_chains,
+                initial_chains = emb,
+                chainlength_patience=3,
+                skip_initialization=True,
+                **args)
 
-    #finally, translate the block-embedding to a qubit-embedding
+    #next, translate the block-embedding to a qubit-embedding
     newemb = {}
     for v in source_n:
         for k in range(L):
@@ -162,29 +193,51 @@ def FourColor(source_graph,target_graph,M=16,N=16,L=4):
 
     return newemb
 
+if __name__ == "__main__":
+    #first, we construct a Chimera graph
+    G = dnx.chimera_graph(16)
+    labs = nx.get_node_attributes(G, 'chimera_index')
+    unlab = {d:i for i,d in labs.items()}
+    H = nx.relabel_nodes(G,labs)
 
-#first, we construct a Chimera graph
-import dwave_networkx, networkx
-from dwave_networkx.generators import chimera
-G = dwave_networkx.generators.chimera.chimera_graph(16)
-labs = {i:d['chimera_index'] for i,d in G.nodes(data=True)}
-unlab = {d:i for i,d in labs.items()}
-H = networkx.relabel_nodes(G,labs)
+    #Now we take a graph to be colored
+    graph = nx.generators.triangular_lattice_graph(8,8)
 
-#Next, we delete some nodes and edges to simulate a low-yield processor
-from random import sample
-bad_q = sample(H.nodes(), 50)
-for q in bad_q:
-    H.remove_node(q)
-bad_e = sample(H.edges(), 50)
-for e in bad_e:
-    H.remove_edge(*e)
+    #for a basis of comparison, let's try to embed this without the quotient
+    graph4 = graph_coloring_qubo(graph, 4)
+    c = clock()
+    emb = find_embedding(graph4.edges(), H.edges(), verbose=0, chainlength_patience=30)
+    try:
+        print "raw embedding", clock()-c, "seconds,",
+        cl = max(len(c) for c in emb.values())
+        print "maximum chainlength", cl
+    except:
+        print "failure"
 
-#Now we take a graph to be colored
-graph = networkx.generators.complete_multipartite_graph(2,3,4,2)
+    #this block is for testing against an older, closed-source implementation
+    try:
+        from dwave_sapi2.embedding import find_embedding as find_embedding_old
+        c = clock()
+        emb = find_embedding_old(nx.convert_node_labels_to_integers(graph4).edges(), nx.convert_node_labels_to_integers(H).edges(), verbose=0)
+        try:
+            print "old embedding", clock()-c, "seconds,",
+            cl = max(len(c) for c in emb.values())
+            print "maximum chainlength", cl
+        except:
+            print "failure"
+    except ImportError:
+        pass
 
-#we embed it using FourColor,
-emb = FourColor(graph, H, 16,16,4)
-#and then translate back to integer indices
-newemb = {v:[unlab[q] for q in c] for v, c in emb.items()}
-print(newemb)
+
+    #we embed it using the block quotient,
+    c = clock()
+    emb = embed_with_quotient(graph, H, 16,16,4)
+    #and then translate back to integer indices
+    print "quotient embedding", clock()-c, "seconds, maximum chainlength", max(len(c) for c in emb.values())
+
+    #finally, we translate the embedding back to integer labels
+    newemb = {v:[unlab[q] for q in c] for v, c in emb.items()}
+    for v in graph:
+        for k in range(4):
+            print (v,k), newemb[v,k]
+
