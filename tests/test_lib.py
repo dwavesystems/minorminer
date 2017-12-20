@@ -196,7 +196,7 @@ def calibrate_success_count(f,n,a,k, directory=calibration_dir, M=None):
     else:
         print()
     with open(os.path.join(directory, f.__name__),"w") as cal_f:
-        cal_f.write("succ,float(N)")
+        cal_f.write(repr((succ,float(N))))
 
 def load_success_count_calibration(f, directory=calibration_dir):
     with open(os.path.join(directory, f.__name__)) as cal_f:
@@ -450,7 +450,7 @@ def test_grid_plant_suspend(n):
     return find_embedding(grid+suspg, chim+suspc, fixed_chains=suspension, initial_chains = init, fast_embedding=True)
 
 @success_count(30, 5)
-def test_grid_cheat_suspend(n):
+def test_grid_suspend_domain(n):
     chim = Chimera(n)
     mask = mask_wxw(n,1)
     grid = Grid(2*n)
