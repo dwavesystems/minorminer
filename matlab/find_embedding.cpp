@@ -193,7 +193,7 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
 
     fieldValueArray = mxGetField(paramsArray, 0, "verbose");
     if (fieldValueArray)
-        parseBoolean(fieldValueArray, "verbose parameter must be a boolean value", findEmbeddingExternalParams.verbose);
+        parseScalar(fieldValueArray, "verbose parameter must be an integer >= 0", findEmbeddingExternalParams.verbose);
 
     fieldValueArray = mxGetField(paramsArray, 0, "return_overlap");
     if (fieldValueArray)
