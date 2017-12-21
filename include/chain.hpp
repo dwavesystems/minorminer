@@ -50,8 +50,13 @@ class chain {
 
   public:
     const int label;
+
+    //! construct this chain, linking it to the qubit_weight vector `w` (common to
+    //! all chains in an embedding, typically) and setting its variable label `l`
     chain(vector<int> &w, int l) : qubit_weight(w), data(), links(), label(l) {}
 
+    //! assign this to a vector of ints.  each incoming qubit will
+    //! have itself as a parent.
     chain &operator=(const vector<int> &c) {
         clear();
         for (auto &q : c) {
@@ -63,6 +68,7 @@ class chain {
         return *this;
     }
 
+    //! assign this to another chain
     chain &operator=(const chain &c) {
         clear();
         data = c.data;
@@ -216,12 +222,17 @@ class chain {
         DIAGNOSE2(other, "steal");
     }
 
+    //! link this chain to another, following the path
+    //!   `q`, `parent[q]`, `parent[parent[q]]`, ...
+    //! from `this` to `other`. (preconditions: `this` and `other`
+    //! are not linked, `q` is contained in `this`, and the parent-
+    //! path is eventually contained in `other`)
     void link_path(chain &other, int q, const vector<int> &parents) {
         minorminer_assert(count(q) == 1);
         minorminer_assert(links.count(other.label) == 0);
         minorminer_assert(other.get_link(label) == -1);
         int p = parents[q];
-        if (p == -1) {
+        if (other.count(q) == 1) {
             q = p;
         } else {
             while (other.count(p) == 0) {
@@ -251,10 +262,14 @@ class chain {
         typename decltype(data)::const_iterator it;
     };
 
+    //! iterator pointing to the first qubit in this chain
     iterator begin() const { return iterator(data.begin()); }
 
+    //! iterator pointing to the end of this chain
     iterator end() const { return iterator(data.end()); };
 
+    //! run the diagnostic, and if it fails, report the failure to the user
+    //! and throw -1.  the `last_op` argument is used in the error message
     inline void diagnostic(char *last_op) {
         int r = run_diagnostic();
 
@@ -268,6 +283,9 @@ class chain {
         }
     }
 
+    //! run the diagnostic and return a nonzero status `r` in case of failure
+    //! if(`r`&1), then the parent of a qubit is not contained in this chain
+    //! if(`r`&2), then there is a refcounting error in this chain
     inline int run_diagnostic() const {
         int errorcode = 0;
         unordered_map<int, int> refs;
