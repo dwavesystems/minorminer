@@ -44,6 +44,7 @@ class embedding {
     vector<int> qub_weight;
 
   public:
+    //! constructor for an empty embedding
     embedding(embedding_problem_t &e_p)
             : ep(e_p),
               num_qubits(ep.num_qubits()),
@@ -59,6 +60,9 @@ class embedding {
         DIAGNOSE("post base_construct");
     }
 
+    //! constructor for an initial embedding: accepts fixed and
+    //! initial chains, populates the embedding based on them,
+    //! and attempts to link adjacent chains together.
     embedding(embedding_problem_t &e_p, map<int, vector<int>> &fixed_chains, map<int, vector<int>> &initial_chains)
             : embedding(e_p) {
         for (auto &vC : fixed_chains) fix_chain(vC.first, vC.second);
@@ -74,6 +78,7 @@ class embedding {
         DIAGNOSE("post construct");
     }
 
+    //! copy the data from `other.var_embedding` into `this.var_embedding`
     embedding<embedding_problem_t> &operator=(const embedding<embedding_problem_t> &other) {
         if (this != &other) var_embedding = other.var_embedding;
         DIAGNOSE("operator=");
@@ -122,13 +127,19 @@ class embedding {
         DIAGNOSE("fix_chain");
     }
 
-    inline bool operator==(const embedding &b) const {
+    //! check if `this` and `other` have the same chains (up to qubit
+    //! containment per chain; linking and parent information is not checked)
+    inline bool operator==(const embedding &other) const {
         for (int v = num_vars; v--;)
             for (int q = num_qubits; q--;)
-                if (has_qubit(v, q) != b.has_qubit(v, q)) return false;
+                if (has_qubit(v, q) != other.has_qubit(v, q)) return false;
         return true;
     }
 
+    //! construct the chain for `u`, rooted at `q`, with a vector of parent info, where
+    //! for each neibor `v` of `u`, following
+    //!    `q` -> `parents[v][q]` -> `parents[v][parents[v][q]]` ...
+    //! terminates in the chain for `v`
     void construct_chain(const int u, const int q, const vector<vector<int>> &parents) {
         var_embedding[u].set_root(q);
 
@@ -139,27 +150,27 @@ class embedding {
         DIAGNOSE("construct_chain")
     }
 
+    //! distribute path segments to the neighboring chains -- path segments are the qubits
+    //! that are ONLY used to join link_qubit[u][v] to link_qubit[u][u] and aren't used
+    //! for any other variable
+    //!  * if the target chainsize is zero, dump the entire segment into the neighbor
+    //!  * if the target chainsize is k, stop when the neighbor's size reaches k
     void flip_back(int u, const int target_chainsize) {
-        // distribute path segments to the neighboring chains -- path segments are the qubits
-        // that are ONLY used to join link_qubit[u][v] to link_qubit[u][u] and aren't used
-        // for any other variable
-        // * if the target chainsize is zero, dump the entire segment into the neighbor
-        // * if the target chainsize is k, dump the largest portion of the segment
         for (auto &v : ep.var_neighbors(u))
             if (chainsize(v) && !(ep.fixed(v))) var_embedding[v].steal(var_embedding[u], ep, target_chainsize);
         DIAGNOSE("flip_back")
     }
 
+    //! short tearout procedure
+    //! blank out the chain, its linking qubits, and account for the qubits being freed
     void tear_out(int u) {
-        // short tearout procedure
-        // blank out the chain, its linking qubits, and account for the qubits being freed
         var_embedding[u].clear();
         for (auto &v : ep.var_neighbors(u)) var_embedding[v].drop_link(u);
         DIAGNOSE("tear_out")
     }
 
+    //! grow the chain for `u`, stealing all available qubits from neighboring variables
     void steal_all(int u) {
-        // grow the chain for `u`, stealing all available qubits from neighboring variables
         for (auto &v : ep.var_neighbors(u)) {
             if (ep.fixed(v)) continue;
             if (var_embedding[u].get_link(v) == -1) continue;
@@ -169,6 +180,12 @@ class embedding {
         DIAGNOSE("steal_all")
     }
 
+    //! compute statistics for this embedding and return `1` if no chains are overlapping
+    //! when no chains are overlapping, populate `stats` with a chainlength histogram
+    //! chains do overlap, populate `stats` with a qubit overfill histogram
+    //! a histogram, in this case, is a vector of size (maximum attained value+1)
+    //! where `stats[i]` is either the number of qubits contained in `i+2` chains or
+    //! the number of chains with size `i`
     int statistics(vector<int> &stats) const {
         int W = 0;
         stats.assign(num_vars + num_fixed, 0);
@@ -179,7 +196,6 @@ class embedding {
         }
         if (W > 1) {
             stats.resize(W - 1);
-            reverse(begin(stats), end(stats));
             return 0;
         }
 
@@ -191,7 +207,6 @@ class embedding {
             stats[w]++;
         }
         stats.resize(W + 1);
-        reverse(begin(stats), end(stats));
         return 1;
     }
 
@@ -238,6 +253,8 @@ class embedding {
     }
 
   public:
+    //! print out this embedding to a level of detail that is useful for debugging purposes
+    //! TODO describe the output format.
     void print() const {
         ep.error("var_embedding = [");
         for (int u = 0; u < num_vars; u++) {
@@ -261,6 +278,8 @@ class embedding {
         ep.error("}\n");
     }
 
+    //! run a long diagnostic, and if debugging is enabled, record `current_state` so that the
+    //! error message has a little more context.  if an error is found, throw -1
     void long_diagnostic(char *current_state) {
         run_long_diagnostic(current_state);
 #ifdef CPPDEBUG
@@ -268,6 +287,8 @@ class embedding {
 #endif
     }
 
+    //! run a long diagnostic to verify the integrity of this datastructure.  the guts of this function
+    //! are its documentation, because this function only exists for debugging purposes
     void run_long_diagnostic(char *current_state) const {
         int err = 0;
         vector<int> tmp_weight;

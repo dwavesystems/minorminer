@@ -1,7 +1,8 @@
 """
 This file contains a worked example of using minorminer to embed
 a structured problem, where that structure can be exploited for
-speed.
+speed.  Additionally, we demonstrate the use of a few optional
+parameters, including fixed chains.
 
 The structured problem, 4-coloring, is to assign one of 4 colors
 to each node in a graph, such that no two adjacent nodes have the
@@ -16,7 +17,7 @@ have the same node label, we get the original graph back.
 
 Next, we describe a quotient of a Chimera graph, implemented in
 `chimera_blocks` and `chimera_block_quotient`.  The so-called
-"chimera index" is a 4-tuple of the form (x,y,u,k) where 
+"chimera index" is a 4-tuple of the form (x,y,u,k) where
 0 <= k < 4 and 0 <= u < 2.  We take a quotient of this graph,
 identifying nodes which agree in the first three terms, (x,y,u).
 
@@ -24,7 +25,7 @@ After taking these quotients, our problem is simple.  We need
 to embed the quotient QUBO into the block quotient of Chimera,
 with one additional requirement: the chain for each QUBO node
 must contain two blocks of the form (x1, y1, 0) and (x1, y1, 1).
-The function `embed_with_quotient` performs the reduction and 
+The function `embed_with_quotient` performs the reduction and
 supplies those additional requirements to `find_embedding`.
 
 
@@ -46,7 +47,7 @@ def graph_coloring_qubo(graph, k):
     1)  each v in A gets exactly one color.
        This constraint is enforced by including the term (\sum_c x_{v,c} - 1)^2 in the QUBO,
        which is minimized when \sum_c x_{v,c} = 1.
-       
+
     2) If u and v in A are adjacent, then they get different colors.
        This constraint is enforced by including terms x_{v,c} x_{u,c} in the QUBO,
        which is minimzed when at most one of u and v get color c.
@@ -213,21 +214,6 @@ if __name__ == "__main__":
         print "maximum chainlength", cl
     except:
         print "failure"
-
-    #this block is for testing against an older, closed-source implementation
-    try:
-        from dwave_sapi2.embedding import find_embedding as find_embedding_old
-        c = clock()
-        emb = find_embedding_old(nx.convert_node_labels_to_integers(graph4).edges(), nx.convert_node_labels_to_integers(H).edges(), verbose=0)
-        try:
-            print "old embedding", clock()-c, "seconds,",
-            cl = max(len(c) for c in emb.values())
-            print "maximum chainlength", cl
-        except:
-            print "failure"
-    except ImportError:
-        pass
-
 
     #we embed it using the block quotient,
     c = clock()

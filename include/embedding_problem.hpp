@@ -211,51 +211,71 @@ class embedding_problem_base {
     }
     virtual ~embedding_problem_base() {}
 
+    //! a vector of neighbors for the variable `u`
     const vector<int> &var_neighbors(int u) const { return var_nbrs[u]; }
 
-    const vector<int> &qubit_neighbors(int u) const { return qubit_nbrs[u]; }
+    //! a vector of neighbors for the qubit `q`
+    const vector<int> &qubit_neighbors(int q) const { return qubit_nbrs[q]; }
 
+    //! number of variables which are not fixed
     inline int num_vars() const { return num_v; }
+
+    //! number of qubits which are not reserved
     inline int num_qubits() const { return num_q; }
+
+    //! number of fixed variables
     inline int num_fixed() const { return num_f; }
+
+    //! number of reserved qubits
     inline int num_reserved() const { return num_r; }
 
+    //! printf regardless of the verbosity level
     template <typename... Args>
     void error(const char *format, Args... args) const {
         params.error(format, args...);
     }
 
+    //! printf at the major_info verbosity level
     template <typename... Args>
     void major_info(const char *format, Args... args) const {
         params.major_info(format, args...);
     }
 
+    //! print at the minor_info verbosity level
     template <typename... Args>
     void minor_info(const char *format, Args... args) const {
         params.minor_info(format, args...);
     }
 
+    //! print at the extra_info verbosity level
     template <typename... Args>
     void extra_info(const char *format, Args... args) const {
         params.extra_info(format, args...);
     }
 
+    //! print at the debug verbosity level (only works when `CPPDEBUG` is set)
     template <typename... Args>
     void debug(const char *format, Args... args) const {
         params.debug(format, args...);
     }
 
+    //! make a random integer between 0 and `m-1`
     int randint(int m) { return rand(params.rng, typename decltype(rand)::param_type(0, m - 1)); }
 
+    //! shuffle the data bracketed by iterators `a` and `b`
     template <typename A, typename B>
     void shuffle(A a, B b) {
         std::shuffle(a, b, params.rng);
     }
 
-    void qubit_component(int q0, vector<int> component, vector<int> visited) {
+    //! compute the connected component of the subset `component` of qubits,
+    //! containing `q0`, and using`visited` as an indicator for which qubits
+    //! have been explored
+    void qubit_component(int q0, vector<int> &component, vector<int> &visited) {
         dfs_component(q0, qubit_nbrs, component, visited);
     }
 
+    //! compute a variable ordering according to the `order` strategy
     const vector<int> &var_order(VARORDER order = VARORDER_SHUFFLE) {
         if (order == VARORDER_KEEP) {
             minorminer_assert(var_order_space.size() > 0);
