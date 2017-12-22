@@ -160,7 +160,6 @@ To build the tests turn the cmake option `MINORMINER_BUILD_TESTS` on. The comman
 C++11 programs should be able to use this as a header-only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externals/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
 
 ```CMake
-set(MINORMINER_BUILD_TESTS OFF)
 add_subdirectory(externals/minorminer)
 
 # After your target is defined
