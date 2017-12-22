@@ -13,7 +13,7 @@ cmake .. -DMINORMINER_BUILD_TESTS=ON;
 make CC=$CC CXX=$CXX;
 
 # Run the tests
-make test;
+./tests/run_tests;
 
 # Gather the test coverage files
 find . \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} .. \;
