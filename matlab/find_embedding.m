@@ -45,7 +45,7 @@
 %   timeout: Algorithm gives up after timeout seconds.
 %            (must be a number >= 0, default is approximately 1000 seconds)
 %
-%   tries: The algorithm stops after this number of restart attempts. On Vesuvius,
+%   tries: The algorithm stops after this number of restart attempts. On D-WAVE 2000Q,
 %          each restart takes between 1 and 60 seconds typically.
 %          (must be an integer >= 0, default = 10)
 %
