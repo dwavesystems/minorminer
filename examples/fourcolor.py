@@ -32,6 +32,8 @@ supplies those additional requirements to `find_embedding`.
 """
 
 # before we get to anything else, let's get some imports out of the way.
+from __future__ import print_function
+from past.builtins import xrange
 import networkx as nx
 import dwave_networkx as dnx
 from minorminer import find_embedding
@@ -216,20 +218,20 @@ if __name__ == "__main__":
     emb = find_embedding(graph4.edges(), H.edges(),
                          verbose=0, chainlength_patience=30)
     try:
-        print "raw embedding", clock() - c, "seconds,",
+        print("raw embedding %d seconds, " % (clock() - c), end='')
         cl = max(len(c) for c in emb.values())
-        print "maximum chainlength", cl
+        print("maximum chainlength %d" % cl)
     except:
-        print "failure"
+        print("failure")
 
     # we embed it using the block quotient,
     c = clock()
     emb = embed_with_quotient(graph, H, 16, 16, 4)
     # and then translate back to integer indices
-    print "quotient embedding", clock() - c, "seconds, maximum chainlength", max(len(c) for c in emb.values())
+    print("quotient embedding %d seconds, maximum chainlength %d" % (clock() - c, max(len(c) for c in emb.values())))
 
     # finally, we translate the embedding back to integer labels
     newemb = {v: [unlab[q] for q in c] for v, c in emb.items()}
     for v in graph:
         for k in range(4):
-            print (v, k), newemb[v, k]
+            print((v, k), newemb[v, k])
