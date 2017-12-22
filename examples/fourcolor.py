@@ -31,10 +31,12 @@ supplies those additional requirements to `find_embedding`.
 
 """
 
-#before we get to anything else, let's get some imports out of the way.
-import networkx as nx, dwave_networkx as dnx
+# before we get to anything else, let's get some imports out of the way.
+import networkx as nx
+import dwave_networkx as dnx
 from minorminer import find_embedding
 from time import clock
+
 
 def graph_coloring_qubo(graph, k):
     """
@@ -61,20 +63,20 @@ def graph_coloring_qubo(graph, k):
     """
 
     K = nx.complete_graph(k)
-    g1 = nx.cartesian_product(nx.create_empty_copy(graph),K)
+    g1 = nx.cartesian_product(nx.create_empty_copy(graph), K)
     g2 = nx.cartesian_product(graph, nx.create_empty_copy(K))
     return nx.compose(g1, g2)
 
 
-
-def chimera_blocks(M=16,N=16,L=4):
+def chimera_blocks(M=16, N=16, L=4):
     """
     Generator for blocks for a chimera block quotient
     """
     for x in xrange(M):
         for y in xrange(N):
-            for u in (0,1):
-                yield tuple((x,y,u,k) for k in xrange(L))
+            for u in (0, 1):
+                yield tuple((x, y, u, k) for k in xrange(L))
+
 
 def chimera_block_quotient(G, blocks):
     """
@@ -92,7 +94,7 @@ def chimera_block_quotient(G, blocks):
 
     BG = Graph()
     blockid = {}
-    for i,b in enumerate(blocks):
+    for i, b in enumerate(blocks):
         BG.add_node(i)
         if not b or not all(G.has_node(x) for x in b):
             continue
@@ -101,27 +103,28 @@ def chimera_block_quotient(G, blocks):
                 raise(RuntimeError, "two blocks overlap")
             blockid[q] = i
 
-    for q,u in blockid.items():
+    for q, u in blockid.items():
         ublock = blocks[u]
         for p in G[q]:
             if p not in blockid:
                 continue
             v = blockid[p]
-            if BG.has_edge(u,v) or u==v:
+            if BG.has_edge(u, v) or u == v:
                 continue
             vblock = blocks[v]
-            
+
             if ublock[0][2] == vblock[0][2]:
                 block_edges = zip(ublock, vblock)
             else:
                 block_edges = product(ublock, vblock)
 
-            if all(G.has_edge(x,y) for x,y in block_edges):
-                BG.add_edge(u,v)
+            if all(G.has_edge(x, y) for x, y in block_edges):
+                BG.add_edge(u, v)
 
     return BG
 
-def embed_with_quotient(source_graph,target_graph,M=16,N=16,L=4, **args):
+
+def embed_with_quotient(source_graph, target_graph, M=16, N=16, L=4, **args):
     """
     Produce an embedding in target_graph suitable to
     check if source_graph is 4-colorable.  More generally,
@@ -138,16 +141,17 @@ def embed_with_quotient(source_graph,target_graph,M=16,N=16,L=4, **args):
 
     """
     from random import sample
-    blocks = list(chimera_blocks(M,N,L))
+    blocks = list(chimera_blocks(M, N, L))
 
     BG = chimera_block_quotient(target_graph, blocks)
 
-    ublocks = {block:(block[0][2],i) for (i,block) in enumerate(blocks) if BG.has_node(i) }
+    ublocks = {block: (block[0][2], i)
+               for (i, block) in enumerate(blocks) if BG.has_node(i)}
     source_e = list(source_graph.edges())
     source_n = {x for e in source_e for x in e}
     fabric_e = list(BG.edges())
 
-    #Construct the hints:
+    # Construct the hints:
     # Goal: each source node must be connected to one horizontal block and one
     #       vertical block (by Chimera structure, each source node will
     #       contain a full (horizontal and vertical) unit cell
@@ -162,68 +166,70 @@ def embed_with_quotient(source_graph,target_graph,M=16,N=16,L=4, **args):
 
     fix_chains = {}
     for z in source_n:
-        for u in (0,1):
-            source_e.append(((z,u), z))
-            fix_chains[z,u] = [(z,u)]
-        for u,i in ublocks.values():
-            fabric_e.append(((z,u), i))
+        for u in (0, 1):
+            source_e.append(((z, u), z))
+            fix_chains[z, u] = [(z, u)]
+        for u, i in ublocks.values():
+            fabric_e.append(((z, u), i))
 
-    #first, grab a few embeddings in the quotient graph. this is super fast
-    embs = filter(None, [find_embedding(source_e, fabric_e, 
-                fixed_chains = fix_chains,
-                fast_embedding=True,
-                **args) for _ in range(10)])
+    # first, grab a few embeddings in the quotient graph. this is super fast
+    embs = filter(None, [find_embedding(source_e, fabric_e,
+                                        fixed_chains=fix_chains,
+                                        fast_embedding=True,
+                                        **args) for _ in range(10)])
 
-    #select the best-looking candidate so far
-    emb = min(embs, key = lambda e: sorted((len(c) for c in e.values()), reverse=True) )
+    # select the best-looking candidate so far
+    emb = min(embs, key=lambda e: sorted((len(c)
+                                          for c in e.values()), reverse=True))
 
-    #work down the chainlengths in our embeding
+    # work down the chainlengths in our embeding
     for _ in range(10):
         emb = find_embedding(source_e, fabric_e,
-                fixed_chains = fix_chains,
-                initial_chains = emb,
-                chainlength_patience=3,
-                skip_initialization=True,
-                **args)
+                             fixed_chains=fix_chains,
+                             initial_chains=emb,
+                             chainlength_patience=3,
+                             skip_initialization=True,
+                             **args)
 
-    #next, translate the block-embedding to a qubit-embedding
+    # next, translate the block-embedding to a qubit-embedding
     newemb = {}
     for v in source_n:
         for k in range(L):
-            newemb[v,k] = [blocks[i][k] for i in emb[v]]
+            newemb[v, k] = [blocks[i][k] for i in emb[v]]
 
     return newemb
 
+
 if __name__ == "__main__":
-    #first, we construct a Chimera graph
+    # first, we construct a Chimera graph
     G = dnx.chimera_graph(16)
     labs = nx.get_node_attributes(G, 'chimera_index')
-    unlab = {d:i for i,d in labs.items()}
-    H = nx.relabel_nodes(G,labs)
+    unlab = {d: i for i, d in labs.items()}
+    H = nx.relabel_nodes(G, labs)
 
-    #Now we take a graph to be colored
-    graph = nx.generators.triangular_lattice_graph(8,8)
+    # Now we take a graph to be colored
+    graph = nx.generators.triangular_lattice_graph(8, 8)
 
-    #for a basis of comparison, let's try to embed this without the quotient
+    # for a basis of comparison, let's try to embed this without the quotient
     graph4 = graph_coloring_qubo(graph, 4)
     c = clock()
-    emb = find_embedding(graph4.edges(), H.edges(), verbose=0, chainlength_patience=30)
+    emb = find_embedding(graph4.edges(), H.edges(),
+                         verbose=0, chainlength_patience=30)
     try:
-        print "raw embedding", clock()-c, "seconds,",
+        print "raw embedding", clock() - c, "seconds,",
         cl = max(len(c) for c in emb.values())
         print "maximum chainlength", cl
     except:
         print "failure"
 
-    #we embed it using the block quotient,
+    # we embed it using the block quotient,
     c = clock()
-    emb = embed_with_quotient(graph, H, 16,16,4)
-    #and then translate back to integer indices
-    print "quotient embedding", clock()-c, "seconds, maximum chainlength", max(len(c) for c in emb.values())
+    emb = embed_with_quotient(graph, H, 16, 16, 4)
+    # and then translate back to integer indices
+    print "quotient embedding", clock() - c, "seconds, maximum chainlength", max(len(c) for c in emb.values())
 
-    #finally, we translate the embedding back to integer labels
-    newemb = {v:[unlab[q] for q in c] for v, c in emb.items()}
+    # finally, we translate the embedding back to integer labels
+    newemb = {v: [unlab[q] for q in c] for v, c in emb.items()}
     for v in graph:
         for k in range(4):
-            print (v,k), newemb[v,k]
-
+            print (v, k), newemb[v, k]

@@ -17,7 +17,8 @@ extra_link_args = {
 
 if '--debug' in sys.argv or '-g' in sys.argv or 'CPPDEBUG' in os.environ:
     extra_compile_args['msvc'].append('/DCPPDEBUG')
-    extra_compile_args['unix'] = ['-std=c++1y', '-w', '-O0', '-g', '-fipa-pure-const', '-DCPPDEBUG']
+    extra_compile_args['unix'] = ['-std=c++1y', '-w',
+                                  '-O0', '-g', '-fipa-pure-const', '-DCPPDEBUG']
 
 
 class build_ext_compiler_check(build_ext):
@@ -34,8 +35,10 @@ class build_ext_compiler_check(build_ext):
 
         build_ext.build_extensions(self)
 
+
 class Extension(extension.Extension, object):
     pass
+
 
 setup(
     name="minorminer",

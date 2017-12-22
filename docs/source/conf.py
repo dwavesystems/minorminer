@@ -20,7 +20,8 @@ import os
 import sys
 # sys.path.insert(0, os.path.abspath('.'))
 config_directory = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(config_directory, '../../python')))
+sys.path.insert(0, os.path.abspath(
+    os.path.join(config_directory, '../../python')))
 
 # -- General configuration ------------------------------------------------
 
@@ -94,7 +95,8 @@ todo_include_todos = False
 # sys.path.append()
 
 # Path to the cpp xml files
-breathe_projects = {"minorminer": os.path.join(config_directory, '../build-cpp/xml/')}
+breathe_projects = {"minorminer": os.path.join(
+    config_directory, '../build-cpp/xml/')}
 
 breathe_default_project = "minorminer"
 
