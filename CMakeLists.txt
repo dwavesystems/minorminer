@@ -45,6 +45,7 @@ if(MINORMINER_BUILD_TESTS)
         include_directories("${gtest_SOURCE_DIR}/include")
     endif()
 
+    enable_testing()
     add_subdirectory(tests)
 endif()
 
