@@ -42,6 +42,13 @@ class Extension(extension.Extension, object):
 
 setup(
     name="minorminer",
+    description="heuristic algorithm to find graph minor embeddings",
+    long_description="minorminer is a tool for finding graph minors, developed to embed Ising problems onto quantum annealers (QA). Where it can be used to find minors in arbitrary graphs, it is particularly geared towards the state of the art in QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.",
+    author="Kelly Boothby",
+    author_email="boothby@dwavesys.com",
+    url="https://github.com/dwavesystems/minorminer",
+    version="0.1.0",
+    licence="Apache 2.0",
     ext_modules=cythonize(Extension(
         name="minorminer",
         sources=["minorminer.pyx"],
