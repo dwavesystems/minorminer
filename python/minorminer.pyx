@@ -1,7 +1,7 @@
 """
-minorminer is a tool for finding graph minor embeddings, developed to embed Ising problems onto quantum annealers (QA). Where it can be used to find minors in arbitrary graphs, it is particularly geared towards the state of the art in QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.
+minorminer is a tool for finding graph minor embeddings, developed to embed Ising problems onto quantum annealers (QA). While it can be used to find minors in arbitrary graphs, it is particularly geared towards the state of the art in QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.
 
-Currently, this consists of a function :py:func:`find_embedding` which is an implementation of the heuristic algorithm of Cai, Macready and Roy [1].  This is a modernized version of the original C++ implementation, with several new features that allow the user finer control over the algorithm and solve a wider class of problems.  
+The primary function :py:func:`find_embedding` is a modernized implementation of the Cai, Macready and Roy [1] algorithm with several new features to give users finer control and address a wider class of problems.
 
 Definitions
 ===========
@@ -9,16 +9,16 @@ Definitions
 Let :math:`S` and :math:`T` be graphs, which we call source and target.  If a set of target nodes is either size 1 or it's a connected subgraph of :math:`T`, we call it a chain.  A mapping :math:`f` from source nodes to chains is an embedding of :math:`S` into :math:`T` when
 
 - for every pair of nodes :math:`s_1 \\neq s_2` of :math:`S`, the chains :math:`f(s_1)` and :math:`f(s_2)` are disjoint, and
-- for every source edge :math:`(s_1, s_2)`, there is at least one target edge :math`(s_1, s_2)` for which :math:`t_1 \\in f(s_1)` and :math:`t_2 \\in f(s_2)`
+- for every source edge :math:`(s_1, s_2)`, there is at least one target edge :math:`(s_1, s_2)` for which :math:`t_1 \\in f(s_1)` and :math:`t_2 \\in f(s_2)`
 
 In the case that two chains are not disjoint, we say that they overlap.  If a mapping has overlapping chains, and some of its source edges are represented by qubits shared by their associated chains but the others are all proper, then we call that mapping an overlapped embedding.
 
 Higher-level Algorithm Description
 ==================================
 
-This is a very rough description of the heuristic more properly described in [1], and most honestly described in the source.
+This is a very rough description of the heuristic more properly described in [1], and most accurately described in the source.
 
-Where it is difficult to find proper embeddings, it is much easier to find embeddings where the chains are allowed to overlap.  The key operation is a placement heuristic.  We initialize by setting :math:`f(s_0) = {t_0}` for chosen source and target nodes, and then proceed placing nodes heedless of the overlaps that accumulate.  We persist: tear out a chain, delint its neighboring chains, and replace it.  The placement heuristic attempts to avoid the qubits involved in overlaps, and once it finds an embedding, continues in the same fashion with the aim of minimizing the sizes of the chains.
+Where it is difficult to find proper embeddings, it is much easier to find embeddings where the chains are allowed to overlap.  The key operation is a placement heuristic.  We initialize by setting :math:`f(s_0) = {t_0}` for chosen source and target nodes, and then proceed placing nodes heedless of the overlaps that accumulate.  We persist: tear out a chain, clean up its neighboring chains, and replace it.  The placement heuristic attempts to avoid the qubits involved in overlaps, and once it finds an embedding, continues in the same fashion with the aim of minimizing the sizes of the chains.
 
 Placement Heuristic
 -------------------
@@ -71,7 +71,7 @@ def find_embedding(S, T, **params):
             uses. Integer >=0 (default is randomly set)
 
         timeout: Algorithm gives up after timeout seconds. Number >= 0 (default
-            is approximately 1000 seconds)
+            is approximately 1000 seconds, stored as a double)
 
         tries: Number of restart attempts before the algorithm stops. On
             D-WAVE 2000Q, a typical restart takes between 1 and 60 seconds.
