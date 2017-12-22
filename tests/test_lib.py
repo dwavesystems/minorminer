@@ -460,7 +460,7 @@ def test_grid_with_answer_fast(n):
 
     check_args(grid, chim, initial_chains=init, skip_initialization=True)
 
-    return find_embedding(grid, chim, initial_chains=init, skip_initialization=True, fast_embedding=True)
+    return find_embedding(grid, chim, initial_chains=init, skip_initialization=True, chainlength_patience=0)
 
 
 @success_perfect(100, 2)
@@ -473,7 +473,7 @@ def test_grid_with_answer_slow(n):
 
     check_args(grid, chim, initial_chains=init, skip_initialization=True)
 
-    return find_embedding(grid, chim, initial_chains=init, skip_initialization=True, fast_embedding=False, chainlength_patience=10)
+    return find_embedding(grid, chim, initial_chains=init, skip_initialization=True, chainlength_patience=10)
 
 
 @success_count(30, 5)
@@ -489,7 +489,7 @@ def test_grid_suspend(n):
 
     suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
 
-    return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, fast_embedding=True)
+    return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, chainlength_patience=0)
 
 
 @success_count(30, 5)
@@ -507,7 +507,7 @@ def test_grid_plant_suspend(n):
     init = {(x, y): mask[x // 2, y // 2]
             for x in range(2 * n) for y in range(2 * n)}
 
-    return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, initial_chains=init, fast_embedding=True)
+    return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, initial_chains=init, chainlength_patience=0)
 
 
 @success_count(30, 5)
@@ -528,7 +528,7 @@ def test_grid_suspend_domain(n):
     check_args(grid + suspg, chim + suspc, fixed_chains=suspension,
                skip_initialization=False, restrict_chains=doms)
 
-    return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, restrict_chains=doms, fast_embedding=True)
+    return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, restrict_chains=doms, chainlength_patience=0)
 
 
 @success_count(30, 5)
@@ -537,7 +537,7 @@ def test_grid_cheat_domain(n):
     grid = Grid(2 * n)
     cheat = GridChimeraEmbedding(2 * n)
 
-    return find_embedding(grid, chim, restrict_chains=cheat, fast_embedding=True)
+    return find_embedding(grid, chim, restrict_chains=cheat, chainlength_patience=0)
 
 
 @success_count(30, 2)
@@ -545,7 +545,7 @@ def test_biclique_chimera(n):
     chim = Chimera(n)
     kliq = Biclique(4 * n)
 
-    return find_embedding(kliq, chim, fast_embedding=True)
+    return find_embedding(kliq, chim, chainlength_patience=0)
 
 
 @success_count(30, 5)
@@ -553,7 +553,7 @@ def test_path_cheat_domain(n):
     P = Path(n)
     cheat = {p: [p] for p in range(n)}
 
-    return find_embedding(P, P, restrict_chains=cheat, fast_embedding=True)
+    return find_embedding(P, P, restrict_chains=cheat, chainlength_patience=0)
 
 
 @success_count(30, 6, 25)
@@ -561,14 +561,14 @@ def test_clique(n, k):
     chim = Chimera(n)
     cliq = Clique(k)
 
-    return find_embedding(cliq, chim, fast_embedding=True)
+    return find_embedding(cliq, chim, chainlength_patience=0)
 
 
 @success_perfect(20, 25, 25)
 def test_clique_clique(n, k):
     cliq = Clique(k)
 
-    return find_embedding(cliq, cliq, fast_embedding=True)
+    return find_embedding(cliq, cliq, chainlength_patience=0)
 
 
 @success_perfect(3, 16)
@@ -576,7 +576,7 @@ def test_clique_large_nosegfault(n):
     chim = Chimera(n)
     cliq = Clique(4 * n + 2)
 
-    return not find_embedding(cliq, chim, fast_embedding=True, timeout=1)
+    return not find_embedding(cliq, chim, chainlength_patience=0, timeout=1)
 
 
 @success_count(30, 6, 25)
@@ -584,7 +584,7 @@ def test_clique_parallel(n, k):
     chim = Chimera(n)
     cliq = Clique(k)
 
-    return find_embedding(cliq, chim, fast_embedding=True, threads=2)
+    return find_embedding(cliq, chim, chainlength_patience=0, threads=2)
 
 
 @success_count(30, 3, 13)
@@ -594,7 +594,7 @@ def test_clique_term(n, k):
     cterm = [((n // 2, n // 2, 0, 0), k)]
     kterm = [(0, k)]
     fix = {k: [k]}
-    return find_embedding(cliq + kterm, chim + cterm, fixed_chains=fix, fast_embedding=True)
+    return find_embedding(cliq + kterm, chim + cterm, fixed_chains=fix, chainlength_patience=0)
 
 
 @success_count(30, 8)
@@ -613,7 +613,7 @@ def test_grid_heal_A(n):
         if remainder:
             i_emb[v] = remainder
 
-    return find_embedding(grid, chim, initial_chains=i_emb, fast_embedding=True)
+    return find_embedding(grid, chim, initial_chains=i_emb, chainlength_patience=0)
 
 
 @success_count(30, 4)
@@ -630,7 +630,7 @@ def test_grid_heal_B(n):
 
     emb = GridChimeraEmbedding(2 * n)
 
-    return find_embedding(grid + gridb, chim + chimb, initial_chains=emb, fixed_chains=f_emb, fast_embedding=True)
+    return find_embedding(grid + gridb, chim + chimb, initial_chains=emb, fixed_chains=f_emb, chainlength_patience=0)
 
 
 @success_perfect(1000, 3)

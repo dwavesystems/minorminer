@@ -32,9 +32,6 @@ def find_embedding(Q, A, **params):
 
     Optional parameters::
 
-        fast_embedding: Tries to quickly find an embedding regardless of chain
-            length. Boolean (default = False).
-
         max_no_improvement: Maximum number of failed iterations to improve the
             current solution, where each iteration attempts to find an embedding
             for each variable of Q such that it is adjacent to all its
@@ -141,17 +138,14 @@ def find_embedding(Q, A, **params):
     cdef optional_parameters opts
     opts.localInteractionPtr.reset(new LocalInteractionPython())
 
-    names = {"fast_embedding", "max_no_improvement", "random_seed", "timeout",
-             "tries", "verbose", "fixed_chains", "initial_chains", "max_fill",
-             "chainlength_patience", "return_overlap", "skip_initialization",
-             "inner_rounds", "threads", "restrict_chains"}
+    names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
+             "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
+             "return_overlap", "skip_initialization", "inner_rounds", "threads",
+             "restrict_chains"}
 
     for name in params:
         if name not in names:
             raise ValueError("%s is not a valid parameter for find_embedding"%name)
-
-    try: opts.fast_embedding = int( params["fast_embedding"] )
-    except KeyError: pass
 
     try: opts.max_no_improvement = int( params["max_no_improvement"] )
     except KeyError: pass
