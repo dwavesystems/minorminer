@@ -39,7 +39,7 @@
 %                (must be an integer >= 0, default is randomly set)
 %
 %   timeout: Algorithm gives up after timeout seconds.
-%            (must be a number >= 0, default is approximately 1000 seconds)
+%            (must be a number >= 0, default is approximately 1000 seconds, stored as double)
 %
 %   tries: The algorithm stops after this number of restart attempts. On D-WAVE 2000Q,
 %          each restart takes between 1 and 60 seconds typically.
