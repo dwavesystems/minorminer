@@ -453,7 +453,7 @@ class pathfinder_base {
                 ep.desperate = 0;
             }
         }
-        if (ep.embedded && !params.fast_embedding) {
+        if (ep.embedded && params.chainlength_patience) {
             ep.major_info("reducing chain lengths\n");
             int improvement_patience = params.chainlength_patience;
             ep.weight_bound = 1;

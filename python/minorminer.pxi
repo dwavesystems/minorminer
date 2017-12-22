@@ -87,7 +87,6 @@ cdef extern from "../include/util.hpp" namespace "find_embedding":
         optional_parameters()
         void seed(unsigned int)
 
-        bint fast_embedding
         LocalInteractionPtr localInteractionPtr
         int max_no_improvement
         default_random_engine rng
