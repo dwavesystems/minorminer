@@ -1,5 +1,5 @@
 """
-minorminer is a heuristic tool for finding graph minors, developed to embed Ising problems onto quantum annealers (QA). Where it can be used to find minors in arbitrary graphs, it is particularly geared towards the state of the art in QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.
+minorminer is a tool for finding graph minor embeddings, developed to embed Ising problems onto quantum annealers (QA). Where it can be used to find minors in arbitrary graphs, it is particularly geared towards the state of the art in QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.
 
 Currently, this consists of a function :py:func:`find_embedding` which is an implementation of the heuristic algorithm of Cai, Macready and Roy [1].  This is a modernized version of the original C++ implementation, with several new features that allow the user finer control over the algorithm and solve a wider class of problems.  
 
