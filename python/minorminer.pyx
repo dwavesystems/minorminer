@@ -1,30 +1,60 @@
 """
-minorminer is a heuristic tool for finding graph minors.
+minorminer is a heuristic tool for finding graph minors, developed to embed Ising problems onto quantum annealers (QA). Where it can be used to find minors in arbitrary graphs, it is particularly geared towards the state of the art in QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.
 
-For complete details on underlying algorithm see the paper: https://arxiv.org/abs/1406.2741
+Currently, this consists of a function :py:func:`find_embedding` which is an implementation of the heuristic algorithm of Cai, Macready and Roy [1].  This is a modernized version of the original C++ implementation, with several new features that allow the user finer control over the algorithm and solve a wider class of problems.  
+
+Definitions
+===========
+
+Let :math:`S` and :math:`T` be graphs, which we call source and target.  If a set of target nodes is either size 1 or it's a connected subgraph of :math:`T`, we call it a chain.  A mapping :math:`f` from source nodes to chains is an embedding of :math:`S` into :math:`T` when
+
+- for every pair of nodes :math:`s_1 \\neq s_2` of :math:`S`, the chains :math:`f(s_1)` and :math:`f(s_2)` are disjoint, and
+- for every source edge :math:`(s_1, s_2)`, there is at least one target edge :math`(s_1, s_2)` for which :math:`t_1 \\in f(s_1)` and :math:`t_2 \\in f(s_2)`
+
+In the case that two chains are not disjoint, we say that they overlap.  If a mapping has overlapping chains, and some of its source edges are represented by qubits shared by their associated chains but the others are all proper, then we call that mapping an overlapped embedding.
+
+Higher-level Algorithm Description
+==================================
+
+This is a very rough description of the heuristic more properly described in [1], and most honestly described in the source.
+
+Where it is difficult to find proper embeddings, it is much easier to find embeddings where the chains are allowed to overlap.  The key operation is a placement heuristic.  We initialize by setting :math:`f(s_0) = {t_0}` for chosen source and target nodes, and then proceed placing nodes heedless of the overlaps that accumulate.  We persist: tear out a chain, delint its neighboring chains, and replace it.  The placement heuristic attempts to avoid the qubits involved in overlaps, and once it finds an embedding, continues in the same fashion with the aim of minimizing the sizes of the chains.
+
+Placement Heuristic
+-------------------
+
+Let :math:`s` be a source node with neighbors :math:`n_1, \cdots, n_d`.  We first measure the distance from each neighbor's chain, :math:`f(n_i)` to all target nodes.  Then, we select a target node :math:`t_0` that minimizes the sum of distances to those chains.  Then, we follow a minimum-length path from :math:`t_0` to each neighbor's chain, and the union of those paths is the new chain for :math:`s`.  The distances are computed in :math:`T` as a node-weighted graph, where the weight of a node is an exponential function of the number of chains which use it.
+
+
+Hinting and Constraining
+========================
+
+New features to this implementation are ``initial_chains``, ``fixed_chains``, and ``restrict_chains``.  Initial chains are used during the initialization procedure, and can be used to provide hints in the form of an overlapped, partial, or otherwise faulty embedding.  Fixed chains are held constant during the execution of the algorithm.  Finally, chains can be restricted to being contained within a user-defined subset of :math:`T` -- this constraint is somewhat soft, and the algorithm can be expected to violate it.
+
+[1] https://arxiv.org/abs/1406.2741
 """
 include "minorminer.pxi"
 from random import randint
 
 
-def find_embedding(Q, A, **params):
+def find_embedding(S, T, **params):
     """
-    find_embedding(Q, A, **params)
+    find_embedding(S, T, **params)
     Heuristically attempt to find a minor-embedding of a graph representing an Ising/QUBO into a target graph.
 
     Args:
 
-        Q: an iterable of label pairs representing the edges in the source graph
+        S: an iterable of label pairs representing the edges in the source graph
 
-        A: an iterable of label pairs representing the edges in the target graph
+        T: an iterable of label pairs representing the edges in the target graph
 
         **params (optional): see below
 
     Returns:
 
-        When return_overlap = False (the default), returns a dict that maps labels in Q to lists of labels in A
+        When return_overlap = False (the default), returns a dict that maps labels in S to lists of labels in T
 
-        When return_overlap = True, returns a tuple consisting of a dict that maps labels in Q to lists of labels in A and a bool indicating whether or not a valid embedding was foun
+        When return_overlap = True, returns a tuple consisting of a dict that maps labels in S to lists of labels in T and a bool indicating whether or not a valid embedding was foun
 
         When interrupted by Ctrl-C, returns the best embedding found so far
 
@@ -32,12 +62,9 @@ def find_embedding(Q, A, **params):
 
     Optional parameters::
 
-        fast_embedding: Tries to quickly find an embedding regardless of chain
-            length. Boolean (default = False).
-
         max_no_improvement: Maximum number of failed iterations to improve the
             current solution, where each iteration attempts to find an embedding
-            for each variable of Q such that it is adjacent to all its
+            for each variable of S such that it is adjacent to all its
             neighbours. Integer >= 0 (default = 10)
 
         random_seed: Seed for the random number generator that find_embedding
@@ -56,7 +83,7 @@ def find_embedding(Q, A, **params):
 
         chainlength_patience: Maximum number of failed iterations to improve
             chainlengths in the current solution, where each iteration attempts
-            to find an embedding for each variable of Q such that it is adjacent
+            to find an embedding for each variable of S such that it is adjacent
             to all its neighbours. Integer >= 0 (default = 10)
 
         max_fill: Restricts the number of chains that can simultaneously
@@ -141,17 +168,14 @@ def find_embedding(Q, A, **params):
     cdef optional_parameters opts
     opts.localInteractionPtr.reset(new LocalInteractionPython())
 
-    names = {"fast_embedding", "max_no_improvement", "random_seed", "timeout",
-             "tries", "verbose", "fixed_chains", "initial_chains", "max_fill",
-             "chainlength_patience", "return_overlap", "skip_initialization",
-             "inner_rounds", "threads", "restrict_chains"}
+    names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
+             "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
+             "return_overlap", "skip_initialization", "inner_rounds", "threads",
+             "restrict_chains"}
 
     for name in params:
         if name not in names:
             raise ValueError("%s is not a valid parameter for find_embedding"%name)
-
-    try: opts.fast_embedding = int( params["fast_embedding"] )
-    except KeyError: pass
 
     try: opts.max_no_improvement = int( params["max_no_improvement"] )
     except KeyError: pass
@@ -186,56 +210,56 @@ def find_embedding(Q, A, **params):
     try: opts.threads = int(params["threads"])
     except KeyError: pass
 
-    cdef input_graph Qg
-    cdef input_graph Ag
+    cdef input_graph Sg
+    cdef input_graph Tg
 
-    cdef labeldict QL = _read_graph(Qg,Q)
-    cdef labeldict AL = _read_graph(Ag,A)
+    cdef labeldict SL = _read_graph(Sg,S)
+    cdef labeldict TL = _read_graph(Tg,T)
 
-    cdef int checksize = len(QL)+len(AL)
+    cdef int checksize = len(SL)+len(TL)
 
-    _get_chainmap(params.get("fixed_chains",[]), opts.fixed_chains, QL, AL)
-    if checksize < len(QL)+len(AL):
+    _get_chainmap(params.get("fixed_chains",[]), opts.fixed_chains, SL, TL)
+    if checksize < len(SL)+len(TL):
         raise RuntimeError("fixed_chains use source or target node labels that weren't referred to by any edges")
-    _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, QL, AL)
-    if checksize < len(QL)+len(AL):
+    _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, SL, TL)
+    if checksize < len(SL)+len(TL):
         raise RuntimeError("initial_chains use source or target node labels that weren't referred to by any edges")
-    _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, QL, AL)
-    if checksize < len(QL)+len(AL):
+    _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, SL, TL)
+    if checksize < len(SL)+len(TL):
         raise RuntimeError("restrict_chains use source or target node labels that weren't referred to by any edges")
 
     cdef vector[vector[int]] chains
-    cdef int success = findEmbedding(Qg, Ag, opts, chains)
+    cdef int success = findEmbedding(Sg, Tg, opts, chains)
 
     cdef int nc = chains.size()
 
     rchain = {}
     for v in range(nc):
         chain = chains[v]
-        rchain[QL.label(v)] = [AL.label(z) for z in chain]
+        rchain[SL.label(v)] = [TL.label(z) for z in chain]
 
     if opts.return_overlap:
         return rchain, success
     else:
         return rchain
 
-cdef int _get_chainmap(C, chainmap &CMap, QL, AL) except -1:
+cdef int _get_chainmap(C, chainmap &CMap, SL, TL) except -1:
     cdef vector[int] chain
     CMap.clear();
     try:
         for a in C:
             chain.clear()
             if C[a]:
-                if AL is None:
+                if TL is None:
                     for x in C[a]:
                         chain.push_back(<int> x)
                 else:
                     for x in C[a]:
-                        chain.push_back(<int> AL[x])
-                if QL is None:
+                        chain.push_back(<int> TL[x])
+                if SL is None:
                     CMap.insert(pair[int,vector[int]](a, chain))
                 else:
-                    CMap.insert(pair[int,vector[int]](QL[a], chain))
+                    CMap.insert(pair[int,vector[int]](SL[a], chain))
 
     except (TypeError, ValueError):
         try:

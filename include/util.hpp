@@ -74,8 +74,6 @@ typedef shared_ptr<LocalInteraction> LocalInteractionPtr;
 //! Set of parameters used to control the embedding process.
 class optional_parameters {
   public:
-    //! trades off quality for speed
-    bool fast_embedding = false;
     //! actually not controlled by user, not initialized here, but initialized in Python, MATLAB, C wrappers level
     LocalInteractionPtr localInteractionPtr;
     int max_no_improvement = 10;

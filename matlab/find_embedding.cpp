@@ -116,7 +116,6 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
                 "find_embeddingmex parameters must be a non-empty 1 by 1 structure");
 
     std::set<std::string> paramsNameSet;
-    paramsNameSet.insert("fast_embedding");
     paramsNameSet.insert("max_no_improvement");
     paramsNameSet.insert("random_seed");
     paramsNameSet.insert("timeout");
@@ -139,11 +138,6 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
             throw find_embedding::FindEmbeddingException(std::string(1, '\'') + str +
                                                          "' is not a valid parameter for findEmbedding");
     }
-
-    const mxArray* fieldValueArray = mxGetField(paramsArray, 0, "fast_embedding");
-    if (fieldValueArray)
-        parseBoolean(fieldValueArray, "fast_embedding must be a boolean value",
-                     findEmbeddingExternalParams.fast_embedding);
 
     fieldValueArray = mxGetField(paramsArray, 0, "skip_initialization");
     if (fieldValueArray)
