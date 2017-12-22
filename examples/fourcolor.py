@@ -175,7 +175,7 @@ def embed_with_quotient(source_graph, target_graph, M=16, N=16, L=4, **args):
     # first, grab a few embeddings in the quotient graph. this is super fast
     embs = filter(None, [find_embedding(source_e, fabric_e,
                                         fixed_chains=fix_chains,
-                                        fast_embedding=True,
+                                        chainlength_patience=0,
                                         **args) for _ in range(10)])
 
     # select the best-looking candidate so far

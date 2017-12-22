@@ -29,10 +29,6 @@
 %
 %   parameters for find_embedding_mex:
 %
-%   fast_embedding: true/false, tries to get an embedding quickly, without worrying about
-%                   chain length.
-%                   (must be a boolean, default = false)
-%
 %   max_no_improvement: number of rounds of the algorithm to try from the current
 %                       solution with no improvement. Each round consists of an attempt to find an
 %                       embedding for each variable of Q such that it is adjacent to all its
