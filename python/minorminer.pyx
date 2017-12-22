@@ -1,20 +1,35 @@
 """
 minorminer is a heuristic tool for finding graph minors, developed to embed Ising problems onto quantum annealers (QA). Where it can be used to find minors in arbitrary graphs, it is particularly geared towards the state of the art in QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.
 
-Currently, this consists of a function :method:`find_embedding` which is an implementation of the heuristic algorithm of Cai, Macready and Roy [1].  This is a modernized version of the original C++ implementation, with several new features that allow the user finer control over the algorithm and solve a wider class of problems.  
+Currently, this consists of a function :py:func:`find_embedding` which is an implementation of the heuristic algorithm of Cai, Macready and Roy [1].  This is a modernized version of the original C++ implementation, with several new features that allow the user finer control over the algorithm and solve a wider class of problems.  
 
 Definitions
 ===========
 
-Let :math:`S` and :math:`T` be graphs.  We say :math:`f` is a minor embedding of :math:`S` into :math:`T` when
+Let :math:`S` and :math:`T` be graphs, which we call source and target.  If a set of target nodes is either size 1 or it's a connected subgraph of :math:`T`, we call it a chain.  A mapping :math:`f` from source nodes to chains is an embedding of :math:`S` into :math:`T` when
 
-- :math:`f(s)` is a connected subgraph of :math:`T` for every node :math:`s` of :math:`S`
-- for every pair of nodes :math:`s_1 \\neq s_2` of :math:`S`, the sets :math:`f(s_1)` and :math:`f(s_2)` are disjoint
-- for every edge :math:`(s_1, s_2)` of :math:`S`, there is a pair of nodes :math:`t_1 \\in f(s_1)` and :math:`t_2 \\in f(s_2)` for which :math:`t_1` and :math:`t_2` are connected by and edge in :math:`T`.
+- for every pair of nodes :math:`s_1 \\neq s_2` of :math:`S`, the chains :math:`f(s_1)` and :math:`f(s_2)` are disjoint, and
+- for every source edge :math:`(s_1, s_2)`, there is at least one target edge :math`(s_1, s_2)` for which :math:`t_1 \\in f(s_1)` and :math:`t_2 \\in f(s_2)`
 
-We refer to the images :math:`f(s)` as chains, the nodes of :math:`S` as variables, and the nodes of :math:`T` as qubits.
+In the case that two chains are not disjoint, we say that they overlap.  If a mapping has overlapping chains, and some of its source edges are represented by qubits shared by their associated chains but the others are all proper, then we call that mapping an overlapped embedding.
+
+Higher-level Algorithm Description
+==================================
+
+This is a very rough description of the heuristic more properly described in [1], and most honestly described in the source.
+
+Where it is difficult to find proper embeddings, it is much easier to find embeddings where the chains are allowed to overlap.  The key operation is a placement heuristic.  We initialize by setting :math:`f(s_0) = {t_0}` for chosen source and target nodes, and then proceed placing nodes heedless of the overlaps that accumulate.  We persist: tear out a chain, delint its neighboring chains, and replace it.  The placement heuristic attempts to avoid the qubits involved in overlaps, and once it finds an embedding, continues in the same fashion with the aim of minimizing the sizes of the chains.
+
+Placement Heuristic
+-------------------
+
+Let :math:`s` be a source node with neighbors :math:`n_1, \cdots, n_d`.  We first measure the distance from each neighbor's chain, :math:`f(n_i)` to all target nodes.  Then, we select a target node :math:`t_0` that minimizes the sum of distances to those chains.  Then, we follow a minimum-length path from :math:`t_0` to each neighbor's chain, and the union of those paths is the new chain for :math:`s`.  The distances are computed in :math:`T` as a node-weighted graph, where the weight of a node is an exponential function of the number of chains which use it.
 
 
+Hinting and Constraining
+========================
+
+New features to this implementation are ``initial_chains``, ``fixed_chains``, and ``restrict_chains``.  Initial chains are used during the initialization procedure, and can be used to provide hints in the form of an overlapped, partial, or otherwise faulty embedding.  Fixed chains are held constant during the execution of the algorithm.  Finally, chains can be restricted to being contained within a user-defined subset of :math:`T` -- this constraint is somewhat soft, and the algorithm can be expected to violate it.
 
 [1] https://arxiv.org/abs/1406.2741
 """
