@@ -57,7 +57,7 @@ matrix:
         - source env/bin/activate
       script:
         - ./ci/travis/osx-debug-wheel.sh
-        - ./ci/travis/osx-build-wheel.sh
+      deploy:
     - os: osx
       language: generic
       before_install:
@@ -67,6 +67,23 @@ matrix:
         - source env/bin/activate
       script:
         - ./ci/travis/osx-debug-wheel.sh
+      deploy:
+    - os: osx
+      language: generic
+      before_install:
+        - brew update
+        - virtualenv env -p python2
+        - source env/bin/activate
+      script:
+        - ./ci/travis/osx-build-wheel.sh
+    - os: osx
+      language: generic
+      before_install:
+        - brew update
+        - brew install python3
+        - virtualenv env -p python3
+        - source env/bin/activate
+      script:
         - ./ci/travis/osx-build-wheel.sh
     # - os: osx
     #   language: generic
@@ -85,5 +102,4 @@ deploy:
   skip_cleanup: true
   on:
     tags: true
-
-branch: master
+    branch: master
