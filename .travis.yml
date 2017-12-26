@@ -97,6 +97,9 @@ script:
   - ls wheelhouse/
 
 deploy:
+  before_deploy:
+      - "echo 'begin deploy'"
+      - ls wheelhouse/
   provider: script
   script: ci/travis/upload-wheels.sh
   skip_cleanup: true
