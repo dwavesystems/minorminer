@@ -58,14 +58,6 @@ matrix:
       script:
         - ./ci/travis/osx-debug-wheel.sh
         - ./ci/travis/osx-build-wheel.sh
-      deploy:
-        provider: script
-        script: ci/travis/upload-wheels.sh
-        skip_cleanup: true
-        on:
-          tags: true
-          # If this is set something went wrong, it should be isolated to a subshell
-          condition: ! -v $CPPDEBUG
     - os: osx
       language: generic
       before_install:
@@ -76,14 +68,6 @@ matrix:
       script:
         - ./ci/travis/osx-debug-wheel.sh
         - ./ci/travis/osx-build-wheel.sh
-      deploy:
-        provider: script
-        script: ci/travis/upload-wheels.sh
-        skip_cleanup: true
-        on:
-          tags: true
-          # If this is set something went wrong, it should be isolated to a subshell
-          condition: ! -v $CPPDEBUG
     # - os: osx
     #   language: generic
     #   env: TOXENV=pynightly
