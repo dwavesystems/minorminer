@@ -57,7 +57,7 @@ matrix:
         - source env/bin/activate
       script:
         - ./ci/travis/osx-debug-wheel.sh
-        - ./ci/travis/osx-build-wheel.sh
+      deploy:
     - os: osx
       language: generic
       before_install:
@@ -67,6 +67,23 @@ matrix:
         - source env/bin/activate
       script:
         - ./ci/travis/osx-debug-wheel.sh
+      deploy:
+    - os: osx
+      language: generic
+      before_install:
+        - brew update
+        - virtualenv env -p python2
+        - source env/bin/activate
+      script:
+        - ./ci/travis/osx-build-wheel.sh
+    - os: osx
+      language: generic
+      before_install:
+        - brew update
+        - brew install python3
+        - virtualenv env -p python3
+        - source env/bin/activate
+      script:
         - ./ci/travis/osx-build-wheel.sh
     # - os: osx
     #   language: generic
@@ -80,12 +97,12 @@ script:
   - ls wheelhouse/
 
 deploy:
+  before_deploy:
+      - "echo 'begin deploy'"
+      - ls wheelhouse/
   provider: script
   script: ci/travis/upload-wheels.sh
   skip_cleanup: true
   on:
     tags: true
-    # If this is set something went wrong, it should be isolated to a subshell
-    condition: ! -v $CPPDEBUG
-
-branch: master
+    branch: master
