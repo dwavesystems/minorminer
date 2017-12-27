@@ -98,10 +98,10 @@ script:
 
 deploy:
   before_deploy:
-      - "echo 'begin deploy'"
-      - ls wheelhouse/
+      - pip install twine
   provider: script
-  script: ci/travis/upload-wheels.sh
+  script:
+      - twine upload --username $TWINE_USERNAME --password $TWINE_PASSWORD wheelhouse/*
   skip_cleanup: true
   on:
     tags: true
