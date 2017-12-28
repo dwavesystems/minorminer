@@ -23,6 +23,7 @@ TEST(chain, construction_empty) {
     std::vector<int> weight(5, 0);
     find_embedding::chain c(weight, 0);
     ASSERT_EQ(c.run_diagnostic(), 0);
+    ASSERT_EQ(c.get_link(0), -1);
 }
 
 TEST(chain, construction_root) {
@@ -118,6 +119,19 @@ TEST(chain, linkpath) {
     ASSERT_EQ(e.size(), 1);
 }
 
+TEST(chain, linkpath_overlap) {
+    std::mt19937_64 rng(0);
+    std::vector<int> weight(1, 0);
+    find_embedding::chain c(weight, 0);
+    find_embedding::chain d(weight, 1);
+    std::vector<int> parents(1, 0);
+    d = c = std::vector<int>{0};
+    c.link_path(d, 0, parents);
+
+    ASSERT_EQ(c.get_link(1), 0);
+    ASSERT_EQ(d.get_link(0), 0);
+}
+
 TEST(chain, linkpathandsteal) {
     embedding_problem_t mock;
     std::mt19937_64 rng(0);
@@ -174,8 +188,64 @@ TEST(chain, balancechains) {
     d.set_root(49);
     d.link_path(c, 49, parents);
 
+    ASSERT_EQ(c.get_link(d.label), 0);
+    ASSERT_EQ(d.get_link(c.label), 1);
+
     c.steal(d, mock, 25);
 
     ASSERT_EQ(c.size(), 25);
     ASSERT_EQ(d.size(), 25);
+}
+
+TEST(chain, adoption) {
+    std::vector<int> weight(50, 0);
+    find_embedding::chain c(weight, 0);
+    c = vector<int>{0, 1, 2};
+    c.adopt(0, 1);
+    c.adopt(0, 2);
+    ASSERT_EQ(c.size(), 3);
+    ASSERT_EQ(c.refcount(0), 3);
+    ASSERT_EQ(c.refcount(1), 0);
+    ASSERT_EQ(c.refcount(2), 0);
+    ASSERT_EQ(c.parent(0), 0);
+    ASSERT_EQ(c.parent(1), 0);
+    ASSERT_EQ(c.parent(2), 0);
+}
+
+TEST(chain, copying) {
+    std::vector<int> weight(50, 0);
+    find_embedding::chain d(weight, 0);
+    d = vector<int>{0, 1, 2};
+    d.adopt(0, 1);
+    d.adopt(0, 2);
+    find_embedding::chain c(weight, 0);
+    c = d;
+    ASSERT_EQ(c.size(), 3);
+    ASSERT_EQ(c.refcount(0), 3);
+    ASSERT_EQ(c.refcount(1), 0);
+    ASSERT_EQ(c.refcount(2), 0);
+    ASSERT_EQ(c.parent(0), 0);
+    ASSERT_EQ(c.parent(1), 0);
+    ASSERT_EQ(c.parent(2), 0);
+}
+
+TEST(chain, clear) {
+    std::vector<int> dweight(3, 0);
+    std::vector<int> cweight(3, 0);
+    std::vector<int> zero(3, 0);
+    std::vector<int> one(3, 1);
+    find_embedding::chain d(dweight, 0);
+    find_embedding::chain c(cweight, 0);
+    d = std::vector<int>{0, 1, 2};
+
+    c = d;
+    ASSERT_EQ(c.size(), 3);
+    ASSERT_EQ(d.size(), 3);
+    ASSERT_EQ(dweight, one);
+    ASSERT_EQ(cweight, one);
+    c.clear();
+    ASSERT_EQ(dweight, one);
+    ASSERT_EQ(cweight, zero);
+    ASSERT_EQ(c.size(), 0);
+    ASSERT_EQ(d.size(), 3);
 }
