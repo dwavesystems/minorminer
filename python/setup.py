@@ -48,7 +48,7 @@ setup(
     author_email="boothby@dwavesys.com",
     url="https://github.com/dwavesystems/minorminer",
     version="0.1.0",
-    licence="Apache 2.0",
+    license="Apache 2.0",
     ext_modules=cythonize(Extension(
         name="minorminer",
         sources=["minorminer.pyx"],
