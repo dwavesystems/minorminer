@@ -105,7 +105,7 @@ class chain {
         DIAGNOSE("set_link");
     }
 
-    //! discard the linking information for `x`
+    //! discard and return the linking qubit for `x`, or -1 if that link is not set
     inline int drop_link(const int x) {
         int q = -1;
         auto z = links.find(x);
