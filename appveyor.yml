@@ -135,8 +135,8 @@ artifacts:
   - path: "python\\dist"
 
 #deploy_script:
-#  - "echo [pypi] > %USERPROFILE%\\.pypirc"
-#  - "echo username: %username% >> %USERPROFILE%\\.pypirc"
-#  - "echo password: %password% >> %USERPROFILE%\\.pypirc"
-#  - "%CMD_IN_ENV% pip install twine"
-#  - ps: If ($env:APPVEYOR_REPO_TAG -eq "true") { Invoke-Expression "%CMD_IN_ENV% twine upload %TRUE_MM_BUILD_DIR%" 2>$null } Else { write-output "Not on a tag on master, won't deploy to pypi"}
+ - "echo [pypi] > %USERPROFILE%\\.pypirc"
+ - "echo username: %username% >> %USERPROFILE%\\.pypirc"
+ - "echo password: %password% >> %USERPROFILE%\\.pypirc"
+ - "%CMD_IN_ENV% pip install twine"
+ - ps: If ($env:APPVEYOR_REPO_TAG -eq "true") { Invoke-Expression "%CMD_IN_ENV% twine upload %TRUE_MM_BUILD_DIR%" 2>$null } Else { write-output "Not on a tag on master, won't deploy to pypi"}
