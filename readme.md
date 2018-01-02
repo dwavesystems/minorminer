@@ -2,7 +2,7 @@ minorminer
 ==========
 
 [![Build Status](https://travis-ci.org/dwavesystems/minorminer.svg?branch=master)](https://travis-ci.org/dwavesystems/minorminer)
-[![Build status](https://ci.appveyor.com/project/arcondello/minorminer/branch/master?svg=true)](https://ci.appveyor.com/project/arcondello/minorminer/branch/master?svg=true)
+[![Build status](https://ci.appveyor.com/api/projects/status/github/dwavesystems/minorminer?svg=true)](https://ci.appveyor.com/project/arcondello/minorminer)
 [![Coverage Status](https://coveralls.io/repos/github/dwavesystems/minorminer/badge.svg?branch=master)](https://coveralls.io/github/dwavesystems/minorminer?branch=master)
 [![Documentation Status](http://readthedocs.org/projects/minorminer/badge/?version=latest)](http://minorminer.readthedocs.io/en/latest/?badge=latest)
 
