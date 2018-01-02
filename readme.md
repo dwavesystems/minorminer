@@ -1,10 +1,10 @@
 minorminer
 ==========
 
-<!---[![Build Status](https://travis-ci.org/dwavesystems/minorminer.svg?branch=master)](https://travis-ci.org/dwavesystems/minorminer)
-[![Build status](https://ci.appveyor.com/api/projects/status/34sj5t253mxwdhlg/branch/master?svg=true)](https://ci.appveyor.com/project/arcondello/minorminer)
+[![Build Status](https://travis-ci.org/dwavesystems/minorminer.svg?branch=master)](https://travis-ci.org/dwavesystems/minorminer)
+[![Build status](https://ci.appveyor.com/project/arcondello/minorminer/branch/master?svg=true)](https://ci.appveyor.com/project/arcondello/minorminer/branch/master?svg=true)
 [![Coverage Status](https://coveralls.io/repos/github/dwavesystems/minorminer/badge.svg?branch=master)](https://coveralls.io/github/dwavesystems/minorminer?branch=master)
-[![Documentation Status](http://readthedocs.org/projects/minorminer/badge/?version=latest)](http://minorminer.readthedocs.io/en/latest/?badge=latest)-->
+[![Documentation Status](http://readthedocs.org/projects/minorminer/badge/?version=latest)](http://minorminer.readthedocs.io/en/latest/?badge=latest)
 
 minorminer is a heuristic tool for minor embedding: given a minor and target graph, it tries to find a mapping that embeds the minor into the target.
 
