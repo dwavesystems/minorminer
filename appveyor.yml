@@ -139,4 +139,4 @@ deploy_script:
   - "echo username: %username% >> %USERPROFILE%\\.pypirc"
   - "echo password: %password% >> %USERPROFILE%\\.pypirc"
   - "%CMD_IN_ENV% pip install twine"
-  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] twine upload python\\dist\\*.whl"
+  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] if NOT [%CPPDEBUG%]==[1] twine upload python\\dist\\*.whl"
