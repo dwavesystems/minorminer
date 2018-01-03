@@ -47,7 +47,7 @@ setup(
     author="Kelly Boothby",
     author_email="boothby@dwavesys.com",
     url="https://github.com/dwavesystems/minorminer",
-    version="0.1.1.dev3",
+    version="0.1.1.dev4",
     license="Apache 2.0",
     ext_modules=cythonize(Extension(
         name="minorminer",
