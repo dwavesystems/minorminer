@@ -13,7 +13,7 @@ environment:
   # PyPI login
   username: dwtools
   password:
-    secure: G0CMe8ljy4PrXAaB1nR76A==
+    secure: 9/YAQhmz9Kb1ZeXzhBYeQA==
 
   matrix:
     # Python < 2.7 is not supported by dimod
