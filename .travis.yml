@@ -83,9 +83,9 @@ matrix:
         - source env/bin/activate
       script:
         - ./ci/travis/osx-build-wheel.sh
-    # - os: osx
-    #   language: generic
-    #   env: TOXENV=pynightly
+    - os: osx
+      language: generic
+      env: TOXENV=pynightly
 
 
 script:
@@ -93,7 +93,7 @@ script:
   - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/ci/travis/linux-debug-wheels.sh
   - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/ci/travis/linux-build-wheels.sh
   - ls wheelhouse/
-  
+
 after_success:
   - pip install twine
 
