@@ -186,6 +186,22 @@ class chain {
         return fetch(q).first;
     }
 
+    //! assign `p` to be the parent of `q`, on condition that both `p` and `q`
+    //! are contained in `this`, `q` is its own parent, and `q` is not the root
+    inline void adopt(const int p, const int q) {
+        minorminer_assert(data.count(q) == 1);
+        minorminer_assert(data.count(p) == 1);
+        auto &P = retrieve(p);
+        auto &Q = retrieve(q);
+        minorminer_assert(Q.first == q);
+        minorminer_assert(get_link(label) != q);
+        Q.first = p;
+        Q.second--;
+        P.second++;
+        minorminer_assert(parent(q) == p);
+        DIAGNOSE("adopt");
+    }
+
     //! return the number of references that `this` makes to the qubit
     //!`q` -- where a "reference" is an occurrence of `q` as a parent
     //! or an occurrence of `q` as a linking qubit / root
@@ -224,9 +240,10 @@ class chain {
 
     //! link this chain to another, following the path
     //!   `q`, `parent[q]`, `parent[parent[q]]`, ...
-    //! from `this` to `other`. (preconditions: `this` and `other`
-    //! are not linked, `q` is contained in `this`, and the parent-
-    //! path is eventually contained in `other`)
+    //! from `this` to `other` and intermediate nodes (all but the last)
+    //! into `this` (preconditions: `this` and `other` are not linked,
+    //! `q` is contained in `this`, and the parent-path is eventually
+    //! contained in `other`)
     void link_path(chain &other, int q, const vector<int> &parents) {
         minorminer_assert(count(q) == 1);
         minorminer_assert(links.count(other.label) == 0);

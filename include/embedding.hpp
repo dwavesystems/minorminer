@@ -65,15 +65,33 @@ class embedding {
     //! and attempts to link adjacent chains together.
     embedding(embedding_problem_t &e_p, map<int, vector<int>> &fixed_chains, map<int, vector<int>> &initial_chains)
             : embedding(e_p) {
+        vector<int> stack;
+
         for (auto &vC : fixed_chains) fix_chain(vC.first, vC.second);
 
         for (auto &vC : initial_chains)
             if (!ep.fixed(vC.first)) set_chain(vC.first, vC.second);
 
         for (auto &vC : initial_chains) {
-            var_embedding[vC.first].set_link(vC.first, vC.second[0]);
-            for (auto &u : ep.var_neighbors(vC.first))
-                if (u > vC.first) linkup(vC.first, u);
+            int v = vC.first;
+            auto &c = var_embedding[v];
+            int root = vC.second[0];
+            c.set_link(v, root);
+            int hits = 0;
+            stack.push_back(root);
+            while (stack.size()) {
+                hits++;
+                int p = stack.back();
+                stack.pop_back();
+                for (auto &q : ep.qubit_neighbors(p))
+                    if (q != root && c.count(q) && c.parent(q) == q) {
+                        c.adopt(p, q);
+                        stack.push_back(q);
+                    }
+            }
+            if (hits != c.size()) c.drop_link(v);
+            for (auto &u : ep.var_neighbors(v))
+                if (u > v) linkup(v, u);
         }
         DIAGNOSE("post construct");
     }
@@ -426,6 +444,20 @@ class embedding {
                         if (chainsize(v) != component.size()) {
                             ep.debug("chain for %d is disconnected but qubit root is set\n", v);
                             err = 1;
+                        }
+                        if (ep.initialized && rooted) {
+                            for (auto &u : ep.var_neighbors(v)) {
+                                int q = var_embedding[v].get_link(u);
+                                if (q == -1) continue;
+                                int cyclebreak = num_qubits + num_reserved;
+                                while (var_embedding[v].parent(q) != q && cyclebreak--) {
+                                    q = var_embedding[v].parent(q);
+                                }
+                                if (cyclebreak == 0)
+                                    ep.debug("chain for %d contains a directed cycle, entry is %d\n", v,
+                                             var_embedding[v].get_link(u));
+                                if (q != root) ep.debug("not all paths in chain for %d lead to the root\n", v);
+                            }
                         }
                     }
                 }
