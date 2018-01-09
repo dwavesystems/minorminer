@@ -139,6 +139,8 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
                                                          "' is not a valid parameter for findEmbedding");
     }
 
+    const mxArray* fieldValueArray;
+
     fieldValueArray = mxGetField(paramsArray, 0, "skip_initialization");
     if (fieldValueArray)
         parseBoolean(fieldValueArray, "skip_initialization must be a boolean value",
