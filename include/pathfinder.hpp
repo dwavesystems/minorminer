@@ -162,19 +162,11 @@ class pathfinder_base {
     int initialization_pass(embedding_t &emb) {
         for (auto &u : ep.var_order((params.restrict_chains.size()) ? VARORDER_DFS : VARORDER_PFS)) {
             if (emb.chainsize(u) && emb.linked(u)) {
-                vector<int> tmp_component;
-                vector<int> tmp_visited;
-                tmp_visited.assign(num_qubits + num_reserved, 1);
-                int p = 0;
-                for (auto &q : emb.get_chain(u)) tmp_visited[p = q] = 0;
-                ep.qubit_component(p, tmp_component, tmp_visited);
-                if (tmp_component.size() == static_cast<unsigned int>(emb.chainsize(u))) {
-                    ep.debug("chain for %d kept during initialization\n", u);
-                    continue;
-                }
+                ep.debug("chain for %d kept during initialization\n", u);
+            } else {
+                ep.debug("finding a new chain for %d\n", u);
+                if (!find_chain(emb, u)) return -1;
             }
-            ep.debug("finding a new chain for %d\n", u);
-            if (!find_chain(emb, u)) return -1;
         }
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
