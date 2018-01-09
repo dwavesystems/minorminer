@@ -249,3 +249,46 @@ TEST(chain, clear) {
     ASSERT_EQ(c.size(), 0);
     ASSERT_EQ(d.size(), 3);
 }
+
+TEST(chain, steal_gc) {
+    embedding_problem_t mock;
+    std::mt19937_64 rng(0);
+    std::vector<int> weight(50, 0);
+    find_embedding::chain c(weight, 0);
+    find_embedding::chain d(weight, 1);
+    find_embedding::chain e(weight, 2);
+    std::vector<int> parents(50, -1);
+    for (int i = 0; i < 50; i++) parents[i] = i - 1;
+    c.set_root(0);
+    d.set_root(49);
+    d.link_path(c, 49, parents);
+
+    e.set_root(49);
+    for (int i = 49; i;) i = parents[i] = i / 2;
+    e.link_path(c, 49, parents);
+
+    ASSERT_EQ(c.size(), 1);
+    ASSERT_EQ(d.size(), 49);
+    ASSERT_EQ(e.size(), 6);
+
+    d.steal(c, mock);
+    e.steal(c, mock);
+
+    ASSERT_EQ(c.size(), 1);
+    ASSERT_EQ(d.size(), 49);
+    ASSERT_EQ(e.size(), 6);
+
+    c.steal(e, mock);
+    c.steal(d, mock);
+
+    ASSERT_EQ(c.size(), 30);
+    ASSERT_EQ(d.size(), 1);
+    ASSERT_EQ(e.size(), 1);
+
+    e.steal(c, mock);
+    d.steal(c, mock);
+
+    ASSERT_EQ(c.size(), 6);
+    ASSERT_EQ(d.size(), 25);
+    ASSERT_EQ(e.size(), 1);
+}
