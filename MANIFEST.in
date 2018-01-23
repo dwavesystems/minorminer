@@ -1,1 +1,1 @@
-include include/*.hpp
+global-include *.hpp

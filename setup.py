@@ -67,7 +67,7 @@ setup(
     author="Kelly Boothby",
     author_email="boothby@dwavesys.com",
     url="https://github.com/dwavesystems/minorminer",
-    version="0.1.2.dev4",
+    version="0.1.2.dev5",
     license="Apache 2.0",
     ext_modules=extensions,
     cmdclass={'build_ext': build_ext_compiler_check}
