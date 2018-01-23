@@ -1,8 +1,17 @@
 from setuptools import setup, extension
 from setuptools.command.build_ext import build_ext
-from Cython.Build import cythonize
 import sys
 import os
+
+cwd = os.path.abspath(os.path.dirname(__file__))
+if not os.path.exists(os.path.join(cwd, 'PKG-INFO')):
+    try:
+        from Cython.Build import cythonize
+        USE_CYTHON = True
+    except ImportError:
+        USE_CYTHON = False
+else:
+    USE_CYTHON = False
 
 extra_compile_args = {
     'msvc': ['/std:c++latest', '/MT', '/EHsc'],
@@ -13,7 +22,6 @@ extra_link_args = {
     'msvc': [],
     'unix': ['-std=c++11'],
 }
-
 
 if '--debug' in sys.argv or '-g' in sys.argv or 'CPPDEBUG' in os.environ:
     extra_compile_args['msvc'].append('/DCPPDEBUG')
@@ -40,6 +48,18 @@ class Extension(extension.Extension, object):
     pass
 
 
+ext = '.pyx' if USE_CYTHON else '.cpp'
+
+extensions = [Extension(
+    name="minorminer",
+    sources=["./python/minorminer" + ext],
+    include_dirs=['', './include/'],
+    language='c++',
+)]
+
+if USE_CYTHON:
+    extensions = cythonize(extensions)
+
 setup(
     name="minorminer",
     description="heuristic algorithm to find graph minor embeddings",
@@ -47,13 +67,8 @@ setup(
     author="Kelly Boothby",
     author_email="boothby@dwavesys.com",
     url="https://github.com/dwavesystems/minorminer",
-    version="0.1.2",
+    version="0.1.2.dev4",
     license="Apache 2.0",
-    ext_modules=cythonize(Extension(
-        name="minorminer",
-        sources=["minorminer.pyx"],
-        include_dirs=['.', '../include'],
-        language='c++',
-    )),
+    ext_modules=extensions,
     cmdclass={'build_ext': build_ext_compiler_check}
 )
