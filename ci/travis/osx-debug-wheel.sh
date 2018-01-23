@@ -9,7 +9,7 @@ source debug_env/bin/activate
 set CPPDEBUG=1
 python --version
 pip install delocate
-pip install -r cython>=0.27
+pip install cython>=0.27
 pip wheel -e ./ -w raw-debug-wheelhouse/
 
 # Bundle external shared libraries into the wheels

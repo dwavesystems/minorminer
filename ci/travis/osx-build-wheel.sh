@@ -3,7 +3,7 @@ set -e -x
 
 python --version
 pip install delocate
-pip install -r cython>=0.27
+pip install cython>=0.27
 pip wheel -e ./ -w raw-wheelhouse/
 
 # Bundle external shared libraries into the wheels

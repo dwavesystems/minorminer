@@ -22,21 +22,19 @@ Getting Started
 
 #### Installation
 
-pip installation is recommended for platforms with precompiled wheels posted to pypi.
+pip installation is recommended for platforms with precompiled wheels posted to pypi. Source distributions are provided as well.
 
 ```bash
 pip install minorminer
 ```
 
-If your platform doesn't have a precompiled wheel, try to run the `setuptools` script
-in the python directory.
+To install from this repository, run the `setuptools` script..
 
 ```bash
-cd python
-pip install -r requirements.txt
+pip install cython>=0.27
 python setup.py install
 # optionally, run the tests to check your build
-pip install -r ../tests/requirements.txt
+pip install -r tests/requirements.txt
 python -m nose .. --exe
 ```
 
