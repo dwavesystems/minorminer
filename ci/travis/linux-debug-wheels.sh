@@ -8,7 +8,7 @@ for PYBIN in /opt/python/*/bin; do
         # bdist_wheel has an error under the version of 2.6 available
         continue
     fi
-    "${PYBIN}/pip" install cython>=0.27
+    "${PYBIN}/pip" install cython==0.27
     "${PYBIN}/pip" wheel -e /io/ -w wheelhouse/
 done
 
