@@ -4,10 +4,9 @@
 *~
 
 # Ignore output paths
-/python/build
-/python/dist
+/dist/
 /python/minorminer.cpp
-/python/minorminer.egg-info
+/minorminer.egg-info/
 /build/
 
 # Virtual environments
