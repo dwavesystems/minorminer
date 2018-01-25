@@ -84,6 +84,7 @@ matrix:
       script:
         - ./ci/travis/osx-build-wheel.sh
         - python setup.py sdist
+        - pip install twine
         - twine upload --username $TWINE_USERNAME --password $TWINE_PASSWORD dist/*
     # - os: osx
     #   language: generic
