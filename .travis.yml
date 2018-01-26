@@ -83,9 +83,6 @@ matrix:
         - source env/bin/activate
       script:
         - ./ci/travis/osx-build-wheel.sh
-        - python setup.py sdist
-        - pip install twine
-        - twine upload --username $TWINE_USERNAME --password $TWINE_PASSWORD dist/*
     # - os: osx
     #   language: generic
     #   env: TOXENV=pynightly
@@ -103,7 +100,9 @@ after_success:
 deploy:
   provider: script
   script:
-      - twine upload --username $TWINE_USERNAME --password $TWINE_PASSWORD wheelhouse/*
+      - python setup.py sdist
+      - twine upload --username $TWINE_USERNAME --password $TWINE_PASSWORD --skip-existing dist/*
+      - twine upload --username $TWINE_USERNAME --password $TWINE_PASSWORD --skip-existing wheelhouse/*
   skip_cleanup: true
   on:
     tags: true
