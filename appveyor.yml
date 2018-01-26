@@ -109,13 +109,12 @@ install:
   # pip will build them from source using the MSVC compiler matching the
   # target Python version and architecture
   - if "%CPPDEBUG%" == "1" ( SET MM_BUILD_DIR=%DEBUG_MM_BUILD_DIR% ) else ( SET MM_BUILD_DIR=%TRUE_MM_BUILD_DIR%)
-  - "%CMD_IN_ENV% pip install -r python/requirements.txt"
+  - "%CMD_IN_ENV% pip install cython==0.27"
   - "%CMD_IN_ENV% pip install wheel setuptools --upgrade --force"
 
 
 build_script:
   # Build the compiled extension
-  - cd python
   - "%CMD_IN_ENV% python setup.py bdist_wheel -d %MM_BUILD_DIR%"
   - cd ..
   - "dir %MM_BUILD_DIR%"
@@ -139,4 +138,4 @@ deploy_script:
   - "echo username: %username% >> %USERPROFILE%\\.pypirc"
   - "echo password: %password% >> %USERPROFILE%\\.pypirc"
   - "%CMD_IN_ENV% pip install twine"
-  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] if NOT [%CPPDEBUG%]==[1] twine upload python\\dist\\*.whl"
+  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] if NOT [%CPPDEBUG%]==[1] twine upload --skip-existing python\\dist\\*.whl"
