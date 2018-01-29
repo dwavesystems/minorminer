@@ -83,9 +83,9 @@ matrix:
         - source env/bin/activate
       script:
         - ./ci/travis/osx-build-wheel.sh
+        - python setup.py sdist
       after_success:
         - pip install twine
-        - python setup.py sdist
         - echo after_success
         - pwd
         - ls
