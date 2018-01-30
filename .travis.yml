@@ -86,17 +86,10 @@ matrix:
         - python setup.py sdist
       after_success:
         - pip install twine
-        - echo after_success
-        - pwd
-        - ls
       deploy:
         provider: script
         script:
-            - echo deploy
-            - pwd
-            - ls
-            - twine upload --username $TWINE_USERNAME --password $TWINE_PASSWORD --skip-existing dist/*
-            - twine upload --username $TWINE_USERNAME --password $TWINE_PASSWORD --skip-existing wheelhouse/*
+          - twine upload --username $TWINE_USERNAME --password $TWINE_PASSWORD --skip-existing wheelhouse/* dist/*
         skip_cleanup: true
         on:
           tags: true
