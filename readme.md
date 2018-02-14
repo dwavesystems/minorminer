@@ -35,7 +35,7 @@ pip install cython==0.27
 python setup.py install
 # optionally, run the tests to check your build
 pip install -r tests/requirements.txt
-python -m nose .. --exe
+python -m nose . --exe
 ```
 
 #### Examples
