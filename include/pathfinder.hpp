@@ -181,7 +181,7 @@ class pathfinder_base {
             ep.debug("finding a new chain for %d\n", u);
             if (!find_chain(emb, u)) return -1;
 
-            improved = check_improvement(emb);
+            improved |= check_improvement(emb);
             if (ep.embedded) break;
         }
         if (params.localInteractionPtr->cancelled(stoptime))
@@ -216,7 +216,7 @@ class pathfinder_base {
                 ep.weight_bound = oldbound;
                 if (!find_chain(emb, u)) return -1;
             }
-            improved = check_improvement(emb);
+            improved |= check_improvement(emb);
             if (ep.embedded) break;
         }
         ep.weight_bound = oldbound;
@@ -236,7 +236,7 @@ class pathfinder_base {
             ep.debug("finding a new chain for %d\n", u);
             if (!find_chain(emb, u)) return -1;
 
-            improved = check_improvement(emb);
+            improved |= check_improvement(emb);
         }
         if (params.localInteractionPtr->cancelled(stoptime))
             return -2;
