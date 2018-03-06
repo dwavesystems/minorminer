@@ -47,13 +47,20 @@ class chain {
     vector<int> &qubit_weight;
     unordered_map<int, pair<int, int>> data;
     unordered_map<int, int> links;
+#ifdef CPPDEBUG
+    bool belay_diagnostic;
+#endif
 
   public:
     const int label;
 
     //! construct this chain, linking it to the qubit_weight vector `w` (common to
     //! all chains in an embedding, typically) and setting its variable label `l`
-    chain(vector<int> &w, int l) : qubit_weight(w), data(), links(), label(l) {}
+    chain(vector<int> &w, int l) : qubit_weight(w), data(), links(), label(l) {
+#ifdef CPPDEBUG
+        belay_diagnostic = false;
+#endif
+    }
 
     //! assign this to a vector of ints.  each incoming qubit will
     //! have itself as a parent.
@@ -226,13 +233,28 @@ class chain {
             int r = other.trim_leaf(p);
             minorminer_assert(other.size() >= 1);
             if (r == p) break;
-            if (!count(p))
+            auto z = data.find(p);
+            if (z == data.end())
                 add_leaf(p, q);
-            else if (p != q)
+            else if (p != q) {
+                auto &w = (*z).second;
+                w.second++;
+#ifdef CPPDEBUG
+                belay_diagnostic = true;
+#endif
                 trim_branch(q);
+#ifdef CPPDEBUG
+                belay_diagnostic = false;
+#endif
+                w.second--;
+            }
             q = p;
             p = r;
         }
+
+        minorminer_assert(other.count(p) == 1);
+        minorminer_assert(count(q) == 1);
+
         set_link(other.label, q);
         other.set_link(label, p);
         DIAGNOSE2(other, "steal");
@@ -288,6 +310,9 @@ class chain {
     //! run the diagnostic, and if it fails, report the failure to the user
     //! and throw -1.  the `last_op` argument is used in the error message
     inline void diagnostic(char *last_op) {
+#ifdef CPPDEBUG
+        if (belay_diagnostic) return;
+#endif
         int r = run_diagnostic();
 
         if (r) {
