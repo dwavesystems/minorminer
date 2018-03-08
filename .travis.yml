@@ -60,8 +60,9 @@ matrix:
       language: generic
       before_install:
         - brew update
-        - brew install python3
-        - virtualenv env -p python3
+        - brew upgrade python
+        - pip install virtualenv
+        - virtualenv env -p python
         - source env/bin/activate
       script:
         - ./ci/travis/osx-debug-wheel.sh
@@ -78,8 +79,9 @@ matrix:
       language: generic
       before_install:
         - brew update
-        - brew install python3
-        - virtualenv env -p python3
+        - brew upgrade python
+        - pip install virtualenv
+        - virtualenv env -p python
         - source env/bin/activate
       script:
         - ./ci/travis/osx-build-wheel.sh
