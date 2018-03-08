@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "debug.hpp"
+#include "util.hpp"
 
 // Macros local to this file, undefined at the end
-#define nullval int(0xffffffff)
 #define max_P (numeric_limits<P>::max())
 
 namespace pairing_queue {
@@ -22,55 +22,74 @@ using std::vector;
 using std::fill;
 using std::numeric_limits;
 
-// static constexpr int nullval = 0xffffffff;
+template <typename P>
+struct plain_node {
+    P val;
+    plain_node<P> *next, *desc, *prev;
+    inline bool operator<(const plain_node<P> &b) const { return (val < b.val) || ((val == b.val) && (this < &b)); }
+};
+
+template <typename P>
+struct time_node {
+    P val;
+    time_node<P> *next, *desc, *prev;
+    int time;
+    inline bool operator<(const time_node<P> &b) const { return (val < b.val) || ((val == b.val) && (this < &b)); }
+};
 
 //! A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
-template <typename P>
+template <typename P, typename N = plain_node<P>>
 class pairing_queue {
   public:
     typedef P value_type;
 
   protected:
-    vector<P> val;
+    vector<N> nodes;
 
-    vector<int> next;
-    vector<int> desc;
-    vector<int> prev;
-
-    int root;
+    N *root;
 
   public:
-    pairing_queue(int n) : val(n, 0), next(n, 0), desc(n, 0), prev(n, 0), root(nullval) {}
+    pairing_queue(int n) : nodes(n), root(nullptr) {}
 
     //! Reset the queue and fill the values with a default
-    inline void reset_fill(const P &v) {
-        root = nullval;
-        fill(begin(val), end(val), v);
-        fill(begin(next), end(next), nullval);
-        fill(begin(desc), end(desc), nullval);
-        int n = 0;
-        for (auto &p : prev) p = n++;
+    inline void reset_fill(const P v) {
+        root = nullptr;
+        for (auto &n : nodes) {
+            reset(&n, v);
+        }
     }
 
-    inline bool has(int index) const { return 0 <= index < val.size(); }
+    inline bool has(int k) const { return 0 <= k && k < nodes.size(); }
 
     //! Reset the queue and set the default to the maximum value
     inline void reset() { reset_fill(max_P); }
 
+  protected:
+    inline void reset(N *n) {
+        minorminer_assert(!empty(n));
+        n->desc = nullptr;
+        n->next = nullptr;
+        n->prev = n;
+    }
+
+    inline void reset(N *n, P v) {
+        reset(n);
+        n->val = v;
+    }
+
+  public:
     //! Remove the minimum value
     //! return true if any change is made
     inline bool delete_min() {
         if (empty()) return false;
 
-        int newroot = desc[root];
+        N *newroot = root->desc;
         if (!empty(newroot)) {
             newroot = merge_pairs(newroot);
-            prev[newroot] = nullval;
-            next[newroot] = nullval;
+            newroot->prev = nullptr;
+            newroot->next = nullptr;
         }
-        desc[root] = nullval;
-        next[root] = nullval;
-        prev[root] = root;
+        reset(root);
         root = newroot;
         return true;
     }
@@ -86,81 +105,126 @@ class pairing_queue {
         return true;
     }
 
+  public:
     //! Decrease the value of k to v
     //! NOTE: Assumes that v is lower than the current value of k
-    inline void decrease_value(int k, const P &v) {
-        minorminer_assert(0 <= k and k < val.size());
-        minorminer_assert(v < val[k]);
-        val[k] = v;
-        decrease(k);
+    inline void decrease_value(int k, const P &v) { decrease_value(node(k), v); }
+
+  protected:
+    inline void decrease_value(N *n, const P &v) {
+        minorminer_assert(!empty(n));
+        minorminer_assert(v < n->val);
+
+        n->val = v;
+        decrease(n);
     }
 
+  public:
     //! Decrease the value of k to v
     //! Does nothing if v isn't actually a decrease.
-    inline bool check_decrease_value(int k, const P &v) {
-        if (v < val[k]) {
-            decrease_value(k, v);
+    inline bool check_decrease_value(int k, const P &v) { return check_decrease_value(node(k), v); }
+
+  protected:
+    inline bool check_decrease_value(N *n, const P &v) {
+        minorminer_assert(!empty(n));
+        if (v < n->val) {
+            n->val = v;
+            decrease(n);
             return true;
         } else {
             return false;
         }
     }
 
-    inline void set_value(int k, const P &v) {
-        minorminer_assert(0 <= k and k < val.size());
-        minorminer_assert(0 <= k and k < prev.size());
+  public:
+    inline void set_value(int k, const P &v) { set_value(node(k), v); }
 
-        if (prev[k] == k) {
-            val[k] = v;
-            root = merge_roots(k, root);
-        } else if (v < val[k]) {
-            val[k] = v;
-            decrease(k);
-        } else if (val[k] < v) {
-            val[k] = v;
-            remove(k);
-            root = merge_roots(k, root);
+  protected:
+    inline void set_value(N *n, const P &v) {
+        minorminer_assert(!empty(n));
+        if (n->prev == n) {
+            n->val = v;
+            root = merge_roots(n, root);
+        } else if (v < n->val) {
+            n->val = v;
+            decrease(n);
+        } else if (n->val < v) {
+            n->val = v;
+            remove(n);
+            root = merge_roots(n, root);
         }
     }
 
-    inline void set_value_unsafe(int k, const P &v) { val[k] = v; }
-
-    inline P min_value() const { return val[root]; }
-
-    inline int min_key() const { return root; }
-
-    inline bool empty(void) const { return empty(root); }
-
-    inline bool empty(int k) const { return k == nullval; }
-
-    inline P value(int k) const { return val[k]; }
+  public:
+    inline void set_value_unsafe(int k, const P &v) { set_value_unsafe(node(k), v); }
 
   protected:
-    inline int merge_roots(int a, int b) {
+    inline void set_value_unsafe(N *n, const P &v) {
+        minorminer_assert(!empty(n));
+        n->val = v;
+    }
+
+  public:
+    inline P min_value() const {
+        minorminer_assert(!empty());
+        return root->val;
+    }
+
+    inline int min_key() const {
+        minorminer_assert(!empty());
+        return key(root);
+    }
+
+  protected:
+    inline int key(N *n) const { return n - nodes.data(); }
+
+  public:
+    inline bool empty(void) const { return empty(root); }
+
+  protected:
+    inline bool empty(N *n) const { return n == nullptr; }
+
+  public:
+    inline P value(int k) const { return const_node(k)->val; }
+
+  protected:
+    inline void checkbound(const int k) const { minorminer_assert(has(k)); }
+
+    inline N *node(int k) {
+        checkbound(k);
+        return nodes.data() + k;
+    }
+
+    inline const N *const_node(int k) const {
+        checkbound(k);
+        return nodes.data() + k;
+    }
+
+    inline N *merge_roots(N *a, N *b) {
         // even this version of merge_roots is slightly unsafe -- we never call it with a null, so let's not check!
         // * doesn't check for nullval
         minorminer_assert(!empty(a));
 
         if (empty(b)) return a;
-        int c = merge_roots_unsafe(a, b);
-        prev[c] = nullval;
+        N *c = merge_roots_unsafe(a, b);
+        c->prev = nullptr;
         return c;
     }
 
-    inline int merge_roots_unsafe(int a, int b) {
+    inline N *merge_roots_unsafe(N *a, N *b) {
         // this unsafe version of merge_roots which
         // * doesn't check for nullval
         // * doesn't ensure that the returned node has prev[a] = nullval
         minorminer_assert(!empty(a));
         minorminer_assert(!empty(b));
 
-        if (val[a] < val[b]) return merge_roots_unchecked(a, b);
-        if (val[b] < val[a]) return merge_roots_unchecked(b, a);
-        if (a < b) return merge_roots_unchecked(a, b);
-        return merge_roots_unchecked(b, a);
+        if (*a < *b)
+            return merge_roots_unchecked(a, b);
+        else
+            return merge_roots_unchecked(b, a);
     }
 
-    inline int merge_roots_unchecked(int a, int b) {
+    inline N *merge_roots_unchecked(N *a, N *b) {
         // this very unsafe version of self.merge_roots which
         // * doesn't check for nullval
         // * doesn't ensure that the returned node has prev[a] = nullval
@@ -169,53 +233,60 @@ class pairing_queue {
         minorminer_assert(!empty(b));
         // minorminer_assert(a < b);
 
-        next[b] = desc[a];
-        if (!empty(desc[a])) prev[desc[a]] = b;
-        prev[b] = a;
-        desc[a] = b;
+        N *c = b->next = a->desc;
+        if (!empty(c)) c->prev = b;
+        b->prev = a;
+        a->desc = b;
         return a;
     }
 
-    inline int merge_pairs(int a) {
-        if (empty(a)) return a;
-        int r = nullval;
+    inline N *merge_pairs(N *a) {
+        if (empty(a)) return nullptr;
+        N *r = nullptr;
         do {
-            int b = next[a];
+            N *b = a->next;
             if (!empty(b)) {
-                int c = next[b];
+                N *c = b->next;
                 b = merge_roots_unsafe(a, b);
-                prev[b] = r;
+                b->prev = r;
                 r = b;
                 a = c;
             } else {
-                prev[a] = r;
+                a->prev = r;
                 r = a;
                 break;
             }
         } while (!empty(a));
         a = r;
-        r = prev[a];
+        r = a->prev;
         while (!empty(r)) {
-            int t = prev[r];
+            N *t = r->prev;
             a = merge_roots_unsafe(a, r);
             r = t;
         }
         return a;
     }
 
-    inline void remove(int a) {
-        if (desc[prev[a]] == a)
-            desc[prev[a]] = next[a];
+    inline void remove(N *a) {
+        minorminer_assert(!empty(a));
+        N *b = a->prev;
+        N *c = a->next;
+        minorminer_assert(!empty(b));
+        if (b->desc == a)
+            b->desc = c;
         else
-            next[prev[a]] = next[a];
-        if (!empty(next[a])) {
-            prev[next[a]] = prev[a];
-            next[a] = nullval;
+            b->next = c;
+
+        if (!empty(c)) {
+            c->prev = b;
+            a->next = nullptr;
         }
     }
 
-    inline void decrease(int a) {
-        if (!empty(prev[a])) {
+    inline void decrease(N *a) {
+        minorminer_assert(!empty(a));
+        if (!empty(a->prev)) {
+            minorminer_assert(a != root);  // theoretically, root is the only node with empty(prev)
             remove(a);
             root = merge_roots(a, root);
         }
@@ -224,65 +295,66 @@ class pairing_queue {
 
 //! This is a specialization of the pairing_queue that has a constant time
 //! reset method, at the expense of an extra check when values are set or updated.
-template <typename P>
-class pairing_queue_fast_reset : public pairing_queue<P> {
-    using super = pairing_queue<P>;
+template <typename P, typename N = time_node<P>>
+class pairing_queue_fast_reset : public pairing_queue<P, N> {
+    using super = pairing_queue<P, N>;
 
-  private:
-    vector<int> time;
+  protected:
     int now;
 
-    inline bool current(int k) {
-        minorminer_assert(0 <= k and k < time.size());
-        if (time[k] != now) {
-            time[k] = now;
-            minorminer_assert(0 <= k and k < super::prev.size());
-            minorminer_assert(0 <= k and k < super::next.size());
-            minorminer_assert(0 <= k and k < super::desc.size());
-            super::prev[k] = k;
-            super::next[k] = nullval;  // super::nullval;
-            super::desc[k] = nullval;  // super::nullval;
+    inline void reset(N *n) {
+        super::reset(n);
+        n->time = now;
+    }
+
+    inline bool current(N *n) {
+        if (n->time != now) {
+            reset(n);
             return false;
         }
         return true;
     }
 
   public:
-    pairing_queue_fast_reset(int n) : super(n), time(n), now(0) {}
+    pairing_queue_fast_reset(int n) : super(n), now(0) {}
 
     inline void reset() {
-        super::root = nullval;  // super::nullval;
-        if (!now++) std::fill(begin(time), end(time), 0);
+        super::root = nullptr;
+        if (!now++) {
+            for (auto &n : super::nodes) n.time = 0;
+        }
     }
 
     inline void set_value_unsafe(int k, const P &v) {
-        current(k);
-        super::set_value_unsafe(k, v);
+        auto n = super::node(k);
+        current(n);
+        super::set_value_unsafe(n, v);
     }
 
     inline void set_value(int k, const P &v) {
-        if (current(k))
-            super::set_value(k, v);
+        auto n = super::node(k);
+        if (current(n))
+            super::set_value(n, v);
         else {
-            super::val[k] = v;
-            super::root = super::merge_roots(k, super::root);
+            n->val = v;
+            super::root = super::merge_roots(n, super::root);
         }
     }
 
     inline bool check_decrease_value(int k, const P &v) {
-        if (current(k))
-            return super::check_decrease_value(k, v);
+        auto n = super::node(k);
+        if (current(n))
+            return super::check_decrease_value(n, v);
         else {
-            super::set_value(k, v);
+            super::set_value(n, v);
             return true;
         }
     }
 
     inline P get_value(int k) const {
-        minorminer_assert(0 <= k and k < time.size());
-        minorminer_assert(0 <= k and k < super::val.size());
-        if (time[k] == now)
-            return super::val[k];
+        auto n = super::const_node(k);
+        if (n->time == now)
+            return n->val;
         else
             return max_P;
     }
