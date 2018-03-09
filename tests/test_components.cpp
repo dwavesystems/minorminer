@@ -12,30 +12,26 @@ std::string str(const std::set<Type>& in) {
 
 //
 TEST(components, construction_empty) {
-    std::mt19937_64 rng(0);
     graph::input_graph graph;
-    graph::components components(graph, rng, {});
+    graph::components components(graph, {});
     ASSERT_EQ(components.size(), 0);
 }
 
 TEST(components, construction_single) {
-    std::mt19937_64 rng(0);
     graph::input_graph graph(1, {}, {});
-    graph::components components(graph, rng, {0});
+    graph::components components(graph, {0});
     ASSERT_EQ(components.size(), 0);
 }
 
 TEST(components, construction_two_disconnected) {
-    std::mt19937_64 rng(0);
     graph::input_graph graph(2, {}, {});
-    graph::components components(graph, rng, {0, 0});
+    graph::components components(graph, {0, 0});
     ASSERT_EQ(components.size(), 0);
 }
 
 TEST(components, construction_three_disconnected) {
-    std::mt19937_64 rng(0);
     graph::input_graph graph(3, {0}, {1});
-    graph::components components(graph, rng, {0, 0, 0});
+    graph::components components(graph, {0, 0, 0});
 
     ASSERT_EQ(components.size(), 1);
     ASSERT_EQ(components.num_reserved(0), 0);
@@ -49,9 +45,8 @@ TEST(components, construction_three_disconnected) {
 }
 
 TEST(components, construction_three_disconnected_again) {
-    std::mt19937_64 rng(0);
     graph::input_graph graph(3, {1}, {2});
-    graph::components components(graph, rng, {0, 0, 0});
+    graph::components components(graph, {0, 0, 0});
 
     ASSERT_EQ(components.size(), 1);
     ASSERT_EQ(components.num_reserved(0), 0);
@@ -65,9 +60,8 @@ TEST(components, construction_three_disconnected_again) {
 }
 
 TEST(components, construction_three_connected) {
-    std::mt19937_64 rng(0);
     graph::input_graph graph(3, {0, 1}, {1, 2});
-    graph::components components(graph, rng, {0, 0, 0});
+    graph::components components(graph, {0, 0, 0});
 
     ASSERT_EQ(components.size(), 1);
     ASSERT_EQ(components.num_reserved(0), 0);
@@ -86,7 +80,6 @@ TEST(components, construction_three_connected) {
 }
 
 TEST(components, construction_four_disconnected) {
-    std::mt19937_64 rng(0);
     graph::input_graph graph(4, {0, 2}, {1, 3});
 
     std::set<int> component_a({0, 1});
@@ -94,7 +87,7 @@ TEST(components, construction_four_disconnected) {
     bool a_seen = false;
     bool b_seen = false;
 
-    graph::components components(graph, rng, {0, 0, 0, 0});
+    graph::components components(graph, {0, 0, 0, 0});
 
     ASSERT_EQ(components.size(), 2);
     for (int ii = 0; ii < 2; ii++) {

@@ -49,9 +49,7 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
         else
             unscrew_vars.push_back(v);
 
-    // shuffling the rest of the vars gives a random relabeling
-    shuffle(begin(unscrew_vars), end(unscrew_vars), params.rng);
-    // dump the fixed vars at the end -- don't bother shuffling them because their labels don't matter
+    // dump the fixed vars at the end
     unscrew_vars.insert(unscrew_vars.end(), fix_vars.begin(), fix_vars.end());
     vector<int> screw_vars(num_tot_vars);
 
@@ -68,7 +66,7 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
     // * relabelling components is similar to the vars above:
     //    * first num_qubits labels are randomized
     //    * remaining num_reserved labels are used for reserved qubits
-    graph::components qubit_components(qubit_g, params.rng, qub_reserved_unscrewed);
+    graph::components qubit_components(qubit_g, qub_reserved_unscrewed);
     bool success = false;
     int tried = 0;
     for (int c = 0; c < qubit_components.size() && !success; c++) {

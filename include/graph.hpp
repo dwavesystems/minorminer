@@ -144,8 +144,7 @@ class input_graph {
 //! in the construction.
 class components {
   public:
-    template <class rng_t>
-    components(const input_graph& g, rng_t& rng, const vector<int>& reserve)
+    components(const input_graph& g, const vector<int>& reserve)
             : index(g.num_nodes(), 0), label(g.num_nodes(), 0), component(g.num_nodes()), component_g() {
         /*
         STEP 1: perform union/find to compute components.
@@ -186,7 +185,6 @@ class components {
             for (auto front = begin(comp); front < back; front++)
                 if (reserve[*front]) iter_swap(front, --back);
             if (comp.size() > 1) {
-                shuffle(begin(comp), back, rng);
                 for (int j = comp.size(); j--;) {
                     label[comp[j]] = j;
                     index[comp[j]] = c;
