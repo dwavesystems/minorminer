@@ -334,7 +334,6 @@ class embedding_problem_base {
     void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         int_queue::value_type d;
         var_order_pq.reset();
-        minorminer_assert(var_order_pq.has(x));
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             visited[x] = 1;
@@ -354,7 +353,6 @@ class embedding_problem_base {
     void rpfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         int_queue::value_type d;
         var_order_pq.reset();
-        minorminer_assert(var_order_pq.has(x));
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             visited[x] = 1;
@@ -375,7 +373,6 @@ class embedding_problem_base {
         size_t front = component.size();
         int_queue::value_type d = 0, d0 = 0;
         var_order_pq.reset();
-        minorminer_assert(var_order_pq.has(x));
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             if (d0 && d > d0) {

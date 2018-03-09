@@ -98,7 +98,10 @@ class pathfinder_base {
               qubit_weight(num_qubits, 0),
               tmp_stats(),
               best_stats(),
-              dijkstras(num_vars + num_fixed, distance_queue(num_qubits)) {}
+              dijkstras() {
+        dijkstras.reserve(num_vars + num_fixed);
+        for (int v = num_vars + num_fixed; v--;) dijkstras.emplace_back(num_qubits, params.rng);
+    }
     virtual ~pathfinder_base() {}
 
     //! nonzero return if this is an improvement on our previous best embedding
@@ -289,6 +292,15 @@ class pathfinder_base {
     //! after `u` has been torn out, perform searches from each neighboring chain,
     //! select a minimum-distance root, and construct the chain
     int find_chain(embedding_t &emb, const int u, int target_chainsize) {
+        // HEURISTIC WACKINESS
+        // we've already got a huge amount of entropy inside these queues,
+        // so we just swap out the queues -- this costs a very few operations,
+        // and the impact is that parent selection in compute_distances_from_chain
+        // will be altered for at least one neighbor per pass.
+        auto &nbrs = ep.var_neighbors(u);
+        int v = nbrs[ep.randint(nbrs.size())];
+        dijkstras[u].swap(dijkstras[v]);
+
         prepare_root_distances(emb, u);
 
         // select a random root among those qubits at minimum heuristic distance

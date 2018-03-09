@@ -6,6 +6,7 @@
 #include <thread>
 #include <unordered_map>
 #include "debug.hpp"
+#include "fastrng.hpp"
 #include "pairing_queue.hpp"
 
 namespace find_embedding {
@@ -30,10 +31,10 @@ using std::chrono::duration_cast;
 // Select some default structures and types
 using distance_t = long long int;
 constexpr distance_t max_distance = numeric_limits<distance_t>::max();
-using RANDOM = default_random_engine;
+using RANDOM = fastrng;
 using clock = std::chrono::high_resolution_clock;
 using pairing_queue::pairing_queue_fast_reset;
-using distance_queue = pairing_queue::pairing_queue_fast_reset<distance_t>;
+using distance_queue = pairing_queue::pairing_queue_fast_reorder<distance_t>;
 using int_queue = pairing_queue::pairing_queue_fast_reset<int64_t>;
 
 //! Interface for communication between the library and various bindings.

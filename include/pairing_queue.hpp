@@ -22,20 +22,41 @@ using std::vector;
 using std::fill;
 using std::numeric_limits;
 
-template <typename P>
-struct plain_node {
-    P val;
-    plain_node<P> *next, *desc, *prev;
-    inline bool operator<(const plain_node<P> &b) const { return (val < b.val) || ((val == b.val) && (this < &b)); }
+template <typename N>
+struct heap_link {
+    N *next, *desc, *prev;
 };
 
 template <typename P>
-struct time_node {
+struct value_field {
     P val;
-    time_node<P> *next, *desc, *prev;
-    int time;
-    inline bool operator<(const time_node<P> &b) const { return (val < b.val) || ((val == b.val) && (this < &b)); }
+    inline bool operator<(const value_field<P> &b) const { return (val < b.val) || ((val == b.val) && (this < &b)); }
 };
+
+template <typename P, typename K>
+struct order_field : value_field<P> {
+    using super = value_field<P>;
+    K order;
+    inline bool operator<(const order_field<P, K> &b) const {
+        P v = static_cast<super>(b).val;
+        return (super::val < v) || ((super::val == v) && (order < b.order));
+    }
+};
+
+struct time_field {
+    int time;
+};
+
+template <typename P>
+struct plain_node : heap_link<plain_node<P>>, value_field<P> {};
+
+template <typename P>
+struct time_node : heap_link<time_node<P>>, value_field<P>, time_field {};
+
+template <typename P, typename K>
+struct order_node : heap_link<order_node<P, K>>, order_field<P, K>, time_field {};
+
+#define CHECKBOUND(k) minorminer_assert(0 <= k && k < nodes.size());
 
 //! A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
 template <typename P, typename N = plain_node<P>>
@@ -51,6 +72,8 @@ class pairing_queue {
   public:
     pairing_queue(int n) : nodes(n), root(nullptr) {}
 
+    void swap(pairing_queue<P, N> &other) { nodes.swap(other.nodes); }
+
     //! Reset the queue and fill the values with a default
     inline void reset_fill(const P v) {
         root = nullptr;
@@ -59,12 +82,12 @@ class pairing_queue {
         }
     }
 
-    inline bool has(int k) const { return 0 <= k && k < nodes.size(); }
-
     //! Reset the queue and set the default to the maximum value
     inline void reset() { reset_fill(max_P); }
 
   protected:
+    // blank out the links, except `prev`, which points back to n indicating
+    // that this node is not currently in the queue
     inline void reset(N *n) {
         minorminer_assert(!empty(n));
         n->desc = nullptr;
@@ -188,15 +211,13 @@ class pairing_queue {
     inline P value(int k) const { return const_node(k)->val; }
 
   protected:
-    inline void checkbound(const int k) const { minorminer_assert(has(k)); }
-
     inline N *node(int k) {
-        checkbound(k);
+        CHECKBOUND(k);
         return nodes.data() + k;
     }
 
     inline const N *const_node(int k) const {
-        checkbound(k);
+        CHECKBOUND(k);
         return nodes.data() + k;
     }
 
@@ -292,6 +313,7 @@ class pairing_queue {
         }
     }
 };
+#undef CHECKBOUND
 
 //! This is a specialization of the pairing_queue that has a constant time
 //! reset method, at the expense of an extra check when values are set or updated.
@@ -317,6 +339,11 @@ class pairing_queue_fast_reset : public pairing_queue<P, N> {
 
   public:
     pairing_queue_fast_reset(int n) : super(n), now(0) {}
+
+    void swap(pairing_queue_fast_reset<P, N> &other) {
+        super::swap(other);
+        std::swap(now, other.now);
+    }
 
     inline void reset() {
         super::root = nullptr;
@@ -359,6 +386,39 @@ class pairing_queue_fast_reset : public pairing_queue<P, N> {
             return max_P;
     }
 };
+
+template <typename P, typename K = uint64_t, typename N = order_node<P, K>>
+class pairing_queue_fast_reorder : public pairing_queue_fast_reset<P, N> {
+    using super = pairing_queue_fast_reset<P, N>;
+    using grand = pairing_queue<P, N>;
+
+  public:
+    template <typename R>
+    pairing_queue_fast_reorder(int n, R &rng) : super(n) {
+        reorder(rng);
+    }
+
+    pairing_queue_fast_reorder(int n) : super(n) {
+        int k = 0;
+        for (auto &n : grand::nodes) n.order = k++;
+    }
+
+  protected:
+    template <typename R>
+    inline void reorder(N *n, R &rng, int size, int ord) {
+        n->order = rng() * size + ord;
+    }
+
+  public:
+    template <typename R>
+    inline void reorder(R &rng) {
+        int size = grand::nodes.size();
+        for (int k = size; k--;) {
+            reorder(grand::node(k), rng, size, k);
+        }
+    }
+};
+
 #undef nullval
 #undef max_P
 }
