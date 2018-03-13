@@ -2,6 +2,7 @@ from libcpp.vector cimport vector
 from libcpp.set cimport set
 from libcpp.map cimport map
 from libcpp.pair cimport pair
+from libc.stdint cimport uint8_t, uint64_t
 
 ctypedef pair[int,int] intpair
 ctypedef pair[intpair, int] intpairint
@@ -85,7 +86,7 @@ cdef extern from "../include/util.hpp" namespace "find_embedding":
 
     cppclass optional_parameters:
         optional_parameters()
-        void seed(unsigned int)
+        void seed(uint64_t)
 
         LocalInteractionPtr localInteractionPtr
         int max_no_improvement

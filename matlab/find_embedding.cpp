@@ -153,8 +153,8 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
 
     fieldValueArray = mxGetField(paramsArray, 0, "random_seed");
     if (fieldValueArray) {
-        unsigned int seed;
-        parseScalar<unsigned int>(fieldValueArray, "random_seed must be an integer", seed);
+        uint64_t seed;
+        parseScalar<uint64_t>(fieldValueArray, "random_seed must be an integer", seed);
         findEmbeddingExternalParams.seed(seed);
     }
 

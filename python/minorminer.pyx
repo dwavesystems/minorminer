@@ -34,8 +34,7 @@ New features to this implementation are ``initial_chains``, ``fixed_chains``, an
 [1] https://arxiv.org/abs/1406.2741
 """
 include "minorminer.pxi"
-from random import randint
-
+import os
 
 def find_embedding(S, T, **params):
     """
@@ -178,8 +177,7 @@ def find_embedding(S, T, **params):
                 * add the edge (i,Zij) to the source graph
                 * add the edges (q,Zij) to the target graph for each q in blob_j
     """
-
-
+    cdef uint64_t *seed
     cdef vector[int] chain
 
     cdef optional_parameters opts
@@ -203,8 +201,11 @@ def find_embedding(S, T, **params):
     try: opts.chainlength_patience = int( params["chainlength_patience"] )
     except KeyError: pass
 
-    try: opts.seed( int(params["random_seed"]) )
-    except KeyError: opts.seed( randint(0,1<<30) )
+    try: opts.seed( long(params["random_seed"]) )
+    except KeyError:
+        seed_obj = os.urandom(sizeof(uint64_t))
+        seed = <uint64_t *>(<void *>(<uint8_t *>(seed_obj)))
+        opts.seed(seed[0])
 
     try: opts.tries = int(params["tries"])
     except KeyError: pass

@@ -30,13 +30,13 @@ class fastrng {
         uint64_t b = static_cast<uint64_t>(splitmix32(x));
         b <<= 32;
         b += a;
-        S0 = splitmix64(b);
-        S1 = splitmix64(b);
+        seed(b);
     }
 
     inline void seed(uint64_t x) {
         S0 = splitmix64(x);
         S1 = splitmix64(x);
+        discard(1024);
     }
 
     uint64_t operator()() {

@@ -128,7 +128,7 @@ class optional_parameters {
     }
 
     optional_parameters() : localInteractionPtr(), rng() {}
-    void seed(unsigned int randomSeed) { rng.seed(randomSeed); }
+    void seed(uint64_t randomSeed) { rng.seed(randomSeed); }
 };
 
 class FindEmbeddingException {
