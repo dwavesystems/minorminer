@@ -34,7 +34,7 @@ constexpr distance_t max_distance = numeric_limits<distance_t>::max();
 using RANDOM = fastrng;
 using clock = std::chrono::high_resolution_clock;
 using pairing_queue::pairing_queue_fast_reset;
-using distance_queue = pairing_queue::pairing_queue_fast_reorder<distance_t>;
+using distance_queue = pairing_queue::pairing_queue_fast_reset_rtb<distance_t>;
 using int_queue = pairing_queue::pairing_queue_fast_reset<int64_t>;
 
 //! Interface for communication between the library and various bindings.

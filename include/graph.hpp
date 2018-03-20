@@ -176,8 +176,7 @@ class components {
         Now, all component information is contained in this.component, so
         we're free to overwrite the data left in this.label and this.index.
         The labels associated with component[c] are the numbers 0 through
-        component[c].size()-1.  Shuffling component[c] randomizes the node
-        labels within that component.
+        component[c].size()-1.
         */
         for (int c = 0; c < g.num_nodes(); c++) {
             vector<int>& comp = component[c];

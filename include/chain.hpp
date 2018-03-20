@@ -226,12 +226,15 @@ class chain {
         return fetch(q).second;
     }
 
+    //! store this chain into a `frozen_chain`, unlink all chains from
+    //! this, and clear()
     inline int freeze(vector<chain> &others, frozen_chain &keep) {
         keep.clear();
         for (auto &v_p : links) {
             keep.links.emplace(v_p);
             int v = v_p.first;
             if (v != label) {
+                minorminer_assert(0 <= v && v < others.size());
                 int q = others[v].drop_link(label);
                 keep.links.emplace(-v - 1, q);
             }
@@ -244,6 +247,8 @@ class chain {
         return keep.data.size();
     }
 
+    //! restore a `frozen_chain` into this, re-establishing links
+    //! from other chains.  precondition: this is empty.
     inline void thaw(vector<chain> &others, frozen_chain &keep) {
         minorminer_assert(size() == 0);
         keep.data.swap(data);
@@ -254,6 +259,7 @@ class chain {
                 links.emplace(v_p);
             } else {
                 v = -v - 1;
+                minorminer_assert(0 <= v && v < others.size());
                 others[v].set_link(label, v_p.second);
             }
         }

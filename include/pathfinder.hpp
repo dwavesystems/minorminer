@@ -158,8 +158,7 @@ class pathfinder_base {
     int find_chain(embedding_t &emb, const int u) {
         if (ep.embedded || ep.desperate) emb.steal_all(u);
         if (ep.embedded) {
-            int last_size = emb.freeze_out(u);
-            find_short_chain(emb, u, ep.target_chainsize, last_size);
+            find_short_chain(emb, u, ep.target_chainsize);
             return 1;
         } else {
             emb.tear_out(u);
@@ -328,8 +327,12 @@ class pathfinder_base {
     }
 
     //! after `u` has been torn out, perform searches from each neighboring chain,
-    //! select a minimum-distance root, and construct the chain
-    void find_short_chain(embedding_t &emb, const int u, const int target_chainsize, const int last_size) {
+    //! iterating over potential roots to find a root with a smallest-possible actual chainlength
+    //! whereas other variants of `find_chain` simply pick a random root candidate with minimum
+    //! estimated chainlength.  this procedure takes quite a long time and requires that `emb` is
+    //! a valid embedding with no overlaps.
+    void find_short_chain(embedding_t &emb, const int u, const int target_chainsize) {
+        int last_size = emb.freeze_out(u);
         auto &counts = total_distance;
         vector<int> &parentage = visited_list[u];
         fill(begin(parentage), end(parentage), 0);

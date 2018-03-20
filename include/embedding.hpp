@@ -190,9 +190,27 @@ class embedding {
         DIAGNOSE("tear_out")
     }
 
-    int freeze_out(int u) { return var_embedding[u].freeze(var_embedding, frozen); }
+    //! undo-able tearout procedure.  similar to `tear_out(u)`, but can be undone with
+    //! `thaw_back(u)`.  note that this embedding type has a space for a single frozen
+    //! chain, and `freeze_out(u)` overwrites the previously-frozen chain consequently,
+    //! `freeze_out(u)` can be called an arbitrary (nonzero) number of times before
+    //! `thaw_back(u)`, but `thaw_back(u)` MUST be preceeded by at least one
+    //! `freeze_out(u)`.  returns the size of the chain being frozen
+    int freeze_out(int u) {
+        int size = var_embedding[u].freeze(var_embedding, frozen);
+        DIAGNOSE("freeze_out")
+        return size;
+    }
 
-    void thaw_back(int u) { var_embedding[u].thaw(var_embedding, frozen); }
+    //! undo for the freeze_out procedure: replaces the chain previously frozen, and
+    //! destroys the data in the frozen chain
+    //! `thaw_back(u)` must be preceeded by at least one `freeze_out(u)` and the chain
+    //! for `u` must currently be empty (accomplished either by `tear_out(u)` or
+    //! `freeze_out(u)`)
+    void thaw_back(int u) {
+        var_embedding[u].thaw(var_embedding, frozen);
+        DIAGNOSE("thaw_back")
+    }
 
     //! grow the chain for `u`, stealing all available qubits from neighboring variables
     void steal_all(int u) {
