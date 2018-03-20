@@ -42,6 +42,15 @@ namespace find_embedding {
 //!            both parents and links
 //!     the chain root is its own parent.
 
+struct frozen_chain {
+    unordered_map<int, pair<int, int>> data;
+    unordered_map<int, int> links;
+    void clear() {
+        data.clear();
+        links.clear();
+    }
+};
+
 class chain {
   private:
     vector<int> &qubit_weight;
@@ -215,6 +224,40 @@ class chain {
     inline int refcount(const int q) const {
         minorminer_assert(data.count(q) == 1);
         return fetch(q).second;
+    }
+
+    inline int freeze(vector<chain> &others, frozen_chain &keep) {
+        keep.clear();
+        for (auto &v_p : links) {
+            keep.links.emplace(v_p);
+            int v = v_p.first;
+            if (v != label) {
+                int q = others[v].drop_link(label);
+                keep.links.emplace(-v - 1, q);
+            }
+        }
+        links.clear();
+        for (auto &q : *this) qubit_weight[q]--;
+        keep.data.swap(data);
+        minorminer_assert(size() == 0);
+        DIAGNOSE("freeze");
+        return keep.data.size();
+    }
+
+    inline void thaw(vector<chain> &others, frozen_chain &keep) {
+        minorminer_assert(size() == 0);
+        keep.data.swap(data);
+        for (auto &q : *this) qubit_weight[q]++;
+        for (auto &v_p : keep.links) {
+            int v = v_p.first;
+            if (v >= 0) {
+                links.emplace(v_p);
+            } else {
+                v = -v - 1;
+                others[v].set_link(label, v_p.second);
+            }
+        }
+        DIAGNOSE("thaw");
     }
 
     //! assumes `this` and `other` have links for eachother's labels

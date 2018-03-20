@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "chain.hpp"
 #include "embedding.hpp"
 #include "embedding_problem.hpp"
 #include "pairing_queue.hpp"
@@ -61,7 +62,6 @@ class pathfinder_base {
     vector<vector<int>> parents;
     vector<distance_t> total_distance;
 
-    vector<int> tmp_space;
     vector<int> min_list;
 
     int_queue intqueue;
@@ -74,6 +74,8 @@ class pathfinder_base {
     int pushback;
 
     clock::time_point stoptime;
+
+    vector<vector<int>> visited_list;
 
     vector<distance_queue> dijkstras;
 
@@ -92,12 +94,12 @@ class pathfinder_base {
               num_fixed(ep.num_fixed()),
               parents(num_vars + num_fixed, vector<int>(num_qubits + num_reserved, 0)),
               total_distance(num_qubits, 0),
-              tmp_space(num_qubits + num_reserved, 0),
               min_list(num_qubits, 0),
               intqueue(num_qubits),
               qubit_weight(num_qubits, 0),
               tmp_stats(),
               best_stats(),
+              visited_list(num_vars + num_fixed, vector<int>(num_qubits)),
               dijkstras() {
         dijkstras.reserve(num_vars + num_fixed);
         for (int v = num_vars + num_fixed; v--;) dijkstras.emplace_back(num_qubits, params.rng);
@@ -155,8 +157,14 @@ class pathfinder_base {
     //! tear out and replace the chain in `emb` for variable `u`
     int find_chain(embedding_t &emb, const int u) {
         if (ep.embedded || ep.desperate) emb.steal_all(u);
-        emb.tear_out(u);
-        return find_chain(emb, u, ep.target_chainsize);
+        if (ep.embedded) {
+            int last_size = emb.freeze_out(u);
+            find_short_chain(emb, u, ep.target_chainsize, last_size);
+            return 1;
+        } else {
+            emb.tear_out(u);
+            return find_chain(emb, u, ep.target_chainsize);
+        }
     }
 
     //! sweep over all variables, either keeping them if they are pre-initialized and connected,
@@ -209,7 +217,6 @@ class pathfinder_base {
                 for (auto &q : emb.get_chain(u)) maxfill = max(maxfill, emb.weight(q));
 
                 ep.weight_bound = max(0, maxfill);
-
                 emb.tear_out(u);
                 r = find_chain(emb, u, 0);
                 if (!r) pushback += 3;
@@ -235,6 +242,11 @@ class pathfinder_base {
     //! lower the maximum chainlength
     int improve_chainlength_pass(embedding_t &emb) {
         bool improved = false;
+        dijkstras[0].reorder(params.rng);
+        for (int v = num_vars + num_fixed; v-- > 1;) {
+            dijkstras[v].reorder_copy(dijkstras[0]);
+        }
+
         for (auto &u : ep.var_order(ep.improved ? VARORDER_KEEP : VARORDER_PFS)) {
             ep.debug("finding a new chain for %d\n", u);
             if (!find_chain(emb, u)) return -1;
@@ -313,6 +325,81 @@ class pathfinder_base {
         emb.flip_back(u, target_chainsize);
 
         return 1;
+    }
+
+    //! after `u` has been torn out, perform searches from each neighboring chain,
+    //! select a minimum-distance root, and construct the chain
+    void find_short_chain(embedding_t &emb, const int u, const int target_chainsize, const int last_size) {
+        auto &counts = total_distance;
+        vector<int> &parentage = visited_list[u];
+        fill(begin(parentage), end(parentage), 0);
+        counts.assign(num_qubits, 0);
+        unsigned int best_size = std::numeric_limits<unsigned int>::max();
+        int q, degree = ep.var_neighbors(u).size();
+        distance_t d;
+
+        unsigned int stopcheck = static_cast<unsigned int>(max(last_size, target_chainsize));
+
+        for (auto &v : ep.var_neighbors(u)) {
+            ep.prepare_visited(visited_list[v], u, v);
+            auto &parent = parents[v];
+            auto &pq = dijkstras[v];
+
+            pq.reset();
+            if (ep.fixed(v)) {
+                for (auto &q : emb.get_chain(v)) {
+                    parent[q] = -1;
+                    for (auto &p : ep.qubit_neighbors(q)) {
+                        if (emb.weight(p) == 0) {
+                            pq.set_value(p, 1);
+                            parent[p] = q;
+                        }
+                    }
+                }
+            } else {
+                for (auto &q : emb.get_chain(v)) {
+                    pq.set_value(q, 0);
+                    parent[q] = -1;
+                }
+            }
+        }
+        for (distance_t D = 0; D <= last_size; D++) {
+            for (auto &v : ep.var_neighbors(u)) {
+                auto &pq = dijkstras[v];
+                auto &parent = parents[v];
+                auto &visited = visited_list[v];
+                while (!pq.empty() && (d = pq.min_value()) <= D) {
+                    q = pq.min_key();
+                    pq.delete_min();
+                    if (!emb.weight(q)) counts[q]++;
+
+                    if (counts[q] == degree) {
+                        emb.construct_chain(u, q, parents);
+                        unsigned int cs = emb.chainsize(u);
+                        if (cs < best_size) {
+                            best_size = cs;
+                            if (best_size < stopcheck) goto finish;
+                            emb.freeze_out(u);
+                        } else {
+                            emb.tear_out(u);
+                        }
+                    }
+
+                    d += 1;
+                    visited[q] = 1;
+                    for (auto &p : ep.qubit_neighbors(q)) {
+                        if (!(visited[p] | emb.weight(p))) {
+                            if (pq.check_decrease_value(p, d)) {
+                                parent[p] = q;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        emb.thaw_back(u);
+    finish:
+        emb.flip_back(u, target_chainsize);
     }
 
   protected:
@@ -499,12 +586,10 @@ class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
     using embedding_t = embedding<embedding_problem_t>;
 
   private:
-    vector<int> visited;
-
   public:
     pathfinder_serial(optional_parameters &p_, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
                       vector<vector<int>> &q_n)
-            : super(p_, n_v, n_f, n_q, n_r, v_n, q_n), visited(super::num_qubits + super::num_reserved) {}
+            : super(p_, n_v, n_f, n_q, n_r, v_n, q_n) {}
     virtual ~pathfinder_serial() {}
 
     virtual void prepare_root_distances(const embedding_t &emb, const int u) override {
@@ -516,9 +601,9 @@ class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
         for (auto &v : super::ep.var_neighbors(u)) {
             if (!emb.chainsize(v)) continue;
             neighbors_embedded++;
-            super::ep.prepare_visited(visited, u, v);
-            super::compute_distances_from_chain(emb, v, visited);
-            super::accumulate_distance(emb, v, visited);
+            super::ep.prepare_visited(super::visited_list[v], u, v);
+            super::compute_distances_from_chain(emb, v, super::visited_list[v]);
+            super::accumulate_distance(emb, v, super::visited_list[v]);
         }
 
         for (int q = super::num_qubits; q--;)
@@ -535,7 +620,6 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
 
   private:
     int num_threads;
-    vector<vector<int>> visited_list;
     vector<std::future<void>> futures;
     vector<int> thread_weight;
     mutex get_job;
@@ -560,7 +644,7 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
 
             if (v < 0) break;
 
-            vector<int> &visited = visited_list[v];
+            vector<int> &visited = super::visited_list[v];
             super::ep.prepare_visited(visited, u, v);
             super::compute_distances_from_chain(emb, v, visited);
 
@@ -602,7 +686,6 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
                         vector<vector<int>> &q_n)
             : super(p_, n_v, n_f, n_q, n_r, v_n, q_n),
               num_threads(min(p_.threads, n_q)),
-              visited_list(n_v + n_f, vector<int>(super::num_qubits)),
               futures(num_threads),
               thread_weight(num_threads) {}
     virtual ~pathfinder_parallel() {}
@@ -629,8 +712,9 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
 
         for (auto &v : super::ep.var_neighbors(u)) {
             if (emb.chainsize(v)) {
-                exec_chunked(
-                        [this, &emb, v](int a, int b) { this->accumulate_distance(emb, v, visited_list[v], a, b); });
+                exec_chunked([this, &emb, v](int a, int b) {
+                    this->accumulate_distance(emb, v, super::visited_list[v], a, b);
+                });
             }
         }
     }

@@ -34,6 +34,8 @@ class embedding {
     //! this is where we store chains -- see chain.hpp for how
     vector<chain> var_embedding;
 
+    frozen_chain frozen;
+
 #ifdef CPPDEBUG
     char *last_diagnostic;
 #endif
@@ -52,6 +54,7 @@ class embedding {
               num_vars(ep.num_vars()),
               num_fixed(ep.num_fixed()),
               var_embedding(),
+              frozen(),
 #ifdef CPPDEBUG
               last_diagnostic(nullptr),
 #endif
@@ -186,6 +189,10 @@ class embedding {
         for (auto &v : ep.var_neighbors(u)) var_embedding[v].drop_link(u);
         DIAGNOSE("tear_out")
     }
+
+    int freeze_out(int u) { return var_embedding[u].freeze(var_embedding, frozen); }
+
+    void thaw_back(int u) { var_embedding[u].thaw(var_embedding, frozen); }
 
     //! grow the chain for `u`, stealing all available qubits from neighboring variables
     void steal_all(int u) {

@@ -409,12 +409,21 @@ class pairing_queue_fast_reorder : public pairing_queue_fast_reset<P, N> {
         n->order = rng() * size + ord;
     }
 
+    inline K get_order(int k) const { return grand::const_node(k)->order; }
+
   public:
     template <typename R>
     inline void reorder(R &rng) {
         int size = grand::nodes.size();
         for (int k = size; k--;) {
             reorder(grand::node(k), rng, size, k);
+        }
+    }
+
+    inline void reorder_copy(const pairing_queue_fast_reorder<P, K, N> &other) {
+        int size = grand::nodes.size();
+        for (int k = size; k--;) {
+            grand::node(k)->order = other.get_order(k);
         }
     }
 };
