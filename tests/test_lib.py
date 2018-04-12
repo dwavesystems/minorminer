@@ -648,3 +648,74 @@ def test_fail_timeout(n, t):
     Cn = Chimera(n)
 
     return not find_embedding(Kn, Cn, tries=1e6, max_no_improvement=1e6, inner_rounds=1e6, timeout=t, threads=4)
+
+
+@success_count(30)
+def test_chainlength_fast():
+    C = Chimera(4)
+    K = Clique(16)
+    e = find_embedding(K, C, tries=1, chainlength_patience=1)
+    if not len(e):
+        return False
+    return max(len(c) for c in e.values()) <= 7
+
+
+@success_count(30)
+def test_chainlength_slow():
+    C = Chimera(4)
+    K = Clique(16)
+    e = find_embedding(K, C, tries=1, chainlength_patience=10)
+    if not len(e):
+        return False
+    return max(len(c) for c in e.values()) <= 6
+
+
+def chainlength_diagnostic(n=100, old=False, chainlength_argument=0, verbose=0, m=8):
+    C = Chimera(m)
+    K = Clique(4 * m)
+    if old:
+        from dwave_sapi2.embedding import find_embedding as find_embedding_dws2
+        nodes = set(x for e in C for x in e)
+        trans = {x: i for i, x in enumerate(nodes)}
+        C = [(trans[x], trans[y]) for x, y in C]
+        assert 0 <= chainlength_argument <= 1, "sapi2 only supports a chainlength argument of 0 or 1"
+        embs = [find_embedding_dws2(
+            K, C, tries=1, fast_embedding=chainlength_argument, verbose=verbose) for _ in range(n)]
+    else:
+        embs = [find_embedding_orig(
+            K, C, tries=1, chainlength_patience=chainlength_argument, verbose=verbose).values() for _ in range(n)]
+    return sorted(max(map(len, e)) if e else None for e in embs)
+
+
+def chainlength_rundown(n=100, m=8):
+    from dwave_sapi2.embedding import find_embedding as find_embedding_dws2
+    C = Chimera(m)
+    K = Clique(4 * m)
+    nodes = set(x for e in C for x in e)
+    trans = {x: i for i, x in enumerate(nodes)}
+    C = [(trans[x], trans[y]) for x, y in C]
+
+    def trial(f):
+        t0 = time.clock()
+        stats = [f() for _ in range(n)]
+        t = time.clock() - t0
+        stats = filter(None, stats)
+        stats = [max(map(len, e)) for e in stats]
+        print "successes %d, best maxchain %d, avg maxchain %.02f, time %.02fs" % (
+            len(stats), min(stats), sum(stats) / float(len(stats)), t)
+        return t
+
+    print "sapi fast embedding:",
+    trial(lambda: find_embedding_dws2(K, C, tries=1, fast_embedding=True))
+    print "sapi slow embedding:",
+    basetime = trial(lambda: find_embedding_dws2(
+        K, C, tries=1, fast_embedding=False))
+
+    patience = 0
+    while 1:
+        print "minorminer, chainlength_patience %d:" % patience,
+        t = trial(lambda: find_embedding_orig(K, C, tries=1,
+                                              chainlength_patience=patience).values())
+        if t > basetime:
+            break
+        patience += 1
