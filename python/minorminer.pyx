@@ -216,17 +216,24 @@ def find_embedding(S, T, **params):
     cdef labeldict SL = _read_graph(Sg,S)
     cdef labeldict TL = _read_graph(Tg,T)
 
-    cdef int checksize = len(SL)+len(TL)
+    cdef int checkT = len(TL)
+    cdef int checkS = len(SL)
 
     _get_chainmap(params.get("fixed_chains",[]), opts.fixed_chains, SL, TL)
-    if checksize < len(SL)+len(TL):
-        raise RuntimeError("fixed_chains use source or target node labels that weren't referred to by any edges")
+    if checkS < len(SL):
+        raise RuntimeError("fixed_chains use source node labels that weren't referred to by any edges")
+    if checkT < len(TL):
+        raise RuntimeError("fixed_chains use target node labels that weren't referred to by any edges")
     _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, SL, TL)
-    if checksize < len(SL)+len(TL):
-        raise RuntimeError("initial_chains use source or target node labels that weren't referred to by any edges")
+    if checkS < len(SL):
+        raise RuntimeError("initial_chains use source node labels that weren't referred to by any edges")
+    if checkT < len(TL):
+        raise RuntimeError("initial_chains use target node labels that weren't referred to by any edges")
     _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, SL, TL)
-    if checksize < len(SL)+len(TL):
-        raise RuntimeError("restrict_chains use source or target node labels that weren't referred to by any edges")
+    if checkS < len(SL):
+        raise RuntimeError("restrict_chains use source node labels that weren't referred to by any edges")
+    if checkT < len(TL):
+        raise RuntimeError("restrict_chains use target node labels that weren't referred to by any edges")
 
     cdef vector[vector[int]] chains
     cdef int success = findEmbedding(Sg, Tg, opts, chains)
