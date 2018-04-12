@@ -3,6 +3,7 @@
 
     TODO ADD MORE
 """
+from __future__ import print_function
 from minorminer import find_embedding as find_embedding_orig
 from warnings import warn
 import os
@@ -207,7 +208,7 @@ def calibrate_success_count(f, n, a, k, directory=calibration_dir, M=None):
     t0 = time.clock()
     for i in range(N):
         if i % (N / 10) == 0:
-            print("%d " % (10 * i // N))
+            print("%d " % (10 * i // N), end=' ')
             sys.stdout.flush()
         succ += bool(f(*a, **k))
     print()
@@ -701,19 +702,19 @@ def chainlength_rundown(n=100, m=8):
         t = time.clock() - t0
         stats = filter(None, stats)
         stats = [max(map(len, e)) for e in stats]
-        print "successes %d, best maxchain %d, avg maxchain %.02f, time %.02fs" % (
-            len(stats), min(stats), sum(stats) / float(len(stats)), t)
+        print("successes %d, best maxchain %d, avg maxchain %.02f, time %.02fs" % (
+            len(stats), min(stats), sum(stats) / float(len(stats)), t))
         return t
 
-    print "sapi fast embedding:",
+    print("sapi fast embedding:", end='')
     trial(lambda: find_embedding_dws2(K, C, tries=1, fast_embedding=True))
-    print "sapi slow embedding:",
+    print("sapi slow embedding:", end='')
     basetime = trial(lambda: find_embedding_dws2(
         K, C, tries=1, fast_embedding=False))
 
     patience = 0
     while 1:
-        print "minorminer, chainlength_patience %d:" % patience,
+        print("minorminer, chainlength_patience %d:" % patience, end='')
         t = trial(lambda: find_embedding_orig(K, C, tries=1,
                                               chainlength_patience=patience).values())
         if t > basetime:
