@@ -208,7 +208,7 @@ def calibrate_success_count(f, n, a, k, directory=calibration_dir, M=None):
     t0 = time.clock()
     for i in range(N):
         if i % (N / 10) == 0:
-            print("%d " % (10 * i // N), end=' ')
+            print("%d " % (10 * i // N), end='')
             sys.stdout.flush()
         succ += bool(f(*a, **k))
     print()
@@ -509,6 +509,18 @@ def test_grid_plant_suspend(n):
             for x in range(2 * n) for y in range(2 * n)}
 
     return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, initial_chains=init, chainlength_patience=0)
+
+
+@success_count(30, 5)
+def test_grid_suspend_chains(n):
+    chim = Chimera(n)
+    mask = mask_wxw(n, 1)
+    grid = Grid(2 * n)
+
+    suspension = {(x, y): [mask[x//2, y//2]]
+                  for x in range(2*n) for y in range(2*n)}
+
+    return find_embedding(grid, chim, suspend_chains=suspension, chainlength_patience=0)
 
 
 @success_count(30, 5)
