@@ -216,17 +216,31 @@ def find_embedding(S, T, **params):
     cdef labeldict SL = _read_graph(Sg,S)
     cdef labeldict TL = _read_graph(Tg,T)
 
-    cdef int checksize = len(SL)+len(TL)
+    cdef int ssize = len(SL)
+    cdef int tsize = len(TL)
+
+    if ssize == 0:
+        return {}
+    if tsize == 0:
+        raise RuntimeError("tried to embed a non-empty graph into an empty graph")
+    if ssize > tsize and not opts.return_overlap:
+        raise RuntimeError("the source graph has more nodes than the target graph. perhaps you switched the inputs?  set return_overlap=True to allow overlapping chains")
 
     _get_chainmap(params.get("fixed_chains",[]), opts.fixed_chains, SL, TL)
-    if checksize < len(SL)+len(TL):
-        raise RuntimeError("fixed_chains use source or target node labels that weren't referred to by any edges")
+    if ssize < len(SL):
+        raise RuntimeError("fixed_chains use source node labels that weren't referred to by any edges")
+    if tsize < len(TL):
+        raise RuntimeError("fixed_chains use target node labels that weren't referred to by any edges")
     _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, SL, TL)
-    if checksize < len(SL)+len(TL):
-        raise RuntimeError("initial_chains use source or target node labels that weren't referred to by any edges")
+    if ssize < len(SL):
+        raise RuntimeError("initial_chains use source node labels that weren't referred to by any edges")
+    if tsize < len(TL):
+        raise RuntimeError("initial_chains use target node labels that weren't referred to by any edges")
     _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, SL, TL)
-    if checksize < len(SL)+len(TL):
-        raise RuntimeError("restrict_chains use source or target node labels that weren't referred to by any edges")
+    if ssize < len(SL):
+        raise RuntimeError("restrict_chains use source node labels that weren't referred to by any edges")
+    if tsize < len(TL):
+        raise RuntimeError("restrict_chains use target node labels that weren't referred to by any edges")
 
     cdef vector[vector[int]] chains
     cdef int success = findEmbedding(Sg, Tg, opts, chains)
