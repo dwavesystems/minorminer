@@ -196,7 +196,7 @@ class embedding_problem_base {
               var_order_space(n_v),
               var_order_visited(n_v, 0),
               var_order_shuffle(n_v),
-              var_order_pq(n_q + n_r),
+              var_order_pq(n_v + n_f),
               params(p_),
               initialized(0),
               embedded(0),
