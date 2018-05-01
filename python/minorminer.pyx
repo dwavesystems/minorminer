@@ -160,6 +160,23 @@ def find_embedding(S, T, **params):
             that chain[i] is a subset of restrict_chains[i] for each i, except
             those with missing or empty entries. A dictionary, where
             restrict_chains[i] is a list of qubit labels.
+
+        suspend_chains: This is a metafeature that is only implemented in the Python
+            interface.  suspend_chains[i] is an iterable of iterables; for example
+                suspend_chains[i] = [blob_1, blob_2],
+            with each blob_j an iterable of target node labels.
+            this enforces the following:
+                for each suspended variable i,
+                    for each blob_j in the suspension of i,
+                        at least one qubit from blob_j will be contained in the
+                        chain for i
+
+            we accomplish this trhough the following problem transformation
+            for each iterable blob_j in suspend_chains[i], 
+                * add an auxiliary node Zij to both source and target graphs
+                * set fixed_chains[Zij] = [Zij]
+                * add the edge (i,Zij) to the source graph
+                * add the edges (q,Zij) to the target graph for each q in blob_j
     """
 
 
@@ -171,7 +188,7 @@ def find_embedding(S, T, **params):
     names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
              "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
              "return_overlap", "skip_initialization", "inner_rounds", "threads",
-             "restrict_chains"}
+             "restrict_chains", "suspend_chains"}
 
     for name in params:
         if name not in names:
@@ -216,30 +233,53 @@ def find_embedding(S, T, **params):
     cdef labeldict SL = _read_graph(Sg,S)
     cdef labeldict TL = _read_graph(Tg,T)
 
-    cdef int ssize = len(SL)
-    cdef int tsize = len(TL)
+    cdef int checkT = len(TL)
+    cdef int checkS = len(SL)
 
-    if ssize == 0:
-        return {}
-    if tsize == 0:
-        raise RuntimeError("tried to embed a non-empty graph into an empty graph")
-    if ssize > tsize and not opts.return_overlap:
-        raise RuntimeError("the source graph has more nodes than the target graph. perhaps you switched the inputs?  set return_overlap=True to allow overlapping chains")
+    cdef int pincount = 0
+    cdef int nonempty
+    cdef dict fixed_chains = params.get("fixed_chains", {})
+    if "suspend_chains" in params:
+        suspend_chains = params["suspend_chains"]
+        for v, blobs in suspend_chains.items():
+            for i,blob in enumerate(blobs):
+                nonempty = 0
+                pin = "__MINORMINER_INTERNAL_PIN_FOR_SUSPENSION", v, i
+                if pin in SL:
+                    raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your source graph"%(pin,))
+                if pin in TL:
+                    raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your target graph"%(pin,))
 
-    _get_chainmap(params.get("fixed_chains",[]), opts.fixed_chains, SL, TL)
-    if ssize < len(SL):
+                for q in blob:
+                    Tg.push_back(TL[pin], TL[q])
+                    nonempty = 1
+                if nonempty:
+                    pincount += 1
+                    fixed_chains[pin] = [pin]
+                    Sg.push_back(SL[v], SL[pin])
+
+    if checkS+pincount < len(SL):
+        raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
+    if checkT+pincount < len(TL):
+        raise RuntimeError("suspend_chains use target node labels that weren't referred to by any edges")
+
+    checkS += pincount
+    checkT += pincount
+    
+    _get_chainmap(fixed_chains, opts.fixed_chains, SL, TL)
+    if checkS < len(SL):
         raise RuntimeError("fixed_chains use source node labels that weren't referred to by any edges")
-    if tsize < len(TL):
+    if checkT < len(TL):
         raise RuntimeError("fixed_chains use target node labels that weren't referred to by any edges")
     _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, SL, TL)
-    if ssize < len(SL):
+    if checkS < len(SL):
         raise RuntimeError("initial_chains use source node labels that weren't referred to by any edges")
-    if tsize < len(TL):
+    if checkT < len(TL):
         raise RuntimeError("initial_chains use target node labels that weren't referred to by any edges")
     _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, SL, TL)
-    if ssize < len(SL):
+    if checkS < len(SL):
         raise RuntimeError("restrict_chains use source node labels that weren't referred to by any edges")
-    if tsize < len(TL):
+    if checkT < len(TL):
         raise RuntimeError("restrict_chains use target node labels that weren't referred to by any edges")
 
     cdef vector[vector[int]] chains
@@ -248,7 +288,7 @@ def find_embedding(S, T, **params):
     cdef int nc = chains.size()
 
     rchain = {}
-    for v in range(nc):
+    for v in range(nc-pincount):
         chain = chains[v]
         rchain[SL.label(v)] = [TL.label(z) for z in chain]
 

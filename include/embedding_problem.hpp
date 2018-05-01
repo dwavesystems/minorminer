@@ -255,8 +255,8 @@ class embedding_problem_base {
 
     //! print at the debug verbosity level (only works when `CPPDEBUG` is set)
     template <typename... Args>
-    void debug(const char *format, Args... args) const {
-        params.debug(format, args...);
+    void debug(const char *ONDEBUG(format), Args... ONDEBUG(args)) const {
+        ONDEBUG(params.debug(format, args...));
     }
 
     //! make a random integer between 0 and `m-1`
