@@ -208,7 +208,6 @@ class pathfinder_base {
 
         bool improved = false;
         for (auto &u : ep.var_order()) {
-            int r = 0;
             if (pushback < num_vars) {
                 ep.debug("finding a new chain for %d (pushdown)\n", u);
                 int maxfill = 0;
@@ -216,14 +215,20 @@ class pathfinder_base {
                 for (auto &q : emb.get_chain(u)) maxfill = max(maxfill, emb.weight(q));
 
                 ep.weight_bound = max(0, maxfill);
-                emb.tear_out(u);
-                r = find_chain(emb, u, 0);
-                if (!r) pushback += 3;
-            }
-            if (!r) {
-                ep.debug("finding a new chain for %d (pushdown pause/repeat)\n", u);
+                emb.freeze_out(u);
+                ;
+                if (!find_chain(emb, u, 0)) {
+                    pushback += 3;
+                    emb.thaw_back(u);
+                    emb.flip_back(u, 0);
+                }
+            } else {
                 ep.weight_bound = oldbound;
-                if (!find_chain(emb, u)) return -1;
+                emb.steal_all(u);
+                emb.tear_out(u);
+                if (!find_chain(emb, u, 0)) {
+                    return -1;
+                }
             }
             improved |= check_improvement(emb);
             if (ep.embedded) break;
@@ -245,7 +250,6 @@ class pathfinder_base {
         for (int v = num_vars + num_fixed; v-- > 1;) {
             dijkstras[v].reorder_copy(dijkstras[0]);
         }
-
         for (auto &u : ep.var_order(ep.improved ? VARORDER_KEEP : VARORDER_PFS)) {
             ep.debug("finding a new chain for %d\n", u);
             if (!find_chain(emb, u)) return -1;
