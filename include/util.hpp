@@ -72,6 +72,41 @@ class LocalInteraction {
 
 typedef shared_ptr<LocalInteraction> LocalInteractionPtr;
 
+class MinorMinerException {
+  public:
+    MinorMinerException(const string& m = "find embedding exception") : message(m) {}
+    const string& what() const { return message; }
+
+  private:
+    string message;
+};
+
+class ProblemCancelledException : public MinorMinerException {
+  public:
+    ProblemCancelledException(const string& m = "embedding cancelled by keyboard interrupt") : MinorMinerException(m) {}
+};
+
+class TimeoutException : public MinorMinerException {
+  public:
+    TimeoutException(const string& m = "embedding timed out") : MinorMinerException(m) {}
+};
+
+class CorruptParametersException : public MinorMinerException {
+  public:
+    CorruptParametersException(const string& m = "chain inputs are corrupted") : MinorMinerException(m) {}
+};
+
+class BadInitializationException : public MinorMinerException {
+  public:
+    BadInitializationException(const string& m = "bad embedding used with skip_initialization")
+            : MinorMinerException(m) {}
+};
+
+class CorruptEmbeddingException : public MinorMinerException {
+  public:
+    CorruptEmbeddingException(const string& m = "chains may be invalid") : MinorMinerException(m) {}
+};
+
 //! Set of parameters used to control the embedding process.
 class optional_parameters {
   public:
@@ -129,20 +164,6 @@ class optional_parameters {
 
     optional_parameters() : localInteractionPtr(), rng() {}
     void seed(uint64_t randomSeed) { rng.seed(randomSeed); }
-};
-
-class FindEmbeddingException {
-  public:
-    FindEmbeddingException(const string& m = "find embedding exception") : message(m) {}
-    const string& what() const { return message; }
-
-  private:
-    string message;
-};
-
-class ProblemCancelledException : public FindEmbeddingException {
-  public:
-    ProblemCancelledException(const string& m = "problem cancelled exception") : FindEmbeddingException(m) {}
 };
 
 //! Fill output with the index of all of the minimum and equal values in input

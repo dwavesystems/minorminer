@@ -59,7 +59,7 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
 
     // compute the relabeled neighbors dictionary, omitting outbound neighbors of fixed variables
     vector<vector<int>> var_nbrs;
-    var_g.get_neighbors_sinks_relabel(var_nbrs, var_fixed_unscrewed, screw_vars);
+    var_g.get_neighbors_sinks(var_fixed_unscrewed, screw_vars);
 
     // compute the connected components of the qubit graph
     // * virtually merge reserved qubits into a single component
@@ -108,7 +108,7 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
             int num_res = qubit_components.num_reserved(c);
 
             // get the neighbor dictionary for qubits, omitting inbound neighbors of reserved qubits
-            comp.get_neighbors_sources(qubit_nbrs, qub_fixed);
+            comp.get_neighbors_sources(qub_fixed);
 
             pathfinder_t pf(params, num_vars, fix_vars.size(), num_qubits - num_res, num_res, var_nbrs, qubit_nbrs);
 

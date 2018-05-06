@@ -56,8 +56,6 @@ struct time_node : heap_link<time_node<P>>, value_field<P>, time_field {};
 template <typename P, typename K>
 struct order_node : heap_link<order_node<P, K>>, order_field<P, K>, time_field {};
 
-#define CHECKBOUND(k) minorminer_assert(0 <= k && k < nodes.size());
-
 //! A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
 template <typename P, typename N = plain_node<P>>
 class pairing_queue {
@@ -88,6 +86,9 @@ class pairing_queue {
 
     //! Reset the queue and set the default to the maximum value
     inline void reset() { reset_fill(max_P); }
+
+    //! Size of the queue
+    inline int size() const { return nodes.size(); }
 
   protected:
     // blank out the links, except `prev`, which points back to n indicating
@@ -232,13 +233,13 @@ class pairing_queue {
   protected:
     //! node pointer accessor
     inline N *node(int k) {
-        CHECKBOUND(k);
+        minorminer_assert(0 <= k && k < size());
         return nodes.data() + k;
     }
 
     //! const node pointer accessor
     inline const N *const_node(int k) const {
-        CHECKBOUND(k);
+        minorminer_assert(0 <= k && k < size());
         return nodes.data() + k;
     }
 
@@ -351,7 +352,6 @@ class pairing_queue {
         }
     }
 };
-#undef CHECKBOUND
 
 //! This is a specialization of the pairing_queue that has a constant time
 //! reset method, at the expense of an extra check when values are set or updated.

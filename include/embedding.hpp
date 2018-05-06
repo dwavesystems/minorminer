@@ -26,39 +26,40 @@ namespace find_embedding {
 //! chains.
 template <typename embedding_problem_t>
 class embedding {
+  public:
+#ifdef CPPDEBUG
+    char *last_diagnostic;
+#endif
   private:
     embedding_problem_t &ep;
     int num_qubits, num_reserved;
     int num_vars, num_fixed;
-
-    //! this is where we store chains -- see chain.hpp for how
-    vector<chain> var_embedding;
-
-    frozen_chain frozen;
-
-#ifdef CPPDEBUG
-    char *last_diagnostic;
-#endif
 
     //! weights, that is, the number of non-fixed chains that use each qubit
     //! this is used in pathfinder clases to determine non-overlapped, or
     //! or least-overlapped paths through the qubit graph
     vector<int> qub_weight;
 
+    //! this is where we store chains -- see chain.hpp for how
+    vector<chain> var_embedding;
+
+    frozen_chain frozen;
+
   public:
     //! constructor for an empty embedding
     embedding(embedding_problem_t &e_p)
-            : ep(e_p),
+            :
+#ifdef CPPDEBUG
+              last_diagnostic(nullptr),
+#endif
+              ep(e_p),
               num_qubits(ep.num_qubits()),
               num_reserved(ep.num_reserved()),
               num_vars(ep.num_vars()),
               num_fixed(ep.num_fixed()),
+              qub_weight(num_qubits + num_reserved, 0),
               var_embedding(),
-              frozen(),
-#ifdef CPPDEBUG
-              last_diagnostic(nullptr),
-#endif
-              qub_weight(num_qubits + num_reserved, 0) {
+              frozen() {
         for (int q = 0; q < num_vars + num_fixed; q++) var_embedding.emplace_back(qub_weight, q);
         DIAGNOSE("post base_construct");
     }
@@ -334,15 +335,14 @@ class embedding {
     //! are its documentation, because this function only exists for debugging purposes
     void run_long_diagnostic(char *current_state) const {
         int err = 0;
-        vector<int> tmp_weight;
-        tmp_weight.assign(num_qubits + num_reserved, 0);
+        vector<int> tmp_weight(num_qubits + num_reserved, 0);
         int zeros = 0;
         int bad_parents = false;
         for (int v = 0; v < num_vars + num_fixed; v++) {
             if (!ep.fixed(v)) {
-                for (auto &q : var_embedding[v]) {
-                    tmp_weight[q]++;
-                    auto z = var_embedding[v].parent(q);
+                for (auto &q : var_embedding.at(v)) {
+                    tmp_weight.at(q)++;
+                    auto z = var_embedding.at(v).parent(q);
                     if (z != q) {
                         bool got = false;
                         for (auto &p : ep.qubit_neighbors(q))
@@ -356,15 +356,15 @@ class embedding {
                     }
                 }
             }
-            int errcode = var_embedding[v].run_diagnostic();
+            int errcode = var_embedding.at(v).run_diagnostic();
             if (!errcode) {
-                for (auto &q : var_embedding[v]) {
+                for (auto &q : var_embedding.at(v)) {
                     int n = num_qubits + 1;
-                    int z = var_embedding[v].parent(q);
+                    int z = var_embedding.at(v).parent(q);
                     int last_z = q;
                     while (z != last_z && n--) {
                         last_z = z;
-                        z = var_embedding[v].parent(z);
+                        z = var_embedding.at(v).parent(z);
                     }
                     if (n < 0) {
                         ep.debug("cycle detected in parents for %d, entry point is %d\n", v, q);
@@ -375,7 +375,7 @@ class embedding {
                 ep.debug("chain datastructure invalid for %d\n", v);
                 err = 1;
             }
-            if (!var_embedding[v].size()) zeros++;
+            if (!var_embedding.at(v).size()) zeros++;
         }
 
         if (zeros > 1 && ep.initialized) {
@@ -387,12 +387,11 @@ class embedding {
         }
         for (int v = num_vars + num_fixed; v--;) {
             int n = chainsize(v);
-            vector<int> good_links;
-            good_links.assign(num_vars + num_fixed, 0);
+            vector<int> good_links(num_vars + num_fixed, 0);
             if (chainsize(v)) {
                 for (auto &u : ep.var_neighbors(v)) {
-                    int link_u = var_embedding[u].get_link(v);
-                    int link_v = var_embedding[v].get_link(u);
+                    int link_u = var_embedding.at(u).get_link(v);
+                    int link_v = var_embedding.at(v).get_link(u);
                     if (!chainsize(u)) {
                         if (link_u != -1) {
                             ep.debug("link qubit for problem interaction (%d -> %d) is set but %d's chain is empty\n",
@@ -443,25 +442,23 @@ class embedding {
                                      u, v, link_v, link_u);
                             err = 1;
                         } else {
-                            good_links[u] = 1;
+                            good_links.at(u) = 1;
                         }
                     }
                 }
-                int root = var_embedding[v].get_link(v);
+                int root = var_embedding.at(v).get_link(v);
                 bool rooted = (root > -1);
                 if (rooted) {
                     if (!ep.fixed(v)) {
-                        vector<int> component;
-                        component.push_back(root);
-                        vector<int> visited;
-                        visited.assign(num_qubits, 0);
-                        visited[root] = 1;
+                        vector<int> component(1, root);
+                        vector<int> visited(num_qubits, 0);
+                        visited.at(root) = 1;
                         unsigned int front = 0;
                         while (front < component.size()) {
-                            int q = component[front++];
+                            int q = component.at(front++);
                             for (auto &p : ep.qubit_neighbors(q)) {
-                                if (!visited[p] && has_qubit(v, p)) {
-                                    visited[p] = 1;
+                                if (!visited.at(p) && has_qubit(v, p)) {
+                                    visited.at(p) = 1;
                                     component.push_back(p);
                                 }
                             }
@@ -472,15 +469,15 @@ class embedding {
                         }
                         if (ep.initialized && rooted) {
                             for (auto &u : ep.var_neighbors(v)) {
-                                int q = var_embedding[v].get_link(u);
+                                int q = var_embedding.at(v).get_link(u);
                                 if (q == -1) continue;
                                 int cyclebreak = num_qubits + num_reserved;
-                                while (var_embedding[v].parent(q) != q && cyclebreak--) {
-                                    q = var_embedding[v].parent(q);
+                                while (var_embedding.at(v).parent(q) != q && cyclebreak--) {
+                                    q = var_embedding.at(v).parent(q);
                                 }
                                 if (cyclebreak == 0)
                                     ep.debug("chain for %d contains a directed cycle, entry is %d\n", v,
-                                             var_embedding[v].get_link(u));
+                                             var_embedding.at(v).get_link(u));
                                 if (q != root) ep.debug("not all paths in chain for %d lead to the root\n", v);
                             }
                         }

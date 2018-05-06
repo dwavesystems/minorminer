@@ -135,30 +135,6 @@ class fixed_handler_hival {
     inline bool reserved(const int q) { return q >= num_q; }
 };
 
-//! This fixed handler is used when variables are allowed to be fixed after instantiation.  For that functionality, we
-//! probably need...
-//! * dynamic modification of var_neighbors and qubit_neighbors to maintain speed gains: fixed variables are sinks,
-//! reserved qubits are sources.
-//! * access to / ownership of var_neighbors and qubit_neighbors in this data structure
-//! * move existing initialization code from find_embedding.hpp into fixed_handler_hival (note the interplay with
-//! shuffling qubit labels, this might get gross)
-class fixed_handler_list {
-  private:
-    vector<int> var_fixed;
-
-  public:
-    fixed_handler_list(optional_parameters &p, int n_v, int n_f, int /*n_q*/, int n_r) : var_fixed(n_v, 0) {
-        minorminer_assert(n_f == 0);
-        minorminer_assert(n_r == 0);
-        for (auto &vC : p.fixed_chains) var_fixed[vC.first] = 1;
-    }
-    virtual ~fixed_handler_list() {}
-
-    inline bool fixed(const int u) { return static_cast<bool>(var_fixed[u]); }
-
-    inline bool reserved(const int) { return 0; }
-};
-
 //! Common form for all embedding problems.
 //!
 //! Needs to be extended with a fixed handler and domain handler to be complete.
@@ -196,7 +172,7 @@ class embedding_problem_base {
               var_order_space(n_v),
               var_order_visited(n_v, 0),
               var_order_shuffle(n_v),
-              var_order_pq(n_v + n_f),
+              var_order_pq(max(n_v + n_f, n_q + n_r)),
               params(p_),
               initialized(0),
               embedded(0),

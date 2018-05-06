@@ -329,7 +329,8 @@ cdef int _get_chainmap(C, chainmap &CMap, SL, TL) except -1:
 cdef _read_graph(input_graph &g, E):
     L = labeldict()
     for a,b in E:
-        g.push_back(L[a],L[b])
+        if a != b:
+            g.push_back(L[a],L[b])
     return L
 
 __all__ = ["find_embedding"]

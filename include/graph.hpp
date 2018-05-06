@@ -12,6 +12,38 @@ using std::set;
 using std::max;
 using std::min;
 
+template <typename T>
+class unaryint {
+  public:
+};
+
+template <>
+class unaryint<bool> {
+    const bool b;
+
+  public:
+    unaryint(const bool x) : b(x) {}
+    int operator()(int) const { return b; }
+};
+
+template <>
+class unaryint<vector<int>> {
+    const vector<int> b;
+
+  public:
+    unaryint(const vector<int> m) : b(m) {}
+    int operator()(int i) const { return b[i]; }
+};
+
+//! this one is a little weird -- construct a unaryint(nullptr)
+//! and get back the identity function f(x) -> x
+template <>
+class unaryint<void*> {
+  public:
+    unaryint(void* const&) {}
+    int operator()(int i) const { return i; }
+};
+
 //! Represents an undirected graph as a list of edges.
 //!
 //! Provides methods to extract those edges into neighbor lists (with options
@@ -31,13 +63,14 @@ class input_graph {
     //! methods which produce neighbor sets (killing parallel/overrepresented
     //! edges), in order to kill self-loops and also store each neighborhood
     //! in a contiguous memory segment.
-    void _to_vectorhoods(vector<set<int> >& _nbrs, vector<vector<int> >& nbrs) const {
-        nbrs.clear();
+    vector<vector<int>> _to_vectorhoods(vector<set<int>>& _nbrs) const {
+        vector<vector<int>> nbrs;
         for (int i = 0; i < _num_nodes; i++) {
             set<int>& nbrset = _nbrs[i];
             nbrset.erase(i);
             nbrs.emplace_back(begin(nbrset), end(nbrset));
         }
+        return nbrs;
     }
 
   public:
@@ -72,69 +105,53 @@ class input_graph {
 
     //! Add an edge to the graph
     void push_back(int ai, int bi) {
-        edges_aside.push_back(ai);
-        edges_bside.push_back(bi);
-        _num_nodes = max(_num_nodes, max(ai, bi) + 1);
+        if (ai != bi) {
+            edges_aside.push_back(ai);
+            edges_bside.push_back(bi);
+            _num_nodes = max(_num_nodes, max(ai, bi) + 1);
+        }
     }
 
+  private:
     //! produce the node->nodelist mapping for our graph, where certain nodes are
-    //! marked as sources (no incoming edges)
-    void get_neighbors_sources(vector<vector<int> >& nbrs, const vector<int>& sources) const {
-        vector<set<int> > _nbrs(_num_nodes);
+    //! marked as sources (no incoming edges), relabeling all nodes along the way,
+    //! and filtering according to a mask.  note that the mask itself is assumed
+    //! to be a union of components -- only one side of each edge is checked
+    template <typename T1, typename T2, typename T3, typename T4>
+    inline vector<vector<int>> __get_neighbors(const unaryint<T1>& sources, const unaryint<T2>& sinks,
+                                               const unaryint<T3>& relabel, const unaryint<T4>& mask) const {
+        vector<set<int>> _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
-            if (!sources[bi]) _nbrs[ai].insert(bi);
-            if (!sources[ai]) _nbrs[bi].insert(ai);
+            if (mask(ai)) {
+                int rai = relabel(ai), rbi = relabel(bi);
+                if (!sources(bi) && !sinks(ai)) _nbrs[rai].insert(rbi);
+                if (!sources(ai) && !sinks(bi)) _nbrs[rbi].insert(rai);
+            }
         }
-        _to_vectorhoods(_nbrs, nbrs);
+        return _to_vectorhoods(_nbrs);
     }
 
-    //! produce the node->nodelist mapping for our graph, where certain nodes are
-    //! marked as sinks (no outgoing edges)
-    void get_neighbors_sinks(vector<vector<int> >& nbrs, const vector<int>& sinks) const {
-        vector<set<int> > _nbrs(_num_nodes);
-        for (int i = num_edges(); i--;) {
-            int ai = a(i), bi = b(i);
-            if (!sinks[ai]) _nbrs[ai].insert(bi);
-            if (!sinks[bi]) _nbrs[bi].insert(ai);
-        }
-        _to_vectorhoods(_nbrs, nbrs);
+    template <typename T1, typename T2, typename T3 = void*, typename T4 = bool>
+    inline vector<vector<int>> _get_neighbors(const T1& sources, const T2& sinks, const T3& relabel = nullptr,
+                                              const T4& mask = true) const {
+        return __get_neighbors(unaryint<T1>(sources), unaryint<T2>(sinks), unaryint<T3>(relabel), unaryint<T4>(mask));
     }
 
-    //! produce the node->nodelist mapping for our graph, where certain nodes are
-    //! marked as sinks (no outgoing edges), relabeling all nodes along the way
-    void get_neighbors_sinks_relabel(vector<vector<int> >& nbrs, const vector<int>& sinks,
-                                     const vector<int>& relabel) const {
-        vector<set<int> > _nbrs(_num_nodes);
-        for (int i = num_edges(); i--;) {
-            int ai = a(i), bi = b(i);
-            int rai = relabel[ai], rbi = relabel[bi];
-            if (!sinks[ai]) _nbrs[rai].insert(rbi);
-            if (!sinks[bi]) _nbrs[rbi].insert(rai);
-        }
-        _to_vectorhoods(_nbrs, nbrs);
+  public:
+    template <typename T1, typename... Args>
+    vector<vector<int>> get_neighbors_sources(const T1& sources, Args... args) const {
+        return _get_neighbors(sources, false, args...);
     }
 
-    //! produce the node->nodelist mapping for our graph, relabeling all nodes along the way
-    void get_neighbors_relabel(vector<vector<int> >& nbrs, const vector<int>& relabel) const {
-        vector<set<int> > _nbrs(_num_nodes);
-        for (int i = num_edges(); i--;) {
-            int ai = relabel[a(i)], bi = relabel[b(i)];
-            _nbrs[ai].insert(bi);
-            _nbrs[bi].insert(ai);
-        }
-        _to_vectorhoods(_nbrs, nbrs);
+    template <typename T2, typename... Args>
+    vector<vector<int>> get_neighbors_sinks(const T2& sinks, Args... args) const {
+        return _get_neighbors(false, sinks, args...);
     }
 
-    //! produce the node->nodelist mapping for our graph
-    void get_neighbors(vector<vector<int> >& nbrs) const {
-        vector<set<int> > _nbrs(_num_nodes);
-        for (int i = num_edges(); i--;) {
-            int ai = a(i), bi = b(i);
-            _nbrs[ai].insert(bi);
-            _nbrs[bi].insert(ai);
-        }
-        _to_vectorhoods(_nbrs, nbrs);
+    template <typename... Args>
+    vector<vector<int>> get_neighbors(Args... args) const {
+        return _get_neighbors(false, false, args...);
     }
 };
 
@@ -265,7 +282,7 @@ class components {
     vector<int> index;  // NOTE: dual-purpose -- parent for the union/find; index-of-component later
     vector<int> label;  // NOTE: dual-purpose -- rank for the union/find; label-in-component later
     vector<int> _num_reserved;
-    vector<vector<int> > component;
+    vector<vector<int>> component;
     vector<input_graph> component_g;
 };
 }
