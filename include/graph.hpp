@@ -44,6 +44,15 @@ class unaryint<void*> {
     int operator()(int i) const { return i; }
 };
 
+template <>
+class unaryint<int> {
+    const int b;
+
+  public:
+    unaryint(int m) : b(m) {}
+    int operator()(int i) const { return i >= b; }
+};
+
 //! Represents an undirected graph as a list of edges.
 //!
 //! Provides methods to extract those edges into neighbor lists (with options
@@ -231,14 +240,23 @@ class components {
     //! Get the size (in nodes) of a component
     int size(int c) const { return component_g[c].num_nodes(); }
 
-    //! Get a mutable reference to the graph object of a component
-    input_graph& component_graph(int c) { return component_g[c]; }
+    //! Get a const reference to the graph object of a component
+    const input_graph& component_graph(int c) const { return component_g[c]; }
+
+    //! Construct a neighborhood list for component c, with reserved nodes as sources
+    vector<vector<int>> component_neighbors(int c) const {
+        return component_g[c].get_neighbors_sources(size(c) - num_reserved(c));
+    }
 
     //! translate nodes from the input graph, to their labels in component c
     template <typename T>
     bool into_component(const int c, T& nodes_in, vector<int>& nodes_out) const {
         for (auto& x : nodes_in) {
-            if (index[x] != c) return false;
+            try {
+                if (index.at(x) != c) return false;
+            } catch (std::out_of_range& _) {
+                return false;
+            }
             nodes_out.push_back(label[x]);
         }
         return true;
@@ -246,8 +264,8 @@ class components {
 
     //! translate nodes from labels in component c, back to their original input labels
     template <typename T>
-    void from_component(const int c, T& nodes_in, vector<int>& nodes_out) {
-        vector<int>& comp = component[c];
+    void from_component(const int c, T& nodes_in, vector<int>& nodes_out) const {
+        auto& comp = component[c];
         for (auto& x : nodes_in) {
             nodes_out.push_back(comp[x]);
         }

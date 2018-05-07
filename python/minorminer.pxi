@@ -1,5 +1,4 @@
 from libcpp.vector cimport vector
-from libcpp.set cimport set
 from libcpp.map cimport map
 from libcpp.pair cimport pair
 from libc.stdint cimport uint8_t, uint64_t

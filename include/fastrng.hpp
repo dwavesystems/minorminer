@@ -25,6 +25,11 @@ class fastrng {
 
     fastrng() {}
 
+    fastrng(uint64_t x) {
+        S0 = splitmix64(x);
+        S1 = splitmix64(x);
+    }
+
     inline void seed(uint32_t x) {
         uint32_t a = splitmix32(x);
         uint64_t b = static_cast<uint64_t>(splitmix32(x));

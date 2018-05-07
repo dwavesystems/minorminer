@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <chrono>
+#include <iterator>
 #include <mutex>
 #include <random>
 #include <thread>
@@ -124,10 +125,33 @@ class optional_parameters {
     int chainlength_patience = 2;
     int threads = 1;
     bool skip_initialization = false;
-    map<int, vector<int> > fixed_chains;
-    map<int, vector<int> > initial_chains;
-    map<int, vector<int> > restrict_chains;
+    map<int, vector<int>> fixed_chains;
+    map<int, vector<int>> initial_chains;
+    map<int, vector<int>> restrict_chains;
 
+    //! duplicate all parameters but chain hints,
+    //! and seed a new rng.  this vaguely peculiar behavior is
+    //! utilized to spawn parameters for component subproblems
+    optional_parameters(optional_parameters& p, map<int, vector<int>> fixed_chains,
+                        map<int, vector<int>> initial_chains, map<int, vector<int>> restrict_chains)
+            : localInteractionPtr(p.localInteractionPtr),
+              max_no_improvement(p.max_no_improvement),
+              rng(p.rng()),
+              timeout(p.timeout),
+              tries(p.tries),
+              verbose(p.verbose),
+              inner_rounds(p.inner_rounds),
+              max_fill(p.max_fill),
+              return_overlap(p.return_overlap),
+              chainlength_patience(p.chainlength_patience),
+              threads(p.threads),
+              skip_initialization(p.skip_initialization),
+              fixed_chains(fixed_chains),
+              initial_chains(initial_chains),
+              restrict_chains(restrict_chains) {}
+    //^^leave this constructor by the declarations
+
+  public:
     template <typename... Args>
     void printx(const char* format, Args... args) const {
         char buffer[1024];

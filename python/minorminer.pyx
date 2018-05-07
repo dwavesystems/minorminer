@@ -228,11 +228,11 @@ def find_embedding(S, T, **params):
     try: opts.threads = int(params["threads"])
     except KeyError: pass
 
-    cdef input_graph Sg
-    cdef input_graph Tg
+    cdef input_graph Sg, Tg
+    cdef labeldict SL, TL
 
-    cdef labeldict SL = _read_graph(Sg,S)
-    cdef labeldict TL = _read_graph(Tg,T)
+    SL = _read_graph(Sg, S)
+    TL = _read_graph(Tg, T)
 
     cdef int checkT = len(TL)
     cdef int checkS = len(SL)
@@ -289,9 +289,10 @@ def find_embedding(S, T, **params):
     cdef int nc = chains.size()
 
     rchain = {}
-    for v in range(nc-pincount):
-        chain = chains[v]
-        rchain[SL.label(v)] = [TL.label(z) for z in chain]
+    if chains.size():
+        for v in range(nc-pincount):
+            chain = chains[v]
+            rchain[SL.label(v)] = [TL.label(z) for z in chain]
 
     if opts.return_overlap:
         return rchain, success
@@ -327,10 +328,12 @@ cdef int _get_chainmap(C, chainmap &CMap, SL, TL) except -1:
             raise ValueError("initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints; C has type %s and next(C) has type %s"%(type(C), type(nc)))
 
 cdef _read_graph(input_graph &g, E):
-    L = labeldict()
+    cdef labeldict L = labeldict()
     for a,b in E:
         if a != b:
             g.push_back(L[a],L[b])
+    if (g.num_nodes() != len(L)):
+        raise ValueError, "input graph contains isolated notes with self-loops"
     return L
 
 __all__ = ["find_embedding"]

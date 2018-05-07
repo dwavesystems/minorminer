@@ -487,12 +487,12 @@ class embedding {
         }
 
         for (int q = num_qubits; q--;) {
-            if (tmp_weight[q] != qub_weight[q]) {
-                ep.debug("qubit weight is out of date for %d (truth is %d, memo is %d)\n", q, tmp_weight[q],
-                         qub_weight[q]);
+            if (tmp_weight.at(q) != qub_weight.at(q)) {
+                ep.debug("qubit weight is out of date for %d (truth is %d, memo is %d)\n", q, tmp_weight.at(q),
+                         qub_weight.at(q));
                 err = 1;
             }
-            if (ep.embedded && tmp_weight[q] > 1) {
+            if (ep.embedded && tmp_weight.at(q) > 1) {
                 ep.debug("qubit %d is overlapped after embedding success\n", q);
                 err = 1;
             }
