@@ -313,8 +313,10 @@ class pathfinder_base {
         // and the impact is that parent selection in compute_distances_from_chain
         // will be altered for at least one neighbor per pass.
         auto &nbrs = ep.var_neighbors(u);
-        int v = nbrs[ep.randint(nbrs.size())];
-        dijkstras[u].swap(dijkstras[v]);
+        if (nbrs.size() > 0) {
+            int v = nbrs[ep.randint(nbrs.size())];
+            dijkstras[u].swap(dijkstras[v]);
+        }
 
         prepare_root_distances(emb, u);
 

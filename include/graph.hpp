@@ -114,11 +114,9 @@ class input_graph {
 
     //! Add an edge to the graph
     void push_back(int ai, int bi) {
-        if (ai != bi) {
-            edges_aside.push_back(ai);
-            edges_bside.push_back(bi);
-            _num_nodes = max(_num_nodes, max(ai, bi) + 1);
-        }
+        edges_aside.push_back(ai);
+        edges_bside.push_back(bi);
+        _num_nodes = max(_num_nodes, max(ai, bi) + 1);
     }
 
   private:
@@ -209,7 +207,7 @@ class components {
             auto back = end(comp);
             for (auto front = begin(comp); front < back; front++)
                 if (reserve[*front]) iter_swap(front, --back);
-            if (comp.size() > 1) {
+            if (comp.size()) {
                 for (int j = comp.size(); j--;) {
                     label[comp[j]] = j;
                     index[comp[j]] = c;

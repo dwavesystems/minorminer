@@ -77,6 +77,8 @@ def check_embedding(Q, A, emb, **args):
         except KeyError:
             continue
     for x, y in Qg.edges():
+        if x == y:
+            continue
         if not Qv.has_edge(x, y):
             check_embedding.errcode = "missing edge"
             return False
@@ -681,6 +683,50 @@ def test_chainlength_slow():
     if not len(e):
         return False
     return max(len(c) for c in e.values()) <= 6
+
+
+@success_count(30)
+def test_isolated_variables_as_if_that_was_smart():
+    # embedding isolated notes is literally the worst way to use a quantum computer.
+    #                    WHY AM I ASKED FOR THIS FEATURE
+    # like i'd understand if people were using this package for arbitary covering/packing problems on graphs, but
+    #                               SHAAAAAME
+    # that's not what's happening here
+    C = Chimera(4)
+    K = Clique(16)
+    K += zip(range(16, 32), range(16, 32))
+    C += zip(range(16, 32), range(16, 32))
+    return find_embedding(K, C, tries=1, chainlength_patience=0)
+
+
+@success_count(30)
+def test_qubit_components():
+    # we only embed into the largest connected component -- we make a random set of components which
+    # cannot exceed the size of the actual Chimera graph (so the performance of this test will be stable)
+    from random import randint
+    C = Chimera(4)
+    for _ in range(50):
+        C.append((randint(0, 100), randint(0, 100)))
+    K = Clique(16)
+    K += zip(range(16, 32), range(16, 32))
+    return find_embedding(K, C, tries=1, chainlength_patience=0)
+
+
+@success_count(30)
+def test_variable_components():
+    # embed two problems at once?  why not
+    C = Chimera(4)
+    K = Clique(8)
+    K += [(u+8, v+8) for u, v in K]
+    return find_embedding(K, C, tries=1, chainlength_patience=0)
+
+
+@success_count(30)
+def test_variable_components_many():
+    from random import randint
+    C = Chimera(8)
+    K = [(randint(0, 128), randint(0, 128)) for i in range(64)]
+    return find_embedding(K, C, tries=1, chainlength_patience=0)
 
 
 def chainlength_diagnostic(n=100, old=False, chainlength_argument=0, verbose=0, m=8):

@@ -330,10 +330,7 @@ cdef int _get_chainmap(C, chainmap &CMap, SL, TL) except -1:
 cdef _read_graph(input_graph &g, E):
     cdef labeldict L = labeldict()
     for a,b in E:
-        if a != b:
-            g.push_back(L[a],L[b])
-    if (g.num_nodes() != len(L)):
-        raise ValueError, "input graph contains isolated notes with self-loops"
+        g.push_back(L[a],L[b])
     return L
 
 __all__ = ["find_embedding"]
