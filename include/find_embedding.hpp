@@ -162,8 +162,8 @@ class pathfinder_wrapper : public parameter_processor, public pathfinder_t {
     }
 };
 
-template <class pathfinder_t>
-int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params,
+template <typename pathfinder_t>
+int find_embedding_execute(optional_parameters &params, graph::input_graph &var_g, graph::input_graph &qubit_g,
                            vector<vector<int>> &chains) {
     pathfinder_wrapper<pathfinder_t> pf(var_g, qubit_g, params);
     int success = pf.heuristicEmbedding();
@@ -178,6 +178,47 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
     }
 
     return success;
+}
+
+template <bool parallel, bool fixed, bool restricted>
+class pathfinder_type {
+  public:
+    typedef typename std::conditional<fixed, fixed_handler_hival, fixed_handler_none>::type fixed_handler_t;
+    typedef typename std::conditional<restricted, domain_handler_masked, domain_handler_universe>::type
+            domain_handler_t;
+    typedef embedding_problem<fixed_handler_t, domain_handler_t> embedding_problem_t;
+    typedef typename std::conditional<parallel, pathfinder_parallel<embedding_problem_t>,
+                                      pathfinder_serial<embedding_problem_t>>::type pathfinder_t;
+};
+
+template <bool parallel, bool fixed, bool restricted, typename... Args>
+inline int _find_embedding(optional_parameters &params_, Args... args) {
+    return find_embedding_execute<typename pathfinder_type<parallel, fixed, restricted>::pathfinder_t>(params_,
+                                                                                                       args...);
+}
+
+template <bool parallel, bool fixed, typename... Args>
+inline int _find_embedding_restricted(optional_parameters &params_, Args... args) {
+    if (params_.restrict_chains.size())
+        return _find_embedding<parallel, fixed, true>(params_, args...);
+    else
+        return _find_embedding<parallel, fixed, false>(params_, args...);
+}
+
+template <bool parallel, typename... Args>
+inline int _find_embedding_fixed(optional_parameters &params_, Args... args) {
+    if (params_.fixed_chains.size())
+        return _find_embedding_restricted<parallel, true>(params_, args...);
+    else
+        return _find_embedding_restricted<parallel, false>(params_, args...);
+}
+
+template <typename... Args>
+inline int _find_embedding_parallel(optional_parameters &params_, Args... args) {
+    if (params_.threads > 1)
+        return _find_embedding_fixed<true>(params_, args...);
+    else
+        return _find_embedding_fixed<false>(params_, args...);
 }
 
 //! The main entry function of this library.
@@ -196,55 +237,8 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
 //! The optional parameters themselves can be found in util.hpp.  Respectively,
 //! the controlling options for the above are restrict_chains, fixed_chains,
 //! and threads.
-
 inline int findEmbedding(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_,
                          vector<vector<int>> &chains) {
-    if (params_.threads > 1) {
-        if (params_.restrict_chains.empty()) {
-            using domain_handler = domain_handler_universe;
-            if (params_.fixed_chains.empty()) {
-                return find_embedding_execute<
-                        pathfinder_parallel<embedding_problem<domain_handler, fixed_handler_none>>>(var_g, qubit_g,
-                                                                                                    params_, chains);
-            } else {
-                return find_embedding_execute<
-                        pathfinder_parallel<embedding_problem<domain_handler, fixed_handler_hival>>>(var_g, qubit_g,
-                                                                                                     params_, chains);
-            }
-        } else {
-            using domain_handler = domain_handler_masked;
-            if (params_.fixed_chains.empty()) {
-                return find_embedding_execute<
-                        pathfinder_parallel<embedding_problem<domain_handler, fixed_handler_none>>>(var_g, qubit_g,
-                                                                                                    params_, chains);
-            } else {
-                return find_embedding_execute<
-                        pathfinder_parallel<embedding_problem<domain_handler, fixed_handler_hival>>>(var_g, qubit_g,
-                                                                                                     params_, chains);
-            }
-        }
-    } else {
-        if (params_.restrict_chains.empty()) {
-            using domain_handler = domain_handler_universe;
-            if (params_.fixed_chains.empty()) {
-                return find_embedding_execute<pathfinder_serial<embedding_problem<domain_handler, fixed_handler_none>>>(
-                        var_g, qubit_g, params_, chains);
-            } else {
-                return find_embedding_execute<
-                        pathfinder_serial<embedding_problem<domain_handler, fixed_handler_hival>>>(var_g, qubit_g,
-                                                                                                   params_, chains);
-            }
-        } else {
-            using domain_handler = domain_handler_masked;
-            if (params_.fixed_chains.empty()) {
-                return find_embedding_execute<pathfinder_serial<embedding_problem<domain_handler, fixed_handler_none>>>(
-                        var_g, qubit_g, params_, chains);
-            } else {
-                return find_embedding_execute<
-                        pathfinder_serial<embedding_problem<domain_handler, fixed_handler_hival>>>(var_g, qubit_g,
-                                                                                                   params_, chains);
-            }
-        }
-    }
+    return _find_embedding_parallel(params_, var_g, qubit_g, chains);
 }
 }

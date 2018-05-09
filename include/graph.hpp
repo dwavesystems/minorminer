@@ -139,6 +139,7 @@ class input_graph {
         return _to_vectorhoods(_nbrs);
     }
 
+    //! smash the types throgh unaryint
     template <typename T1, typename T2, typename T3 = void*, typename T4 = bool>
     inline vector<vector<int>> _get_neighbors(const T1& sources, const T2& sinks, const T3& relabel = nullptr,
                                               const T4& mask = true) const {
@@ -146,16 +147,35 @@ class input_graph {
     }
 
   public:
+    //! produce a vector<vector<int>> of neigborhoods, with certain nodes marked as sources (inbound edges are omitted)
+    //! sources is either a vector<int> (where non-sources x have sources[x] = 0), or another type for which we have a
+    //! unaryint specialization
+    //! optional arguments: relabel, mask (any type with a unaryint specialization)
+    //!    relabel is applied to the nodes as they are placed into the neighborhood list (and not used for checking
+    //!    sources / mask)
+    //!    mask is used to filter down to the induced graph on nodes x with mask[x] = 1
     template <typename T1, typename... Args>
     vector<vector<int>> get_neighbors_sources(const T1& sources, Args... args) const {
         return _get_neighbors(sources, false, args...);
     }
 
+    //! produce a vector<vector<int>> of neigborhoods, with certain nodes marked as sinks (outbound edges are omitted)
+    //! sinks is either a vector<int> (where non-sinks x have sinks[x] = 0), or another type for which we have a
+    //! unaryint specialization
+    //! optional arguments: relabel, mask (any type with a unaryint specialization)
+    //!    relabel is applied to the nodes as they are placed into the neighborhood list (and not used for checking
+    //!    sinks / mask)
+    //!    mask is used to filter down to the induced graph on nodes x with mask[x] = 1
     template <typename T2, typename... Args>
     vector<vector<int>> get_neighbors_sinks(const T2& sinks, Args... args) const {
         return _get_neighbors(false, sinks, args...);
     }
 
+    //! produce a vector<vector<int>> of neigborhoods
+    //! optional arguments: relabel, mask (any type with a unaryint specialization)
+    //!    relabel is applied to the nodes as they are placed into the neighborhood list (and not used for checking
+    //!    mask)
+    //!    mask is used to filter down to the induced graph on nodes x with mask[x] = 1
     template <typename... Args>
     vector<vector<int>> get_neighbors(Args... args) const {
         return _get_neighbors(false, false, args...);
@@ -168,7 +188,8 @@ class input_graph {
 //! in the construction.
 class components {
   public:
-    components(const input_graph& g, const vector<int>& reserve)
+    template <typename T>
+    components(const input_graph& g, const unaryint<T>& reserve)
             : index(g.num_nodes(), 0), label(g.num_nodes(), 0), component(g.num_nodes()), component_g() {
         /*
         STEP 1: perform union/find to compute components.
@@ -179,11 +200,6 @@ class components {
         vector<int>& parent = index;
         for (int x = g.num_nodes(); x--;) {
             parent[x] = x;
-            if (reserve[x]) {
-                int x0 = x;
-                for (; x--;) parent[x] = reserve[x] ? x0 : x;
-                break;
-            }
         }
         for (int i = g.num_edges(); i--;) {
             __init_union(g.a(i), g.b(i));
@@ -206,7 +222,7 @@ class components {
             vector<int>& comp = component[c];
             auto back = end(comp);
             for (auto front = begin(comp); front < back; front++)
-                if (reserve[*front]) iter_swap(front, --back);
+                if (reserve(*front)) iter_swap(front, --back);
             if (comp.size()) {
                 for (int j = comp.size(); j--;) {
                     label[comp[j]] = j;
@@ -225,6 +241,10 @@ class components {
             component_g[index[a]].push_back(label[a], label[b]);
         }
     }
+
+    components(const input_graph& g) : components(g, unaryint<bool>(false)) {}
+
+    components(const input_graph& g, const vector<int> reserve) : components(g, unaryint<vector<int>>(reserve)) {}
 
     //! Get the set of nodes in a component
     const vector<int>& nodes(int c) const { return component[c]; }
