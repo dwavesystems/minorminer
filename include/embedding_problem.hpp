@@ -239,19 +239,20 @@ class embedding_problem_base {
               var_order_visited(n_v, 0),
               var_order_shuffle(n_v),
               var_order_pq(max(n_v + n_f, n_q + n_r)),
-              params(p_),
-              initialized(0),
-              embedded(0),
-              desperate(0),
-              target_chainsize(0),
-              improved(0) {
+              params(p_) {
+        reset_mood();
+    }
+
+    virtual ~embedding_problem_base() {}
+
+    void reset_mood() {
         alpha = 8 * sizeof(distance_t);
         int N = 2 * num_q;
         while (N /= 2) alpha--;
         alpha = max(1, alpha);
         weight_bound = min(params.max_fill, alpha);
+        initialized = embedded = desperate = target_chainsize = improved = 0;
     }
-    virtual ~embedding_problem_base() {}
 
     //! a vector of neighbors for the variable `u`
     const vector<int> &var_neighbors(int u) const { return var_nbrs[u]; }

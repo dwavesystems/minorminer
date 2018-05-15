@@ -306,6 +306,99 @@ cdef class _input_parser:
             raise RuntimeError("restrict_chains use target node labels that weren't referred to by any edges")        
 
 
+cdef class minorminer:
+    cdef _input_parser _in
+    cdef pathfinder_wrapper *pf
+    def __cinit__(self, S, T, **params):
+        self._in = _input_parser(S, T, params)
+        self.pf = new pathfinder_wrapper(self._in.Sg, self._in.Tg, self._in.opts)
+
+    def __dealloc__(self):
+        del self.pf   
+
+    def find_embedding(self):
+        cdef int i, success = self.pf.heuristicEmbedding()
+        cdef vector[int] chain
+
+        rchain = {}
+        if self._in.opts.return_overlap or success:
+            for v in range(self.pf.num_vars()-self._in.pincount):
+                chain.clear()
+                self.pf.get_chain(v, chain)
+                rchain[self._in.SL.label(v)] = [self._in.TL.label(z) for z in chain]
+
+        if self._in.opts.return_overlap:
+            return rchain, success
+        else:
+            return rchain
+
+    def find_embeddings(self, int n, int force = 0):
+        embs = []
+
+        while n > 0:
+            emb = self.find_embedding()
+            if isinstance(emb, tuple):
+                emb = emb[0]
+                succ = 1
+            else:
+                succ = len(emb)
+            if succ:
+                embs.append(emb)
+            if succ or not force:
+                n -= 1
+        return embs
+
+    def improve_embeddings(self, list embs):
+        cdef chainmap c = chainmap()
+        cdef int n = len(embs)
+        cdef list _embs = []
+        for i in range(len(embs)):
+            _get_chainmap(embs[i], c, self._in.SL, self._in.TL)
+            self.pf.set_initial_chains(c)
+            emb = self.find_embedding()
+            if isinstance(emb, tuple):
+                emb = emb[0]
+            _embs.append(emb)
+        return _embs
+
+    cdef dict count_overlaps(self, list chains):
+        cdef dict o = {}
+        for chain in chains:
+            for q in chain:
+                o[q] = 1+o.get(q,-1)
+        return o
+
+    cdef list histogram_key(self, list sizes):
+        cdef dict h = {}
+        cdef int s, x
+        cdef tuple t
+        for s in sizes:
+            if s:
+                h[s] = 1+h.get(s, 0)
+
+        return [t[i] for t in sorted(h.items(), reverse = True) for i in (0,1)]
+
+    def quality_key(self, emb, embedded = False):
+        cdef int state = 2
+        cdef dict o
+        cdef list L, O
+        if emb == {}:
+            return (state,)
+
+        state = 0
+        L = self.histogram_key([len(c) for c in emb.values()])
+
+        if embedded:
+            O = []
+        else:
+            o = self.count_overlaps(emb.values())
+            O = self.histogram_key(o.values())
+            if len(O):
+                state = 1
+
+        return (state, O, L)
+
+
 cdef int _get_chainmap(C, chainmap &CMap, SL, TL) except -1:
     cdef vector[int] chain
     CMap.clear();

@@ -64,6 +64,7 @@ cdef extern from "../include/chain.hpp" namespace "find_embedding":
         int heuristicEmbedding()
         int num_vars()
         void get_chain(int, vector[int] &)
+        void set_initial_chains(chainmap &)
 
     cppclass chain:
         chain(vector[int] &w, int l)

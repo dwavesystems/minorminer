@@ -136,6 +136,8 @@ class pathfinder_wrapper {
 
     int num_vars() { return pp.num_vars; }
 
+    void set_initial_chains(map<int, vector<int>> &init) { pf->set_initial_chains(pp.input_chains(init)); }
+
   private:
     template <bool parallel, bool fixed, bool restricted, bool verbose, typename... Args>
     inline std::unique_ptr<pathfinder_public_interface> _pf_parse4(Args &&... args) {

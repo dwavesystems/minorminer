@@ -43,6 +43,7 @@ class pathfinder_public_interface {
     virtual int heuristicEmbedding() = 0;
     virtual const chain &get_chain(int) const = 0;
     virtual ~pathfinder_public_interface(){};
+    virtual void set_initial_chains(map<int, vector<int>>) = 0;
 };
 
 template <typename embedding_problem_t>
@@ -111,6 +112,11 @@ class pathfinder_base : public pathfinder_public_interface {
         dijkstras.reserve(num_vars + num_fixed);
         for (int v = num_vars + num_fixed; v--;) dijkstras.emplace_back(num_qubits, params.rng);
     }
+
+    void set_initial_chains(map<int, vector<int>> chains) {
+        initEmbedding = embedding_t(ep, params.fixed_chains, chains);
+    }
+
     virtual ~pathfinder_base() {}
 
     //! nonzero return if this is an improvement on our previous best embedding
@@ -483,7 +489,7 @@ class pathfinder_base : public pathfinder_public_interface {
         auto timeout0 = duration<double>(params.timeout);
         auto timeout = duration_cast<clock::duration>(timeout0);
         stoptime = clock::now() + timeout;
-        ep.target_chainsize = 0;
+        ep.reset_mood();
         if (params.skip_initialization) {
             if (initEmbedding.linked()) {
                 currEmbedding = initEmbedding;
