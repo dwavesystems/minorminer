@@ -38,8 +38,15 @@ class pathfinder_serial;
 template <typename T>
 class pathfinder_parallel;
 
+class pathfinder_public_interface {
+  public:
+    virtual int heuristicEmbedding() = 0;
+    virtual const chain &get_chain(int) const = 0;
+    virtual ~pathfinder_public_interface(){};
+};
+
 template <typename embedding_problem_t>
-class pathfinder_base {
+class pathfinder_base : public pathfinder_public_interface {
     friend class pathfinder_serial<embedding_problem_t>;
     friend class pathfinder_parallel<embedding_problem_t>;
 
@@ -111,7 +118,7 @@ class pathfinder_base {
         int better = 0;
         int embedded = emb.statistics(tmp_stats);
         if (embedded > ep.embedded) {
-            params.major_info("embedding found.\n");
+            ep.major_info("embedding found.\n");
             better = ep.embedded = 1;
         }
         if (embedded < ep.embedded) return 0;
@@ -122,17 +129,17 @@ class pathfinder_base {
         better |= (major > 0) || (best_stats.size() == 0);
         if (better) {
             if (ep.embedded) {
-                params.major_info("max chain length %d; num max chains=%d\n", tmp_stats.size() - 1, minorstat);
+                ep.major_info("max chain length %d; num max chains=%d\n", tmp_stats.size() - 1, minorstat);
                 ep.target_chainsize = tmp_stats.size() - 1;
             } else {
-                params.major_info("max qubit fill %d; num maxfull qubits=%d\n", tmp_stats.size() + 1, minorstat);
+                ep.major_info("max qubit fill %d; num maxfull qubits=%d\n", tmp_stats.size() + 1, minorstat);
             }
         }
         if ((!better) && (major == 0) && (minor > 0)) {
             if (ep.embedded) {
-                params.minor_info("    num max chains=%d\n", minorstat);
+                ep.minor_info("    num max chains=%d\n", minorstat);
             } else {
-                params.minor_info("    num max qubits=%d\n", minorstat);
+                ep.minor_info("    num max qubits=%d\n", minorstat);
             }
             better = 1;
         }
@@ -151,7 +158,7 @@ class pathfinder_base {
     }
 
     //! chain accessor
-    const chain &get_chain(int u) const { return bestEmbedding.get_chain(u); }
+    virtual const chain &get_chain(int u) const override { return bestEmbedding.get_chain(u); }
 
   protected:
     //! tear out and replace the chain in `emb` for variable `u`
@@ -472,7 +479,7 @@ class pathfinder_base {
 
   public:
     //! perform the heuristic embedding, returning 1 if an embedding was found and 0 otherwise
-    int heuristicEmbedding() {
+    virtual int heuristicEmbedding() override {
         auto timeout0 = duration<double>(params.timeout);
         auto timeout = duration_cast<clock::duration>(timeout0);
         stoptime = clock::now() + timeout;

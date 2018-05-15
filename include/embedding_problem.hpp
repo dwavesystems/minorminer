@@ -135,6 +135,72 @@ class fixed_handler_hival {
     inline bool reserved(const int q) { return q >= num_q; }
 };
 
+class output_handler_full {
+    optional_parameters &params;
+
+  public:
+    output_handler_full(optional_parameters &p) : params(p) {}
+
+    //! printf regardless of the verbosity level
+    template <typename... Args>
+    void error(const char *format, Args... args) const {
+        params.error(format, args...);
+    }
+
+    //! printf at the major_info verbosity level
+    template <typename... Args>
+    void major_info(const char *format, Args... args) const {
+        params.major_info(format, args...);
+    }
+
+    //! print at the minor_info verbosity level
+    template <typename... Args>
+    void minor_info(const char *format, Args... args) const {
+        params.minor_info(format, args...);
+    }
+
+    //! print at the extra_info verbosity level
+    template <typename... Args>
+    void extra_info(const char *format, Args... args) const {
+        params.extra_info(format, args...);
+    }
+
+    //! print at the debug verbosity level (only works when `CPPDEBUG` is set)
+    template <typename... Args>
+    void debug(const char *ONDEBUG(format), Args... ONDEBUG(args)) const {
+        ONDEBUG(params.debug(format, args...));
+    }
+};
+
+class output_handler_error {
+    optional_parameters &params;
+
+  public:
+    output_handler_error(optional_parameters &p) : params(p) {}
+
+    //! printf regardless of the verbosity level
+    template <typename... Args>
+    void error(const char *format, Args... args) const {
+        params.error(format, args...);
+    }
+
+    //! printf at the major_info verbosity level
+    template <typename... Args>
+    void major_info(Args...) const {}
+
+    //! print at the minor_info verbosity level
+    template <typename... Args>
+    void minor_info(Args...) const {}
+
+    //! print at the extra_info verbosity level
+    template <typename... Args>
+    void extra_info(Args...) const {}
+
+    //! print at the debug verbosity level (only works when `CPPDEBUG` is set)
+    template <typename... Args>
+    void debug(Args...) const {}
+};
+
 //! Common form for all embedding problems.
 //!
 //! Needs to be extended with a fixed handler and domain handler to be complete.
@@ -204,36 +270,6 @@ class embedding_problem_base {
 
     //! number of reserved qubits
     inline int num_reserved() const { return num_r; }
-
-    //! printf regardless of the verbosity level
-    template <typename... Args>
-    void error(const char *format, Args... args) const {
-        params.error(format, args...);
-    }
-
-    //! printf at the major_info verbosity level
-    template <typename... Args>
-    void major_info(const char *format, Args... args) const {
-        params.major_info(format, args...);
-    }
-
-    //! print at the minor_info verbosity level
-    template <typename... Args>
-    void minor_info(const char *format, Args... args) const {
-        params.minor_info(format, args...);
-    }
-
-    //! print at the extra_info verbosity level
-    template <typename... Args>
-    void extra_info(const char *format, Args... args) const {
-        params.extra_info(format, args...);
-    }
-
-    //! print at the debug verbosity level (only works when `CPPDEBUG` is set)
-    template <typename... Args>
-    void debug(const char *ONDEBUG(format), Args... ONDEBUG(args)) const {
-        ONDEBUG(params.debug(format, args...));
-    }
 
     //! make a random integer between 0 and `m-1`
     int randint(int m) { return rand(params.rng, typename decltype(rand)::param_type(0, m - 1)); }
@@ -367,19 +403,24 @@ class embedding_problem_base {
 
 //! A template to construct a complete embedding problem by combining
 //! `embedding_problem_base` with fixed/domain handlers.
-template <class fixed_handler, class domain_handler>
-class embedding_problem : public embedding_problem_base, public fixed_handler, public domain_handler {
+template <class fixed_handler, class domain_handler, class output_handler>
+class embedding_problem : public embedding_problem_base,
+                          public fixed_handler,
+                          public domain_handler,
+                          public output_handler {
   private:
     using ep_t = embedding_problem_base;
     using fh_t = fixed_handler;
     using dh_t = domain_handler;
+    using oh_t = domain_handler;
 
   public:
     embedding_problem(optional_parameters &p, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
                       vector<vector<int>> &q_n)
             : embedding_problem_base(p, n_v, n_f, n_q, n_r, v_n, q_n),
               fixed_handler(p, n_v, n_f, n_q, n_r),
-              domain_handler(p, n_v, n_f, n_q, n_r) {}
+              domain_handler(p, n_v, n_f, n_q, n_r),
+              output_handler(p) {}
     virtual ~embedding_problem() {}
 };
 }

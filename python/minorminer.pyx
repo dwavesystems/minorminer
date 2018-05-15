@@ -177,127 +177,134 @@ def find_embedding(S, T, **params):
                 * add the edge (i,Zij) to the source graph
                 * add the edges (q,Zij) to the target graph for each q in blob_j
     """
-    cdef uint64_t *seed
+    cdef _input_parser _in
+    _in = _input_parser(S, T, params)
+
     cdef vector[int] chain
-
-    cdef optional_parameters opts
-    opts.localInteractionPtr.reset(new LocalInteractionPython())
-
-    names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
-             "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
-             "return_overlap", "skip_initialization", "inner_rounds", "threads",
-             "restrict_chains", "suspend_chains"}
-
-    for name in params:
-        if name not in names:
-            raise ValueError("%s is not a valid parameter for find_embedding"%name)
-
-    try: opts.max_no_improvement = int( params["max_no_improvement"] )
-    except KeyError: pass
-
-    try: opts.skip_initialization = int( params["skip_initialization"] )
-    except KeyError: pass
-
-    try: opts.chainlength_patience = int( params["chainlength_patience"] )
-    except KeyError: pass
-
-    try: opts.seed( long(params["random_seed"]) )
-    except KeyError:
-        seed_obj = os.urandom(sizeof(uint64_t))
-        seed = <uint64_t *>(<void *>(<uint8_t *>(seed_obj)))
-        opts.seed(seed[0])
-
-    try: opts.tries = int(params["tries"])
-    except KeyError: pass
-
-    try: opts.verbose = int(params["verbose"])
-    except KeyError: pass
-
-    try: opts.inner_rounds = int(params["inner_rounds"])
-    except KeyError: pass
-
-    try: opts.timeout = float(params["timeout"])
-    except KeyError: pass
-
-    try: opts.return_overlap = int(params["return_overlap"])
-    except KeyError: pass
-
-    try: opts.max_fill = int(params["max_fill"])
-    except KeyError: pass
-
-    try: opts.threads = int(params["threads"])
-    except KeyError: pass
-
-    cdef input_graph Sg, Tg
-    cdef labeldict SL, TL
-
-    SL = _read_graph(Sg, S)
-    TL = _read_graph(Tg, T)
-
-    cdef int checkT = len(TL)
-    cdef int checkS = len(SL)
-
-    cdef int pincount = 0
-    cdef int nonempty
-    cdef dict fixed_chains = params.get("fixed_chains", {})
-    if "suspend_chains" in params:
-        suspend_chains = params["suspend_chains"]
-        for v, blobs in suspend_chains.items():
-            for i,blob in enumerate(blobs):
-                nonempty = 0
-                pin = "__MINORMINER_INTERNAL_PIN_FOR_SUSPENSION", v, i
-                if pin in SL:
-                    raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your source graph"%(pin,))
-                if pin in TL:
-                    raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your target graph"%(pin,))
-
-                for q in blob:
-                    Tg.push_back(TL[pin], TL[q])
-                    nonempty = 1
-                if nonempty:
-                    pincount += 1
-                    fixed_chains[pin] = [pin]
-                    Sg.push_back(SL[v], SL[pin])
-
-    if checkS+pincount < len(SL):
-        raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
-    if checkT+pincount < len(TL):
-        raise RuntimeError("suspend_chains use target node labels that weren't referred to by any edges")
-
-    checkS += pincount
-    checkT += pincount
-    
-    _get_chainmap(fixed_chains, opts.fixed_chains, SL, TL)
-    if checkS < len(SL):
-        raise RuntimeError("fixed_chains use source node labels that weren't referred to by any edges")
-    if checkT < len(TL):
-        raise RuntimeError("fixed_chains use target node labels that weren't referred to by any edges")
-    _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, SL, TL)
-    if checkS < len(SL):
-        raise RuntimeError("initial_chains use source node labels that weren't referred to by any edges")
-    if checkT < len(TL):
-        raise RuntimeError("initial_chains use target node labels that weren't referred to by any edges")
-    _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, SL, TL)
-    if checkS < len(SL):
-        raise RuntimeError("restrict_chains use source node labels that weren't referred to by any edges")
-    if checkT < len(TL):
-        raise RuntimeError("restrict_chains use target node labels that weren't referred to by any edges")
-
     cdef vector[vector[int]] chains
-    cdef int success = findEmbedding(Sg, Tg, opts, chains)
+    cdef int success = findEmbedding(_in.Sg, _in.Tg, _in.opts, chains)
 
     cdef int nc = chains.size()
 
     rchain = {}
     if chains.size():
-        for v in range(nc-pincount):
+        for v in range(nc-_in.pincount):
             chain = chains[v]
-            rchain[SL.label(v)] = [TL.label(z) for z in chain]
+            rchain[_in.SL.label(v)] = [_in.TL.label(z) for z in chain]
 
-    if opts.return_overlap:
+    if _in.opts.return_overlap:
         return rchain, success
     else:
         return rchain
+
+cdef class _input_parser:
+    cdef input_graph Sg, Tg
+    cdef labeldict SL, TL
+    cdef optional_parameters opts
+    cdef int pincount
+    def __init__(self, S, T, params):
+        cdef uint64_t *seed
+        cdef vector[int] chain
+
+        self.opts.localInteractionPtr.reset(new LocalInteractionPython())
+
+        names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
+                 "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
+                 "return_overlap", "skip_initialization", "inner_rounds", "threads",
+                 "restrict_chains", "suspend_chains"}
+
+        for name in params:
+            if name not in names:
+                raise ValueError("%s is not a valid parameter for find_embedding"%name)
+
+        try: self.opts.max_no_improvement = int( params["max_no_improvement"] )
+        except KeyError: pass
+
+        try: self.opts.skip_initialization = int( params["skip_initialization"] )
+        except KeyError: pass
+
+        try: self.opts.chainlength_patience = int( params["chainlength_patience"] )
+        except KeyError: pass
+
+        try: self.opts.seed( long(params["random_seed"]) )
+        except KeyError:
+            seed_obj = os.urandom(sizeof(uint64_t))
+            seed = <uint64_t *>(<void *>(<uint8_t *>(seed_obj)))
+            self.opts.seed(seed[0])
+
+        try: self.opts.tries = int(params["tries"])
+        except KeyError: pass
+
+        try: self.opts.verbose = int(params["verbose"])
+        except KeyError: pass
+
+        try: self.opts.inner_rounds = int(params["inner_rounds"])
+        except KeyError: pass
+
+        try: self.opts.timeout = float(params["timeout"])
+        except KeyError: pass
+
+        try: self.opts.return_overlap = int(params["return_overlap"])
+        except KeyError: pass
+
+        try: self.opts.max_fill = int(params["max_fill"])
+        except KeyError: pass
+
+        try: self.opts.threads = int(params["threads"])
+        except KeyError: pass
+
+        self.SL = _read_graph(self.Sg, S)
+        self.TL = _read_graph(self.Tg, T)
+
+        cdef int checkT = len(self.TL)
+        cdef int checkS = len(self.SL)
+
+        pincount = 0
+        cdef int nonempty
+        cdef dict fixed_chains = params.get("fixed_chains", {})
+        if "suspend_chains" in params:
+            suspend_chains = params["suspend_chains"]
+            for v, blobs in suspend_chains.items():
+                for i,blob in enumerate(blobs):
+                    nonempty = 0
+                    pin = "__MINORMINER_INTERNAL_PIN_FOR_SUSPENSION", v, i
+                    if pin in self.SL:
+                        raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your source graph"%(pin,))
+                    if pin in self.TL:
+                        raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your target graph"%(pin,))
+
+                    for q in blob:
+                        self.Tg.push_back(self.TL[pin], self.TL[q])
+                        nonempty = 1
+                    if nonempty:
+                        pincount += 1
+                        fixed_chains[pin] = [pin]
+                        self.Sg.push_back(self.SL[v], self.SL[pin])
+
+        if checkS+pincount < len(self.SL):
+            raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
+        if checkT+pincount < len(self.TL):
+            raise RuntimeError("suspend_chains use target node labels that weren't referred to by any edges")
+
+        checkS += pincount
+        checkT += pincount
+        
+        _get_chainmap(fixed_chains, self.opts.fixed_chains, self.SL, self.TL)
+        if checkS < len(self.SL):
+            raise RuntimeError("fixed_chains use source node labels that weren't referred to by any edges")
+        if checkT < len(self.TL):
+            raise RuntimeError("fixed_chains use target node labels that weren't referred to by any edges")
+        _get_chainmap(params.get("initial_chains",[]), self.opts.initial_chains, self.SL, self.TL)
+        if checkS < len(self.SL):
+            raise RuntimeError("initial_chains use source node labels that weren't referred to by any edges")
+        if checkT < len(self.TL):
+            raise RuntimeError("initial_chains use target node labels that weren't referred to by any edges")
+        _get_chainmap(params.get("restrict_chains",[]), self.opts.restrict_chains, self.SL, self.TL)
+        if checkS < len(self.SL):
+            raise RuntimeError("restrict_chains use source node labels that weren't referred to by any edges")
+        if checkT < len(self.TL):
+            raise RuntimeError("restrict_chains use target node labels that weren't referred to by any edges")        
+
 
 cdef int _get_chainmap(C, chainmap &CMap, SL, TL) except -1:
     cdef vector[int] chain

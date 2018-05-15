@@ -25,6 +25,9 @@ cdef extern from "<memory>" namespace "std":
         shared_ptr() nogil
         void reset(T*)
 
+    cdef cppclass unique_ptr[T]:
+        unique_ptr() nogil
+
 cdef extern from "<random>" namespace "std":
     cdef cppclass default_random_engine:
         pass
@@ -42,15 +45,26 @@ cdef extern from "../include/pairing_queue.hpp" namespace "pairing_queue":
     cppclass pairing_queue_fast_reset
 
 cdef extern from "../include/pathfinder.hpp" namespace "find_embedding":
-    cppclass pathfinder
+    cppclass pathfinder_public_interface
 
 cdef extern from "../include/embedding_problem.hpp" namespace "find_embedding":
-    pass
+    cppclass parameter_processor:
+        int num_vars
+        optional_parameters params
 
 cdef extern from "../include/embedding.hpp" namespace "find_embedding":
     pass
 
 cdef extern from "../include/chain.hpp" namespace "find_embedding":
+    cppclass pathfinder_wrapper:
+        pathfinder_wrapper()
+        parameter_processor pp
+        unique_ptr[pathfinder_public_interface] pf
+        pathfinder_wrapper(input_graph &, input_graph &, optional_parameters &)
+        int heuristicEmbedding()
+        int num_vars()
+        void get_chain(int, vector[int] &)
+
     cppclass chain:
         chain(vector[int] &w, int l)
         inline int size() const 

@@ -179,7 +179,7 @@ def success_count(n, *a, **k):
         if os.path.exists(os.path.join(calibration_dir, f.__name__)):
             S, N = load_success_count_calibration(f)
             N += (S == N)
-            accept_prob = .01  # 1% false negative rate
+            accept_prob = .001  # .1% false negative rate
             tts = int(log(accept_prob * S / N, 1 - S / N) + 1)
             false_prob = (S / N) * (1 - S / N)**tts
 
