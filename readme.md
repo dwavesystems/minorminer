@@ -118,7 +118,7 @@ square = sparse([1,2,3,4],[2,3,4,1],[1,1,1,1],4,4);
 
 % Find an assignment of sets of square variables to the triangle variables
 options = struct('random_seed',10);
-embedding = find_embedding_matlab_wrapper(triangle, square, options)
+embedding = find_embedding(triangle, square, options)
 % typically in matlab we use indices starting at one rather than 0:
 embedding = cellfun(@(x)x+1,embedding,'UniformOutput',false);
 embedding{:}

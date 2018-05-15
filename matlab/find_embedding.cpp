@@ -17,21 +17,21 @@ template <class T>
 void parseScalar(const mxArray* a, const char* errorMsg, T& t) {
     if (!a || mxIsEmpty(a) || mxIsSparse(a) || !mxIsDouble(a) || mxIsComplex(a) || mxGetNumberOfDimensions(a) != 2 ||
         mxGetNumberOfElements(a) != 1)
-        throw find_embedding::FindEmbeddingException(errorMsg);
+        throw find_embedding::MinorMinerException(errorMsg);
 
-    if (mxIsNaN(static_cast<double>(*mxGetPr(a)))) throw find_embedding::FindEmbeddingException(errorMsg);
+    if (mxIsNaN(static_cast<double>(*mxGetPr(a)))) throw find_embedding::MinorMinerException(errorMsg);
 
     t = static_cast<T>(*mxGetPr(a));
 }
 
 void parseMatrix(const mxArray* a, const char* errorMsg, graph::input_graph& g, int& aSize) {
-    if (!a) throw find_embedding::FindEmbeddingException(errorMsg);
+    if (!a) throw find_embedding::MinorMinerException(errorMsg);
 
     int numRows = static_cast<int>(mxGetM(a));
     int numCols = static_cast<int>(mxGetN(a));
 
     if (mxGetNumberOfDimensions(a) != 2 || !mxIsDouble(a) || mxIsComplex(a) || numRows != numCols)
-        throw find_embedding::FindEmbeddingException(errorMsg);
+        throw find_embedding::MinorMinerException(errorMsg);
 
     aSize = numRows;
 
@@ -56,29 +56,29 @@ void parseMatrix(const mxArray* a, const char* errorMsg, graph::input_graph& g, 
 }
 
 void parseBoolean(const mxArray* a, const char* errorMsg, bool& b) {
-    if (!a || !mxIsLogicalScalar(a) || mxIsEmpty(a)) throw find_embedding::FindEmbeddingException(errorMsg);
+    if (!a || !mxIsLogicalScalar(a) || mxIsEmpty(a)) throw find_embedding::MinorMinerException(errorMsg);
 
     b = mxIsLogicalScalarTrue(a);
 }
 
 void parseChainArray(const mxArray* a, const char* errorMsg, std::map<int, std::vector<int> >& b) {
-    if (!a || !mxIsCell(a) || mxGetNumberOfDimensions(a) != 2) throw find_embedding::FindEmbeddingException(errorMsg);
+    if (!a || !mxIsCell(a) || mxGetNumberOfDimensions(a) != 2) throw find_embedding::MinorMinerException(errorMsg);
 
     const mwSize* dims = mxGetDimensions(a);
 
     if (dims[0] == 0 || dims[1] == 0) return;
-    if (dims[0] != 1 || dims[1] < 0) throw find_embedding::FindEmbeddingException(errorMsg);
+    if (dims[0] != 1 || dims[1] < 0) throw find_embedding::MinorMinerException(errorMsg);
 
     for (int i = dims[1]; i--;) {
         const mxArray* ichain = mxGetCell(a, i);
         if (!ichain) continue;
         if (mxGetNumberOfDimensions(ichain) != 2 || !mxIsDouble(ichain) || mxIsComplex(ichain))
-            throw find_embedding::FindEmbeddingException(errorMsg);
+            throw find_embedding::MinorMinerException(errorMsg);
 
         const mwSize* cdims = mxGetDimensions(ichain);
 
         if (cdims[0] == 0 || dims[1] == 0) continue;
-        if (cdims[0] > 1) throw find_embedding::FindEmbeddingException(errorMsg);
+        if (cdims[0] > 1) throw find_embedding::MinorMinerException(errorMsg);
 
         const double* data = mxGetPr(ichain);
         std::vector<int> ochain(data, data + cdims[1]);
@@ -112,8 +112,7 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
     // since size(struct('a', {1 1})) is 1 by 2 and size(struct('a', {1; 1})) is 2 by 1 !!!
     if (!mxIsStruct(paramsArray) || mxIsEmpty(paramsArray) || mxGetNumberOfDimensions(paramsArray) != 2 ||
         mxGetM(paramsArray) != 1 || mxGetN(paramsArray) != 1)
-        throw find_embedding::FindEmbeddingException(
-                "find_embeddingmex parameters must be a non-empty 1 by 1 structure");
+        throw find_embedding::MinorMinerException("find_embeddingmex parameters must be a non-empty 1 by 1 structure");
 
     std::set<std::string> paramsNameSet;
     paramsNameSet.insert("max_no_improvement");
@@ -135,8 +134,8 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
     for (int i = 0; i < numFields; ++i) {
         std::string str = mxGetFieldNameByNumber(paramsArray, i);
         if (paramsNameSet.find(str) == paramsNameSet.end())
-            throw find_embedding::FindEmbeddingException(std::string(1, '\'') + str +
-                                                         "' is not a valid parameter for findEmbedding");
+            throw find_embedding::MinorMinerException(std::string(1, '\'') + str +
+                                                      "' is not a valid parameter for findEmbedding");
     }
 
     const mxArray* fieldValueArray;
@@ -236,7 +235,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         checkFindEmbeddingParameters(prhs[2], findEmbeddingExternalParams);
 
         result = find_embedding::findEmbedding(Qg, Ag, findEmbeddingExternalParams, chains);
-    } catch (const find_embedding::FindEmbeddingException& e) {
+    } catch (const find_embedding::MinorMinerException& e) {
         mexErrMsgTxt(e.what().c_str());
     } catch (...) {
         mexErrMsgTxt("unknown error");
