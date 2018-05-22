@@ -420,7 +420,7 @@ class embedding_problem_base {
             for (auto &y : neighbors[x]) {
                 if (!visited[y]) {
                     int z = 0;
-                    for (auto &w : neighbors[z])
+                    for (auto &w : neighbors[y])
                         if (!visited[w]) z++;
                     var_order_pq.set_value(y, z * 256 + randint(256));
                 }
