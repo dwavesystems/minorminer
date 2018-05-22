@@ -1,3 +1,4 @@
+from libcpp cimport bool
 from libcpp.vector cimport vector
 from libcpp.map cimport map
 from libcpp.pair cimport pair
@@ -48,6 +49,14 @@ cdef extern from "../include/pathfinder.hpp" namespace "find_embedding":
     cppclass pathfinder_public_interface
 
 cdef extern from "../include/embedding_problem.hpp" namespace "find_embedding":
+    cpdef enum VARORDER:
+        VARORDER_SHUFFLE = 0
+        VARORDER_DFS = 1
+        VARORDER_BFS = 2
+        VARORDER_PFS = 3
+        VARORDER_RPFS = 4
+        VARORDER_KEEP = 5
+
     cppclass parameter_processor:
         int num_vars
         optional_parameters params
@@ -65,6 +74,8 @@ cdef extern from "../include/chain.hpp" namespace "find_embedding":
         int num_vars()
         void get_chain(int, vector[int] &)
         void set_initial_chains(chainmap &)
+        void quickPass(const vector[int] &, int, bool, bool)
+        void quickPass(VARORDER, int, bool, bool)
 
     cppclass chain:
         chain(vector[int] &w, int l)

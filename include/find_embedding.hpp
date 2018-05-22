@@ -102,6 +102,15 @@ class parameter_processor {
         }
         return n;
     }
+
+    vector<int> input_vars(vector<int> &V) {
+        vector<int> U;
+        for (auto &v : V) {
+            if (v < 0 || v >= num_vars) throw CorruptParametersException();
+            if (!var_fixed_unscrewed[v]) U.push_back(v);
+        }
+        return U;
+    }
 };
 
 template <bool parallel, bool fixed, bool restricted, bool verbose>
@@ -137,6 +146,13 @@ class pathfinder_wrapper {
     int num_vars() { return pp.num_vars; }
 
     void set_initial_chains(map<int, vector<int>> &init) { pf->set_initial_chains(pp.input_chains(init)); }
+
+    void quickPass(vector<int> &varorder, int chainlength_bound, bool careful, bool clear_first) {
+        pf->quickPass(pp.input_vars(varorder), chainlength_bound, careful, clear_first);
+    }
+    void quickPass(VARORDER varorder, int chainlength_bound, bool careful, bool clear_first) {
+        pf->quickPass(varorder, chainlength_bound, careful, clear_first);
+    }
 
   private:
     template <bool parallel, bool fixed, bool restricted, bool verbose, typename... Args>

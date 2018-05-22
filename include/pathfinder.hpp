@@ -44,6 +44,8 @@ class pathfinder_public_interface {
     virtual const chain &get_chain(int) const = 0;
     virtual ~pathfinder_public_interface(){};
     virtual void set_initial_chains(map<int, vector<int>>) = 0;
+    virtual void quickPass(const vector<int> &, int, bool, bool) = 0;
+    virtual void quickPass(VARORDER, int, bool, bool) = 0;
 };
 
 template <typename embedding_problem_t>
@@ -481,6 +483,46 @@ class pathfinder_base : public pathfinder_public_interface {
     }
 
   public:
+    virtual void quickPass(VARORDER varorder, int chainlength_bound, bool careful, bool clear_first) {
+        const vector<int> &vo = ep.var_order(varorder);
+        if (vo.size() == 0)
+            throw BadInitializationException(
+                    "the variable ordering has length zero, did you attempt VARORDER_KEEP without running another "
+                    "strategy first?");
+
+        else
+            quickPass(vo, chainlength_bound, careful, clear_first);
+    }
+
+    virtual void quickPass(const vector<int> &varorder, int chainlength_bound, bool careful, bool clear_first) {
+        int lastsize, got;
+        int old_bound = ep.weight_bound;
+        ep.weight_bound = 1;
+        if (clear_first) bestEmbedding = initEmbedding;
+        for (auto &u : varorder) {
+            if ((lastsize = bestEmbedding.chainsize(u))) {
+                bestEmbedding.steal_all(u);
+                lastsize = bestEmbedding.chainsize(u);
+            }
+
+            if (careful && lastsize) {
+                got = 1;
+                find_short_chain(bestEmbedding, u, chainlength_bound);
+            } else {
+                if (lastsize) bestEmbedding.tear_out(u);
+                got = find_chain(bestEmbedding, u, chainlength_bound);
+            }
+
+            if (got) {
+                if (bestEmbedding.chainsize(u) > chainlength_bound && chainlength_bound > 0) {
+                    bestEmbedding.steal_all(u);
+                    bestEmbedding.tear_out(u);
+                }
+            }
+        }
+        ep.weight_bound = old_bound;
+    }
+
     //! perform the heuristic embedding, returning 1 if an embedding was found and 0 otherwise
     virtual int heuristicEmbedding() override {
         auto timeout0 = duration<double>(params.timeout);

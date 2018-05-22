@@ -298,7 +298,7 @@ cdef class _input_parser:
 
 
 
-cdef class minorminer:
+cdef class miner:
     cdef _input_parser _in
     cdef pathfinder_wrapper *pf
     def __cinit__(self, S, T, **params):
@@ -323,6 +323,28 @@ cdef class minorminer:
             return rchain, success
         else:
             return rchain
+
+    def quickpass(self, varorder=None, VARORDER strategy = VARORDER_RPFS, int chainlength_bound=0, bool careful=False, bool clear_first=True):
+        cdef vector[int] neworder
+        cdef vector[int] chain
+
+        if varorder is not None:
+            for v in varorder:
+                if v not in self._in.SL:
+                   raise ValueError, "entries of the variable ordering must be source graph labels"
+                else:
+                    neworder.push_back(self._in.SL[v])
+            self.pf.quickPass(neworder, chainlength_bound, careful, clear_first)
+        else:
+            self.pf.quickPass(strategy, chainlength_bound, careful, clear_first)
+
+        rchain = {}
+        for v in range(self.pf.num_vars()-self._in.pincount):
+            chain.clear()
+            self.pf.get_chain(v, chain)
+            if chain.size():
+                rchain[self._in.SL.label(v)] = [self._in.TL.label(z) for z in chain]
+        return rchain
 
     def find_embeddings(self, int n, int force = 0):
         embs = []
@@ -427,4 +449,4 @@ cdef _read_graph(input_graph &g, E):
         g.push_back(L[a],L[b])
     return L
 
-__all__ = ["find_embedding"]
+__all__ = ["find_embedding", "VARORDER", "miner"]
