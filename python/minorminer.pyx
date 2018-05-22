@@ -264,9 +264,6 @@ cdef class _input_parser:
         self.SL = _read_graph(self.Sg, S)
         self.TL = _read_graph(self.Tg, T)
 
-        cdef int checkT = len(self.TL)
-        cdef int checkS = len(self.SL)
-
         pincount = 0
         cdef int nonempty
         cdef dict fixed_chains = params.get("fixed_chains", {})
@@ -282,36 +279,23 @@ cdef class _input_parser:
                         raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your target graph"%(pin,))
 
                     for q in blob:
-                        self.Tg.push_back(self.TL[pin], self.TL[q])
+                        if q in self.TL:
+                            self.Tg.push_back(self.TL[pin], self.TL[q])
+                        else:
+                            raise RuntimeError("suspend_chains use target node labels that weren't referred to by any edges")
                         nonempty = 1
                     if nonempty:
                         pincount += 1
                         fixed_chains[pin] = [pin]
-                        self.Sg.push_back(self.SL[v], self.SL[pin])
+                        if v in self.SL:
+                            self.Sg.push_back(self.SL[v], self.SL[pin])
+                        else:
+                            raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
 
-        if checkS+pincount < len(self.SL):
-            raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
-        if checkT+pincount < len(self.TL):
-            raise RuntimeError("suspend_chains use target node labels that weren't referred to by any edges")
+        _get_chainmap(fixed_chains, self.opts.fixed_chains, self.SL, self.TL, "fixed_chains")
+        _get_chainmap(params.get("initial_chains",[]), self.opts.initial_chains, self.SL, self.TL, "initial_chains")
+        _get_chainmap(params.get("restrict_chains",[]), self.opts.restrict_chains, self.SL, self.TL, "restrict_chains")
 
-        checkS += pincount
-        checkT += pincount
-        
-        _get_chainmap(fixed_chains, self.opts.fixed_chains, self.SL, self.TL)
-        if checkS < len(self.SL):
-            raise RuntimeError("fixed_chains use source node labels that weren't referred to by any edges")
-        if checkT < len(self.TL):
-            raise RuntimeError("fixed_chains use target node labels that weren't referred to by any edges")
-        _get_chainmap(params.get("initial_chains",[]), self.opts.initial_chains, self.SL, self.TL)
-        if checkS < len(self.SL):
-            raise RuntimeError("initial_chains use source node labels that weren't referred to by any edges")
-        if checkT < len(self.TL):
-            raise RuntimeError("initial_chains use target node labels that weren't referred to by any edges")
-        _get_chainmap(params.get("restrict_chains",[]), self.opts.restrict_chains, self.SL, self.TL)
-        if checkS < len(self.SL):
-            raise RuntimeError("restrict_chains use source node labels that weren't referred to by any edges")
-        if checkT < len(self.TL):
-            raise RuntimeError("restrict_chains use target node labels that weren't referred to by any edges")        
 
 
 cdef class minorminer:
@@ -356,13 +340,16 @@ cdef class minorminer:
                 n -= 1
         return embs
 
-    def improve_embeddings(self, list embs):
+    def set_initial_chains(self, emb):
         cdef chainmap c = chainmap()
+        _get_chainmap(emb, c, self._in.SL, self._in.TL, "initial_chains")
+        self.pf.set_initial_chains(c)
+
+    def improve_embeddings(self, list embs):
         cdef int n = len(embs)
         cdef list _embs = []
         for i in range(len(embs)):
-            _get_chainmap(embs[i], c, self._in.SL, self._in.TL)
-            self.pf.set_initial_chains(c)
+            self.set_initial_chains(embs[i])
             emb = self.find_embedding()
             if isinstance(emb, tuple):
                 emb = emb[0]
@@ -407,23 +394,22 @@ cdef class minorminer:
         return (state, O, L)
 
 
-cdef int _get_chainmap(C, chainmap &CMap, SL, TL) except -1:
+cdef int _get_chainmap(C, chainmap &CMap, SL, TL, parameter) except -1:
     cdef vector[int] chain
     CMap.clear();
     try:
         for a in C:
             chain.clear()
             if C[a]:
-                if TL is None:
-                    for x in C[a]:
-                        chain.push_back(<int> x)
-                else:
-                    for x in C[a]:
+                for x in C[a]:
+                    if x in TL:
                         chain.push_back(<int> TL[x])
-                if SL is None:
-                    CMap.insert(pair[int,vector[int]](a, chain))
-                else:
+                    else:
+                        raise RuntimeError, "%s uses target node labels that weren't referred to by any edges"%parameter
+                if a in SL:
                     CMap.insert(pair[int,vector[int]](SL[a], chain))
+                else:
+                    raise RuntimeError, "%s uses source node labels that weren't referred to by any edges"%parameter
 
     except (TypeError, ValueError):
         try:
