@@ -20,20 +20,20 @@ TEST(components, construction_empty) {
 TEST(components, construction_single) {
     graph::input_graph graph(1, {}, {});
     graph::components components(graph, {0});
-    ASSERT_EQ(components.size(), 0);
+    ASSERT_EQ(components.size(), 1);
 }
 
 TEST(components, construction_two_disconnected) {
     graph::input_graph graph(2, {}, {});
     graph::components components(graph, {0, 0});
-    ASSERT_EQ(components.size(), 0);
+    ASSERT_EQ(components.size(), 2);
 }
 
 TEST(components, construction_three_disconnected) {
     graph::input_graph graph(3, {0}, {1});
     graph::components components(graph, {0, 0, 0});
 
-    ASSERT_EQ(components.size(), 1);
+    ASSERT_EQ(components.size(), 2);
     ASSERT_EQ(components.num_reserved(0), 0);
     auto nodes = components.nodes(0);
     ASSERT_EQ(std::set<int>(nodes.begin(), nodes.end()), std::set<int>({0, 1}));
@@ -48,7 +48,7 @@ TEST(components, construction_three_disconnected_again) {
     graph::input_graph graph(3, {1}, {2});
     graph::components components(graph, {0, 0, 0});
 
-    ASSERT_EQ(components.size(), 1);
+    ASSERT_EQ(components.size(), 2);
     ASSERT_EQ(components.num_reserved(0), 0);
     auto nodes = components.nodes(0);
     ASSERT_EQ(std::set<int>(nodes.begin(), nodes.end()), std::set<int>({1, 2}));
