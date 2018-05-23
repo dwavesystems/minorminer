@@ -147,11 +147,12 @@ class pathfinder_wrapper {
 
     void set_initial_chains(map<int, vector<int>> &init) { pf->set_initial_chains(pp.input_chains(init)); }
 
-    void quickPass(vector<int> &varorder, int chainlength_bound, bool careful, bool clear_first) {
-        pf->quickPass(pp.input_vars(varorder), chainlength_bound, careful, clear_first);
+    void quickPass(vector<int> &varorder, int chainlength_bound, int overlap_bound, bool local_search,
+                   bool clear_first) {
+        pf->quickPass(pp.input_vars(varorder), chainlength_bound, overlap_bound, local_search, clear_first);
     }
-    void quickPass(VARORDER varorder, int chainlength_bound, bool careful, bool clear_first) {
-        pf->quickPass(varorder, chainlength_bound, careful, clear_first);
+    void quickPass(VARORDER varorder, int chainlength_bound, int overlap_bound, bool local_search, bool clear_first) {
+        pf->quickPass(varorder, chainlength_bound, overlap_bound, local_search, clear_first);
     }
 
   private:

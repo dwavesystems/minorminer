@@ -41,7 +41,7 @@ def find_embedding(S, T, **params):
     find_embedding(S, T, **params)
     Heuristically attempt to find a minor-embedding of a graph representing an Ising/QUBO into a target graph.
 
-    Args:
+    Args::
 
         S: an iterable of label pairs representing the edges in the source graph
 
@@ -49,7 +49,7 @@ def find_embedding(S, T, **params):
 
         **params (optional): see below
 
-    Returns:
+    Returns::
 
         When return_overlap = False (the default), returns a dict that maps labels in S to lists of labels in T
 
@@ -176,7 +176,7 @@ def find_embedding(S, T, **params):
                         chain for i
 
             we accomplish this trhough the following problem transformation
-            for each iterable blob_j in suspend_chains[i], 
+            for each iterable blob_j in suspend_chains[i],
                 * add an auxiliary node Zij to both source and target graphs
                 * set fixed_chains[Zij] = [Zij]
                 * add the edge (i,Zij) to the source graph
@@ -299,16 +299,41 @@ cdef class _input_parser:
 
 
 cdef class miner:
+    """
+    A class for higher-level algorithms based on the heuristic embedding algorithm components.
+
+    Args::
+
+        S: an iterable of label pairs representing the edges in the source graph
+
+        T: an iterable of label pairs representing the edges in the target graph
+
+        **params (optional): see documentation of minorminer.find_embedding
+
+    """
     cdef _input_parser _in
+    cdef bool quickpassed
     cdef pathfinder_wrapper *pf
     def __cinit__(self, S, T, **params):
         self._in = _input_parser(S, T, params)
+        self.quickpassed = False
         self.pf = new pathfinder_wrapper(self._in.Sg, self._in.Tg, self._in.opts)
 
     def __dealloc__(self):
-        del self.pf   
+        del self.pf
 
     def find_embedding(self):
+        """
+        Finds a single embedding, and returns it.  If the state of this object has not been changed,
+        this is equivalent to calling `minorminer.find_embedding(S, T, **params)` where S, T, and
+        params were all set during the construction of this object.
+
+        Returns::
+
+            When return_overlap = False (the default), returns a dict that maps labels in S to lists of labels in T
+
+            When return_overlap = True, returns a tuple consisting of a dict that maps labels in S to lists of labels in T and a bool indicating whether or not a valid embedding was foun
+        """
         cdef int i, success = self.pf.heuristicEmbedding()
         cdef vector[int] chain
 
@@ -324,9 +349,43 @@ cdef class miner:
         else:
             return rchain
 
-    def quickpass(self, varorder=None, VARORDER strategy = VARORDER_RPFS, int chainlength_bound=0, bool careful=False, bool clear_first=True):
+    def quickpass(self, varorder=None, VARORDER strategy = VARORDER_RPFS, int chainlength_bound=0, int overlap_bound = 0, bool local_search=False, bool clear_first=True):
+        """
+        Attempts to find an embedding through a very greedy strategy:
+
+            if clear_first:
+                set embedding to miner's initial_chains parameter
+            else:
+                recall embedding from miner's internal state
+
+            for each node (in the variable order, if provided):
+                attempt to find a new embedding of that node
+                if the attempt produces a chain, record it (unless, optionaly, the chain is above the chainlength bound)
+
+        Args::
+
+            varorder: list (default None), a list of source graph node labels
+
+            strategy: VARORDER (default VARORDER_RPFS), a variable ordering strategy from the enum type minorminer.VARORDER
+
+            chainlength_bound: int (default 0), if nonzero, this is the maximum allowable chainlength
+
+            overlap_bound: int (default 0), this is the maximum overlap count at any given qubit (zero means resulting chains will
+                be properly embedded)
+
+            local_search: bool (default False), if True, use a localized chain search and try harder to find short chains.  this
+                is much faster in many cases
+
+            clear_first: bool (default True), if True, re-initialize the embedding in the miner's internal state.
+                note, on the very first call to quickpass, this parameter is ignored and set to True
+
+        """
         cdef vector[int] neworder
         cdef vector[int] chain
+
+        if not self.quickpassed:
+            clear_first = True
+            self.quickpassed = True
 
         if varorder is not None:
             for v in varorder:
@@ -334,9 +393,9 @@ cdef class miner:
                    raise ValueError, "entries of the variable ordering must be source graph labels"
                 else:
                     neworder.push_back(self._in.SL[v])
-            self.pf.quickPass(neworder, chainlength_bound, careful, clear_first)
+            self.pf.quickPass(neworder, chainlength_bound, overlap_bound, local_search, clear_first)
         else:
-            self.pf.quickPass(strategy, chainlength_bound, careful, clear_first)
+            self.pf.quickPass(strategy, chainlength_bound, overlap_bound, local_search, clear_first)
 
         rchain = {}
         for v in range(self.pf.num_vars()-self._in.pincount):
@@ -346,7 +405,22 @@ cdef class miner:
                 rchain[self._in.SL.label(v)] = [self._in.TL.label(z) for z in chain]
         return rchain
 
-    def find_embeddings(self, int n, int force = 0):
+    def find_embeddings(self, int n, bool force = False):
+        """
+        Finds n embeddings, and returns them.
+
+        Args::
+
+            n: int, the number of embeddings to find
+
+            force: bool, whether or not to retry failed embeddings until n successes are counted
+
+        Returns::
+
+            a list of embeddings (which may have overlaps if return_overlap is True)
+
+        """
+
         embs = []
 
         while n > 0:
@@ -363,11 +437,33 @@ cdef class miner:
         return embs
 
     def set_initial_chains(self, emb):
+        """
+        Update the initial chains.
+
+        Args::
+            emb: dict, the new set of chains to initialize embedding algorithms with
+
+        """
+
         cdef chainmap c = chainmap()
         _get_chainmap(emb, c, self._in.SL, self._in.TL, "initial_chains")
         self.pf.set_initial_chains(c)
 
     def improve_embeddings(self, list embs):
+        """
+        For each embedding in the input,
+            * update the initial_chains parameter in this object, and
+            * compute a new embedding with that initialization
+
+        Args::
+
+            embs: list of dicts
+
+        Returns::
+
+            a list of embeddings with the same length as embs.  note, embeddings may have overlaps if return_overlap is True
+
+        """
         cdef int n = len(embs)
         cdef list _embs = []
         for i in range(len(embs)):
@@ -396,6 +492,25 @@ cdef class miner:
         return [t[i] for t in sorted(h.items(), reverse = True) for i in (0,1)]
 
     def quality_key(self, emb, embedded = False):
+        """
+        Returns an object to represent the quality of an embedding.
+
+        Example::
+            >>> import networkx, minorminer
+            >>> k = networkx.complete_graph(4)
+            >>> g = networkx.grid_graph([2,4,4])
+            >>> mm = minorminer.miner(k.edges(), g.edges())
+            >>> embs = mm.find_embeddings(10)
+            >>> emb = min(embs, key=mm.quality_key)
+
+        Args::
+
+            emb: dict, an embedding object (with or without overlaps)
+
+            embedded: bool (default False), if this is true, we don't count overlaps
+                and assume that there are none.
+
+        """
         cdef int state = 2
         cdef dict o
         cdef list L, O
