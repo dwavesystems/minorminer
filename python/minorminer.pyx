@@ -249,7 +249,7 @@ cdef class _input_parser:
         try: self.opts.timeout = float(params["timeout"])
         except KeyError: pass
 
-        try: self.opts.timeout = float(params["max_beta"])
+        try: self.opts.max_beta = float(params["max_beta"])
         except KeyError: pass
 
         try: self.opts.return_overlap = int(params["return_overlap"])

@@ -234,7 +234,7 @@ class embedding_problem_base {
     double max_beta;
     distance_t weight_table[64];
 
-    int alpha, initialized, embedded, desperate, target_chainsize, improved, weight_bound;
+    int initialized, embedded, desperate, target_chainsize, improved, weight_bound;
 
     embedding_problem_base(optional_parameters &p_, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
                            vector<vector<int>> &q_n)
@@ -268,7 +268,7 @@ class embedding_problem_base {
         else
             weight_bound = params.max_fill;
 
-        max_beta = max(1.0001, params.max_beta);
+        max_beta = max(1., params.max_beta);
         initialized = embedded = desperate = target_chainsize = improved = 0;
     }
 
@@ -288,7 +288,7 @@ class embedding_problem_base {
         double base = min(exp2(log2base), max_beta);
         double power = 1;
         for (int i = 0; i <= max_weight; i++) {
-            weight_table[i] = std::floor(power);
+            weight_table[i] = std::ceil(power);
             power *= base;
         }
         for (int i = max_weight + 1; i < 64; i++) weight_table[i] = max_distance;

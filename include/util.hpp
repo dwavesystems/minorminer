@@ -150,9 +150,7 @@ class optional_parameters {
               skip_initialization(p.skip_initialization),
               fixed_chains(fixed_chains),
               initial_chains(initial_chains),
-              restrict_chains(restrict_chains) {
-        if (max_beta <= 1) max_beta = 2;
-    }
+              restrict_chains(restrict_chains) {}
     //^^leave this constructor by the declarations
 
   public:
