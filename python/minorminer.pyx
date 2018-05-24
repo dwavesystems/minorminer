@@ -72,6 +72,11 @@ def find_embedding(S, T, **params):
         timeout: Algorithm gives up after timeout seconds. Number >= 0 (default
             is approximately 1000 seconds, stored as a double)
 
+        max_beta: Qubits are assigned weight according to a formula (beta^n)
+            where n is the number of chains containint that qubit.  This value
+            should never be less than or equal to 1. (default is effectively
+            infinite, stored as a double)
+
         tries: Number of restart attempts before the algorithm stops. On
             D-WAVE 2000Q, a typical restart takes between 1 and 60 seconds.
             Integer >= 0 (default = 10)
@@ -86,8 +91,8 @@ def find_embedding(S, T, **params):
             to all its neighbours. Integer >= 0 (default = 10)
 
         max_fill: Restricts the number of chains that can simultaneously
-            incorporate the same qubit during the search. Integer >= 0 (default
-            = effectively infinite)
+            incorporate the same qubit during the search. Integer >= 0, values
+            above 63 are treated as 63 (default = effectively infinite)
 
         threads: Maximum number of threads to use. Note that the
             parallelization is only advantageous where the expected degree of
@@ -211,7 +216,7 @@ cdef class _input_parser:
         names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
                  "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
                  "return_overlap", "skip_initialization", "inner_rounds", "threads",
-                 "restrict_chains", "suspend_chains"}
+                 "restrict_chains", "suspend_chains", "max_beta"}
 
         for name in params:
             if name not in names:
@@ -242,6 +247,9 @@ cdef class _input_parser:
         except KeyError: pass
 
         try: self.opts.timeout = float(params["timeout"])
+        except KeyError: pass
+
+        try: self.opts.timeout = float(params["max_beta"])
         except KeyError: pass
 
         try: self.opts.return_overlap = int(params["return_overlap"])

@@ -106,6 +106,7 @@ cdef extern from "../include/util.hpp" namespace "find_embedding":
         int max_no_improvement
         default_random_engine rng
         double timeout
+        double max_beta
         int tries
         int verbose
         int inner_rounds

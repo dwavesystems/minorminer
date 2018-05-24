@@ -117,6 +117,7 @@ class optional_parameters {
     RANDOM rng;
     //! Number of seconds before the process unconditionally stops
     double timeout = 1000;
+    double max_beta = numeric_limits<double>::max();
     int tries = 10;
     int verbose = 0;
     int inner_rounds = numeric_limits<int>::max();
@@ -138,6 +139,7 @@ class optional_parameters {
               max_no_improvement(p.max_no_improvement),
               rng(p.rng()),
               timeout(p.timeout),
+              max_beta(p.max_beta),
               tries(p.tries),
               verbose(p.verbose),
               inner_rounds(p.inner_rounds),
@@ -148,7 +150,9 @@ class optional_parameters {
               skip_initialization(p.skip_initialization),
               fixed_chains(fixed_chains),
               initial_chains(initial_chains),
-              restrict_chains(restrict_chains) {}
+              restrict_chains(restrict_chains) {
+        if (max_beta <= 1) max_beta = 2;
+    }
     //^^leave this constructor by the declarations
 
   public:

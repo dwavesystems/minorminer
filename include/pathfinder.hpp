@@ -468,19 +468,16 @@ class pathfinder_base : public pathfinder_public_interface {
     //! compute the weight of each qubit, first selecting `alpha`
     void compute_qubit_weights(const embedding_t &emb) {
         // first, find the maximum value of alpha that won't result in arithmetic overflow
-        int maxwid = min(emb.max_weight(), ep.alpha);
-        if (maxwid > ep.weight_bound) maxwid = ep.weight_bound;
-        int alpha = maxwid > 1 ? ep.alpha / maxwid : ep.alpha - 1;
-        compute_qubit_weights(emb, alpha, maxwid, 0, num_qubits);
+        int maxwid = emb.max_weight();
+        ep.populate_weight_table(maxwid);
+        compute_qubit_weights(emb, 0, num_qubits);
     }
 
     //! compute the weight of each qubit in the range from `start` to `stop`,
     //! where the weight is `2^(alpha*fill)` where `fill` is the number of
     //! chains which use that qubit
-    void compute_qubit_weights(const embedding_t &emb, const int alpha, const int maxwid, const int start,
-                               const int stop) {
-        for (int q = start; q < stop; q++)
-            qubit_weight[q] = static_cast<const distance_t>(1) << (alpha * min(maxwid, emb.weight(q)));
+    void compute_qubit_weights(const embedding_t &emb, const int start, const int stop) {
+        for (int q = start; q < stop; q++) qubit_weight[q] = ep.weight(emb.weight(q));
     }
 
   public:
@@ -716,12 +713,9 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
         exec_indexed([this, &emb](int i, int a, int b) { thread_weight[i] = emb.max_weight(a, b); });
 
         int maxwid = *std::max_element(begin(thread_weight), end(thread_weight));
-        maxwid = min(super::ep.alpha, maxwid);
-        if (maxwid > super::ep.weight_bound) maxwid = super::ep.weight_bound;
-        int alpha = maxwid > 1 ? super::ep.alpha / maxwid : super::ep.alpha - 1;
+        super::ep.populate_weight_table(maxwid);
 
-        exec_chunked(
-                [this, &emb, alpha, maxwid](int a, int b) { super::compute_qubit_weights(emb, alpha, maxwid, a, b); });
+        exec_chunked([this, &emb](int a, int b) { super::compute_qubit_weights(emb, a, b); });
 
         exec_chunked(
                 [this, u](int a, int b) { this->ep.prepare_distances(this->total_distance, u, max_distance, a, b); });

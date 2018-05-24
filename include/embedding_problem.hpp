@@ -135,6 +135,11 @@ class fixed_handler_hival {
     inline bool reserved(const int q) { return q >= num_q; }
 };
 
+//! Output handlers are used to control output.  We provide two handlers -- one which only reports all errors (and
+//! optimizes away all other output) and another which provides full output.  When verbose is zero, we recommend
+//! the errors-only handler and otherwise, the full handler
+
+//! Here's the full output handler
 class output_handler_full {
     optional_parameters &params;
 
@@ -172,6 +177,7 @@ class output_handler_full {
     }
 };
 
+//! Here's the errors-only handler
 class output_handler_error {
     optional_parameters &params;
 
@@ -220,9 +226,13 @@ class embedding_problem_base {
 
     int_queue var_order_pq;
 
+    unsigned int exponent_margin;  // probably going to move this weight stuff out to another handler
   public:
     //! A mutable reference to the user specified parameters
     optional_parameters &params;
+
+    double max_beta;
+    distance_t weight_table[64];
 
     int alpha, initialized, embedded, desperate, target_chainsize, improved, weight_bound;
 
@@ -239,6 +249,7 @@ class embedding_problem_base {
               var_order_visited(n_v, 0),
               var_order_shuffle(n_v),
               var_order_pq(max(n_v + n_f, n_q + n_r)),
+              exponent_margin(compute_margin()),
               params(p_) {
         reset_mood();
     }
@@ -246,12 +257,48 @@ class embedding_problem_base {
     virtual ~embedding_problem_base() {}
 
     void reset_mood() {
-        alpha = 8 * sizeof(distance_t);
-        int N = 2 * num_q;
-        while (N /= 2) alpha--;
-        alpha = max(1, alpha);
-        weight_bound = min(params.max_fill, alpha);
+        if (exponent_margin <= 0) throw MinorMinerException("problem has too few nodes or edges");
+
+        auto ultramax_weight = 63. - std::log2(exponent_margin);
+
+        if (ultramax_weight < 2) throw MinorMinerException("problem is too large to avoid overflow");
+
+        if (ultramax_weight < params.max_fill)
+            weight_bound = std::floor(ultramax_weight);
+        else
+            weight_bound = params.max_fill;
+
+        max_beta = max(1.0001, params.max_beta);
         initialized = embedded = desperate = target_chainsize = improved = 0;
+    }
+
+  private:
+    int compute_margin() {
+        auto max_degree =
+                (*std::max_element(begin(var_nbrs), end(var_nbrs), [](const vector<int> &a, const vector<int> &b) {
+                    return a.size() < b.size();
+                })).size();
+        return max_degree * num_q;
+    }
+
+  public:
+    void populate_weight_table(int max_weight) {
+        max_weight = min(63, max_weight);
+        double log2base = (max_weight <= 0) ? 1 : ((63. - std::log2(exponent_margin)) / max_weight);
+        double base = min(exp2(log2base), max_beta);
+        double power = 1;
+        for (int i = 0; i <= max_weight; i++) {
+            weight_table[i] = std::floor(power);
+            power *= base;
+        }
+        for (int i = max_weight + 1; i < 64; i++) weight_table[i] = max_distance;
+    }
+
+    distance_t weight(unsigned int c) const {
+        if (c >= 64)
+            return max_distance;
+        else
+            return weight_table[c];
     }
 
     //! a vector of neighbors for the variable `u`

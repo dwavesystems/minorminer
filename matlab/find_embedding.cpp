@@ -117,6 +117,7 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
     std::set<std::string> paramsNameSet;
     paramsNameSet.insert("max_no_improvement");
     paramsNameSet.insert("random_seed");
+    paramsNameSet.insert("max_beta");
     paramsNameSet.insert("timeout");
     paramsNameSet.insert("tries");
     paramsNameSet.insert("verbose");
@@ -161,6 +162,11 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
     if (fieldValueArray)
         parseScalar<double>(fieldValueArray, "timeout parameter must be a number >= 0.0",
                             findEmbeddingExternalParams.timeout);
+
+    fieldValueArray = mxGetField(paramsArray, 0, "max_beta");
+    if (fieldValueArray)
+        parseScalar<double>(fieldValueArray, "max_beta rameter must be a number >= 1.0",
+                            findEmbeddingExternalParams.max_beta);
 
     fieldValueArray = mxGetField(paramsArray, 0, "tries");
     if (fieldValueArray)

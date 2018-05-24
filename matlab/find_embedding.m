@@ -41,6 +41,11 @@
 %   timeout: Algorithm gives up after timeout seconds.
 %            (must be a number >= 0, default is approximately 1000 seconds, stored as double)
 %
+%   max_beta: Qubits are assigned weight according to a formula (beta^n)
+%            where n is the number of chains containint that qubit.  This value
+%            should never be less than or equal to 1. (default is effectively
+%            infinite, stored as a double)
+%
 %   tries: The algorithm stops after this number of restart attempts. On D-WAVE 2000Q,
 %          each restart takes between 1 and 60 seconds typically.
 %          (must be an integer >= 0, default = 10)
