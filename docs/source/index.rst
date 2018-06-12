@@ -1,12 +1,5 @@
-.. minorminer documentation master file, created by
-   sphinx-quickstart on Wed Nov 15 11:24:18 2017.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
-minorminer
-==========
-
-.. include:: ../../readme.md
+.. include:: ../../README.rst
   :start-after: index-start-marker
   :end-before: index-end-marker
 
@@ -22,9 +15,8 @@ Documentation
     :maxdepth: 2
 
     intro
-    pythondocs
-    matlabdocs
-    cppdocs
+    reference/index
+    installation
     license
 
 .. toctree::

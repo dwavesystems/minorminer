@@ -1,0 +1,23 @@
+Installation
+============
+
+Python
+------
+
+.. include::  ../../README.rst
+  :start-after: install-python-start
+  :end-before: install-python-end
+
+Matlab
+------
+
+.. include::  ../../README.rst
+  :start-after: install-matlab-start
+  :end-before: install-matlab-end
+
+C++
+---
+
+.. include::  ../../README.rst
+  :start-after: install-c-start
+  :end-before: install-c-end

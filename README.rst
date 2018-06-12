@@ -122,12 +122,16 @@ Matlab
 Installation
 ------------
 
+.. install-matlab-start
+
 The mex bindings for this library will work with some versions of 2013 and earlier,
 and versions from 2016b an onward. An example build command used in Ubuntu is
 found in the makefile `matlab/make.m`.
 
 If you run `make` in the `matlab` directory on Ubuntu it should generate
 `find_embedding.mexa64`, which can be added to the MATLAB path.
+
+.. install-matlab-end
 
 Examples
 --------
@@ -171,6 +175,8 @@ C++
 Installation
 ------------
 
+.. install-c-start
+
 The `CMakeLists.txt` in the root of this repo will build the library and optionally run a series of tests. On linux the commands would be something like this:
 
 .. code-block:: bash
@@ -192,6 +198,8 @@ C++11 programs should be able to use this as a header-only library. If your proj
 
     # After your target is defined
     target_link_libraries(your_target minorminer pthread)
+
+.. install-c-end
 
 Examples
 --------

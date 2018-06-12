@@ -7,6 +7,6 @@ C++ Library Documentation
     :maxdepth: 2
     :caption: Contents:
 
-    cpp/namespacelist
-    cpp/classlist
-    cpp/filelist
+    ../cpp/namespacelist
+    ../cpp/classlist
+    ../cpp/filelist
