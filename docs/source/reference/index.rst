@@ -8,5 +8,5 @@ Reference Documentation
    :maxdepth: 2
 
    pythondocs
-   matlabdocs
+   .. future hook if Ocean adds formal Matlab support: matlabdocs
    cppdocs
