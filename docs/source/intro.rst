@@ -1,0 +1,7 @@
+.. intro:
+
+============
+Introduction
+============
+
+.. automodule:: minorminer
