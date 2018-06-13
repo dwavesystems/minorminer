@@ -1,4 +1,4 @@
-__version__ = ''
-__author__ = 'D-Wave Systems Inc.'
-__authoremail__ = ''
-__description__ = ''
+__version__ = "0.1.3"
+__author__ = "Kelly Boothby"
+__authoremail__ = "boothby@dwavesys.com"
+__description__ = "heuristic algorithm to find graph minor embeddings"
