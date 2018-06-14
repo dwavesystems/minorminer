@@ -16,11 +16,12 @@
 minorminer
 ==========
 
-minorminer is a heuristic tool for minor embedding: given a minor and target graph, it tries to find a mapping that embeds the minor into the target.
+`minorminer` is a heuristic tool for minor embedding: given a minor and target graph, it tries to find a mapping that embeds the minor into the target.
 
 The primary utility function, ```find_embedding()```, is an implementation of the heuristic algorithm described in [1]. It accepts various optional parameters used to tune the algorithm's execution or constrain the given problem.
 
-This implementation aims to provide users with hooks to easily use the code as a basic building block in future research while maintaining performance on par with tuned non-configurable implementations.
+This implementation performs on par with tuned, non-configurable implementations while
+providing users with hooks to easily use the code as a basic building block in research.
 
 [1] https://arxiv.org/abs/1406.2741
 

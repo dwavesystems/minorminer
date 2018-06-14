@@ -8,12 +8,14 @@ Python
   :start-after: install-python-start
   :end-before: install-python-end
 
-Matlab
-------
+.. future_hook if Ocean adds formal Matlab support
 
-.. include::  ../../README.rst
-  :start-after: install-matlab-start
-  :end-before: install-matlab-end
+    Matlab
+    ------
+
+    .. include::  ../../README.rst
+      :start-after: install-matlab-start
+      :end-before: install-matlab-end
 
 C++
 ---

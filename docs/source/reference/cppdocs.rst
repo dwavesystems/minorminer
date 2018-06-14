@@ -1,11 +1,10 @@
 .. _cppdocs:
 
-C++ Library Documentation
-=========================
+C++ Library
+===========
 
 .. toctree::
     :maxdepth: 2
-    :caption: Contents:
 
     ../cpp/namespacelist
     ../cpp/classlist
