@@ -54,13 +54,6 @@ jobs:
             . env/bin/activate
             if [[ -v COVERALLS_REPO_TOKEN ]]; then coveralls; fi
 
-      - run:
-          name: doctest
-          command: |
-            . env/bin/activate
-            pip install .
-            make -C docs/ doctest
-
       - run: &sdist-build-template
           name: build sdist
           command: |
