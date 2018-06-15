@@ -1,5 +1,63 @@
 version: 2
 jobs:
+  coverage-gcc:
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run: &cpp-template
+          name: run unittests
+          command: |
+            mkdir build;
+            cd build;
+            cmake .. -DMINORMINER_BUILD_TESTS=ON;
+            make CC=$C_COMPILER CXX=$CXX_COMPILER;
+            ./tests/run_tests;
+          environment:
+            C_COMPILER: gcc
+            CXX_COMPILER: g++
+      - run:
+          name: coveralls
+          command: |
+            pip install --user cpp-coveralls;
+            find . \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} .. \;
+            cd -;
+            coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
+
+  coverage-gcc-4.8:
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          <<: *cpp-template
+          environment:
+            C_COMPILER: gcc-4.8
+            CXX_COMPILER: g++-4.8
+
+  coverage-clang:
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          <<: *cpp-template
+          environment:
+            C_COMPILER: clang
+            CXX_COMPILER: clang++
+
+  coverage-osx:
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          <<: *cpp-template
+          environment:
+            C_COMPILER: gcc
+            CXX_COMPILER: g++
+      - run:
+          <<: *cpp-template
+          environment:
+            C_COMPILER: clang
+            CXX_COMPILER: clang++
+
   test-3.6: &full-test-template
     docker:
       - image: circleci/python:3.6-jessie
@@ -45,16 +103,6 @@ jobs:
             python -m nose . --exe
           environment:
             CPPDEBUG: 1
-
-      - store_artifacts:
-          path: ./htmlcov
-
-      - run:
-          # requires COVERALLS_REPO_TOKEN env variable
-          name: coveralls
-          command: |
-            . env/bin/activate
-            if [[ -v COVERALLS_REPO_TOKEN ]]; then coveralls; fi
 
       - run: &sdist-build-template
           name: build sdist
@@ -404,6 +452,14 @@ workflows:
   version: 2
   test:
     jobs:
+      - coverage-gcc
+      - coverage-gcc-4.8
+      - coverage-clang
+      - coverage-osx:
+          requires:
+            - coverage-gcc
+            - coverage-gcc-4.8
+            - coverage-clang
       - test-3.6
       - test-2.7
       - test-3.5
