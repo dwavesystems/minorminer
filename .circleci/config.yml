@@ -6,6 +6,10 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
+      - run: &linux-cmake
+          name: install cmake
+          command: |
+            sudo apt install cmake
       - run: &cpp-template
           name: run unittests
           command: |
@@ -31,6 +35,7 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
+      - run: *linux-cmake
       - run:
           <<: *cpp-template
           environment:
@@ -43,6 +48,7 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
+      - run: *linux-cmake
       - run:
           <<: *cpp-template
           environment:
