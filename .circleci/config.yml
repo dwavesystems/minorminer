@@ -43,6 +43,8 @@ jobs:
             . env/bin/activate
             python --version
             python -m nose . --exe
+          environment:
+            CPPDEBUG: 1
 
       - store_artifacts:
           path: ./htmlcov
