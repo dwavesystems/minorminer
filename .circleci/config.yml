@@ -2,14 +2,10 @@ version: 2
 jobs:
   coverage-gcc:
     docker:
-       - image: mono:5.0
+       - image: quay.io/travisci/te-main
     working_directory: ~/repo
     steps:
       - checkout
-      - run: &linux-cmake
-          name: install cmake
-          command: |
-            sudo apt install cmake
       - run: &cpp-template
           name: run unittests
           command: |
@@ -31,11 +27,10 @@ jobs:
 
   coverage-gcc-4.8:
     docker:
-       - image: mono:5.0
+       - image: quay.io/travisci/te-main
     working_directory: ~/repo
     steps:
       - checkout
-      - run: *linux-cmake
       - run:
           <<: *cpp-template
           environment:
@@ -44,11 +39,10 @@ jobs:
 
   coverage-clang:
     docker:
-       - image: mono:5.0
+       - image: quay.io/travisci/te-main
     working_directory: ~/repo
     steps:
       - checkout
-      - run: *linux-cmake
       - run:
           <<: *cpp-template
           environment:
