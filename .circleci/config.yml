@@ -58,6 +58,10 @@ jobs:
     steps:
       - checkout
       - run:
+          name: install cmake
+          command: |
+            brew install cmake
+      - run:
           <<: *cpp-template
           environment:
             C_COMPILER: gcc
