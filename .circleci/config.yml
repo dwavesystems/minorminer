@@ -20,10 +20,12 @@ jobs:
       - run:
           name: coveralls
           command: |
-            pip install --user cpp-coveralls;
+            if [[ -v COVERALLS_REPO_TOKEN ]];
+            then pip install --user cpp-coveralls;
             find . \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} .. \;
             cd -;
-            if [[ -v COVERALLS_REPO_TOKEN ]]; then coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp'; fi
+            coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
+            fi;
 
   coverage-gcc-4.8:
     docker:
