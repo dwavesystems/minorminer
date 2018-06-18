@@ -1,4 +1,4 @@
-cython==0.27
+cython
 
 networkx>=2.0
 nose>=1.3
