@@ -9,7 +9,7 @@ jobs:
       - run: &cpp-template
           name: run unittests
           command: |
-            mkdir build;
+            mkdir -p build;
             cd build;
             cmake .. -DMINORMINER_BUILD_TESTS=ON;
             make CC=$C_COMPILER CXX=$CXX_COMPILER;
