@@ -2,7 +2,7 @@ version: 2
 jobs:
   coverage-gcc:
     docker:
-       - image: bellert/cmake:2
+       - image: bellert/cmake:3
     working_directory: ~/repo
     steps:
       - checkout
@@ -23,11 +23,11 @@ jobs:
             pip install --user cpp-coveralls;
             find . \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} .. \;
             cd -;
-            coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
+            if [[ -v COVERALLS_REPO_TOKEN ]]; then coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp'; fi
 
   coverage-gcc-4.8:
     docker:
-       - image: bellert/cmake:2
+       - image: bellert/cmake:3
     working_directory: ~/repo
     steps:
       - checkout
@@ -39,7 +39,7 @@ jobs:
 
   coverage-clang:
     docker:
-       - image: bellert/cmake:2
+       - image: bellert/cmake:3
     working_directory: ~/repo
     steps:
       - checkout
