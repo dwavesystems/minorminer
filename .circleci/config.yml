@@ -17,15 +17,6 @@ jobs:
           environment:
             C_COMPILER: gcc
             CXX_COMPILER: g++
-      - run:
-          name: coveralls
-          command: |
-            if [[ -v COVERALLS_REPO_TOKEN ]];
-            then pip install --user cpp-coveralls;
-            find . \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} .. \;
-            cd -;
-            coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
-            fi;
 
   coverage-gcc-4.8:
     docker:
@@ -71,6 +62,15 @@ jobs:
           environment:
             C_COMPILER: clang
             CXX_COMPILER: clang++
+      - run:
+          name: coveralls
+          command: |
+            if [[ -v COVERALLS_REPO_TOKEN ]];
+            then pip install --user cpp-coveralls;
+            find . \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} .. \;
+            cd -;
+            coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
+            fi;
 
   test-3.6: &full-test-template
     docker:
