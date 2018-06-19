@@ -65,10 +65,11 @@ jobs:
       - run:
           name: coveralls
           command: |
-            if [[ -n COVERALLS_REPO_TOKEN ]];
-            then pip install --user cpp-coveralls;
-            find . \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} .. \;
-            cd -;
+            if [[ -n $COVERALLS_REPO_TOKEN ]];
+            then python -m virtualenv env;
+            . env/bin/activate;
+            pip install cpp-coveralls;
+            find build \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} . \;
             coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
             fi;
 
