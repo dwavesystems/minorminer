@@ -65,7 +65,7 @@ jobs:
       - run:
           name: coveralls
           command: |
-            if [[ -v COVERALLS_REPO_TOKEN ]];
+            if [[ -n COVERALLS_REPO_TOKEN ]];
             then pip install --user cpp-coveralls;
             find . \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} .. \;
             cd -;
