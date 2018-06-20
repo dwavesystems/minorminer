@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.abspath(
 _PY2 = sys.version_info.major == 2
 
 # Add __version__, __author__, __authoremail__, __description__ to this namespace
-path_to_package_info = os.path.join('..', '..', 'python', 'package_info.py')
+path_to_package_info = os.path.join('..', '..', 'package_info.py')
 if _PY2:
     execfile(path_to_package_info)
 else:

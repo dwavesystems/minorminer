@@ -1,5 +1,5 @@
-.. image:: https://travis-ci.org/dwavesystems/minorminer.svg?branch=master
-    :target: https://travis-ci.org/dwavesystems/minorminer
+.. image:: https://circleci.com/gh/dwavesystems/minorminer.svg?style=svg
+    :target: https://circleci.com/gh/dwavesystems/minorminer
 
 .. image:: https://ci.appveyor.com/api/projects/status/g4bj8w7mm1v95i6a/branch/master?svg=true
     :target: https://ci.appveyor.com/project/dwave-adtt/minorminer/branch/master

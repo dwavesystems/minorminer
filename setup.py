@@ -20,7 +20,7 @@ setup_folder_loc = os.path.dirname(os.path.abspath(__file__))
 os.chdir(setup_folder_loc)
 
 # Add __version__, __author__, __authoremail__, __description__ to this namespace
-path_to_package_info = os.path.join('.', 'python', 'package_info.py')
+path_to_package_info = os.path.join('.', 'package_info.py')
 if _PY2:
     execfile(path_to_package_info)
 else:
