@@ -2,6 +2,7 @@ from setuptools import setup, extension
 from setuptools.command.build_ext import build_ext
 import sys
 import os
+import platform
 
 cwd = os.path.abspath(os.path.dirname(__file__))
 if not os.path.exists(os.path.join(cwd, 'PKG-INFO')):
@@ -72,6 +73,8 @@ extensions = [Extension(
 
 if USE_CYTHON:
     extensions = cythonize(extensions)
+
+os.environ["MACOSX_DEPLOYMENT_TARGET"] = platform.mac_ver()[0]
 
 setup(
     name="minorminer",
