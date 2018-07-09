@@ -32,16 +32,16 @@ class domain_handler_universe {
     virtual ~domain_handler_universe() {}
 
     static inline void prepare_visited(vector<int> &visited, int /*u*/, int /*v*/) {
-        std::fill(begin(visited), end(visited), 0);
+        std::fill(std::begin(visited), std::end(visited), 0);
     }
 
     static inline void prepare_distances(vector<distance_t> &distance, const int /*u*/, const distance_t & /*mask_d*/) {
-        std::fill(begin(distance), end(distance), 0);
+        std::fill(std::begin(distance), std::end(distance), 0);
     }
 
     static inline void prepare_distances(vector<distance_t> &distance, const int /*u*/, const distance_t & /*mask_d*/,
                                          const int start, const int stop) {
-        std::fill(begin(distance) + start, begin(distance) + stop, 0);
+        std::fill(std::begin(distance) + start, std::begin(distance) + stop, 0);
     }
 
     static inline bool accepts_qubit(int /*u*/, int /*q*/) { return 1; }
@@ -60,7 +60,7 @@ class domain_handler_masked {
         for (auto &vC : params.restrict_chains)
             for (auto &q : vC.second) minorminer_assert(0 <= q && q < n_q + n_r);
 #endif
-        auto nostrix = end(params.restrict_chains);
+        auto nostrix = std::end(params.restrict_chains);
         for (int v = n_v + n_f; v--;) {
             auto chain = params.restrict_chains.find(v);
             if (chain != nostrix) {
@@ -161,7 +161,7 @@ class fixed_handler_list {
 
 //! Common form for all embedding problems.
 //!
-//! Needs to be extended with a fixed handler and domain handler to be complete.
+//! Needs to be extstd::ended with a fixed handler and domain handler to be complete.
 class embedding_problem_base {
   protected:
     int num_v, num_f, num_q, num_r;
@@ -284,7 +284,7 @@ class embedding_problem_base {
         var_order_space.clear();
         var_order_shuffle.clear();
         for (int v = num_v; v--;) var_order_shuffle.push_back(v);
-        shuffle(begin(var_order_shuffle), end(var_order_shuffle));
+        shuffle(std::begin(var_order_shuffle), std::end(var_order_shuffle));
         if (order == VARORDER_SHUFFLE) {
             var_order_shuffle.swap(var_order_space);
         } else {
@@ -325,7 +325,7 @@ class embedding_problem_base {
                     component.push_back(y);
                 }
             }
-            if (lastback != component.size()) shuffle(begin(component) + lastback, end(component));
+            if (lastback != component.size()) shuffle(std::begin(component) + lastback, std::end(component));
         }
     }
 
@@ -379,7 +379,7 @@ class embedding_problem_base {
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             if (d0 && d > d0) {
-                shuffle(begin(component) + front, end(component));
+                shuffle(std::begin(component) + front, std::end(component));
                 d0 = d;
                 front = component.size();
             }
@@ -388,7 +388,7 @@ class embedding_problem_base {
             for (auto &y : neighbors[x])
                 if (!visited[y]) var_order_pq.check_decrease_value(y, d + 1);
         }
-        shuffle(begin(component) + front, end(component));
+        shuffle(std::begin(component) + front, std::end(component));
     }
 };
 

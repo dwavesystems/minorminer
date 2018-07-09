@@ -7,7 +7,7 @@
 #include "util.hpp"
 
 namespace graph {
-using std::vector;
+//using std::std::vector;
 using std::set;
 using std::max;
 using std::min;
@@ -22,21 +22,21 @@ using std::min;
 class input_graph {
   private:
     // In
-    vector<int> edges_aside;
-    vector<int> edges_bside;
+    std::vector<int> edges_aside;
+    std::vector<int> edges_bside;
     int _num_nodes;
 
-    //! this method converts a vector of sets into a vector of sets, ensuring
+    //! this method converts a std::vector of sets into a std::vector of sets, ensuring
     //! that element i is not contained in nbrs[i].  this method is called by
     //! methods which produce neighbor sets (killing parallel/overrepresented
     //! edges), in order to kill self-loops and also store each neighborhood
     //! in a contiguous memory segment.
-    void _to_vectorhoods(vector<set<int> >& _nbrs, vector<vector<int> >& nbrs) const {
+    void _to_vectorhoods(std::vector<set<int> >& _nbrs, std::vector<std::vector<int> >& nbrs) const {
         nbrs.clear();
         for (int i = 0; i < _num_nodes; i++) {
             set<int>& nbrset = _nbrs[i];
             nbrset.erase(i);
-            nbrs.emplace_back(begin(nbrset), end(nbrset));
+            nbrs.emplace_back(std::begin(nbrset), std::end(nbrset));
         }
     }
 
@@ -44,11 +44,11 @@ class input_graph {
     //! Constructs an empty graph.
     input_graph() : edges_aside(), edges_bside(), _num_nodes(0) {}
     //! Constructs a graph from the provided edges.
-    //! The ends of edge ii are aside[ii] and bside[ii].
+    //! The std::ends of edge ii are aside[ii] and bside[ii].
     //! @param n_v Number of nodes in the graph.
     //! @param aside List of nodes describing edges.
     //! @param bside List of nodes describing edges.
-    input_graph(int n_v, const vector<int>& aside, const vector<int>& bside)
+    input_graph(int n_v, const std::vector<int>& aside, const std::vector<int>& bside)
             : edges_aside(aside), edges_bside(bside), _num_nodes(n_v) {
         minorminer_assert(aside.size() == bside.size());
     }
@@ -60,9 +60,9 @@ class input_graph {
         _num_nodes = 0;
     }
 
-    //! Return the nodes on either end of edge `i`
+    //! Return the nodes on either std::end of edge `i`
     int a(const int i) const { return edges_aside[i]; }
-    //! Return the nodes on either end of edge `i`
+    //! Return the nodes on either std::end of edge `i`
     int b(const int i) const { return edges_bside[i]; }
 
     //! Return the size of the graph in nodes
@@ -79,8 +79,8 @@ class input_graph {
 
     //! produce the node->nodelist mapping for our graph, where certain nodes are
     //! marked as sources (no incoming edges)
-    void get_neighbors_sources(vector<vector<int> >& nbrs, const vector<int>& sources) const {
-        vector<set<int> > _nbrs(_num_nodes);
+    void get_neighbors_sources(std::vector<std::vector<int> >& nbrs, const std::vector<int>& sources) const {
+        std::vector<set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             if (!sources[bi]) _nbrs[ai].insert(bi);
@@ -91,8 +91,8 @@ class input_graph {
 
     //! produce the node->nodelist mapping for our graph, where certain nodes are
     //! marked as sinks (no outgoing edges)
-    void get_neighbors_sinks(vector<vector<int> >& nbrs, const vector<int>& sinks) const {
-        vector<set<int> > _nbrs(_num_nodes);
+    void get_neighbors_sinks(std::vector<std::vector<int> >& nbrs, const std::vector<int>& sinks) const {
+        std::vector<set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             if (!sinks[ai]) _nbrs[ai].insert(bi);
@@ -103,9 +103,9 @@ class input_graph {
 
     //! produce the node->nodelist mapping for our graph, where certain nodes are
     //! marked as sinks (no outgoing edges), relabeling all nodes along the way
-    void get_neighbors_sinks_relabel(vector<vector<int> >& nbrs, const vector<int>& sinks,
-                                     const vector<int>& relabel) const {
-        vector<set<int> > _nbrs(_num_nodes);
+    void get_neighbors_sinks_relabel(std::vector<std::vector<int> >& nbrs, const std::vector<int>& sinks,
+                                     const std::vector<int>& relabel) const {
+        std::vector<set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             int rai = relabel[ai], rbi = relabel[bi];
@@ -116,8 +116,8 @@ class input_graph {
     }
 
     //! produce the node->nodelist mapping for our graph, relabeling all nodes along the way
-    void get_neighbors_relabel(vector<vector<int> >& nbrs, const vector<int>& relabel) const {
-        vector<set<int> > _nbrs(_num_nodes);
+    void get_neighbors_relabel(std::vector<std::vector<int> >& nbrs, const std::vector<int>& relabel) const {
+        std::vector<set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = relabel[a(i)], bi = relabel[b(i)];
             _nbrs[ai].insert(bi);
@@ -127,8 +127,8 @@ class input_graph {
     }
 
     //! produce the node->nodelist mapping for our graph
-    void get_neighbors(vector<vector<int> >& nbrs) const {
-        vector<set<int> > _nbrs(_num_nodes);
+    void get_neighbors(std::vector<std::vector<int> >& nbrs) const {
+        std::vector<set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             _nbrs[ai].insert(bi);
@@ -145,7 +145,7 @@ class input_graph {
 class components {
   public:
     template <class rng_t>
-    components(const input_graph& g, rng_t& rng, const vector<int>& reserve)
+    components(const input_graph& g, rng_t& rng, const std::vector<int>& reserve)
             : index(g.num_nodes(), 0), label(g.num_nodes(), 0), component(g.num_nodes()), component_g() {
         /*
         STEP 1: perform union/find to compute components.
@@ -153,7 +153,7 @@ class components {
         During this stage, we use this.index and this.label, respectively,
         to store the parent and rank data for union/find operations.
         */
-        vector<int>& parent = index;
+        std::vector<int>& parent = index;
         for (int x = g.num_nodes(); x--;) {
             parent[x] = x;
             if (reserve[x]) {
@@ -168,8 +168,8 @@ class components {
 
         for (int x = g.num_nodes(); x--;) component[__init_find(x)].push_back(x);
 
-        sort(begin(component), end(component),
-             [](const vector<int>& a, const vector<int>& b) { return a.size() > b.size(); });
+        sort(std::begin(component), std::end(component),
+             [](const std::vector<int>& a, const std::vector<int>& b) { return a.size() > b.size(); });
 
         /*
         STEP 2: distribute edges to their components
@@ -181,18 +181,18 @@ class components {
         labels within that component.
         */
         for (int c = 0; c < g.num_nodes(); c++) {
-            vector<int>& comp = component[c];
-            auto back = end(comp);
-            for (auto front = begin(comp); front < back; front++)
+            std::vector<int>& comp = component[c];
+            auto back = std::end(comp);
+            for (auto front = std::begin(comp); front < back; front++)
                 if (reserve[*front]) iter_swap(front, --back);
             if (comp.size() > 1) {
-                shuffle(begin(comp), back, rng);
+                shuffle(std::begin(comp), back, rng);
                 for (int j = comp.size(); j--;) {
                     label[comp[j]] = j;
                     index[comp[j]] = c;
                 }
                 component_g.push_back(input_graph());
-                _num_reserved.push_back(end(comp) - back);
+                _num_reserved.push_back(std::end(comp) - back);
             } else {
                 component.resize(c);
                 break;
@@ -206,7 +206,7 @@ class components {
     }
 
     //! Get the set of nodes in a component
-    const vector<int>& nodes(int c) const { return component[c]; }
+    const std::vector<int>& nodes(int c) const { return component[c]; }
 
     //! Get the number of connected components in the graph
     int size() const { return component_g.size(); }
@@ -222,7 +222,7 @@ class components {
 
     //! translate nodes from the input graph, to their labels in component c
     template <typename T>
-    bool into_component(const int c, T& nodes_in, vector<int>& nodes_out) const {
+    bool into_component(const int c, T& nodes_in, std::vector<int>& nodes_out) const {
         for (auto& x : nodes_in) {
             if (index[x] != c) return false;
             nodes_out.push_back(label[x]);
@@ -232,8 +232,8 @@ class components {
 
     //! translate nodes from labels in component c, back to their original input labels
     template <typename T>
-    void from_component(const int c, T& nodes_in, vector<int>& nodes_out) {
-        vector<int>& comp = component[c];
+    void from_component(const int c, T& nodes_in, std::vector<int>& nodes_out) {
+        std::vector<int>& comp = component[c];
         for (auto& x : nodes_in) {
             nodes_out.push_back(comp[x]);
         }
@@ -242,15 +242,15 @@ class components {
   private:
     int __init_find(int x) {
         // NEVER CALL AFTER INITIALIZATION
-        vector<int>& parent = index;
+        std::vector<int>& parent = index;
         if (parent[x] != x) parent[x] = __init_find(parent[x]);
         return parent[x];
     }
 
     void __init_union(int x, int y) {
         // NEVER CALL AFTER INITIALIZATION
-        vector<int>& parent = index;
-        vector<int>& rank = label;
+        std::vector<int>& parent = index;
+        std::vector<int>& rank = label;
         int xroot = __init_find(x);
         int yroot = __init_find(y);
         if (xroot == yroot)
@@ -265,10 +265,10 @@ class components {
         }
     }
 
-    vector<int> index;  // NOTE: dual-purpose -- parent for the union/find; index-of-component later
-    vector<int> label;  // NOTE: dual-purpose -- rank for the union/find; label-in-component later
-    vector<int> _num_reserved;
-    vector<vector<int> > component;
-    vector<input_graph> component_g;
+    std::vector<int> index;  // NOTE: dual-purpose -- parent for the union/find; index-of-component later
+    std::vector<int> label;  // NOTE: dual-purpose -- rank for the union/find; label-in-component later
+    std::vector<int> _num_reserved;
+    std::vector<std::vector<int> > component;
+    std::vector<input_graph> component_g;
 };
 }
