@@ -113,11 +113,11 @@ class embedding {
     inline int weight(int q) const { return qub_weight[q]; }
 
     //! Get the maximum of all qubit weights
-    inline int max_weight() const { return *max_element(begin(qub_weight), begin(qub_weight) + num_qubits); }
+    inline int max_weight() const { return *std::max_element(std::begin(qub_weight), std::begin(qub_weight) + num_qubits); }
 
     //! Get the maximum of all qubit weights in a range
     inline int max_weight(const int start, const int stop) const {
-        return *max_element(begin(qub_weight) + start, begin(qub_weight) + stop);
+        return *std::max_element(std::begin(qub_weight) + start, std::begin(qub_weight) + stop);
     }
 
     //! Check if variable v is includes qubit q in its chain

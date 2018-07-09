@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
-#include <vector>
 
 #include "debug.hpp"
 
@@ -18,8 +17,6 @@
 
 namespace pairing_queue {
 // Import std library components
-using std::vector;
-using std::fill;
 using std::numeric_limits;
 
 // static constexpr int nullval = 0xffffffff;
@@ -31,11 +28,11 @@ class pairing_queue {
     typedef P value_type;
 
   protected:
-    vector<P> val;
+    std::vector<P> val;
 
-    vector<int> next;
-    vector<int> desc;
-    vector<int> prev;
+    std::vector<int> next;
+    std::vector<int> desc;
+    std::vector<int> prev;
 
     int root;
 
@@ -45,9 +42,9 @@ class pairing_queue {
     //! Reset the queue and fill the values with a default
     inline void reset_fill(const P &v) {
         root = nullval;
-        fill(begin(val), end(val), v);
-        fill(begin(next), end(next), nullval);
-        fill(begin(desc), end(desc), nullval);
+	std::fill(std::begin(val), std::end(val), v);
+	std::fill(std::begin(next), std::end(next), nullval);
+	std::fill(std::begin(desc), std::end(desc), nullval);
         int n = 0;
         for (auto &p : prev) p = n++;
     }
@@ -229,7 +226,7 @@ class pairing_queue_fast_reset : public pairing_queue<P> {
     using super = pairing_queue<P>;
 
   private:
-    vector<int> time;
+    std::vector<int> time;
     int now;
 
     inline bool current(int k) {
@@ -252,7 +249,7 @@ class pairing_queue_fast_reset : public pairing_queue<P> {
 
     inline void reset() {
         super::root = nullval;  // super::nullval;
-        if (!now++) std::fill(begin(time), end(time), 0);
+        if (!now++) std::fill(std::begin(time), std::end(time), 0);
     }
 
     inline void set_value_unsafe(int k, const P &v) {

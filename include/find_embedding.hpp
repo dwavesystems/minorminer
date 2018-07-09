@@ -16,12 +16,12 @@ namespace find_embedding {
 //! the main embedding algorithm, pathfinder_base.heuristicEmbedding,
 //! and finally unscrambles the resulting answer.
 template <class pathfinder_t>
-int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_,
-                           vector<vector<int>> &chains) {
+int find_embedding_execute(::graph::input_graph &var_g, ::graph::input_graph &qubit_g, optional_parameters &params_,
+                           std::vector<std::vector<int>> &chains) {
     int num_tot_vars = var_g.num_nodes();
     int num_tot_qubs = qubit_g.num_nodes();
-    vector<int> var_fixed_unscrewed(num_tot_vars, 0);
-    vector<int> qub_reserved_unscrewed(num_tot_qubs, 0);
+    std::vector<int> var_fixed_unscrewed(num_tot_vars, 0);
+    std::vector<int> qub_reserved_unscrewed(num_tot_qubs, 0);
 
     // roll call for fixed variables and reserved qubits
     int num_reserved = 0;
@@ -40,8 +40,8 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
     // int num_edges = var_g.num_edges();
     optional_parameters params = params_;
 
-    vector<int> unscrew_vars;
-    vector<int> fix_vars;
+    std::vector<int> unscrew_vars;
+    std::vector<int> fix_vars;
     // split the fixed vars out from the rest
     for (int v = 0; v < num_tot_vars; v++)
         if (var_fixed_unscrewed[v])
@@ -50,17 +50,17 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
             unscrew_vars.push_back(v);
 
     // shuffling the rest of the vars gives a random relabeling
-    shuffle(begin(unscrew_vars), end(unscrew_vars), params.rng);
+    std::shuffle(std::begin(unscrew_vars), std::end(unscrew_vars), params.rng);
     // dump the fixed vars at the end -- don't bother shuffling them because their labels don't matter
     unscrew_vars.insert(unscrew_vars.end(), fix_vars.begin(), fix_vars.end());
-    vector<int> screw_vars(num_tot_vars);
+    std::vector<int> screw_vars(num_tot_vars);
 
     // compute the inverse of the relabeling
 
     for (int v = num_tot_vars; v--;) screw_vars[unscrew_vars[v]] = v;
 
     // compute the relabeled neighbors dictionary, omitting outbound neighbors of fixed variables
-    vector<vector<int>> var_nbrs;
+    std::vector<std::vector<int>> var_nbrs;
     var_g.get_neighbors_sinks_relabel(var_nbrs, var_fixed_unscrewed, screw_vars);
 
     // compute the connected components of the qubit graph
@@ -68,7 +68,7 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
     // * relabelling components is similar to the vars above:
     //    * first num_qubits labels are randomized
     //    * remaining num_reserved labels are used for reserved qubits
-    graph::components qubit_components(qubit_g, params.rng, qub_reserved_unscrewed);
+    ::graph::components qubit_components(qubit_g, params.rng, qub_reserved_unscrewed);
     bool success = false;
     int tried = 0;
     for (int c = 0; c < qubit_components.size() && !success; c++) {
@@ -83,30 +83,30 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
         for (auto &vC : params_.initial_chains) {
             // don't bother putting in initial chains that will be overwritten by fixed chains
             if (!var_fixed_unscrewed[vC.first]) {
-                vector<int> C;
+                std::vector<int> C;
                 all_chains &= qubit_components.into_component(c, vC.second, C);
                 params.initial_chains.emplace(screw_vars[vC.first], C);
             }
         }
         for (auto &vC : params_.restrict_chains) {
-            vector<int> C;
+            std::vector<int> C;
             all_chains &= qubit_components.into_component(c, vC.second, C);
             params.restrict_chains.emplace(screw_vars[vC.first], C);
         }
         for (auto &vC : params_.fixed_chains) {
-            vector<int> C;
+            std::vector<int> C;
             all_chains &= qubit_components.into_component(c, vC.second, C);
             params.fixed_chains.emplace(screw_vars[vC.first], C);
         }
 
         if (all_chains) {
-            vector<int> qub_fixed(num_qubits, 0);
+            std::vector<int> qub_fixed(num_qubits, 0);
             for (auto &vC : params.fixed_chains)
                 for (auto &q : vC.second) qub_fixed[q] = 1;
 
             tried = 1;
-            vector<vector<int>> qubit_nbrs;
-            graph::input_graph &comp = qubit_components.component_graph(c);
+            std::vector<std::vector<int>> qubit_nbrs;
+            ::graph::input_graph &comp = qubit_components.component_graph(c);
             int num_res = qubit_components.num_reserved(c);
 
             // get the neighbor dictionary for qubits, omitting inbound neighbors of reserved qubits
@@ -158,8 +158,8 @@ int find_embedding_execute(graph::input_graph &var_g, graph::input_graph &qubit_
 //! the controlling options for the above are restrict_chains, fixed_chains,
 //! and threads.
 
-inline int findEmbedding(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_,
-                         vector<vector<int>> &chains) {
+inline int findEmbedding(::graph::input_graph &var_g, ::graph::input_graph &qubit_g, optional_parameters &params_,
+                         std::vector<std::vector<int>> &chains) {
     if (params_.threads > 1) {
         if (params_.restrict_chains.empty()) {
             using domain_handler = domain_handler_universe;

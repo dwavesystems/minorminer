@@ -598,7 +598,7 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
     virtual void prepare_root_distances(const embedding_t &emb, const int u) override {
         exec_indexed([this, &emb](int i, int a, int b) { thread_weight[i] = emb.max_weight(a, b); });
 
-        int maxwid = *std::max_element(begin(thread_weight), end(thread_weight));
+        int maxwid = *std::max_element(std::begin(thread_weight), std::end(thread_weight));
         maxwid = min(super::ep.alpha, maxwid);
         if (maxwid > super::ep.weight_bound) maxwid = super::ep.weight_bound;
         int alpha = maxwid > 1 ? super::ep.alpha / maxwid : super::ep.alpha - 1;
