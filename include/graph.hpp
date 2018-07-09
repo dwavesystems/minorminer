@@ -7,10 +7,7 @@
 #include "util.hpp"
 
 namespace graph {
-//using std::std::vector;
 using std::set;
-using std::max;
-using std::min;
 
 //! Represents an undirected graph as a list of edges.
 //!
@@ -44,7 +41,7 @@ class input_graph {
     //! Constructs an empty graph.
     input_graph() : edges_aside(), edges_bside(), _num_nodes(0) {}
     //! Constructs a graph from the provided edges.
-    //! The std::ends of edge ii are aside[ii] and bside[ii].
+    //! The ends of edge ii are aside[ii] and bside[ii].
     //! @param n_v Number of nodes in the graph.
     //! @param aside List of nodes describing edges.
     //! @param bside List of nodes describing edges.
@@ -60,9 +57,9 @@ class input_graph {
         _num_nodes = 0;
     }
 
-    //! Return the nodes on either std::end of edge `i`
+    //! Return the nodes on either end of edge `i`
     int a(const int i) const { return edges_aside[i]; }
-    //! Return the nodes on either std::end of edge `i`
+    //! Return the nodes on either end of edge `i`
     int b(const int i) const { return edges_bside[i]; }
 
     //! Return the size of the graph in nodes
@@ -74,7 +71,7 @@ class input_graph {
     void push_back(int ai, int bi) {
         edges_aside.push_back(ai);
         edges_bside.push_back(bi);
-        _num_nodes = max(_num_nodes, max(ai, bi) + 1);
+        _num_nodes = std::max(_num_nodes, std::max(ai, bi) + 1);
     }
 
     //! produce the node->nodelist mapping for our graph, where certain nodes are

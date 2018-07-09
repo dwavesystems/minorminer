@@ -11,14 +11,12 @@
 
 #include "debug.hpp"
 
-// Macros local to this file, undefined at the std::end
+// Macros local to this file, undefined at the end
 #define nullval int(0xffffffff)
 #define max_P (numeric_limits<P>::max())
 
 namespace pairing_queue {
 // Import std library components
-//using std::std::vector;
-using std::fill;
 using std::numeric_limits;
 
 // static constexpr int nullval = 0xffffffff;
@@ -44,9 +42,9 @@ class pairing_queue {
     //! Reset the queue and fill the values with a default
     inline void reset_fill(const P &v) {
         root = nullval;
-        fill(std::begin(val), std::end(val), v);
-        fill(std::begin(next), std::end(next), nullval);
-        fill(std::begin(desc), std::end(desc), nullval);
+	std::fill(std::begin(val), std::end(val), v);
+	std::fill(std::begin(next), std::end(next), nullval);
+	std::fill(std::begin(desc), std::end(desc), nullval);
         int n = 0;
         for (auto &p : prev) p = n++;
     }

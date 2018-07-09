@@ -161,7 +161,7 @@ class fixed_handler_list {
 
 //! Common form for all embedding problems.
 //!
-//! Needs to be extstd::ended with a fixed handler and domain handler to be complete.
+//! Needs to be extended with a fixed handler and domain handler to be complete.
 class embedding_problem_base {
   protected:
     int num_v, num_f, num_q, num_r;

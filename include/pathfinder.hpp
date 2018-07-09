@@ -335,7 +335,7 @@ class pathfinder_base {
         for (q = num_qubits; q--;)
             if (emb.weight(q) >= ep.weight_bound) visited[q] = -1;
 
-        // this is a vanilla implementation of node-weight dijkstra -- probably where we spstd::end the most time.
+        // this is a vanilla implementation of node-weight dijkstra -- probably where we spend the most time.
         while (pq.pop_min(q, d)) {
             visited[q] = 1;
             for (auto &p : ep.qubit_neighbors(q))
