@@ -7,7 +7,6 @@
 #include "util.hpp"
 
 namespace graph {
-using std::set;
 
 //! Represents an undirected graph as a list of edges.
 //!
@@ -28,10 +27,10 @@ class input_graph {
     //! methods which produce neighbor sets (killing parallel/overrepresented
     //! edges), in order to kill self-loops and also store each neighborhood
     //! in a contiguous memory segment.
-    void _to_vectorhoods(std::vector<set<int> >& _nbrs, std::vector<std::vector<int> >& nbrs) const {
+    void _to_vectorhoods(std::vector<std::set<int> >& _nbrs, std::vector<std::vector<int> >& nbrs) const {
         nbrs.clear();
         for (int i = 0; i < _num_nodes; i++) {
-            set<int>& nbrset = _nbrs[i];
+ 	    std::set<int>& nbrset = _nbrs[i];
             nbrset.erase(i);
             nbrs.emplace_back(std::begin(nbrset), std::end(nbrset));
         }
@@ -77,7 +76,7 @@ class input_graph {
     //! produce the node->nodelist mapping for our graph, where certain nodes are
     //! marked as sources (no incoming edges)
     void get_neighbors_sources(std::vector<std::vector<int> >& nbrs, const std::vector<int>& sources) const {
-        std::vector<set<int> > _nbrs(_num_nodes);
+        std::vector<std::set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             if (!sources[bi]) _nbrs[ai].insert(bi);
@@ -89,7 +88,7 @@ class input_graph {
     //! produce the node->nodelist mapping for our graph, where certain nodes are
     //! marked as sinks (no outgoing edges)
     void get_neighbors_sinks(std::vector<std::vector<int> >& nbrs, const std::vector<int>& sinks) const {
-        std::vector<set<int> > _nbrs(_num_nodes);
+        std::vector<std::set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             if (!sinks[ai]) _nbrs[ai].insert(bi);
@@ -102,7 +101,7 @@ class input_graph {
     //! marked as sinks (no outgoing edges), relabeling all nodes along the way
     void get_neighbors_sinks_relabel(std::vector<std::vector<int> >& nbrs, const std::vector<int>& sinks,
                                      const std::vector<int>& relabel) const {
-        std::vector<set<int> > _nbrs(_num_nodes);
+        std::vector<std::set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             int rai = relabel[ai], rbi = relabel[bi];
@@ -114,7 +113,7 @@ class input_graph {
 
     //! produce the node->nodelist mapping for our graph, relabeling all nodes along the way
     void get_neighbors_relabel(std::vector<std::vector<int> >& nbrs, const std::vector<int>& relabel) const {
-        std::vector<set<int> > _nbrs(_num_nodes);
+        std::vector<std::set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = relabel[a(i)], bi = relabel[b(i)];
             _nbrs[ai].insert(bi);
@@ -125,7 +124,7 @@ class input_graph {
 
     //! produce the node->nodelist mapping for our graph
     void get_neighbors(std::vector<std::vector<int> >& nbrs) const {
-        std::vector<set<int> > _nbrs(_num_nodes);
+        std::vector<std::set<int> > _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             _nbrs[ai].insert(bi);
