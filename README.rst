@@ -1,5 +1,5 @@
-.. image:: https://circleci.com/gh/dwavesystems/minorminer.svg?style=svg
-    :target: https://circleci.com/gh/dwavesystems/minorminer
+.. image:: https://img.shields.io/pypi/v/minorminer.svg
+    :target: https://pypi.python.org/pypi/minorminer
 
 .. image:: https://ci.appveyor.com/api/projects/status/g4bj8w7mm1v95i6a/branch/master?svg=true
     :target: https://ci.appveyor.com/project/dwave-adtt/minorminer/branch/master
@@ -9,6 +9,9 @@
 
 .. image:: http://readthedocs.org/projects/minorminer/badge/?version=latest
     :target: http://minorminer.readthedocs.io/en/latest/?badge=latest
+
+.. image:: https://circleci.com/gh/dwavesystems/minorminer.svg?style=svg
+    :target: https://circleci.com/gh/dwavesystems/minorminer
 
 .. index-start-marker
 
