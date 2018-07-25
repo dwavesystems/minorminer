@@ -305,19 +305,23 @@ jobs:
 
       - restore_cache:
           keys:
-          - pyenv-versions-{{ .Environment.CIRCLE_JOB }}
+          - pyenv-versions-{{ .Environment.CIRCLE_JOB }}-v1
 
       - run:
-          name: install python 2.7.14 and 3.6.5 with pyenv
+          name: install pythons
           command: |
             pyenv install 2.7.14 -s
+            pyenv install 3.4.8 -s
             pyenv install 3.5.5 -s
             pyenv install 3.6.5 -s
+            pyenv install 3.7.0 -s
 
       - save_cache:
           paths:
             - ~/.pyenv
-          key: pyenv-versions-{{ .Environment.CIRCLE_JOB }}
+          key: pyenv-versions-{{ .Environment.CIRCLE_JOB }}-v1
+
+      # 2.7
 
       - run:
           name: create virtualenv for 2.7.14
@@ -339,6 +343,24 @@ jobs:
 
       - run: *clear-env-template
 
+      # 3.4
+
+      - run:
+          name: create virtualenv for 3.4.8
+          command: |
+            eval "$(pyenv init -)"
+            pyenv local 3.4.8
+            python -m pip install virtualenv
+            python -m virtualenv env
+
+      - run: *install-dependencies-template
+
+      - run: *build-wheel-template
+
+      - run: *clear-env-template
+
+      # 3.5
+
       - run:
           name: create virtualenv for 3.5.5
           command: |
@@ -353,11 +375,29 @@ jobs:
 
       - run: *clear-env-template
 
+      # 3.6
+
       - run:
           name: create virtualenv for 3.6.5
           command: |
             eval "$(pyenv init -)"
             pyenv local 3.6.5
+            python -m pip install virtualenv
+            python -m virtualenv env
+
+      - run: *install-dependencies-template
+
+      - run: *build-wheel-template
+
+      - run: *clear-env-template
+
+      # 3.7
+
+      - run:
+          name: create virtualenv for 3.7.0
+          command: |
+            eval "$(pyenv init -)"
+            pyenv local 3.7.0
             python -m pip install virtualenv
             python -m virtualenv env
 
