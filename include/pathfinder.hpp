@@ -301,7 +301,7 @@ class pathfinder_base : public pathfinder_public_interface {
         for (int q = start; q < stop; q++) {
             auto dist = distqueue.get_value(q);
             if ((visited[q] == 1) && (total_distance[q] != max_distance) && !(ep.reserved(q)) &&
-                (dist != max_distance) && emb.weight(q) < ep.weight_bound && dist > 0) {
+                (dist != max_distance) && emb.weight(q) < ep.weight_bound && dist >= 0) {
                 total_distance[q] += dist;
             } else {
                 total_distance[q] = max_distance;
@@ -327,7 +327,7 @@ class pathfinder_base : public pathfinder_public_interface {
         // so we just swap out the queues -- this costs a very few operations,
         // and the impact is that parent selection in compute_distances_from_chain
         // will be altered for at least one neighbor per pass.
-        auto &nbrs = ep.var_neighbors(u);
+        auto &nbrs = ep.var_neighbors(u, rndswap_first{});
         if (nbrs.size() > 0) {
             int v = nbrs[ep.randint(nbrs.size())];
             dijkstras[u].swap(dijkstras[v]);
@@ -341,7 +341,8 @@ class pathfinder_base : public pathfinder_public_interface {
         int q0 = min_list[ep.randint(min_list.size())];
         if (total_distance[q0] == max_distance) return 0;  // oops all qubits were overfull or unreachable
 
-        emb.construct_chain(u, q0, parents);
+        emb.construct_chain_spider(u, q0, parents, dijkstras);
+        //        emb.construct_chain(u, q0, parents);
         emb.flip_back(u, target_chainsize);
 
         return 1;
@@ -355,8 +356,6 @@ class pathfinder_base : public pathfinder_public_interface {
     void find_short_chain(embedding_t &emb, const int u, const int target_chainsize) {
         int last_size = emb.freeze_out(u);
         auto &counts = total_distance;
-        vector<int> &parentage = visited_list[u];
-        fill(begin(parentage), end(parentage), 0);
         counts.assign(num_qubits, 0);
         unsigned int best_size = std::numeric_limits<unsigned int>::max();
         int q, degree = ep.var_neighbors(u).size();
@@ -364,7 +363,7 @@ class pathfinder_base : public pathfinder_public_interface {
 
         unsigned int stopcheck = static_cast<unsigned int>(max(last_size, target_chainsize));
 
-        for (auto &v : ep.var_neighbors(u)) {
+        for (auto &v : ep.var_neighbors(u, shuffle_first{})) {
             ep.prepare_visited(visited_list[v], u, v);
             auto &parent = parents[v];
             auto &pq = dijkstras[v];
@@ -398,7 +397,7 @@ class pathfinder_base : public pathfinder_public_interface {
                     if (!emb.weight(q)) counts[q]++;
 
                     if (counts[q] == degree) {
-                        emb.construct_chain(u, q, parents);
+                        emb.construct_chain_spider(u, q, parents, dijkstras);
                         unsigned int cs = emb.chainsize(u);
                         if (cs < best_size) {
                             best_size = cs;
@@ -619,6 +618,7 @@ class pathfinder_base : public pathfinder_public_interface {
                 ep.desperate = 0;
             }
         }
+
         if (ep.embedded && params.chainlength_patience) {
             ep.major_info("reducing chain lengths\n");
             int improvement_patience = params.chainlength_patience;
