@@ -207,6 +207,9 @@ class output_handler_error {
     void debug(Args...) const {}
 };
 
+struct shuffle_first {};
+struct rndswap_first {};
+
 //! Common form for all embedding problems.
 //!
 //! Needs to be extended with a fixed handler and domain handler to be complete.
@@ -305,6 +308,24 @@ class embedding_problem_base {
 
     //! a vector of neighbors for the variable `u`
     const vector<int> &var_neighbors(int u) const { return var_nbrs[u]; }
+
+    //! a vector of neighbors for the variable `u`, pre-shuffling them
+    const vector<int> &var_neighbors(int u, shuffle_first) {
+        shuffle(std::begin(var_nbrs[u]), std::end(var_nbrs[u]));
+        return var_nbrs[u];
+    }
+
+    //! a vector of neighbors for the variable `u`, applying a random
+    //! transposition before returning the reference
+    const vector<int> &var_neighbors(int u, rndswap_first) {
+        if (var_nbrs[u].size() > 2) {
+            int i = randint(var_nbrs[u].size() - 1);
+            std::swap(var_nbrs[u][i], var_nbrs[u][i + 1]);
+        } else if (var_nbrs[u].size() == 2) {
+            if (randint(1)) std::swap(var_nbrs[u][0], var_nbrs[u][1]);
+        }
+        return var_nbrs[u];
+    }
 
     //! a vector of neighbors for the qubit `q`
     const vector<int> &qubit_neighbors(int q) const { return qubit_nbrs[q]; }
