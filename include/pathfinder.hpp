@@ -398,7 +398,10 @@ class pathfinder_base : public pathfinder_public_interface {
                     if (!emb.weight(q)) counts[q]++;
 
                     if (counts[q] == degree) {
-                        emb.construct_chain(u, q, parents);
+                        // emb.construct_chain(u, q, parents);
+                        vector<int> nbrs = ep.var_neighbors(u);
+                        ep.shuffle(std::begin(nbrs), std::end(nbrs));
+                        emb.construct_chain_spider(u, q, parents, dijkstras, nbrs);
                         unsigned int cs = emb.chainsize(u);
                         if (cs < best_size) {
                             best_size = cs;
@@ -619,6 +622,7 @@ class pathfinder_base : public pathfinder_public_interface {
                 ep.desperate = 0;
             }
         }
+
         if (ep.embedded && params.chainlength_patience) {
             ep.major_info("reducing chain lengths\n");
             int improvement_patience = params.chainlength_patience;

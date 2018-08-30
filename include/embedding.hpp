@@ -174,6 +174,28 @@ class embedding {
         DIAGNOSE("construct_chain")
     }
 
+    void construct_chain_spider(const int u, const int q, const vector<vector<int>> &parents,
+                                const vector<distance_queue> &dijkstras, vector<int> &nbrs) {
+        var_embedding[u].set_root(q);
+        for (auto &v : nbrs) {
+            if (chainsize(v)) {
+                int qv = q;
+                distance_t dqv = dijkstras[v].get_value(q);
+                for (auto &p : var_embedding[u]) {
+                    if (var_embedding[u].refcount(p) > 1) {
+                        distance_t dp = dijkstras[v].get_value(p);
+                        if (dp < dqv) {
+                            dqv = dp;
+                            qv = p;
+                        }
+                    }
+                }
+                var_embedding[u].link_path(var_embedding[v], qv, parents[v]);
+            }
+        }
+        DIAGNOSE("construct_chain_spder")
+    }
+
     //! distribute path segments to the neighboring chains -- path segments are the qubits
     //! that are ONLY used to join link_qubit[u][v] to link_qubit[u][u] and aren't used
     //! for any other variable
