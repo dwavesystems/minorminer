@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
-#include <vector>
 
 #include "debug.hpp"
 #include "util.hpp"
@@ -18,8 +17,6 @@
 
 namespace pairing_queue {
 // Import std library components
-using std::vector;
-using std::fill;
 using std::numeric_limits;
 
 template <typename N>
@@ -63,7 +60,7 @@ class pairing_queue {
     typedef P value_type;
 
   protected:
-    vector<N> nodes;
+    std::vector<N> nodes;
 
     N *root;
 

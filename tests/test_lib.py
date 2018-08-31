@@ -179,7 +179,7 @@ def success_count(n, *a, **k):
         if os.path.exists(os.path.join(calibration_dir, f.__name__)):
             S, N = load_success_count_calibration(f)
             N += (S == N)
-            accept_prob = .001  # .1% false negative rate
+            accept_prob = .0001  # .01% false negative rate
             tts = int(log(accept_prob * S / N, 1 - S / N) + 1)
             false_prob = (S / N) * (1 - S / N)**tts
 
@@ -310,6 +310,7 @@ def check_args(prob, hard, initial_chains=None, fixed_chains=None, restrict_chai
                     q), "initial chains not contained in hardware graph"
         if skip_initialization:
             for u, v in probg.edges():
+                # check my git logs, this predates https://m.xkcd.com/2036/
                 edgelord = {z for q in initial_chains[v] for z in hardg.neighbors(
                     q)} | set(initial_chains[v])
                 assert set(

@@ -2,6 +2,7 @@ from setuptools import setup, extension
 from setuptools.command.build_ext import build_ext
 import sys
 import os
+import platform
 
 cwd = os.path.abspath(os.path.dirname(__file__))
 if not os.path.exists(os.path.join(cwd, 'PKG-INFO')):
@@ -12,6 +13,19 @@ if not os.path.exists(os.path.join(cwd, 'PKG-INFO')):
         USE_CYTHON = False
 else:
     USE_CYTHON = False
+
+_PY2 = sys.version_info.major == 2
+
+# Change directories so this works when called from other locations. Useful in build systems that build from source.
+setup_folder_loc = os.path.dirname(os.path.abspath(__file__))
+os.chdir(setup_folder_loc)
+
+# Add __version__, __author__, __authoremail__, __description__ to this namespace
+path_to_package_info = os.path.join('.', 'package_info.py')
+if _PY2:
+    execfile(path_to_package_info)
+else:
+    exec(open(path_to_package_info).read())
 
 extra_compile_args = {
     'msvc': ['/std:c++latest', '/MT', '/EHsc'],
@@ -60,15 +74,33 @@ extensions = [Extension(
 if USE_CYTHON:
     extensions = cythonize(extensions)
 
+os.environ["MACOSX_DEPLOYMENT_TARGET"] = platform.mac_ver()[0]
+
+classifiers = [
+    'License :: OSI Approved :: Apache Software License',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python :: 2',
+    'Programming Language :: Python :: 2.7',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.4',
+    'Programming Language :: Python :: 3.5',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+]
+
+python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*'
+
 setup(
     name="minorminer",
-    description="heuristic algorithm to find graph minor embeddings",
+    description=__description__,
     long_description="minorminer is a tool for finding graph minors, developed to embed Ising problems onto quantum annealers (QA). Where it can be used to find minors in arbitrary graphs, it is particularly geared towards the state of the art in QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.",
-    author="Kelly Boothby",
-    author_email="boothby@dwavesys.com",
+    author=__author__,
+    author_email=__authoremail__,
     url="https://github.com/dwavesystems/minorminer",
-    version="0.1.3",
+    version=__version__,
     license="Apache 2.0",
     ext_modules=extensions,
+    classifiers=classifiers,
+    python_requires=python_requires,
     cmdclass={'build_ext': build_ext_compiler_check}
 )

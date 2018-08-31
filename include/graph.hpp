@@ -7,10 +7,6 @@
 #include "util.hpp"
 
 namespace graph {
-using std::vector;
-using std::set;
-using std::max;
-using std::min;
 
 template <typename T>
 class unaryint {
@@ -27,11 +23,11 @@ class unaryint<bool> {
 };
 
 template <>
-class unaryint<vector<int>> {
-    const vector<int> b;
+class unaryint<std::vector<int>> {
+    const std::vector<int> b;
 
   public:
-    unaryint(const vector<int> m) : b(m) {}
+    unaryint(const std::vector<int> m) : b(m) {}
     int operator()(int i) const { return b[i]; }
 };
 
@@ -63,21 +59,21 @@ class unaryint<int> {
 class input_graph {
   private:
     // In
-    vector<int> edges_aside;
-    vector<int> edges_bside;
+    std::vector<int> edges_aside;
+    std::vector<int> edges_bside;
     int _num_nodes;
 
-    //! this method converts a vector of sets into a vector of sets, ensuring
+    //! this method converts a std::vector of sets into a std::vector of sets, ensuring
     //! that element i is not contained in nbrs[i].  this method is called by
     //! methods which produce neighbor sets (killing parallel/overrepresented
     //! edges), in order to kill self-loops and also store each neighborhood
     //! in a contiguous memory segment.
-    vector<vector<int>> _to_vectorhoods(vector<set<int>>& _nbrs) const {
-        vector<vector<int>> nbrs;
+    std::vector<std::vector<int>> _to_vectorhoods(std::vector<std::set<int>>& _nbrs) const {
+        std::vector<std::vector<int>> nbrs;
         for (int i = 0; i < _num_nodes; i++) {
-            set<int>& nbrset = _nbrs[i];
+            std::set<int>& nbrset = _nbrs[i];
             nbrset.erase(i);
-            nbrs.emplace_back(begin(nbrset), end(nbrset));
+            nbrs.emplace_back(std::begin(nbrset), std::end(nbrset));
         }
         return nbrs;
     }
@@ -90,7 +86,7 @@ class input_graph {
     //! @param n_v Number of nodes in the graph.
     //! @param aside List of nodes describing edges.
     //! @param bside List of nodes describing edges.
-    input_graph(int n_v, const vector<int>& aside, const vector<int>& bside)
+    input_graph(int n_v, const std::vector<int>& aside, const std::vector<int>& bside)
             : edges_aside(aside), edges_bside(bside), _num_nodes(n_v) {
         minorminer_assert(aside.size() == bside.size());
     }
@@ -116,7 +112,7 @@ class input_graph {
     void push_back(int ai, int bi) {
         edges_aside.push_back(ai);
         edges_bside.push_back(bi);
-        _num_nodes = max(_num_nodes, max(ai, bi) + 1);
+        _num_nodes = std::max(_num_nodes, std::max(ai, bi) + 1);
     }
 
   private:
@@ -125,9 +121,9 @@ class input_graph {
     //! and filtering according to a mask.  note that the mask itself is assumed
     //! to be a union of components -- only one side of each edge is checked
     template <typename T1, typename T2, typename T3, typename T4>
-    inline vector<vector<int>> __get_neighbors(const unaryint<T1>& sources, const unaryint<T2>& sinks,
-                                               const unaryint<T3>& relabel, const unaryint<T4>& mask) const {
-        vector<set<int>> _nbrs(_num_nodes);
+    inline std::vector<std::vector<int>> __get_neighbors(const unaryint<T1>& sources, const unaryint<T2>& sinks,
+                                                         const unaryint<T3>& relabel, const unaryint<T4>& mask) const {
+        std::vector<std::set<int>> _nbrs(_num_nodes);
         for (int i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             if (mask(ai)) {
@@ -141,43 +137,46 @@ class input_graph {
 
     //! smash the types throgh unaryint
     template <typename T1, typename T2, typename T3 = void*, typename T4 = bool>
-    inline vector<vector<int>> _get_neighbors(const T1& sources, const T2& sinks, const T3& relabel = nullptr,
-                                              const T4& mask = true) const {
+    inline std::vector<std::vector<int>> _get_neighbors(const T1& sources, const T2& sinks, const T3& relabel = nullptr,
+                                                        const T4& mask = true) const {
         return __get_neighbors(unaryint<T1>(sources), unaryint<T2>(sinks), unaryint<T3>(relabel), unaryint<T4>(mask));
     }
 
   public:
-    //! produce a vector<vector<int>> of neigborhoods, with certain nodes marked as sources (inbound edges are omitted)
-    //! sources is either a vector<int> (where non-sources x have sources[x] = 0), or another type for which we have a
+    //! produce a std::vector<std::vector<int>> of neigborhoods, with certain nodes marked as sources (inbound edges are
+    //! omitted)
+    //! sources is either a std::vector<int> (where non-sources x have sources[x] = 0), or another type for which we
+    //! have a
     //! unaryint specialization
     //! optional arguments: relabel, mask (any type with a unaryint specialization)
     //!    relabel is applied to the nodes as they are placed into the neighborhood list (and not used for checking
     //!    sources / mask)
     //!    mask is used to filter down to the induced graph on nodes x with mask[x] = 1
     template <typename T1, typename... Args>
-    vector<vector<int>> get_neighbors_sources(const T1& sources, Args... args) const {
+    std::vector<std::vector<int>> get_neighbors_sources(const T1& sources, Args... args) const {
         return _get_neighbors(sources, false, args...);
     }
 
-    //! produce a vector<vector<int>> of neigborhoods, with certain nodes marked as sinks (outbound edges are omitted)
-    //! sinks is either a vector<int> (where non-sinks x have sinks[x] = 0), or another type for which we have a
+    //! produce a std::vector<std::vector<int>> of neigborhoods, with certain nodes marked as sinks (outbound edges are
+    //! omitted)
+    //! sinks is either a std::vector<int> (where non-sinks x have sinks[x] = 0), or another type for which we have a
     //! unaryint specialization
     //! optional arguments: relabel, mask (any type with a unaryint specialization)
     //!    relabel is applied to the nodes as they are placed into the neighborhood list (and not used for checking
     //!    sinks / mask)
     //!    mask is used to filter down to the induced graph on nodes x with mask[x] = 1
     template <typename T2, typename... Args>
-    vector<vector<int>> get_neighbors_sinks(const T2& sinks, Args... args) const {
+    std::vector<std::vector<int>> get_neighbors_sinks(const T2& sinks, Args... args) const {
         return _get_neighbors(false, sinks, args...);
     }
 
-    //! produce a vector<vector<int>> of neigborhoods
+    //! produce a std::vector<std::vector<int>> of neigborhoods
     //! optional arguments: relabel, mask (any type with a unaryint specialization)
     //!    relabel is applied to the nodes as they are placed into the neighborhood list (and not used for checking
     //!    mask)
     //!    mask is used to filter down to the induced graph on nodes x with mask[x] = 1
     template <typename... Args>
-    vector<vector<int>> get_neighbors(Args... args) const {
+    std::vector<std::vector<int>> get_neighbors(Args... args) const {
         return _get_neighbors(false, false, args...);
     }
 };
@@ -197,7 +196,7 @@ class components {
         During this stage, we use this.index and this.label, respectively,
         to store the parent and rank data for union/find operations.
         */
-        vector<int>& parent = index;
+        std::vector<int>& parent = index;
         for (int x = g.num_nodes(); x--;) {
             parent[x] = x;
         }
@@ -207,8 +206,8 @@ class components {
 
         for (int x = g.num_nodes(); x--;) component[__init_find(x)].push_back(x);
 
-        sort(begin(component), end(component),
-             [](const vector<int>& a, const vector<int>& b) { return a.size() > b.size(); });
+        sort(std::begin(component), std::end(component),
+             [](const std::vector<int>& a, const std::vector<int>& b) { return a.size() > b.size(); });
 
         /*
         STEP 2: distribute edges to their components
@@ -219,9 +218,9 @@ class components {
         component[c].size()-1.
         */
         for (int c = 0; c < g.num_nodes(); c++) {
-            vector<int>& comp = component[c];
-            auto back = end(comp);
-            for (auto front = begin(comp); front < back; front++)
+            std::vector<int>& comp = component[c];
+            auto back = std::end(comp);
+            for (auto front = std::begin(comp); front < back; front++)
                 if (reserve(*front)) iter_swap(front, --back);
             if (comp.size()) {
                 for (int j = comp.size(); j--;) {
@@ -229,7 +228,7 @@ class components {
                     index[comp[j]] = c;
                 }
                 component_g.push_back(input_graph());
-                _num_reserved.push_back(end(comp) - back);
+                _num_reserved.push_back(std::end(comp) - back);
             } else {
                 component.resize(c);
                 break;
@@ -244,10 +243,11 @@ class components {
 
     components(const input_graph& g) : components(g, unaryint<bool>(false)) {}
 
-    components(const input_graph& g, const vector<int> reserve) : components(g, unaryint<vector<int>>(reserve)) {}
+    components(const input_graph& g, const std::vector<int> reserve)
+            : components(g, unaryint<std::vector<int>>(reserve)) {}
 
     //! Get the set of nodes in a component
-    const vector<int>& nodes(int c) const { return component[c]; }
+    const std::vector<int>& nodes(int c) const { return component[c]; }
 
     //! Get the number of connected components in the graph
     int size() const { return component_g.size(); }
@@ -262,13 +262,13 @@ class components {
     const input_graph& component_graph(int c) const { return component_g[c]; }
 
     //! Construct a neighborhood list for component c, with reserved nodes as sources
-    vector<vector<int>> component_neighbors(int c) const {
+    std::vector<std::vector<int>> component_neighbors(int c) const {
         return component_g[c].get_neighbors_sources(size(c) - num_reserved(c));
     }
 
     //! translate nodes from the input graph, to their labels in component c
     template <typename T>
-    bool into_component(const int c, T& nodes_in, vector<int>& nodes_out) const {
+    bool into_component(const int c, T& nodes_in, std::vector<int>& nodes_out) const {
         for (auto& x : nodes_in) {
             try {
                 if (index.at(x) != c) return false;
@@ -282,7 +282,7 @@ class components {
 
     //! translate nodes from labels in component c, back to their original input labels
     template <typename T>
-    void from_component(const int c, T& nodes_in, vector<int>& nodes_out) const {
+    void from_component(const int c, T& nodes_in, std::vector<int>& nodes_out) const {
         auto& comp = component[c];
         for (auto& x : nodes_in) {
             nodes_out.push_back(comp[x]);
@@ -292,15 +292,15 @@ class components {
   private:
     int __init_find(int x) {
         // NEVER CALL AFTER INITIALIZATION
-        vector<int>& parent = index;
+        std::vector<int>& parent = index;
         if (parent[x] != x) parent[x] = __init_find(parent[x]);
         return parent[x];
     }
 
     void __init_union(int x, int y) {
         // NEVER CALL AFTER INITIALIZATION
-        vector<int>& parent = index;
-        vector<int>& rank = label;
+        std::vector<int>& parent = index;
+        std::vector<int>& rank = label;
         int xroot = __init_find(x);
         int yroot = __init_find(y);
         if (xroot == yroot)
@@ -315,10 +315,10 @@ class components {
         }
     }
 
-    vector<int> index;  // NOTE: dual-purpose -- parent for the union/find; index-of-component later
-    vector<int> label;  // NOTE: dual-purpose -- rank for the union/find; label-in-component later
-    vector<int> _num_reserved;
-    vector<vector<int>> component;
-    vector<input_graph> component_g;
+    std::vector<int> index;  // NOTE: dual-purpose -- parent for the union/find; index-of-component later
+    std::vector<int> label;  // NOTE: dual-purpose -- rank for the union/find; label-in-component later
+    std::vector<int> _num_reserved;
+    std::vector<std::vector<int>> component;
+    std::vector<input_graph> component_g;
 };
 }

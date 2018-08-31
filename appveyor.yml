@@ -27,6 +27,16 @@ environment:
       PYTHON_ARCH: "64"
       CPPDEBUG: 1
 
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "32"
+      CPPDEBUG: 1
+
+    - PYTHON: "C:\\Python34-x64"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "64"
+      CPPDEBUG: 1
+
     - PYTHON: "C:\\Python35"
       PYTHON_VERSION: "3.5.x"
       PYTHON_ARCH: "32"
@@ -55,6 +65,14 @@ environment:
       PYTHON_VERSION: "2.7.x"
       PYTHON_ARCH: "64"
 
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python34-x64"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "64"
+
     - PYTHON: "C:\\Python35"
       PYTHON_VERSION: "3.5.x"
       PYTHON_ARCH: "32"
@@ -69,6 +87,14 @@ environment:
 
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.x"
+      PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python37"
+      PYTHON_VERSION: "3.7.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7.x"
       PYTHON_ARCH: "64"
 
 install:
@@ -109,7 +135,7 @@ install:
   # pip will build them from source using the MSVC compiler matching the
   # target Python version and architecture
   - if "%CPPDEBUG%" == "1" ( SET MM_BUILD_DIR=%DEBUG_MM_BUILD_DIR% ) else ( SET MM_BUILD_DIR=%TRUE_MM_BUILD_DIR%)
-  - "%CMD_IN_ENV% pip install cython==0.27"
+  - "%CMD_IN_ENV% pip install cython==0.28.4"
   - "%CMD_IN_ENV% pip install wheel setuptools --upgrade --force"
 
 
