@@ -349,7 +349,7 @@ cdef class miner:
         else:
             return rchain
 
-    def quickpass(self, varorder=None, VARORDER strategy = VARORDER_RPFS, int chainlength_bound=0, int overlap_bound = 0, bool local_search=False, bool clear_first=True):
+    def quickpass(self, varorder=None, VARORDER strategy = VARORDER_RPFS, int chainlength_bound=0, int overlap_bound = 0, bool local_search=False, bool clear_first=True, double round_beta = 1e64):
         """
         Attempts to find an embedding through a very greedy strategy:
 
@@ -393,9 +393,9 @@ cdef class miner:
                    raise ValueError, "entries of the variable ordering must be source graph labels"
                 else:
                     neworder.push_back(self._in.SL[v])
-            self.pf.quickPass(neworder, chainlength_bound, overlap_bound, local_search, clear_first)
+            self.pf.quickPass(neworder, chainlength_bound, overlap_bound, local_search, clear_first, round_beta)
         else:
-            self.pf.quickPass(strategy, chainlength_bound, overlap_bound, local_search, clear_first)
+            self.pf.quickPass(strategy, chainlength_bound, overlap_bound, local_search, clear_first, round_beta)
 
         rchain = {}
         for v in range(self.pf.num_vars()-self._in.pincount):

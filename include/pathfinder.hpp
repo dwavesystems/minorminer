@@ -44,8 +44,8 @@ class pathfinder_public_interface {
     virtual const chain &get_chain(int) const = 0;
     virtual ~pathfinder_public_interface(){};
     virtual void set_initial_chains(map<int, vector<int>>) = 0;
-    virtual void quickPass(const vector<int> &, int, int, bool, bool) = 0;
-    virtual void quickPass(VARORDER, int, int, bool, bool) = 0;
+    virtual void quickPass(const vector<int> &, int, int, bool, bool, double) = 0;
+    virtual void quickPass(VARORDER, int, int, bool, bool, double) = 0;
 };
 
 template <typename embedding_problem_t>
@@ -484,7 +484,7 @@ class pathfinder_base : public pathfinder_public_interface {
 
   public:
     virtual void quickPass(VARORDER varorder, int chainlength_bound, int overlap_bound, bool local_search,
-                           bool clear_first) {
+                           bool clear_first, double round_beta) {
         const vector<int> &vo = ep.var_order(varorder);
         if (vo.size() == 0)
             throw BadInitializationException(
@@ -492,31 +492,31 @@ class pathfinder_base : public pathfinder_public_interface {
                     "strategy first?");
 
         else
-            quickPass(vo, chainlength_bound, overlap_bound, local_search, clear_first);
+            quickPass(vo, chainlength_bound, overlap_bound, local_search, clear_first, round_beta);
     }
 
     virtual void quickPass(const vector<int> &varorder, int chainlength_bound, int overlap_bound, bool local_search,
-                           bool clear_first) {
+                           bool clear_first, double round_beta) {
         int lastsize, got;
         int old_bound = ep.weight_bound;
         ep.weight_bound = 1 + overlap_bound;
+        ep.round_beta = round_beta;
         if (clear_first) bestEmbedding = initEmbedding;
         for (auto &u : varorder) {
-            if ((lastsize = bestEmbedding.chainsize(u))) {
+            lastsize = bestEmbedding.chainsize(u);
+            if (lastsize) {
                 bestEmbedding.steal_all(u);
                 lastsize = bestEmbedding.chainsize(u);
             }
 
             bool ls = local_search;
-            if (ls && chainlength_bound && lastsize) {
+            if (ls && lastsize) {
                 for (auto &q : bestEmbedding.get_chain(u)) {
                     if (bestEmbedding.weight(q) > 1) {
                         ls = false;
                         break;
                     }
                 }
-            } else {
-                ls = static_cast<bool>(lastsize);
             }
 
             if (ls) {

@@ -231,7 +231,7 @@ class embedding_problem_base {
     //! A mutable reference to the user specified parameters
     optional_parameters &params;
 
-    double max_beta;
+    double max_beta, round_beta, bound_beta;
     distance_t weight_table[64];
 
     int initialized, embedded, desperate, target_chainsize, improved, weight_bound;
@@ -259,7 +259,7 @@ class embedding_problem_base {
     void reset_mood() {
         if (exponent_margin <= 0) throw MinorMinerException("problem has too few nodes or edges");
 
-        auto ultramax_weight = 63. - std::log2(exponent_margin);
+        auto ultramax_weight = 52. - std::log2(exponent_margin);
 
         if (ultramax_weight < 2) throw MinorMinerException("problem is too large to avoid overflow");
 
@@ -269,6 +269,8 @@ class embedding_problem_base {
             weight_bound = params.max_fill;
 
         max_beta = max(1., params.max_beta);
+        round_beta = numeric_limits<double>::max();
+        bound_beta = min(max_beta, exp2(ultramax_weight));
         initialized = embedded = desperate = target_chainsize = improved = 0;
     }
 
@@ -285,10 +287,10 @@ class embedding_problem_base {
     void populate_weight_table(int max_weight) {
         max_weight = min(63, max_weight);
         double log2base = (max_weight <= 0) ? 1 : ((63. - std::log2(exponent_margin)) / max_weight);
-        double base = min(exp2(log2base), max_beta);
+        double base = min(exp2(log2base), min(max_beta, round_beta));
         double power = 1;
         for (int i = 0; i <= max_weight; i++) {
-            weight_table[i] = std::ceil(power);
+            weight_table[i] = power;
             power *= base;
         }
         for (int i = max_weight + 1; i < 64; i++) weight_table[i] = max_distance;
