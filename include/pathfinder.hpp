@@ -341,8 +341,7 @@ class pathfinder_base : public pathfinder_public_interface {
         int q0 = min_list[ep.randint(min_list.size())];
         if (total_distance[q0] == max_distance) return 0;  // oops all qubits were overfull or unreachable
 
-        emb.construct_chain_spider(u, q0, parents, dijkstras);
-        //        emb.construct_chain(u, q0, parents);
+        emb.construct_chain_steiner(u, q0, parents, dijkstras);
         emb.flip_back(u, target_chainsize);
 
         return 1;
@@ -365,26 +364,7 @@ class pathfinder_base : public pathfinder_public_interface {
 
         for (auto &v : ep.var_neighbors(u, shuffle_first{})) {
             ep.prepare_visited(visited_list[v], u, v);
-            auto &parent = parents[v];
-            auto &pq = dijkstras[v];
-
-            pq.reset();
-            if (ep.fixed(v)) {
-                for (auto &q : emb.get_chain(v)) {
-                    parent[q] = -1;
-                    for (auto &p : ep.qubit_neighbors(q)) {
-                        if (emb.weight(p) == 0) {
-                            pq.set_value(p, 1);
-                            parent[p] = q;
-                        }
-                    }
-                }
-            } else {
-                for (auto &q : emb.get_chain(v)) {
-                    pq.set_value(q, 0);
-                    parent[q] = -1;
-                }
-            }
+            dijkstra_initialize_chain(emb, v, parents[v], dijkstras[v], embedded_tag{});
         }
         for (distance_t D = 0; D <= last_size; D++) {
             for (auto &v : ep.var_neighbors(u)) {
@@ -397,7 +377,7 @@ class pathfinder_base : public pathfinder_public_interface {
                     if (!emb.weight(q)) counts[q]++;
 
                     if (counts[q] == degree) {
-                        emb.construct_chain_spider(u, q, parents, dijkstras);
+                        emb.construct_chain_steiner(u, q, parents, dijkstras);
                         unsigned int cs = emb.chainsize(u);
                         if (cs < best_size) {
                             best_size = cs;
@@ -425,6 +405,45 @@ class pathfinder_base : public pathfinder_public_interface {
         emb.flip_back(u, target_chainsize);
     }
 
+  private:
+    struct embedded_tag {};
+    struct default_tag {};
+
+    //! this function prepares the parent & distance-priority-queue before running dijkstra's algorithm
+    //!
+    template <typename behavior_tag>
+    void dijkstra_initialize_chain(const embedding_t &emb, const int &v, vector<int> &parent, distance_queue &pq,
+                                   behavior_tag) {
+        static_assert(std::is_same<behavior_tag, embedded_tag>::value || std::is_same<behavior_tag, default_tag>::value,
+                      "unknown behavior tag");
+
+        pq.reset();
+        // scan through the qubits.
+        // * qubits in the chain of v have distance 0,
+        // * overfull qubits are tagged as visited with a special value of -1
+        if (ep.fixed(v)) {
+            for (auto &q : emb.get_chain(v)) {
+                parent[q] = -1;
+                for (auto &p : ep.qubit_neighbors(q)) {
+                    if (std::is_same<behavior_tag, embedded_tag>::value)
+                        if (emb.weight(p) == 0) {
+                            pq.set_value(p, 1);
+                            parent[p] = q;
+                        }
+                    if (std::is_same<behavior_tag, default_tag>::value) {
+                        pq.set_value(p, qubit_weight[p]);
+                        parent[p] = q;
+                    }
+                }
+            }
+        } else {
+            for (auto &q : emb.get_chain(v)) {
+                pq.set_value(q, 0);
+                parent[q] = -1;
+            }
+        }
+    }
+
   protected:
     //! run dijkstra's algorithm, seeded at the chain for `v`, using the `visited` vector
     //! note: qubits are only visited if `visited[q] = 1`.  the value `-1` is used to prevent
@@ -435,24 +454,7 @@ class pathfinder_base : public pathfinder_public_interface {
         int q;
         distance_t d;
 
-        pq.reset();
-        // scan through the qubits.
-        // * qubits in the chain of v have distance 0,
-        // * overfull qubits are tagged as visited with a special value of -1
-        if (ep.fixed(v)) {
-            for (auto &q : emb.get_chain(v)) {
-                parent[q] = -1;
-                for (auto &p : ep.qubit_neighbors(q)) {
-                    pq.set_value(p, qubit_weight[p]);
-                    parent[p] = q;
-                }
-            }
-        } else {
-            for (auto &q : emb.get_chain(v)) {
-                pq.set_value(q, 0);
-                parent[q] = -1;
-            }
-        }
+        dijkstra_initialize_chain(emb, v, parent, pq, default_tag{});
 
         for (q = num_qubits; q--;)
             if (emb.weight(q) >= ep.weight_bound) visited[q] = -1;

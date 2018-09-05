@@ -5,6 +5,8 @@
 """
 from __future__ import print_function
 from minorminer import find_embedding as find_embedding_orig
+import networkx as nx
+import dwave_networkx as dnx
 from warnings import warn
 import os
 import sys
@@ -43,12 +45,9 @@ def find_embedding(Q, A, return_overlap=False, **args):
 
 
 def check_embedding(Q, A, emb, **args):
-    from networkx import Graph, is_connected
     check_embedding.warning = None
-    Qg = Graph()
-    Ag = Graph()
-    Qg.add_edges_from(Q)
-    Ag.add_edges_from(A)
+    Qg = Q if hasattr(Q, 'edges') else nx.Graph(Q)
+    Ag = A if hasattr(A, 'edges') else nx.Graph(A)
 
     qubhits = 0
     footprint = set()
@@ -63,14 +62,14 @@ def check_embedding(Q, A, emb, **args):
             var[q] = x
         footprint.update(embx)
         qubhits += len(embx)
-        if not is_connected(Ag.subgraph(embx)):
+        if not nx.is_connected(Ag.subgraph(embx)):
             check_embedding.errcode = "broken chain for %s: (%s)" % (x, embx)
             return False
     if len(footprint) != qubhits:
         check_embedding.errcode = "overlapped chains"
         return False
 
-    Qv = Graph()
+    Qv = nx.Graph()
     for p, q in Ag.edges():
         try:
             Qv.add_edge(var[p], var[q])
@@ -95,61 +94,51 @@ def check_embedding(Q, A, emb, **args):
 
 
 def Path(n):
-    return [(i, i + 1) for i in range(n - 1)]
+    return nx.path_graph(n)
 
 
 def Grid(n):
-    return [((x, y), (x + dx, y + dy)) for a in range(n) for b in range(n - 1) for (x, y, dx, dy) in [(a, b, 0, 1), (b, a, 1, 0)]]
+    return nx.grid_2d_graph(n, n)
 
 
 def Clique(n):
-    return [(u, v) for u in range(n) for v in range(u)]
+    return nx.complete_graph(n)
 
 
 def Biclique(n):
-    return [(u, v) for u in range(n) for v in range(n, 2 * n)]
+    return nx.complete_bipartite_graph(n, n)
 
 
 def Chimera(n, l=4):
-    return [((x, y, u, k), (x + dx, y + dy, u, k))
-            for a in range(n)
-            for b in range(n - 1)
-            for k in range(l)
-            for x, y, u, dx, dy in [(b, a, 0, 1, 0), (a, b, 1, 0, 1)]
-            ] + [((x, y, 0, k), (x, y, 1, kk)) for x in range(n) for y in range(n) for k in range(l) for kk in range(l)]
+    return dnx.chimera_graph(n, n, l, coordinates=True)
 
 
 def NAE3SAT(n):
-    import networkx
     from math import ceil
     from random import seed, randint
     seed(18293447845779813366)
     c = int(ceil(sum(randint(1, ceil(n * 4.2)) for _ in range(100)) / 100.))
-    return networkx.generators.k_random_intersection_graph(c, n, 3).edges()
+    return nx.generators.k_random_intersection_graph(c, n, 3)
 
 
 def ChordalCycle(p):
-    import networkx
-    G = networkx.generators.chordal_cycle_graph(p)
+    G = nx.generators.chordal_cycle_graph(p)
     G.remove_edges_from(list(G.selfloop_edges()))
     return G.edges()
 
 
 def GeometricGraph(n, pos=None):
-    import networkx
-    G = networkx.generators.geometric.random_geometric_graph(
+    G = nx.generators.geometric.random_geometric_graph(
         n, n**-.333, dim=2, pos=pos)
-    if pos is not None:
-        for g in G:
-            if len(list(G[g])) == 0:
-                del pos[g]
-    return G.edges()
+    for g in G:
+        if G.degree(g) == 0:
+            G.add_edge(g, g)
+    return G
 
 
 def CartesianProduct(n):
-    import networkx
-    K = networkx.generators.complete_graph(n)
-    return networkx.product.cartesian_product(K, K).edges()
+    K = nx.generators.complete_graph(n)
+    return nx.product.cartesian_product(K, K)
 
 
 def GridChimeraEmbedding(n):
@@ -185,7 +174,7 @@ def success_count(n, *a, **k):
 
             @wraps(f)
             def test_run():
-                for i in range(tts):
+                for _ in range(tts):
                     if f(*a, **k):
                         break
                 else:
@@ -276,23 +265,19 @@ def success_bounce(n, *a, **k):
     return is_perfect
 
 
-def check_args(prob, hard, initial_chains=None, fixed_chains=None, restrict_chains=None, skip_initialization=False):
-    import networkx
-    probg = networkx.Graph()
-    probg.add_edges_from(prob)
+def check_args(Q, A, initial_chains=None, fixed_chains=None, restrict_chains=None, skip_initialization=False):
+    Qg = Q if hasattr(Q, 'edges') else nx.Graph(Q)
+    Ag = A if hasattr(A, 'edges') else nx.Graph(A)
 
-    hardg = networkx.Graph()
-    hardg.add_edges_from(hard)
-
-    assert networkx.is_connected(hardg), "hardware graph not connected"
-    assert networkx.is_connected(probg), "problem graph not connected"
+    assert nx.is_connected(Ag), "hardware graph not connected"
+    assert nx.is_connected(Qg), "problem graph not connected"
 
     if fixed_chains is not None:
         for v, chain in fixed_chains.items():
-            assert probg.has_node(
+            assert Qg.has_node(
                 v), "fixed_chains vars not contained in problem graph"
             for q in chain:
-                assert hardg.has_node(
+                assert Ag.has_node(
                     q), "fixed_chains chains not contained in hardware graph"
         if initial_chains is not None:
             for v in fixed_chains:
@@ -303,29 +288,29 @@ def check_args(prob, hard, initial_chains=None, fixed_chains=None, restrict_chai
 
     if initial_chains is not None:
         for v, chain in initial_chains.items():
-            assert probg.has_node(
+            assert Qg.has_node(
                 v), "initial vars not contained in problem graph"
             for q in chain:
-                assert hardg.has_node(
+                assert Ag.has_node(
                     q), "initial chains not contained in hardware graph"
         if skip_initialization:
-            for u, v in probg.edges():
+            for u, v in Qg.edges():
                 # check my git logs, this predates https://m.xkcd.com/2036/
-                edgelord = {z for q in initial_chains[v] for z in hardg.neighbors(
+                edgelord = {z for q in initial_chains[v] for z in Ag.neighbors(
                     q)} | set(initial_chains[v])
                 assert set(
                     initial_chains[u]) & edgelord, "%s and %s are connected as variables but not as initials" % (u, v)
 
     if restrict_chains is not None:
-        fullset = set(hardg.nodes())
+        fullset = set(Ag.nodes())
         for v, chain in restrict_chains.items():
-            assert probg.has_node(
+            assert Qg.has_node(
                 v), "restricted vars not contained in problem graph"
             for q in chain:
-                assert hardg.has_node(
+                assert Ag.has_node(
                     q), "restricted chains not contained in hardware graph"
-        for u, v in probg.edges():
-            edgelord = {z for q in restrict_chains.get(v, fullset) for z in hardg.neighbors(
+        for u, v in Qg.edges():
+            edgelord = {z for q in restrict_chains.get(v, fullset) for z in Ag.neighbors(
                 q)} | set(restrict_chains.get(v, fullset))
             assert set(restrict_chains.get(
                 u, fullset)) & edgelord, "%s and %s are connected as variables but not as domains" % (u, v)
@@ -341,7 +326,7 @@ def test_path_label_00(n):
 def test_path_label_01(n):
     p = Path(n)
     L = [str(i) for i in range(n)]
-    Lp = [(L[x], L[y]) for x, y in p]
+    Lp = [(L[x], L[y]) for x, y in p.edges()]
     return find_embedding(p, Lp)
 
 
@@ -349,7 +334,7 @@ def test_path_label_01(n):
 def test_path_label_10(n):
     p = Path(n)
     L = [str(i) for i in range(n)]
-    Lp = [(L[x], L[y]) for x, y in p]
+    Lp = [(L[x], L[y]) for x, y in p.edges()]
     return find_embedding(Lp, p)
 
 
@@ -357,7 +342,7 @@ def test_path_label_10(n):
 def test_path_label_11(n):
     p = Path(n)
     L = [str(i) for i in range(n)]
-    Lp = [(L[x], L[y]) for x, y in p]
+    Lp = [(L[x], L[y]) for x, y in p.edges()]
     return find_embedding(Lp, Lp)
 
 
@@ -378,7 +363,6 @@ def test_grid_init_restrict(n):
 
 @success_count(30, 3)
 def test_grid_init(n):
-    from random import choice
     chim = Chimera(n, l=4)
     mask = mask_wxw(n, 1, l=2)
     grid = Grid(2 * n)
@@ -391,7 +375,6 @@ def test_grid_init(n):
 
 @success_count(30, 15, 7)
 def test_nae3sat(n, m):
-    from random import choice
     chim = Chimera(m)
     prob = NAE3SAT(n)
 
@@ -457,7 +440,6 @@ def test_grid_restrict(n):
 @success_perfect(100, 4)
 def test_grid_with_answer_fast(n):
     chim = Chimera(n)
-    mask = mask_wxw(n, 1)
     grid = Grid(2 * n)
 
     init = GridChimeraEmbedding(2 * n)
@@ -470,7 +452,6 @@ def test_grid_with_answer_fast(n):
 @success_perfect(100, 2)
 def test_grid_with_answer_slow(n):
     chim = Chimera(n)
-    mask = mask_wxw(n, 1)
     grid = Grid(2 * n)
 
     init = GridChimeraEmbedding(2 * n)
@@ -491,9 +472,12 @@ def test_grid_suspend(n):
     suspc = [((x, y, 0), m) for x in range(n)
              for y in range(n) for m in mask[x, y]]
 
+    chim.add_edges_from(suspc)
+    grid.add_edges_from(suspg)
+
     suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
 
-    return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, chainlength_patience=0)
+    return find_embedding(grid, chim, fixed_chains=suspension, chainlength_patience=0)
 
 
 @success_count(30, 5)
@@ -507,11 +491,14 @@ def test_grid_plant_suspend(n):
     suspc = [(m, (x, y, 0)) for x in range(n)
              for y in range(n) for m in mask[x, y]]
 
+    chim.add_edges_from(suspc)
+    grid.add_edges_from(suspg)
+
     suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
     init = {(x, y): mask[x // 2, y // 2]
             for x in range(2 * n) for y in range(2 * n)}
 
-    return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, initial_chains=init, chainlength_patience=0)
+    return find_embedding(grid, chim, fixed_chains=suspension, initial_chains=init, chainlength_patience=0)
 
 
 @success_count(30, 5)
@@ -537,14 +524,17 @@ def test_grid_suspend_domain(n):
     suspc = [((x, y, 0), m) for x in range(n)
              for y in range(n) for m in mask[x, y]]
 
+    chim.add_edges_from(suspc)
+    grid.add_edges_from(suspg)
+
     suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
     doms = {(x, y): mask[x // 2, y // 2]
             for x in range(2 * n) for y in range(2 * n)}
 
-    check_args(grid + suspg, chim + suspc, fixed_chains=suspension,
+    check_args(grid, chim, fixed_chains=suspension,
                skip_initialization=False, restrict_chains=doms)
 
-    return find_embedding(grid + suspg, chim + suspc, fixed_chains=suspension, restrict_chains=doms, chainlength_patience=0)
+    return find_embedding(grid, chim, fixed_chains=suspension, restrict_chains=doms, chainlength_patience=0)
 
 
 @success_count(30, 5)
@@ -607,10 +597,10 @@ def test_clique_parallel(n, k):
 def test_clique_term(n, k):
     chim = Chimera(n)
     cliq = Clique(k)
-    cterm = [((n // 2, n // 2, 0, 0), k)]
-    kterm = [(0, k)]
+    chim.add_edge((n // 2, n // 2, 0, 0), k)
+    cliq.add_edge(0, k)
     fix = {k: [k]}
-    return find_embedding(cliq + kterm, chim + cterm, fixed_chains=fix, chainlength_patience=0)
+    return find_embedding(cliq, chim, fixed_chains=fix, chainlength_patience=0)
 
 
 @success_count(30, 8)
@@ -619,7 +609,7 @@ def test_grid_heal_A(n):
     grid = Grid(2 * n)
     chim = Chimera(n + 2)
     breaks = {(x, x, x % 2, randint(0, 3)) for x in range(1, 4)}
-    chim = [e for e in chim if not breaks.intersection(e)]
+    chim = [e for e in chim.edges() if not breaks.intersection(e)]
 
     emb = GridChimeraEmbedding(2 * n)
     i_emb = {}
@@ -639,14 +629,13 @@ def test_grid_heal_B(n):
     chim = Chimera(n + 2)
     breaks = {(x, x, x % 2, randint(0, 3)) for x in range(1, 4)}
 
-    chim = [e for e in chim]
-    chimb = [(b, (b, None)) for b in breaks]
-    gridb = [(b, (b, None)) for b in breaks]
+    chim.add_edges_from((b, (b, None)) for b in breaks)
+    grid.add_edges_from((b, (b, None)) for b in breaks)
     f_emb = {(b, None): [(b, None)] for b in breaks}
 
     emb = GridChimeraEmbedding(2 * n)
 
-    return find_embedding(grid + gridb, chim + chimb, initial_chains=emb, fixed_chains=f_emb, chainlength_patience=0)
+    return find_embedding(grid, chim, initial_chains=emb, fixed_chains=f_emb, chainlength_patience=0)
 
 
 @success_perfect(1000, 3)
@@ -695,8 +684,8 @@ def test_isolated_variables_as_if_that_was_smart():
     # that's not what's happening here
     C = Chimera(4)
     K = Clique(16)
-    K += zip(range(16, 32), range(16, 32))
-    C += zip(range(16, 32), range(16, 32))
+    K.add_edges_from((x, x) for x in range(16, 32))
+    C.add_edges_from((x, x) for x in range(16, 32))
     return find_embedding(K, C, tries=1, chainlength_patience=0)
 
 
@@ -707,9 +696,9 @@ def test_qubit_components():
     from random import randint
     C = Chimera(4)
     for _ in range(50):
-        C.append((randint(0, 100), randint(0, 100)))
+        C.add_edge(randint(0, 100), randint(0, 100))
     K = Clique(16)
-    K += zip(range(16, 32), range(16, 32))
+    K.add_edges_from((x, x) for x in range(16, 32))
     return find_embedding(K, C, tries=1, chainlength_patience=0)
 
 
@@ -718,7 +707,7 @@ def test_variable_components():
     # embed two problems at once?  why not
     C = Chimera(4)
     K = Clique(8)
-    K += [(u+8, v+8) for u, v in K]
+    K.add_edges_from([(u+8, v+8) for u, v in K.edges()])
     return find_embedding(K, C, tries=1, chainlength_patience=0)
 
 
@@ -726,7 +715,7 @@ def test_variable_components():
 def test_variable_components_many():
     from random import randint
     C = Chimera(8)
-    K = [(randint(0, 128), randint(0, 128)) for i in range(64)]
+    K = [(randint(0, 128), randint(0, 128)) for _ in range(64)]
     return find_embedding(K, C, tries=1, chainlength_patience=0)
 
 

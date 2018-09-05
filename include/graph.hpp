@@ -221,7 +221,7 @@ class components {
             std::vector<int>& comp = component[c];
             auto back = std::end(comp);
             for (auto front = std::begin(comp); front < back; front++)
-                if (reserve(*front)) iter_swap(front, --back);
+                while (front < back && reserve(*front)) iter_swap(front, --back);
             if (comp.size()) {
                 for (int j = comp.size(); j--;) {
                     label[comp[j]] = j;

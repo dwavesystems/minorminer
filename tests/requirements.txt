@@ -1,4 +1,4 @@
 cython
-
+dwave_networkx>=0.6.2
 networkx>=2.0
 nose>=1.3
