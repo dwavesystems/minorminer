@@ -321,7 +321,7 @@ class chain {
         minorminer_assert(other.get_link(label) == -1);
         int p = parents[q];
         if (other.count(q) == 1) {
-            q = p;
+            p = q;
         } else {
             while (other.count(p) == 0) {
                 if (count(p))
