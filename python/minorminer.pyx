@@ -40,7 +40,7 @@ This implementation adds several useful features:
 [1] https://arxiv.org/abs/1406.2741
 """
 include "minorminer.pxi"
-import os
+import os, networkx
 
 def find_embedding(S, T, **params):
     """
@@ -49,9 +49,9 @@ def find_embedding(S, T, **params):
 
     Args::
 
-        S: an iterable of label pairs representing the edges in the source graph
+        S: an iterable of label pairs representing the edges in the source graph, or a NetworkX Graph
 
-        T: an iterable of label pairs representing the edges in the target graph
+        T: an iterable of label pairs representing the edges in the target graph, or a NetworkX Graph
 
         **params (optional): see below
 
@@ -566,6 +566,8 @@ cdef int _get_chainmap(C, chainmap &CMap, SL, TL, parameter) except -1:
 
 cdef _read_graph(input_graph &g, E):
     cdef labeldict L = labeldict()
+    if hasattr(E, 'edges'):
+        E = E.edges()
     for a,b in E:
         g.push_back(L[a],L[b])
     return L

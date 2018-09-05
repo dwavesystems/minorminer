@@ -174,8 +174,16 @@ class embedding {
         DIAGNOSE("construct_chain")
     }
 
-    void construct_chain_spider(const int u, const int q, const vector<vector<int>> &parents,
-                                const vector<distance_queue> &dijkstras) {
+    //! construct the chain for `u`, rooted at `q`.  for the first neighbor `v` of `u`,
+    //! we follow the parents until we terminate in the chain for `v`
+    //!    `q` -> `parents[v][q]` -> ....
+    //! adding all but the last node to the chain of `u`.  for each subsequent neighbor `w`,
+    //! we pick a nearest Steiner node, `qw`, from the current chain of `u`, and add
+    //! the path starting at `qw`, similar to the above...
+    //!    `qw` -> `parents[w][qw]` -> ...
+    //! this has an opportunity to make shorter chains than `construct_chain`
+    void construct_chain_steiner(const int u, const int q, const vector<vector<int>> &parents,
+                                 const vector<distance_queue> &dijkstras) {
         var_embedding[u].set_root(q);
         for (auto &v : ep.var_neighbors(u)) {
             if (chainsize(v)) {
@@ -193,7 +201,7 @@ class embedding {
                 var_embedding[u].link_path(var_embedding[v], qv, parents[v]);
             }
         }
-        DIAGNOSE("construct_chain_spder")
+        DIAGNOSE("construct_chain_steiner")
     }
 
     //! distribute path segments to the neighboring chains -- path segments are the qubits

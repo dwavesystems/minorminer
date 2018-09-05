@@ -259,10 +259,11 @@ class embedding_problem_base {
 
     virtual ~embedding_problem_base() {}
 
+    //! resets some internal, ephemeral, variables to a default state
     void reset_mood() {
         if (exponent_margin <= 0) throw MinorMinerException("problem has too few nodes or edges");
 
-        auto ultramax_weight = 52. - std::log2(exponent_margin);
+        auto ultramax_weight = 63. - std::log2(exponent_margin);
 
         if (ultramax_weight < 2) throw MinorMinerException("problem is too large to avoid overflow");
 
@@ -278,6 +279,7 @@ class embedding_problem_base {
     }
 
   private:
+    //! computes an upper bound on the distances computed during tearout & replace
     int compute_margin() {
         auto max_degree =
                 (*std::max_element(begin(var_nbrs), end(var_nbrs), [](const vector<int> &a, const vector<int> &b) {
@@ -287,6 +289,8 @@ class embedding_problem_base {
     }
 
   public:
+    //! precomputes a table of weights corresponding to various overlap values `c`,
+    //! for `c` from 0 to `max_weight`, inclusive.
     void populate_weight_table(int max_weight) {
         max_weight = min(63, max_weight);
         double log2base = (max_weight <= 0) ? 1 : ((63. - std::log2(exponent_margin)) / max_weight);
@@ -299,6 +303,7 @@ class embedding_problem_base {
         for (int i = max_weight + 1; i < 64; i++) weight_table[i] = max_distance;
     }
 
+    //! returns the precomputed weight associated with an overlap value of `c`
     distance_t weight(unsigned int c) const {
         if (c >= 64)
             return max_distance;
@@ -483,7 +488,7 @@ class embedding_problem : public embedding_problem_base,
     using ep_t = embedding_problem_base;
     using fh_t = fixed_handler;
     using dh_t = domain_handler;
-    using oh_t = domain_handler;
+    using oh_t = output_handler;
 
   public:
     embedding_problem(optional_parameters &p, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
