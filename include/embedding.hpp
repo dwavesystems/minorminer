@@ -175,9 +175,9 @@ class embedding {
     }
 
     void construct_chain_spider(const int u, const int q, const vector<vector<int>> &parents,
-                                const vector<distance_queue> &dijkstras, vector<int> &nbrs) {
+                                const vector<distance_queue> &dijkstras) {
         var_embedding[u].set_root(q);
-        for (auto &v : nbrs) {
+        for (auto &v : ep.var_neighbors(u)) {
             if (chainsize(v)) {
                 int qv = q;
                 distance_t dqv = dijkstras[v].get_value(q);
