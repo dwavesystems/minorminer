@@ -134,7 +134,19 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-
+# Configuration for intersphinx.
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
+    'dimod': ('https://docs.ocean.dwavesys.com/projects/dimod/en/latest/', None),
+    'binarycsp': ('https://docs.ocean.dwavesys.com/projects/binarycsp/en/latest/', None),
+    'cloud-client': ('https://docs.ocean.dwavesys.com/projects/cloud-client/en/latest/', None),
+    'neal': ('https://docs.ocean.dwavesys.com/projects/neal/en/latest/', None),
+    'networkx': ('https://docs.ocean.dwavesys.com/projects/dwave-networkx/en/latest/', None),
+    'system': ('https://docs.ocean.dwavesys.com/projects/system/en/latest/', None),
+    'penaltymodel': ('https://docs.ocean.dwavesys.com/projects/penaltymodel/en/latest/', None),
+    'minorminer': ('https://docs.ocean.dwavesys.com/projects/minorminer/en/latest/', None),
+    'qbsolv': ('https://docs.ocean.dwavesys.com/projects/qbsolv/en/latest/', None),
+    'oceandocs': ('https://docs.ocean.dwavesys.com/en/latest/', None),
+    'sysdocs_gettingstarted': ('https://docs.dwavesys.com/docs/latest/', None)}
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
