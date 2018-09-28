@@ -7,8 +7,8 @@
 .. image:: https://coveralls.io/repos/github/dwavesystems/minorminer/badge.svg?branch=master
     :target: https://coveralls.io/github/dwavesystems/minorminer?branch=master
 
-.. image:: http://readthedocs.org/projects/minorminer/badge/?version=latest
-    :target: http://minorminer.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.com/projects/d-wave-systems-minorminer/badge/?version=latest
+    :target: https://docs.ocean.dwavesys.com/projects/minorminer/en/latest/?badge=latest
 
 .. image:: https://circleci.com/gh/dwavesystems/minorminer.svg?style=svg
     :target: https://circleci.com/gh/dwavesystems/minorminer
