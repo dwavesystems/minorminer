@@ -42,6 +42,15 @@ namespace find_embedding {
 //!            both parents and links
 //!     the chain root is its own parent.
 
+struct frozen_chain {
+    unordered_map<int, pair<int, int>> data;
+    unordered_map<int, int> links;
+    void clear() {
+        data.clear();
+        links.clear();
+    }
+};
+
 class chain {
   private:
     vector<int> &qubit_weight;
@@ -217,6 +226,46 @@ class chain {
         return fetch(q).second;
     }
 
+    //! store this chain into a `frozen_chain`, unlink all chains from
+    //! this, and clear()
+    inline int freeze(vector<chain> &others, frozen_chain &keep) {
+        keep.clear();
+        for (auto &v_p : links) {
+            keep.links.emplace(v_p);
+            int v = v_p.first;
+            if (v != label) {
+                minorminer_assert(0 <= v && v < others.size());
+                int q = others[v].drop_link(label);
+                keep.links.emplace(-v - 1, q);
+            }
+        }
+        links.clear();
+        for (auto &q : *this) qubit_weight[q]--;
+        keep.data.swap(data);
+        minorminer_assert(size() == 0);
+        DIAGNOSE("freeze");
+        return keep.data.size();
+    }
+
+    //! restore a `frozen_chain` into this, re-establishing links
+    //! from other chains.  precondition: this is empty.
+    inline void thaw(vector<chain> &others, frozen_chain &keep) {
+        minorminer_assert(size() == 0);
+        keep.data.swap(data);
+        for (auto &q : *this) qubit_weight[q]++;
+        for (auto &v_p : keep.links) {
+            int v = v_p.first;
+            if (v >= 0) {
+                links.emplace(v_p);
+            } else {
+                v = -v - 1;
+                minorminer_assert(0 <= v && v < others.size());
+                others[v].set_link(label, v_p.second);
+            }
+        }
+        DIAGNOSE("thaw");
+    }
+
     //! assumes `this` and `other` have links for eachother's labels
     //! steals all qubits from `other` which are available to be taken
     //! by `this`; starting with the qubit links and updating qubit
@@ -271,8 +320,8 @@ class chain {
         minorminer_assert(links.count(other.label) == 0);
         minorminer_assert(other.get_link(label) == -1);
         int p = parents[q];
-        if (other.count(q) == 1) {
-            q = p;
+        if (p == -1) {
+            p = q;
         } else {
             while (other.count(p) == 0) {
                 if (count(p))

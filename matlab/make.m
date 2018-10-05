@@ -1,1 +1,1 @@
-mex find_embedding.cpp -I../include CXXFLAGS="-std=c++11 -fPIC -O0" -lut -largeArrayDims -v
+mex find_embedding.cpp -I../include CXXFLAGS="-std=c++1y -fPIC -O3" -lut -largeArrayDims -v

@@ -1,7 +1,8 @@
+from libcpp cimport bool
 from libcpp.vector cimport vector
-from libcpp.set cimport set
 from libcpp.map cimport map
 from libcpp.pair cimport pair
+from libc.stdint cimport uint8_t, uint64_t
 
 ctypedef pair[int,int] intpair
 ctypedef pair[intpair, int] intpairint
@@ -25,6 +26,9 @@ cdef extern from "<memory>" namespace "std":
         shared_ptr() nogil
         void reset(T*)
 
+    cdef cppclass unique_ptr[T]:
+        unique_ptr() nogil
+
 cdef extern from "<random>" namespace "std":
     cdef cppclass default_random_engine:
         pass
@@ -42,15 +46,37 @@ cdef extern from "../include/pairing_queue.hpp" namespace "pairing_queue":
     cppclass pairing_queue_fast_reset
 
 cdef extern from "../include/pathfinder.hpp" namespace "find_embedding":
-    cppclass pathfinder
+    cppclass pathfinder_public_interface
 
 cdef extern from "../include/embedding_problem.hpp" namespace "find_embedding":
-    pass
+    cpdef enum VARORDER:
+        VARORDER_SHUFFLE = 0
+        VARORDER_DFS = 1
+        VARORDER_BFS = 2
+        VARORDER_PFS = 3
+        VARORDER_RPFS = 4
+        VARORDER_KEEP = 5
+
+    cppclass parameter_processor:
+        int num_vars
+        optional_parameters params
 
 cdef extern from "../include/embedding.hpp" namespace "find_embedding":
     pass
 
 cdef extern from "../include/chain.hpp" namespace "find_embedding":
+    cppclass pathfinder_wrapper:
+        pathfinder_wrapper()
+        parameter_processor pp
+        unique_ptr[pathfinder_public_interface] pf
+        pathfinder_wrapper(input_graph &, input_graph &, optional_parameters &)
+        int heuristicEmbedding()
+        int num_vars()
+        void get_chain(int, vector[int] &)
+        void set_initial_chains(chainmap &)
+        void quickPass(const vector[int] &, int, int, bool, bool, double)
+        void quickPass(VARORDER, int, int, bool, bool, double)
+
     cppclass chain:
         chain(vector[int] &w, int l)
         inline int size() const 
@@ -85,12 +111,13 @@ cdef extern from "../include/util.hpp" namespace "find_embedding":
 
     cppclass optional_parameters:
         optional_parameters()
-        void seed(unsigned int)
+        void seed(uint64_t)
 
         LocalInteractionPtr localInteractionPtr
         int max_no_improvement
         default_random_engine rng
         double timeout
+        double max_beta
         int tries
         int verbose
         int inner_rounds

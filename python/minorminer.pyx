@@ -40,23 +40,22 @@ This implementation adds several useful features:
 [1] https://arxiv.org/abs/1406.2741
 """
 include "minorminer.pxi"
-from random import randint
-
+import os, networkx
 
 def find_embedding(S, T, **params):
     """
     find_embedding(S, T, **params)
     Heuristically attempt to find a minor-embedding of a graph representing an Ising/QUBO into a target graph.
 
-    Args:
+    Args::
 
-        S: an iterable of label pairs representing the edges in the source graph
+        S: an iterable of label pairs representing the edges in the source graph, or a NetworkX Graph
 
-        T: an iterable of label pairs representing the edges in the target graph
+        T: an iterable of label pairs representing the edges in the target graph, or a NetworkX Graph
 
         **params (optional): see below
 
-    Returns:
+    Returns::
 
         When return_overlap = False (the default), returns a dict that maps labels in S to lists of labels in T
 
@@ -79,6 +78,11 @@ def find_embedding(S, T, **params):
         timeout: Algorithm gives up after timeout seconds. Number >= 0 (default
             is approximately 1000 seconds, stored as a double)
 
+        max_beta: Qubits are assigned weight according to a formula (beta^n)
+            where n is the number of chains containint that qubit.  This value
+            should never be less than or equal to 1. (default is effectively
+            infinite, stored as a double)
+
         tries: Number of restart attempts before the algorithm stops. On
             D-WAVE 2000Q, a typical restart takes between 1 and 60 seconds.
             Integer >= 0 (default = 10)
@@ -93,8 +97,8 @@ def find_embedding(S, T, **params):
             to all its neighbours. Integer >= 0 (default = 10)
 
         max_fill: Restricts the number of chains that can simultaneously
-            incorporate the same qubit during the search. Integer >= 0 (default
-            = effectively infinite)
+            incorporate the same qubit during the search. Integer >= 0, values
+            above 63 are treated as 63 (default = effectively infinite)
 
         threads: Maximum number of threads to use. Note that the
             parallelization is only advantageous where the expected degree of
@@ -184,142 +188,371 @@ def find_embedding(S, T, **params):
                 * add the edge (i,Zij) to the source graph
                 * add the edges (q,Zij) to the target graph for each q in blob_j
     """
-
+    cdef _input_parser _in
+    _in = _input_parser(S, T, params)
 
     cdef vector[int] chain
-
-    cdef optional_parameters opts
-    opts.localInteractionPtr.reset(new LocalInteractionPython())
-
-    names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
-             "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
-             "return_overlap", "skip_initialization", "inner_rounds", "threads",
-             "restrict_chains", "suspend_chains"}
-
-    for name in params:
-        if name not in names:
-            raise ValueError("%s is not a valid parameter for find_embedding"%name)
-
-    try: opts.max_no_improvement = int( params["max_no_improvement"] )
-    except KeyError: pass
-
-    try: opts.skip_initialization = int( params["skip_initialization"] )
-    except KeyError: pass
-
-    try: opts.chainlength_patience = int( params["chainlength_patience"] )
-    except KeyError: pass
-
-    try: opts.seed( int(params["random_seed"]) )
-    except KeyError: opts.seed( randint(0,1<<30) )
-
-    try: opts.tries = int(params["tries"])
-    except KeyError: pass
-
-    try: opts.verbose = int(params["verbose"])
-    except KeyError: pass
-
-    try: opts.inner_rounds = int(params["inner_rounds"])
-    except KeyError: pass
-
-    try: opts.timeout = float(params["timeout"])
-    except KeyError: pass
-
-    try: opts.return_overlap = int(params["return_overlap"])
-    except KeyError: pass
-
-    try: opts.max_fill = int(params["max_fill"])
-    except KeyError: pass
-
-    try: opts.threads = int(params["threads"])
-    except KeyError: pass
-
-    cdef input_graph Sg
-    cdef input_graph Tg
-
-    cdef labeldict SL = _read_graph(Sg,S)
-    cdef labeldict TL = _read_graph(Tg,T)
-
-    cdef int checkT = len(TL)
-    cdef int checkS = len(SL)
-
-    cdef int pincount = 0
-    cdef int nonempty
-    cdef dict fixed_chains = params.get("fixed_chains", {})
-    if "suspend_chains" in params:
-        suspend_chains = params["suspend_chains"]
-        for v, blobs in suspend_chains.items():
-            for i,blob in enumerate(blobs):
-                nonempty = 0
-                pin = "__MINORMINER_INTERNAL_PIN_FOR_SUSPENSION", v, i
-                if pin in SL:
-                    raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your source graph"%(pin,))
-                if pin in TL:
-                    raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your target graph"%(pin,))
-
-                for q in blob:
-                    Tg.push_back(TL[pin], TL[q])
-                    nonempty = 1
-                if nonempty:
-                    pincount += 1
-                    fixed_chains[pin] = [pin]
-                    Sg.push_back(SL[v], SL[pin])
-
-    if checkS+pincount < len(SL):
-        raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
-    if checkT+pincount < len(TL):
-        raise RuntimeError("suspend_chains use target node labels that weren't referred to by any edges")
-
-    checkS += pincount
-    checkT += pincount
-
-    _get_chainmap(fixed_chains, opts.fixed_chains, SL, TL)
-    if checkS < len(SL):
-        raise RuntimeError("fixed_chains use source node labels that weren't referred to by any edges")
-    if checkT < len(TL):
-        raise RuntimeError("fixed_chains use target node labels that weren't referred to by any edges")
-    _get_chainmap(params.get("initial_chains",[]), opts.initial_chains, SL, TL)
-    if checkS < len(SL):
-        raise RuntimeError("initial_chains use source node labels that weren't referred to by any edges")
-    if checkT < len(TL):
-        raise RuntimeError("initial_chains use target node labels that weren't referred to by any edges")
-    _get_chainmap(params.get("restrict_chains",[]), opts.restrict_chains, SL, TL)
-    if checkS < len(SL):
-        raise RuntimeError("restrict_chains use source node labels that weren't referred to by any edges")
-    if checkT < len(TL):
-        raise RuntimeError("restrict_chains use target node labels that weren't referred to by any edges")
-
     cdef vector[vector[int]] chains
-    cdef int success = findEmbedding(Sg, Tg, opts, chains)
+    cdef int success = findEmbedding(_in.Sg, _in.Tg, _in.opts, chains)
 
     cdef int nc = chains.size()
 
     rchain = {}
-    for v in range(nc-pincount):
-        chain = chains[v]
-        rchain[SL.label(v)] = [TL.label(z) for z in chain]
+    if chains.size():
+        for v in range(nc-_in.pincount):
+            chain = chains[v]
+            rchain[_in.SL.label(v)] = [_in.TL.label(z) for z in chain]
 
-    if opts.return_overlap:
+    if _in.opts.return_overlap:
         return rchain, success
     else:
         return rchain
 
-cdef int _get_chainmap(C, chainmap &CMap, SL, TL) except -1:
+cdef class _input_parser:
+    cdef input_graph Sg, Tg
+    cdef labeldict SL, TL
+    cdef optional_parameters opts
+    cdef int pincount
+    def __init__(self, S, T, params):
+        cdef uint64_t *seed
+        cdef vector[int] chain
+
+        self.opts.localInteractionPtr.reset(new LocalInteractionPython())
+
+        names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
+                 "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
+                 "return_overlap", "skip_initialization", "inner_rounds", "threads",
+                 "restrict_chains", "suspend_chains", "max_beta"}
+
+        for name in params:
+            if name not in names:
+                raise ValueError("%s is not a valid parameter for find_embedding"%name)
+
+        try: self.opts.max_no_improvement = int( params["max_no_improvement"] )
+        except KeyError: pass
+
+        try: self.opts.skip_initialization = int( params["skip_initialization"] )
+        except KeyError: pass
+
+        try: self.opts.chainlength_patience = int( params["chainlength_patience"] )
+        except KeyError: pass
+
+        try: self.opts.seed( long(params["random_seed"]) )
+        except KeyError:
+            seed_obj = os.urandom(sizeof(uint64_t))
+            seed = <uint64_t *>(<void *>(<uint8_t *>(seed_obj)))
+            self.opts.seed(seed[0])
+
+        try: self.opts.tries = int(params["tries"])
+        except KeyError: pass
+
+        try: self.opts.verbose = int(params["verbose"])
+        except KeyError: pass
+
+        try: self.opts.inner_rounds = int(params["inner_rounds"])
+        except KeyError: pass
+
+        try: self.opts.timeout = float(params["timeout"])
+        except KeyError: pass
+
+        try: self.opts.max_beta = float(params["max_beta"])
+        except KeyError: pass
+
+        try: self.opts.return_overlap = int(params["return_overlap"])
+        except KeyError: pass
+
+        try: self.opts.max_fill = int(params["max_fill"])
+        except KeyError: pass
+
+        try: self.opts.threads = int(params["threads"])
+        except KeyError: pass
+
+        self.SL = _read_graph(self.Sg, S)
+        self.TL = _read_graph(self.Tg, T)
+
+        pincount = 0
+        cdef int nonempty
+        cdef dict fixed_chains = params.get("fixed_chains", {})
+        if "suspend_chains" in params:
+            suspend_chains = params["suspend_chains"]
+            for v, blobs in suspend_chains.items():
+                for i,blob in enumerate(blobs):
+                    nonempty = 0
+                    pin = "__MINORMINER_INTERNAL_PIN_FOR_SUSPENSION", v, i
+                    if pin in self.SL:
+                        raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your source graph"%(pin,))
+                    if pin in self.TL:
+                        raise ValueError("node label %s is a special value used by the suspend_chains feature; please relabel your target graph"%(pin,))
+
+                    for q in blob:
+                        if q in self.TL:
+                            self.Tg.push_back(self.TL[pin], self.TL[q])
+                        else:
+                            raise RuntimeError("suspend_chains use target node labels that weren't referred to by any edges")
+                        nonempty = 1
+                    if nonempty:
+                        pincount += 1
+                        fixed_chains[pin] = [pin]
+                        if v in self.SL:
+                            self.Sg.push_back(self.SL[v], self.SL[pin])
+                        else:
+                            raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
+
+        _get_chainmap(fixed_chains, self.opts.fixed_chains, self.SL, self.TL, "fixed_chains")
+        _get_chainmap(params.get("initial_chains",[]), self.opts.initial_chains, self.SL, self.TL, "initial_chains")
+        _get_chainmap(params.get("restrict_chains",[]), self.opts.restrict_chains, self.SL, self.TL, "restrict_chains")
+
+
+
+cdef class miner:
+    """
+    A class for higher-level algorithms based on the heuristic embedding algorithm components.
+
+    Args::
+
+        S: an iterable of label pairs representing the edges in the source graph
+
+        T: an iterable of label pairs representing the edges in the target graph
+
+        **params (optional): see documentation of minorminer.find_embedding
+
+    """
+    cdef _input_parser _in
+    cdef bool quickpassed
+    cdef pathfinder_wrapper *pf
+    def __cinit__(self, S, T, **params):
+        self._in = _input_parser(S, T, params)
+        self.quickpassed = False
+        self.pf = new pathfinder_wrapper(self._in.Sg, self._in.Tg, self._in.opts)
+
+    def __dealloc__(self):
+        del self.pf
+
+    def find_embedding(self):
+        """
+        Finds a single embedding, and returns it.  If the state of this object has not been changed,
+        this is equivalent to calling `minorminer.find_embedding(S, T, **params)` where S, T, and
+        params were all set during the construction of this object.
+
+        Returns::
+
+            When return_overlap = False (the default), returns a dict that maps labels in S to lists of labels in T
+
+            When return_overlap = True, returns a tuple consisting of a dict that maps labels in S to lists of labels in T and a bool indicating whether or not a valid embedding was foun
+        """
+        cdef int i, success = self.pf.heuristicEmbedding()
+        cdef vector[int] chain
+
+        rchain = {}
+        if self._in.opts.return_overlap or success:
+            for v in range(self.pf.num_vars()-self._in.pincount):
+                chain.clear()
+                self.pf.get_chain(v, chain)
+                rchain[self._in.SL.label(v)] = [self._in.TL.label(z) for z in chain]
+
+        if self._in.opts.return_overlap:
+            return rchain, success
+        else:
+            return rchain
+
+    def quickpass(self, varorder=None, VARORDER strategy = VARORDER_RPFS, int chainlength_bound=0, int overlap_bound = 0, bool local_search=False, bool clear_first=True, double round_beta = 1e64):
+        """
+        Attempts to find an embedding through a very greedy strategy:
+
+            if clear_first:
+                set embedding to miner's initial_chains parameter
+            else:
+                recall embedding from miner's internal state
+
+            for each node (in the variable order, if provided):
+                attempt to find a new embedding of that node
+                if the attempt produces a chain, record it (unless, optionaly, the chain is above the chainlength bound)
+
+        Args::
+
+            varorder: list (default None), a list of source graph node labels
+
+            strategy: VARORDER (default VARORDER_RPFS), a variable ordering strategy from the enum type minorminer.VARORDER
+
+            chainlength_bound: int (default 0), if nonzero, this is the maximum allowable chainlength
+
+            overlap_bound: int (default 0), this is the maximum overlap count at any given qubit (zero means resulting chains will
+                be properly embedded)
+
+            local_search: bool (default False), if True, use a localized chain search and try harder to find short chains.  this
+                is much faster in many cases
+
+            clear_first: bool (default True), if True, re-initialize the embedding in the miner's internal state.
+                note, on the very first call to quickpass, this parameter is ignored and set to True
+
+        """
+        cdef vector[int] neworder
+        cdef vector[int] chain
+
+        if not self.quickpassed:
+            clear_first = True
+            self.quickpassed = True
+
+        if varorder is not None:
+            for v in varorder:
+                if v not in self._in.SL:
+                   raise ValueError, "entries of the variable ordering must be source graph labels"
+                else:
+                    neworder.push_back(self._in.SL[v])
+            self.pf.quickPass(neworder, chainlength_bound, overlap_bound, local_search, clear_first, round_beta)
+        else:
+            self.pf.quickPass(strategy, chainlength_bound, overlap_bound, local_search, clear_first, round_beta)
+
+        rchain = {}
+        for v in range(self.pf.num_vars()-self._in.pincount):
+            chain.clear()
+            self.pf.get_chain(v, chain)
+            if chain.size():
+                rchain[self._in.SL.label(v)] = [self._in.TL.label(z) for z in chain]
+        return rchain
+
+    def find_embeddings(self, int n, bool force = False):
+        """
+        Finds n embeddings, and returns them.
+
+        Args::
+
+            n: int, the number of embeddings to find
+
+            force: bool, whether or not to retry failed embeddings until n successes are counted
+
+        Returns::
+
+            a list of embeddings (which may have overlaps if return_overlap is True)
+
+        """
+
+        embs = []
+
+        while n > 0:
+            emb = self.find_embedding()
+            if isinstance(emb, tuple):
+                emb = emb[0]
+                succ = 1
+            else:
+                succ = len(emb)
+            if succ:
+                embs.append(emb)
+            if succ or not force:
+                n -= 1
+        return embs
+
+    def set_initial_chains(self, emb):
+        """
+        Update the initial chains.
+
+        Args::
+            emb: dict, the new set of chains to initialize embedding algorithms with
+
+        """
+
+        cdef chainmap c = chainmap()
+        _get_chainmap(emb, c, self._in.SL, self._in.TL, "initial_chains")
+        self.pf.set_initial_chains(c)
+
+    def improve_embeddings(self, list embs):
+        """
+        For each embedding in the input,
+            * update the initial_chains parameter in this object, and
+            * compute a new embedding with that initialization
+
+        Args::
+
+            embs: list of dicts
+
+        Returns::
+
+            a list of embeddings with the same length as embs.  note, embeddings may have overlaps if return_overlap is True
+
+        """
+        cdef int n = len(embs)
+        cdef list _embs = []
+        for i in range(len(embs)):
+            self.set_initial_chains(embs[i])
+            emb = self.find_embedding()
+            if isinstance(emb, tuple):
+                emb = emb[0]
+            _embs.append(emb)
+        return _embs
+
+    cdef dict count_overlaps(self, list chains):
+        cdef dict o = {}
+        for chain in chains:
+            for q in chain:
+                o[q] = 1+o.get(q,-1)
+        return o
+
+    cdef list histogram_key(self, list sizes):
+        cdef dict h = {}
+        cdef int s, x
+        cdef tuple t
+        for s in sizes:
+            if s:
+                h[s] = 1+h.get(s, 0)
+
+        return [t[i] for t in sorted(h.items(), reverse = True) for i in (0,1)]
+
+    def quality_key(self, emb, embedded = False):
+        """
+        Returns an object to represent the quality of an embedding.
+
+        Example::
+            >>> import networkx, minorminer
+            >>> k = networkx.complete_graph(4)
+            >>> g = networkx.grid_graph([2,4,4])
+            >>> mm = minorminer.miner(k.edges(), g.edges())
+            >>> embs = mm.find_embeddings(10)
+            >>> emb = min(embs, key=mm.quality_key)
+
+        Args::
+
+            emb: dict, an embedding object (with or without overlaps)
+
+            embedded: bool (default False), if this is true, we don't count overlaps
+                and assume that there are none.
+
+        """
+        cdef int state = 2
+        cdef dict o
+        cdef list L, O
+        if emb == {}:
+            return (state,)
+
+        state = 0
+        L = self.histogram_key([len(c) for c in emb.values()])
+
+        if embedded:
+            O = []
+        else:
+            o = self.count_overlaps(emb.values())
+            O = self.histogram_key(o.values())
+            if len(O):
+                state = 1
+
+        return (state, O, L)
+
+
+cdef int _get_chainmap(C, chainmap &CMap, SL, TL, parameter) except -1:
     cdef vector[int] chain
     CMap.clear();
     try:
         for a in C:
             chain.clear()
             if C[a]:
-                if TL is None:
-                    for x in C[a]:
-                        chain.push_back(<int> x)
-                else:
-                    for x in C[a]:
+                for x in C[a]:
+                    if x in TL:
                         chain.push_back(<int> TL[x])
-                if SL is None:
-                    CMap.insert(pair[int,vector[int]](a, chain))
-                else:
+                    else:
+                        raise RuntimeError, "%s uses target node labels that weren't referred to by any edges"%parameter
+                if a in SL:
                     CMap.insert(pair[int,vector[int]](SL[a], chain))
+                else:
+                    raise RuntimeError, "%s uses source node labels that weren't referred to by any edges"%parameter
 
     except (TypeError, ValueError):
         try:
@@ -332,9 +565,11 @@ cdef int _get_chainmap(C, chainmap &CMap, SL, TL) except -1:
             raise ValueError("initial_chains and fixed_chains must be mappings (dict-like) from ints to iterables of ints; C has type %s and next(C) has type %s"%(type(C), type(nc)))
 
 cdef _read_graph(input_graph &g, E):
-    L = labeldict()
+    cdef labeldict L = labeldict()
+    if hasattr(E, 'edges'):
+        E = E.edges()
     for a,b in E:
         g.push_back(L[a],L[b])
     return L
 
-__all__ = ["find_embedding"]
+__all__ = ["find_embedding", "VARORDER", "miner"]
