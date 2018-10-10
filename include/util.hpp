@@ -1,11 +1,13 @@
 #pragma once
 #include <algorithm>
 #include <chrono>
+#include <iterator>
 #include <mutex>
 #include <random>
 #include <thread>
 #include <unordered_map>
 #include "debug.hpp"
+#include "fastrng.hpp"
 #include "pairing_queue.hpp"
 
 namespace find_embedding {
@@ -29,10 +31,10 @@ using std::chrono::duration_cast;
 // Select some default structures and types
 using distance_t = long long int;
 constexpr distance_t max_distance = numeric_limits<distance_t>::max();
-using RANDOM = default_random_engine;
+using RANDOM = fastrng;
 using clock = std::chrono::high_resolution_clock;
 using pairing_queue::pairing_queue_fast_reset;
-using distance_queue = pairing_queue::pairing_queue_fast_reset<distance_t>;
+using distance_queue = pairing_queue::pairing_queue_fast_reset_rtb<distance_t>;
 using int_queue = pairing_queue::pairing_queue_fast_reset<int64_t>;
 
 //! Interface for communication between the library and various bindings.
@@ -70,6 +72,41 @@ class LocalInteraction {
 
 typedef shared_ptr<LocalInteraction> LocalInteractionPtr;
 
+class MinorMinerException {
+  public:
+    MinorMinerException(const string& m = "find embedding exception") : message(m) {}
+    const string& what() const { return message; }
+
+  private:
+    string message;
+};
+
+class ProblemCancelledException : public MinorMinerException {
+  public:
+    ProblemCancelledException(const string& m = "embedding cancelled by keyboard interrupt") : MinorMinerException(m) {}
+};
+
+class TimeoutException : public MinorMinerException {
+  public:
+    TimeoutException(const string& m = "embedding timed out") : MinorMinerException(m) {}
+};
+
+class CorruptParametersException : public MinorMinerException {
+  public:
+    CorruptParametersException(const string& m = "chain inputs are corrupted") : MinorMinerException(m) {}
+};
+
+class BadInitializationException : public MinorMinerException {
+  public:
+    BadInitializationException(const string& m = "bad embedding used with skip_initialization")
+            : MinorMinerException(m) {}
+};
+
+class CorruptEmbeddingException : public MinorMinerException {
+  public:
+    CorruptEmbeddingException(const string& m = "chains may be invalid") : MinorMinerException(m) {}
+};
+
 //! Set of parameters used to control the embedding process.
 class optional_parameters {
   public:
@@ -79,6 +116,7 @@ class optional_parameters {
     RANDOM rng;
     //! Number of seconds before the process unconditionally stops
     double timeout = 1000;
+    double max_beta = numeric_limits<double>::max();
     int tries = 10;
     int verbose = 0;
     int inner_rounds = numeric_limits<int>::max();
@@ -87,10 +125,34 @@ class optional_parameters {
     int chainlength_patience = 2;
     int threads = 1;
     bool skip_initialization = false;
-    map<int, vector<int> > fixed_chains;
-    map<int, vector<int> > initial_chains;
-    map<int, vector<int> > restrict_chains;
+    map<int, vector<int>> fixed_chains;
+    map<int, vector<int>> initial_chains;
+    map<int, vector<int>> restrict_chains;
 
+    //! duplicate all parameters but chain hints,
+    //! and seed a new rng.  this vaguely peculiar behavior is
+    //! utilized to spawn parameters for component subproblems
+    optional_parameters(optional_parameters& p, map<int, vector<int>> fixed_chains,
+                        map<int, vector<int>> initial_chains, map<int, vector<int>> restrict_chains)
+            : localInteractionPtr(p.localInteractionPtr),
+              max_no_improvement(p.max_no_improvement),
+              rng(p.rng()),
+              timeout(p.timeout),
+              max_beta(p.max_beta),
+              tries(p.tries),
+              verbose(p.verbose),
+              inner_rounds(p.inner_rounds),
+              max_fill(p.max_fill),
+              return_overlap(p.return_overlap),
+              chainlength_patience(p.chainlength_patience),
+              threads(p.threads),
+              skip_initialization(p.skip_initialization),
+              fixed_chains(fixed_chains),
+              initial_chains(initial_chains),
+              restrict_chains(restrict_chains) {}
+    //^^leave this constructor by the declarations
+
+  public:
     template <typename... Args>
     void printx(const char* format, Args... args) const {
         char buffer[1024];
@@ -126,21 +188,7 @@ class optional_parameters {
     }
 
     optional_parameters() : localInteractionPtr(), rng() {}
-    void seed(unsigned int randomSeed) { rng.seed(randomSeed); }
-};
-
-class FindEmbeddingException {
-  public:
-    FindEmbeddingException(const string& m = "find embedding exception") : message(m) {}
-    const string& what() const { return message; }
-
-  private:
-    string message;
-};
-
-class ProblemCancelledException : public FindEmbeddingException {
-  public:
-    ProblemCancelledException(const string& m = "problem cancelled exception") : FindEmbeddingException(m) {}
+    void seed(uint64_t randomSeed) { rng.seed(randomSeed); }
 };
 
 //! Fill output with the index of all of the minimum and equal values in input

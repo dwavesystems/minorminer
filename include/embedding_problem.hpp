@@ -135,99 +135,16 @@ class fixed_handler_hival {
     inline bool reserved(const int q) { return q >= num_q; }
 };
 
-//! This fixed handler is used when variables are allowed to be fixed after instantiation.  For that functionality, we
-//! probably need...
-//! * dynamic modification of var_neighbors and qubit_neighbors to maintain speed gains: fixed variables are sinks,
-//! reserved qubits are sources.
-//! * access to / ownership of var_neighbors and qubit_neighbors in this data structure
-//! * move existing initialization code from find_embedding.hpp into fixed_handler_hival (note the interplay with
-//! shuffling qubit labels, this might get gross)
-class fixed_handler_list {
-  private:
-    vector<int> var_fixed;
+//! Output handlers are used to control output.  We provide two handlers -- one which only reports all errors (and
+//! optimizes away all other output) and another which provides full output.  When verbose is zero, we recommend
+//! the errors-only handler and otherwise, the full handler
 
-  public:
-    fixed_handler_list(optional_parameters &p, int n_v, int n_f, int /*n_q*/, int n_r) : var_fixed(n_v, 0) {
-        minorminer_assert(n_f == 0);
-        minorminer_assert(n_r == 0);
-        for (auto &vC : p.fixed_chains) var_fixed[vC.first] = 1;
-    }
-    virtual ~fixed_handler_list() {}
-
-    inline bool fixed(const int u) { return static_cast<bool>(var_fixed[u]); }
-
-    inline bool reserved(const int) { return 0; }
-};
-
-//! Common form for all embedding problems.
-//!
-//! Needs to be extended with a fixed handler and domain handler to be complete.
-class embedding_problem_base {
-  protected:
-    int num_v, num_f, num_q, num_r;
-
-    //! Mutable references to qubit numbers and variable numbers
-    vector<vector<int>> &qubit_nbrs, &var_nbrs;
-
-    //! distribution over [0, 0xffffffff]
-    uniform_int_distribution<> rand;
-
-    vector<int> var_order_space;
-    vector<int> var_order_visited;
-    vector<int> var_order_shuffle;
-
-    int_queue var_order_pq;
-
-  public:
-    //! A mutable reference to the user specified parameters
+//! Here's the full output handler
+class output_handler_full {
     optional_parameters &params;
 
-    int alpha, initialized, embedded, desperate, target_chainsize, improved, weight_bound;
-
-    embedding_problem_base(optional_parameters &p_, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
-                           vector<vector<int>> &q_n)
-            : num_v(n_v),
-              num_f(n_f),
-              num_q(n_q),
-              num_r(n_r),
-              qubit_nbrs(q_n),
-              var_nbrs(v_n),
-              rand(0, 0xffffffff),
-              var_order_space(n_v),
-              var_order_visited(n_v, 0),
-              var_order_shuffle(n_v),
-              var_order_pq(n_v + n_f),
-              params(p_),
-              initialized(0),
-              embedded(0),
-              desperate(0),
-              target_chainsize(0),
-              improved(0) {
-        alpha = 8 * sizeof(distance_t);
-        int N = 2 * num_q;
-        while (N /= 2) alpha--;
-        alpha = max(1, alpha);
-        weight_bound = min(params.max_fill, alpha);
-    }
-    virtual ~embedding_problem_base() {}
-
-    //! a vector of neighbors for the variable `u`
-    const vector<int> &var_neighbors(int u) const { return var_nbrs[u]; }
-
-    //! a vector of neighbors for the qubit `q`
-    const vector<int> &qubit_neighbors(int q) const { return qubit_nbrs[q]; }
-
-    //! number of variables which are not fixed
-    inline int num_vars() const { return num_v; }
-
-    //! number of qubits which are not reserved
-    inline int num_qubits() const { return num_q; }
-
-    //! number of fixed variables
-    inline int num_fixed() const { return num_f; }
-
-    //! number of reserved qubits
-    inline int num_reserved() const { return num_r; }
+  public:
+    output_handler_full(optional_parameters &p) : params(p) {}
 
     //! printf regardless of the verbosity level
     template <typename... Args>
@@ -258,6 +175,177 @@ class embedding_problem_base {
     void debug(const char *ONDEBUG(format), Args... ONDEBUG(args)) const {
         ONDEBUG(params.debug(format, args...));
     }
+};
+
+//! Here's the errors-only handler
+class output_handler_error {
+    optional_parameters &params;
+
+  public:
+    output_handler_error(optional_parameters &p) : params(p) {}
+
+    //! printf regardless of the verbosity level
+    template <typename... Args>
+    void error(const char *format, Args... args) const {
+        params.error(format, args...);
+    }
+
+    //! printf at the major_info verbosity level
+    template <typename... Args>
+    void major_info(Args...) const {}
+
+    //! print at the minor_info verbosity level
+    template <typename... Args>
+    void minor_info(Args...) const {}
+
+    //! print at the extra_info verbosity level
+    template <typename... Args>
+    void extra_info(Args...) const {}
+
+    //! print at the debug verbosity level (only works when `CPPDEBUG` is set)
+    template <typename... Args>
+    void debug(Args...) const {}
+};
+
+struct shuffle_first {};
+struct rndswap_first {};
+
+//! Common form for all embedding problems.
+//!
+//! Needs to be extended with a fixed handler and domain handler to be complete.
+class embedding_problem_base {
+  protected:
+    int num_v, num_f, num_q, num_r;
+
+    //! Mutable references to qubit numbers and variable numbers
+    vector<vector<int>> &qubit_nbrs, &var_nbrs;
+
+    //! distribution over [0, 0xffffffff]
+    uniform_int_distribution<> rand;
+
+    vector<int> var_order_space;
+    vector<int> var_order_visited;
+    vector<int> var_order_shuffle;
+
+    int_queue var_order_pq;
+
+    unsigned int exponent_margin;  // probably going to move this weight stuff out to another handler
+  public:
+    //! A mutable reference to the user specified parameters
+    optional_parameters &params;
+
+    double max_beta, round_beta, bound_beta;
+    distance_t weight_table[64];
+
+    int initialized, embedded, desperate, target_chainsize, improved, weight_bound;
+
+    embedding_problem_base(optional_parameters &p_, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
+                           vector<vector<int>> &q_n)
+            : num_v(n_v),
+              num_f(n_f),
+              num_q(n_q),
+              num_r(n_r),
+              qubit_nbrs(q_n),
+              var_nbrs(v_n),
+              rand(0, 0xffffffff),
+              var_order_space(n_v),
+              var_order_visited(n_v, 0),
+              var_order_shuffle(n_v),
+              var_order_pq(max(n_v + n_f, n_q + n_r)),
+              exponent_margin(compute_margin()),
+              params(p_) {
+        reset_mood();
+    }
+
+    virtual ~embedding_problem_base() {}
+
+    //! resets some internal, ephemeral, variables to a default state
+    void reset_mood() {
+        if (exponent_margin <= 0) throw MinorMinerException("problem has too few nodes or edges");
+
+        auto ultramax_weight = 63. - std::log2(exponent_margin);
+
+        if (ultramax_weight < 2) throw MinorMinerException("problem is too large to avoid overflow");
+
+        if (ultramax_weight < params.max_fill)
+            weight_bound = std::floor(ultramax_weight);
+        else
+            weight_bound = params.max_fill;
+
+        max_beta = max(1., params.max_beta);
+        round_beta = numeric_limits<double>::max();
+        bound_beta = min(max_beta, exp2(ultramax_weight));
+        initialized = embedded = desperate = target_chainsize = improved = 0;
+    }
+
+  private:
+    //! computes an upper bound on the distances computed during tearout & replace
+    int compute_margin() {
+        auto max_degree =
+                (*std::max_element(begin(var_nbrs), end(var_nbrs), [](const vector<int> &a, const vector<int> &b) {
+                    return a.size() < b.size();
+                })).size();
+        return max_degree * num_q;
+    }
+
+  public:
+    //! precomputes a table of weights corresponding to various overlap values `c`,
+    //! for `c` from 0 to `max_weight`, inclusive.
+    void populate_weight_table(int max_weight) {
+        max_weight = min(63, max_weight);
+        double log2base = (max_weight <= 0) ? 1 : ((63. - std::log2(exponent_margin)) / max_weight);
+        double base = min(exp2(log2base), min(max_beta, round_beta));
+        double power = 1;
+        for (int i = 0; i <= max_weight; i++) {
+            weight_table[i] = power;
+            power *= base;
+        }
+        for (int i = max_weight + 1; i < 64; i++) weight_table[i] = max_distance;
+    }
+
+    //! returns the precomputed weight associated with an overlap value of `c`
+    distance_t weight(unsigned int c) const {
+        if (c >= 64)
+            return max_distance;
+        else
+            return weight_table[c];
+    }
+
+    //! a vector of neighbors for the variable `u`
+    const vector<int> &var_neighbors(int u) const { return var_nbrs[u]; }
+
+    //! a vector of neighbors for the variable `u`, pre-shuffling them
+    const vector<int> &var_neighbors(int u, shuffle_first) {
+        shuffle(std::begin(var_nbrs[u]), std::end(var_nbrs[u]));
+        return var_nbrs[u];
+    }
+
+    //! a vector of neighbors for the variable `u`, applying a random
+    //! transposition before returning the reference
+    const vector<int> &var_neighbors(int u, rndswap_first) {
+        if (var_nbrs[u].size() > 2) {
+            int i = randint(var_nbrs[u].size() - 1);
+            std::swap(var_nbrs[u][i], var_nbrs[u][i + 1]);
+        } else if (var_nbrs[u].size() == 2) {
+            if (randint(1)) std::swap(var_nbrs[u][0], var_nbrs[u][1]);
+        }
+        return var_nbrs[u];
+    }
+
+    //! a vector of neighbors for the qubit `q`
+    const vector<int> &qubit_neighbors(int q) const { return qubit_nbrs[q]; }
+
+    //! number of variables which are not fixed
+    inline int num_vars() const { return num_v; }
+
+    //! number of qubits which are not reserved
+    inline int num_qubits() const { return num_q; }
+
+    //! number of fixed variables
+    inline int num_fixed() const { return num_f; }
+
+    //! number of reserved qubits
+    inline int num_reserved() const { return num_r; }
 
     //! make a random integer between 0 and `m-1`
     int randint(int m) { return rand(params.rng, typename decltype(rand)::param_type(0, m - 1)); }
@@ -334,7 +422,6 @@ class embedding_problem_base {
     void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         int_queue::value_type d;
         var_order_pq.reset();
-        minorminer_assert(var_order_pq.has(x));
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             visited[x] = 1;
@@ -354,7 +441,6 @@ class embedding_problem_base {
     void rpfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
         int_queue::value_type d;
         var_order_pq.reset();
-        minorminer_assert(var_order_pq.has(x));
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             visited[x] = 1;
@@ -362,7 +448,7 @@ class embedding_problem_base {
             for (auto &y : neighbors[x]) {
                 if (!visited[y]) {
                     int z = 0;
-                    for (auto &w : neighbors[z])
+                    for (auto &w : neighbors[y])
                         if (!visited[w]) z++;
                     var_order_pq.set_value(y, z * 256 + randint(256));
                 }
@@ -375,7 +461,6 @@ class embedding_problem_base {
         size_t front = component.size();
         int_queue::value_type d = 0, d0 = 0;
         var_order_pq.reset();
-        minorminer_assert(var_order_pq.has(x));
         var_order_pq.set_value(x, 0);
         while (var_order_pq.pop_min(x, d)) {
             if (d0 && d > d0) {
@@ -394,19 +479,24 @@ class embedding_problem_base {
 
 //! A template to construct a complete embedding problem by combining
 //! `embedding_problem_base` with fixed/domain handlers.
-template <class fixed_handler, class domain_handler>
-class embedding_problem : public embedding_problem_base, public fixed_handler, public domain_handler {
+template <class fixed_handler, class domain_handler, class output_handler>
+class embedding_problem : public embedding_problem_base,
+                          public fixed_handler,
+                          public domain_handler,
+                          public output_handler {
   private:
     using ep_t = embedding_problem_base;
     using fh_t = fixed_handler;
     using dh_t = domain_handler;
+    using oh_t = output_handler;
 
   public:
     embedding_problem(optional_parameters &p, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
                       vector<vector<int>> &q_n)
             : embedding_problem_base(p, n_v, n_f, n_q, n_r, v_n, q_n),
               fixed_handler(p, n_v, n_f, n_q, n_r),
-              domain_handler(p, n_v, n_f, n_q, n_r) {}
+              domain_handler(p, n_v, n_f, n_q, n_r),
+              output_handler(p) {}
     virtual ~embedding_problem() {}
 };
 }
