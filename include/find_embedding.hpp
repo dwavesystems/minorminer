@@ -45,8 +45,8 @@ class parameter_processor {
               problem_reserved(qub_components.num_reserved(0)),
 
               num_fixed(params_.fixed_chains.size()),
-              unscrew_vars(_filter(num_vars, var_fixed_unscrewed)),
-              screw_vars(_inverse(unscrew_vars)),
+              unscrew_vars(_filter_fixed_vars()),
+              screw_vars(_inverse_permutation(unscrew_vars)),
 
               params(params_, input_chains(params_.fixed_chains), input_chains(params_.initial_chains),
                      input_chains(params_.restrict_chains)),
@@ -69,23 +69,25 @@ class parameter_processor {
         return r;
     }
 
-    vector<int> _filter(int n, vector<int> &test) {
-        vector<int> r(n);
-        for (int i = 0, front = 0, back = num_vars - num_reserved; i < n; i++) {
-            if (test[i]) {
-                r[back++] = i;
+    vector<int> _filter_fixed_vars() {
+        vector<int> unscrew(num_vars);
+        assert(var_fixed_unscrewed.size() == num_vars);
+        assert(num_fixed < num_vars);
+        for (int i = 0, front = 0, back = num_vars - num_fixed; i < num_vars; i++) {
+            if (var_fixed_unscrewed[i]) {
+                unscrew[back++] = i;
             } else {
-                r[front++] = i;
+                unscrew[front++] = i;
             }
         }
-        return r;
+        return unscrew;
     }
 
-    vector<int> _inverse(vector<int> &f) {
+    vector<int> _inverse_permutation(vector<int> &f) {
         int n = f.size();
         vector<int> r(n);
         for (int i = n; i--;) {
-            r[f[i]] = i;
+            r.at(f[i]) = i;
         }
         return r;
     }

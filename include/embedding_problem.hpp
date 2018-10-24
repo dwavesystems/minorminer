@@ -282,9 +282,9 @@ class embedding_problem_base {
     //! computes an upper bound on the distances computed during tearout & replace
     int compute_margin() {
         auto max_degree =
-                (*std::max_element(begin(var_nbrs), end(var_nbrs), [](const vector<int> &a, const vector<int> &b) {
+                std::max_element(begin(var_nbrs), end(var_nbrs), [](const vector<int> &a, const vector<int> &b) {
                     return a.size() < b.size();
-                })).size();
+                })->size();
         return max_degree * num_q;
     }
 
@@ -324,10 +324,10 @@ class embedding_problem_base {
     //! transposition before returning the reference
     const vector<int> &var_neighbors(int u, rndswap_first) {
         if (var_nbrs[u].size() > 2) {
-            int i = randint(var_nbrs[u].size() - 1);
+            int i = randint(0, var_nbrs[u].size() - 2);
             std::swap(var_nbrs[u][i], var_nbrs[u][i + 1]);
         } else if (var_nbrs[u].size() == 2) {
-            if (randint(1)) std::swap(var_nbrs[u][0], var_nbrs[u][1]);
+            if (randint(0, 1)) std::swap(var_nbrs[u][0], var_nbrs[u][1]);
         }
         return var_nbrs[u];
     }
@@ -348,7 +348,7 @@ class embedding_problem_base {
     inline int num_reserved() const { return num_r; }
 
     //! make a random integer between 0 and `m-1`
-    int randint(int m) { return rand(params.rng, typename decltype(rand)::param_type(0, m - 1)); }
+    int randint(int a, int b) { return rand(params.rng, typename decltype(rand)::param_type(a, b)); }
 
     //! shuffle the data bracketed by iterators `a` and `b`
     template <typename A, typename B>
@@ -430,7 +430,7 @@ class embedding_problem_base {
                 if (!visited[adjacent_var]) {
                     if (!var_order_pq.check_decrease_value(adjacent_var, 0)) {
                         d = var_order_pq.get_value(adjacent_var) >> 8;
-                        var_order_pq.decrease_value(adjacent_var, ((d - 1) << 8) + randint(256));
+                        var_order_pq.decrease_value(adjacent_var, ((d - 1) << 8) + randint(0, 255));
                     }
                 }
             }
@@ -450,7 +450,7 @@ class embedding_problem_base {
                     int z = 0;
                     for (auto &w : neighbors[y])
                         if (!visited[w]) z++;
-                    var_order_pq.set_value(y, z * 256 + randint(256));
+                    var_order_pq.set_value(y, z * 256 + randint(0, 255));
                 }
             }
         }

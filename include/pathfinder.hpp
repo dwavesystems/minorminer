@@ -262,7 +262,7 @@ class pathfinder_base : public pathfinder_public_interface {
     int improve_chainlength_pass(embedding_t &emb) {
         bool improved = false;
         dijkstras[0].reorder(params.rng);
-        for (int v = num_vars + num_fixed; v-- > 1;) {
+        for (int v = num_vars + num_fixed - 1; v > 0; v--) {
             dijkstras[v].reorder_copy(dijkstras[0]);
         }
         for (auto &u : ep.var_order(ep.improved ? VARORDER_KEEP : VARORDER_PFS)) {
@@ -329,7 +329,7 @@ class pathfinder_base : public pathfinder_public_interface {
         // will be altered for at least one neighbor per pass.
         auto &nbrs = ep.var_neighbors(u, rndswap_first{});
         if (nbrs.size() > 0) {
-            int v = nbrs[ep.randint(nbrs.size())];
+            int v = nbrs[ep.randint(0, nbrs.size() - 1)];
             dijkstras[u].swap(dijkstras[v]);
         }
 
@@ -338,7 +338,7 @@ class pathfinder_base : public pathfinder_public_interface {
         // select a random root among those qubits at minimum heuristic distance
         collectMinima(total_distance, min_list);
 
-        int q0 = min_list[ep.randint(min_list.size())];
+        int q0 = min_list[ep.randint(0, min_list.size() - 1)];
         if (total_distance[q0] == max_distance) return 0;  // oops all qubits were overfull or unreachable
 
         emb.construct_chain_steiner(u, q0, parents, dijkstras);
