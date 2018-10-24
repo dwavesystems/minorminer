@@ -37,64 +37,60 @@ TEST(input_graph, construction_small) {
     EXPECT_EQ(graph.num_edges(), 0);
 }
 
-// Get neighbours of a simple graph for null case, single case, multiple case
-TEST(input_graph, neighbours_empty) {
+// Get neighbors of a simple graph for null case, single case, multiple case
+TEST(input_graph, neighbors_empty) {
     // Build an empty graph
     graph::input_graph graph;
-    std::vector<std::vector<int>> neighbours;
-    graph.get_neighbors(neighbours);
-    EXPECT_EQ(neighbours.size(), 0);
+    std::vector<std::vector<int>> neighbors = graph.get_neighbors();
+    EXPECT_EQ(neighbors.size(), 0);
 
-    graph.get_neighbors_relabel(neighbours, {});
-    EXPECT_EQ(neighbours.size(), 0);
+    neighbors = graph.get_neighbors(std::vector<int>({}));
+    EXPECT_EQ(neighbors.size(), 0);
 }
 
-TEST(input_graph, neighbours_node) {
+TEST(input_graph, neighbors_node) {
     // Build a simple graph
     graph::input_graph graph(1, {0}, {0});
 
-    std::vector<std::vector<int>> neighbours;
-    graph.get_neighbors(neighbours);
-    EXPECT_EQ(neighbours.size(), 1);
-    EXPECT_EQ(neighbours[0].size(), 0);
+    std::vector<std::vector<int>> neighbors = graph.get_neighbors();
+    EXPECT_EQ(neighbors.size(), 1);
+    EXPECT_EQ(neighbors[0].size(), 0);
 
-    graph.get_neighbors_relabel(neighbours, {0});
-    EXPECT_EQ(neighbours.size(), 1);
-    EXPECT_EQ(neighbours[0].size(), 0);
+    neighbors = graph.get_neighbors(std::vector<int>({0}));
+    EXPECT_EQ(neighbors.size(), 1);
+    EXPECT_EQ(neighbors[0].size(), 0);
 }
 
-TEST(input_graph, neighbours_small) {
+TEST(input_graph, neighbors_small) {
     // Build a simple graph
     graph::input_graph graph(4, {0, 0, 0, 1}, {1, 2, 3, 2});
 
-    std::vector<std::vector<int>> neighbours;
-    graph.get_neighbors(neighbours);
-    EXPECT_EQ(neighbours.size(), 4);
-    EXPECT_EQ(neighbours[0].size(), 3);
-    EXPECT_EQ(neighbours[0], std::vector<int>({1, 2, 3}));
-    EXPECT_EQ(neighbours[1].size(), 2);
-    EXPECT_EQ(neighbours[1], std::vector<int>({0, 2}));
-    EXPECT_EQ(neighbours[2].size(), 2);
-    EXPECT_EQ(neighbours[2], std::vector<int>({0, 1}));
-    EXPECT_EQ(neighbours[3].size(), 1);
-    EXPECT_EQ(neighbours[3], std::vector<int>({0}));
+    std::vector<std::vector<int>> neighbors = graph.get_neighbors();
+    EXPECT_EQ(neighbors.size(), 4);
+    EXPECT_EQ(neighbors[0].size(), 3);
+    EXPECT_EQ(neighbors[0], std::vector<int>({1, 2, 3}));
+    EXPECT_EQ(neighbors[1].size(), 2);
+    EXPECT_EQ(neighbors[1], std::vector<int>({0, 2}));
+    EXPECT_EQ(neighbors[2].size(), 2);
+    EXPECT_EQ(neighbors[2], std::vector<int>({0, 1}));
+    EXPECT_EQ(neighbors[3].size(), 1);
+    EXPECT_EQ(neighbors[3], std::vector<int>({0}));
 }
 
-TEST(input_graph, neighbours_small_relabel) {
+TEST(input_graph, neighbors_small_relabel) {
     // Build a simple graph
     graph::input_graph graph(4, {0, 0, 0, 1}, {1, 2, 3, 2});
 
-    std::vector<std::vector<int>> neighbours;
-    graph.get_neighbors_relabel(neighbours, {3, 2, 0, 1});
-    EXPECT_EQ(neighbours.size(), 4);
-    EXPECT_EQ(neighbours[3].size(), 3);
-    EXPECT_EQ(neighbours[3], std::vector<int>({0, 1, 2}));
-    EXPECT_EQ(neighbours[2].size(), 2);
-    EXPECT_EQ(neighbours[2], std::vector<int>({0, 3}));
-    EXPECT_EQ(neighbours[0].size(), 2);
-    EXPECT_EQ(neighbours[0], std::vector<int>({2, 3}));
-    EXPECT_EQ(neighbours[1].size(), 1);
-    EXPECT_EQ(neighbours[1], std::vector<int>({3}));
+    std::vector<std::vector<int>> neighbors = graph.get_neighbors(std::vector<int>({3, 2, 0, 1}));
+    EXPECT_EQ(neighbors.size(), 4);
+    EXPECT_EQ(neighbors[3].size(), 3);
+    EXPECT_EQ(neighbors[3], std::vector<int>({0, 1, 2}));
+    EXPECT_EQ(neighbors[2].size(), 2);
+    EXPECT_EQ(neighbors[2], std::vector<int>({0, 3}));
+    EXPECT_EQ(neighbors[0].size(), 2);
+    EXPECT_EQ(neighbors[0], std::vector<int>({2, 3}));
+    EXPECT_EQ(neighbors[1].size(), 1);
+    EXPECT_EQ(neighbors[1], std::vector<int>({3}));
 }
 
 //

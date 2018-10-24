@@ -12,134 +12,192 @@
 
 namespace find_embedding {
 
-//! This function parses inputs, scrambles node labels, dispatches
-//! the main embedding algorithm, pathfinder_base.heuristicEmbedding,
-//! and finally unscrambles the resulting answer.
-template <class pathfinder_t>
-int find_embedding_execute(::graph::input_graph &var_g, ::graph::input_graph &qubit_g, optional_parameters &params_,
-                           std::vector<std::vector<int>> &chains) {
-    int num_tot_vars = var_g.num_nodes();
-    int num_tot_qubs = qubit_g.num_nodes();
-    std::vector<int> var_fixed_unscrewed(num_tot_vars, 0);
-    std::vector<int> qub_reserved_unscrewed(num_tot_qubs, 0);
+class parameter_processor {
+  public:
+    int num_vars;
+    int num_qubits;
 
-    // roll call for fixed variables and reserved qubits
-    int num_reserved = 0;
-    int num_fixed = params_.fixed_chains.size();
-    for (auto &vC : params_.fixed_chains) {
-        var_fixed_unscrewed[vC.first] = 1;
-        for (auto &q : vC.second) {
-            if (!qub_reserved_unscrewed[q]) {
-                qub_reserved_unscrewed[q] = 1;
-                num_reserved++;
-            }
-        }
-    }
+    vector<int> qub_reserved_unscrewed;
+    vector<int> var_fixed_unscrewed;
+    int num_reserved;
 
-    int num_vars = num_tot_vars - num_fixed;
-    // int num_edges = var_g.num_edges();
-    optional_parameters params = params_;
+    graph::components qub_components;
+    int problem_qubits;
+    int problem_reserved;
 
-    std::vector<int> unscrew_vars;
-    std::vector<int> fix_vars;
-    // split the fixed vars out from the rest
-    for (int v = 0; v < num_tot_vars; v++)
-        if (var_fixed_unscrewed[v])
-            fix_vars.push_back(v);
-        else
-            unscrew_vars.push_back(v);
+    int num_fixed;
+    vector<int> unscrew_vars;
+    vector<int> screw_vars;
 
-    // shuffling the rest of the vars gives a random relabeling
-    std::shuffle(std::begin(unscrew_vars), std::end(unscrew_vars), params.rng);
-    // dump the fixed vars at the end -- don't bother shuffling them because their labels don't matter
-    unscrew_vars.insert(unscrew_vars.end(), fix_vars.begin(), fix_vars.end());
-    std::vector<int> screw_vars(num_tot_vars);
+    optional_parameters params;
+    vector<vector<int>> var_nbrs;
+    vector<vector<int>> qubit_nbrs;
+    parameter_processor(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_)
+            : num_vars(var_g.num_nodes()),
+              num_qubits(qubit_g.num_nodes()),
 
-    // compute the inverse of the relabeling
+              qub_reserved_unscrewed(num_qubits, 0),
+              var_fixed_unscrewed(num_vars, 0),
+              num_reserved(_reserved(params_)),
 
-    for (int v = num_tot_vars; v--;) screw_vars[unscrew_vars[v]] = v;
+              qub_components(qubit_g, qub_reserved_unscrewed),
+              problem_qubits(qub_components.size(0)),
+              problem_reserved(qub_components.num_reserved(0)),
 
-    // compute the relabeled neighbors dictionary, omitting outbound neighbors of fixed variables
-    std::vector<std::vector<int>> var_nbrs;
-    var_g.get_neighbors_sinks_relabel(var_nbrs, var_fixed_unscrewed, screw_vars);
+              num_fixed(params_.fixed_chains.size()),
+              unscrew_vars(_filter_fixed_vars()),
+              screw_vars(_inverse_permutation(unscrew_vars)),
 
-    // compute the connected components of the qubit graph
-    // * virtually merge reserved qubits into a single component
-    // * relabelling components is similar to the vars above:
-    //    * first num_qubits labels are randomized
-    //    * remaining num_reserved labels are used for reserved qubits
-    ::graph::components qubit_components(qubit_g, params.rng, qub_reserved_unscrewed);
-    bool success = false;
-    int tried = 0;
-    for (int c = 0; c < qubit_components.size() && !success; c++) {
-        int num_qubits = qubit_components.size(c);
+              params(params_, input_chains(params_.fixed_chains), input_chains(params_.initial_chains),
+                     input_chains(params_.restrict_chains)),
 
-        params.restrict_chains.clear();
-        params.initial_chains.clear();
-        params.fixed_chains.clear();
+              var_nbrs(var_g.get_neighbors_sinks(var_fixed_unscrewed, screw_vars)),
+              qubit_nbrs(qub_components.component_neighbors(0)) {}
 
-        // translate all chains into this component if possible
-        int all_chains = 1;
-        for (auto &vC : params_.initial_chains) {
-            // don't bother putting in initial chains that will be overwritten by fixed chains
-            if (!var_fixed_unscrewed[vC.first]) {
-                std::vector<int> C;
-                all_chains &= qubit_components.into_component(c, vC.second, C);
-                params.initial_chains.emplace(screw_vars[vC.first], C);
-            }
-        }
-        for (auto &vC : params_.restrict_chains) {
-            std::vector<int> C;
-            all_chains &= qubit_components.into_component(c, vC.second, C);
-            params.restrict_chains.emplace(screw_vars[vC.first], C);
-        }
+  private:
+    inline int _reserved(optional_parameters &params_) {
+        int r = 0;
         for (auto &vC : params_.fixed_chains) {
-            std::vector<int> C;
-            all_chains &= qubit_components.into_component(c, vC.second, C);
-            params.fixed_chains.emplace(screw_vars[vC.first], C);
-        }
-
-        if (all_chains) {
-            std::vector<int> qub_fixed(num_qubits, 0);
-            for (auto &vC : params.fixed_chains)
-                for (auto &q : vC.second) qub_fixed[q] = 1;
-
-            tried = 1;
-            std::vector<std::vector<int>> qubit_nbrs;
-            ::graph::input_graph &comp = qubit_components.component_graph(c);
-            int num_res = qubit_components.num_reserved(c);
-
-            // get the neighbor dictionary for qubits, omitting inbound neighbors of reserved qubits
-            comp.get_neighbors_sources(qubit_nbrs, qub_fixed);
-
-            pathfinder_t pf(params, num_vars, fix_vars.size(), num_qubits - num_res, num_res, var_nbrs, qubit_nbrs);
-
-            success = pf.heuristicEmbedding();
-
-            if (params.return_overlap || success) {
-                chains.resize(num_tot_vars);
-                for (int u = 0; u < num_tot_vars; u++) {
-                    chains[u].clear();
-                    qubit_components.from_component(c, pf.get_chain(screw_vars[u]), chains[u]);
+            var_fixed_unscrewed[vC.first] = 1;
+            for (auto &q : vC.second) {
+                if (!qub_reserved_unscrewed[q]) {
+                    qub_reserved_unscrewed[q] = 1;
+                    r++;
                 }
-                break;
-            } else {
-                chains.clear();
             }
         }
+        return r;
     }
 
-    if (!tried) {
-        if (!qubit_g.num_edges()) {
-            params.localInteractionPtr->displayOutput("never tried to embed anything; the qubit graph has no edges");
-        } else {
-            params.localInteractionPtr->displayOutput(
-                    "never tried to embed anything; the chains supplied in fixed_chains and initial_chains must all "
-                    "belong to a single connected component of the qubit graph.");
+    vector<int> _filter_fixed_vars() {
+        vector<int> unscrew(num_vars);
+        assert(var_fixed_unscrewed.size() == num_vars);
+        assert(num_fixed < num_vars);
+        for (int i = 0, front = 0, back = num_vars - num_fixed; i < num_vars; i++) {
+            if (var_fixed_unscrewed[i]) {
+                unscrew[back++] = i;
+            } else {
+                unscrew[front++] = i;
+            }
         }
+        return unscrew;
     }
-    return success;
-}
+
+    vector<int> _inverse_permutation(vector<int> &f) {
+        int n = f.size();
+        vector<int> r(n);
+        for (int i = n; i--;) {
+            r.at(f[i]) = i;
+        }
+        return r;
+    }
+
+  public:
+    map<int, vector<int>> input_chains(map<int, vector<int>> &m) {
+        map<int, vector<int>> n;
+        for (auto &kv : m) {
+            if (kv.first < 0 || kv.first >= num_vars) throw CorruptParametersException();
+            auto &ju = *(n.emplace(screw_vars[kv.first], vector<int>{}).first);
+            if (!qub_components.into_component(0, kv.second, ju.second)) {
+                throw CorruptParametersException();
+            }
+        }
+        return n;
+    }
+
+    vector<int> input_vars(vector<int> &V) {
+        vector<int> U;
+        for (auto &v : V) {
+            if (v < 0 || v >= num_vars) throw CorruptParametersException();
+            if (!var_fixed_unscrewed[v]) U.push_back(v);
+        }
+        return U;
+    }
+};
+
+template <bool parallel, bool fixed, bool restricted, bool verbose>
+class pathfinder_type {
+  public:
+    typedef typename std::conditional<fixed, fixed_handler_hival, fixed_handler_none>::type fixed_handler_t;
+    typedef typename std::conditional<restricted, domain_handler_masked, domain_handler_universe>::type
+            domain_handler_t;
+    typedef typename std::conditional<verbose, output_handler_full, output_handler_error>::type output_handler_t;
+    typedef embedding_problem<fixed_handler_t, domain_handler_t, output_handler_t> embedding_problem_t;
+    typedef typename std::conditional<parallel, pathfinder_parallel<embedding_problem_t>,
+                                      pathfinder_serial<embedding_problem_t>>::type pathfinder_t;
+};
+
+class pathfinder_wrapper {
+    parameter_processor pp;
+    std::unique_ptr<pathfinder_public_interface> pf;
+
+  public:
+    pathfinder_wrapper(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_)
+            : pp(var_g, qubit_g, params_),
+              pf(_pf_parse(pp.params, pp.num_vars - pp.num_fixed, pp.num_fixed, pp.problem_qubits - pp.problem_reserved,
+                           pp.num_reserved, pp.var_nbrs, pp.qubit_nbrs)) {}
+
+    ~pathfinder_wrapper() {}
+
+    void get_chain(int u, vector<int> &output) const {
+        pp.qub_components.from_component(0, pf->get_chain(pp.screw_vars[u]), output);
+    }
+
+    int heuristicEmbedding() { return pf->heuristicEmbedding(); }
+
+    int num_vars() { return pp.num_vars; }
+
+    void set_initial_chains(map<int, vector<int>> &init) { pf->set_initial_chains(pp.input_chains(init)); }
+
+    void quickPass(vector<int> &varorder, int chainlength_bound, int overlap_bound, bool local_search, bool clear_first,
+                   double round_beta) {
+        pf->quickPass(pp.input_vars(varorder), chainlength_bound, overlap_bound, local_search, clear_first, round_beta);
+    }
+    void quickPass(VARORDER varorder, int chainlength_bound, int overlap_bound, bool local_search, bool clear_first,
+                   double round_beta) {
+        pf->quickPass(varorder, chainlength_bound, overlap_bound, local_search, clear_first, round_beta);
+    }
+
+  private:
+    template <bool parallel, bool fixed, bool restricted, bool verbose, typename... Args>
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse4(Args &&... args) {
+        return std::unique_ptr<pathfinder_public_interface>(static_cast<pathfinder_public_interface *>(
+                new (typename pathfinder_type<parallel, fixed, restricted, verbose>::pathfinder_t)(
+                        std::forward<Args>(args)...)));
+    }
+
+    template <bool parallel, bool fixed, bool restricted, typename... Args>
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse3(Args &&... args) {
+        if (pp.params.verbose > 0)
+            return _pf_parse4<parallel, fixed, restricted, true>(std::forward<Args>(args)...);
+        else
+            return _pf_parse4<parallel, fixed, restricted, false>(std::forward<Args>(args)...);
+    }
+
+    template <bool parallel, bool fixed, typename... Args>
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse2(Args &&... args) {
+        if (pp.params.restrict_chains.size())
+            return _pf_parse3<parallel, fixed, true>(std::forward<Args>(args)...);
+        else
+            return _pf_parse3<parallel, fixed, false>(std::forward<Args>(args)...);
+    }
+
+    template <bool parallel, typename... Args>
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse1(Args &&... args) {
+        if (pp.params.fixed_chains.size())
+            return _pf_parse2<parallel, true>(std::forward<Args>(args)...);
+        else
+            return _pf_parse2<parallel, false>(std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse(Args &&... args) {
+        if (pp.params.threads > 1)
+            return _pf_parse1<true>(std::forward<Args>(args)...);
+        else
+            return _pf_parse1<false>(std::forward<Args>(args)...);
+    }
+};
 
 //! The main entry function of this library.
 //!
@@ -157,55 +215,20 @@ int find_embedding_execute(::graph::input_graph &var_g, ::graph::input_graph &qu
 //! The optional parameters themselves can be found in util.hpp.  Respectively,
 //! the controlling options for the above are restrict_chains, fixed_chains,
 //! and threads.
+int findEmbedding(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params,
+                  vector<vector<int>> &chains) {
+    pathfinder_wrapper pf(var_g, qubit_g, params);
+    int success = pf.heuristicEmbedding();
 
-inline int findEmbedding(::graph::input_graph &var_g, ::graph::input_graph &qubit_g, optional_parameters &params_,
-                         std::vector<std::vector<int>> &chains) {
-    if (params_.threads > 1) {
-        if (params_.restrict_chains.empty()) {
-            using domain_handler = domain_handler_universe;
-            if (params_.fixed_chains.empty()) {
-                return find_embedding_execute<
-                        pathfinder_parallel<embedding_problem<domain_handler, fixed_handler_none>>>(var_g, qubit_g,
-                                                                                                    params_, chains);
-            } else {
-                return find_embedding_execute<
-                        pathfinder_parallel<embedding_problem<domain_handler, fixed_handler_hival>>>(var_g, qubit_g,
-                                                                                                     params_, chains);
-            }
-        } else {
-            using domain_handler = domain_handler_masked;
-            if (params_.fixed_chains.empty()) {
-                return find_embedding_execute<
-                        pathfinder_parallel<embedding_problem<domain_handler, fixed_handler_none>>>(var_g, qubit_g,
-                                                                                                    params_, chains);
-            } else {
-                return find_embedding_execute<
-                        pathfinder_parallel<embedding_problem<domain_handler, fixed_handler_hival>>>(var_g, qubit_g,
-                                                                                                     params_, chains);
-            }
+    if (params.return_overlap || success) {
+        chains.resize(var_g.num_nodes());
+        for (int u = 0; u < var_g.num_nodes(); u++) {
+            pf.get_chain(u, chains[u]);
         }
     } else {
-        if (params_.restrict_chains.empty()) {
-            using domain_handler = domain_handler_universe;
-            if (params_.fixed_chains.empty()) {
-                return find_embedding_execute<pathfinder_serial<embedding_problem<domain_handler, fixed_handler_none>>>(
-                        var_g, qubit_g, params_, chains);
-            } else {
-                return find_embedding_execute<
-                        pathfinder_serial<embedding_problem<domain_handler, fixed_handler_hival>>>(var_g, qubit_g,
-                                                                                                   params_, chains);
-            }
-        } else {
-            using domain_handler = domain_handler_masked;
-            if (params_.fixed_chains.empty()) {
-                return find_embedding_execute<pathfinder_serial<embedding_problem<domain_handler, fixed_handler_none>>>(
-                        var_g, qubit_g, params_, chains);
-            } else {
-                return find_embedding_execute<
-                        pathfinder_serial<embedding_problem<domain_handler, fixed_handler_hival>>>(var_g, qubit_g,
-                                                                                                   params_, chains);
-            }
-        }
+        chains.clear();
     }
+
+    return success;
 }
 }
