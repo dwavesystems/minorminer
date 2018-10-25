@@ -689,6 +689,24 @@ def test_isolated_variables_as_if_that_was_smart():
     return find_embedding(K, C, tries=1, chainlength_patience=0)
 
 
+@success_perfect(1)
+def test_empty_source():
+    # re: issue 64
+    C = Clique(2)
+    return find_embedding([], C, tries=1) == {}
+
+
+@success_perfect(1)
+def test_empty_target():
+    # re: issue 64
+    C = Clique(2)
+    try:
+        _ = find_embedding(C, [], tries=1)
+        return False
+    except ValueError:
+        return True
+
+
 @success_count(30)
 def test_qubit_components():
     # we only embed into the largest connected component -- we make a random set of components which
