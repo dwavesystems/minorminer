@@ -707,6 +707,21 @@ def test_empty_target():
         return True
 
 
+@success_perfect(1)
+def test_point_source():
+    # re: issue 64
+    C = Clique(2)
+    return find_embedding([(0, 0)], C, tries=1)
+
+
+@success_perfect(1)
+def test_point_target():
+    # re: issue 64
+    C = Clique(2)
+    _ = find_embedding(C, [(0, 0)], tries=1)
+    return True
+
+
 @success_count(30)
 def test_qubit_components():
     # we only embed into the largest connected component -- we make a random set of components which
