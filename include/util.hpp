@@ -72,13 +72,9 @@ class LocalInteraction {
 
 typedef shared_ptr<LocalInteraction> LocalInteractionPtr;
 
-class MinorMinerException {
+class MinorMinerException : public std::runtime_error {
   public:
-    MinorMinerException(const string& m = "find embedding exception") : message(m) {}
-    const string& what() const { return message; }
-
-  private:
-    string message;
+    MinorMinerException(const string& m = "find embedding exception") : std::runtime_error(m) {}
 };
 
 class ProblemCancelledException : public MinorMinerException {

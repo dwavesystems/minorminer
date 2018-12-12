@@ -285,7 +285,7 @@ class embedding_problem_base {
                 std::max_element(begin(var_nbrs), end(var_nbrs), [](const vector<int> &a, const vector<int> &b) {
                     return a.size() < b.size();
                 })->size();
-        return max_degree * num_q;
+        return max(max_degree, 1UL) * num_q;
     }
 
   public:
