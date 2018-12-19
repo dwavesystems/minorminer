@@ -135,7 +135,7 @@ class pathfinder_wrapper {
     pathfinder_wrapper(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_)
             : pp(var_g, qubit_g, params_),
               pf(_pf_parse(pp.params, pp.num_vars - pp.num_fixed, pp.num_fixed, pp.problem_qubits - pp.problem_reserved,
-                           pp.num_reserved, pp.var_nbrs, pp.qubit_nbrs)) {}
+                           pp.problem_reserved, pp.var_nbrs, pp.qubit_nbrs)) {}
 
     ~pathfinder_wrapper() {}
 

@@ -254,6 +254,7 @@ class embedding_problem_base {
               var_order_pq(max(n_v + n_f, n_q + n_r)),
               exponent_margin(compute_margin()),
               params(p_) {
+        if (exponent_margin <= 0) throw MinorMinerException("problem has too few nodes or edges");
         reset_mood();
     }
 
@@ -261,8 +262,6 @@ class embedding_problem_base {
 
     //! resets some internal, ephemeral, variables to a default state
     void reset_mood() {
-        if (exponent_margin <= 0) throw MinorMinerException("problem has too few nodes or edges");
-
         auto ultramax_weight = 63. - std::log2(exponent_margin);
 
         if (ultramax_weight < 2) throw MinorMinerException("problem is too large to avoid overflow");
@@ -280,12 +279,16 @@ class embedding_problem_base {
 
   private:
     //! computes an upper bound on the distances computed during tearout & replace
-    int compute_margin() {
-        auto max_degree =
+    unsigned int compute_margin() {
+        if (num_q == 0) return 0;
+        unsigned int max_degree =
                 std::max_element(begin(var_nbrs), end(var_nbrs), [](const vector<int> &a, const vector<int> &b) {
                     return a.size() < b.size();
                 })->size();
-        return max_degree * num_q;
+        if (max_degree == 0)
+            return num_q;
+        else
+            return max_degree * num_q;
     }
 
   public:

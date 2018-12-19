@@ -189,7 +189,10 @@ def find_embedding(S, T, **params):
                 * add the edges (q,Zij) to the target graph for each q in blob_j
     """
     cdef _input_parser _in
-    _in = _input_parser(S, T, params)
+    try:
+        _in = _input_parser(S, T, params)
+    except EmptySourceGraphError:
+        return {}
 
     cdef vector[int] chain
     cdef vector[vector[int]] chains
@@ -207,6 +210,9 @@ def find_embedding(S, T, **params):
         return rchain, success
     else:
         return rchain
+
+class EmptySourceGraphError(RuntimeError):
+    pass
 
 cdef class _input_parser:
     cdef input_graph Sg, Tg
@@ -268,7 +274,12 @@ cdef class _input_parser:
         except KeyError: pass
 
         self.SL = _read_graph(self.Sg, S)
+        if not self.SL:
+            raise EmptySourceGraphError
+
         self.TL = _read_graph(self.Tg, T)
+        if not self.TL:
+            raise ValueError("Cannot embed a non-empty source graph into an empty target graph.")
 
         pincount = 0
         cdef int nonempty
@@ -321,7 +332,10 @@ cdef class miner:
     cdef bool quickpassed
     cdef pathfinder_wrapper *pf
     def __cinit__(self, S, T, **params):
-        self._in = _input_parser(S, T, params)
+        try:
+            self._in = _input_parser(S, T, params)
+        except EmptySourceGraphError:
+            raise ValueError, "The source graph has zero edges; cowardly refusing to construct a miner object for a trivial problem."
         self.quickpassed = False
         self.pf = new pathfinder_wrapper(self._in.Sg, self._in.Tg, self._in.opts)
 
