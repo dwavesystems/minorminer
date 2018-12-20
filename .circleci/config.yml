@@ -459,7 +459,7 @@ jobs:
           name: upload
           command: |
             . env/bin/activate
-            twine upload /home/circleci/dist/*
+            twine upload --skip-existing ./dist/*
 
   pypi-deploy-osx:
     macos:
@@ -505,7 +505,7 @@ jobs:
           name: upload
           command: |
             . env/bin/activate
-            twine upload ./dist/*
+            twine upload --skip-existing ./dist/*
 
 workflows:
   version: 2
