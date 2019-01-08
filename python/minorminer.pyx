@@ -40,7 +40,7 @@ This implementation adds several useful features:
 [1] https://arxiv.org/abs/1406.2741
 """
 include "minorminer.pxi"
-import os, networkx
+import os
 
 def find_embedding(S, T, **params):
     """
