@@ -57,9 +57,11 @@ def find_embedding(S, T, **params):
 
     Returns::
 
-        When return_overlap = False (the default), returns a dict that maps labels in S to lists of labels in T
+        When return_overlap = False (the default), returns a dict that maps labels in S to lists of labels in T.
+            If the heuristic fails to find an embedding, an empty dictionary is returned
 
-        When return_overlap = True, returns a tuple consisting of a dict that maps labels in S to lists of labels in T and a bool indicating whether or not a valid embedding was foun
+        When return_overlap = True, returns a tuple consisting of a dict that maps labels in S to lists of
+            labels in T and a bool indicating whether or not a valid embedding was found
 
         When interrupted by Ctrl-C, returns the best embedding found so far
 
