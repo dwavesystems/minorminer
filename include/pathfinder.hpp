@@ -364,7 +364,7 @@ class pathfinder_base : public pathfinder_public_interface {
 
         for (auto &v : ep.var_neighbors(u, shuffle_first{})) {
             ep.prepare_visited(visited_list[v], u, v);
-            dijkstra_initialize_chain(emb, v, parents[v], dijkstras[v], embedded_tag{});
+            dijkstra_initialize_chain(emb, v, parents[v], dijkstras[v], visited_list[v], embedded_tag{});
         }
         for (distance_t D = 0; D <= last_size; D++) {
             for (auto &v : ep.var_neighbors(u)) {
@@ -392,7 +392,7 @@ class pathfinder_base : public pathfinder_public_interface {
                     visited[q] = 1;
                     for (auto &p : ep.qubit_neighbors(q)) {
                         if (!(visited[p] | emb.weight(p))) {
-                            if (pq.check_decrease_value(p, d)) {
+                            if (pq.check_insert(p, d)) {
                                 parent[p] = q;
                             }
                         }
@@ -413,7 +413,7 @@ class pathfinder_base : public pathfinder_public_interface {
     //!
     template <typename behavior_tag>
     void dijkstra_initialize_chain(const embedding_t &emb, const int &v, vector<int> &parent, distance_queue &pq,
-                                   behavior_tag) {
+                                   vector<int> &visited, behavior_tag) {
         static_assert(std::is_same<behavior_tag, embedded_tag>::value || std::is_same<behavior_tag, default_tag>::value,
                       "unknown behavior tag");
 
@@ -425,14 +425,23 @@ class pathfinder_base : public pathfinder_public_interface {
             for (auto &q : emb.get_chain(v)) {
                 parent[q] = -1;
                 for (auto &p : ep.qubit_neighbors(q)) {
-                    if (std::is_same<behavior_tag, embedded_tag>::value)
+                    if (std::is_same<behavior_tag, embedded_tag>::value) {
                         if (emb.weight(p) == 0) {
                             pq.set_value(p, 1);
                             parent[p] = q;
+                            visited[p] = 1;
+                        } else {
+                            visited[p] = -1;
                         }
+                    }
                     if (std::is_same<behavior_tag, default_tag>::value) {
-                        pq.set_value(p, qubit_weight[p]);
-                        parent[p] = q;
+                        if (emb.weight(p) < ep.weight_bound) {
+                            pq.set_value(p, qubit_weight[p]);
+                            parent[p] = q;
+                            visited[p] = 1;
+                        } else {
+                            visited[p] = -1;
+                        }
                     }
                 }
             }
@@ -440,6 +449,7 @@ class pathfinder_base : public pathfinder_public_interface {
             for (auto &q : emb.get_chain(v)) {
                 pq.set_value(q, 0);
                 parent[q] = -1;
+                visited[q] = 1;
             }
         }
     }
@@ -454,17 +464,27 @@ class pathfinder_base : public pathfinder_public_interface {
         int q;
         distance_t d;
 
-        dijkstra_initialize_chain(emb, v, parent, pq, default_tag{});
+        dijkstra_initialize_chain(emb, v, parent, pq, visited, default_tag{});
 
-        for (q = num_qubits; q--;)
-            if (emb.weight(q) >= ep.weight_bound) visited[q] = -1;
+        // this is how we do node-weight dijkstra -- where we spend 99% of our time.
+        // the priority queue `pq` sorts nodes and weights (q,d) first by d, then by q
+        // since we're node-weighted instead of edge-weighted, this is similar to a
+        // breadth-first search: the first time we see a new node p, we're coming from the
+        // lowest-weight, lowest-label parent -- the parent we want to keep! therefore
+        // we never need a decrease-key; we need only insert, record the parent and move on
 
-        // this is a vanilla implementation of node-weight dijkstra -- probably where we spend the most time.
+        // actually we're using a priority queue with random tie-breaking -- rather than q,
+        // the secondary comparison is on hidden ordering values f[q] -- see pairing_queue.hpp
         while (pq.pop_min(q, d)) {
-            visited[q] = 1;
             for (auto &p : ep.qubit_neighbors(q))
-                if (!visited[p])
-                    if (pq.check_decrease_value(p, d + qubit_weight[p])) parent[p] = q;
+                if (!visited[p]) {
+                    if (emb.weight(p) >= ep.weight_bound)
+                        visited[p] = -1;
+                    else if (pq.check_insert(p, d + qubit_weight[p])) {
+                        parent[p] = q;
+                        visited[p] = 1;
+                    }
+                }
         }
     }
 
