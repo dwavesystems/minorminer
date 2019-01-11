@@ -176,6 +176,34 @@ struct key_node {
         desc = other;
         return this;
     }
+
+    // restructure after an increase-key, return a root
+    inline key_node<P> *increase_root() {
+        minorminer_assert(prev == nullptr);
+        if (desc == nullptr || *this < *desc) {
+            return this;
+        } else {
+            key_node<P> *d = desc->merge_pairs();
+            desc = nullptr;
+            return merge_roots(d);
+        }
+    }
+
+    //! restructure after changing the priority of an internal node, leaving its
+    //! neighbors in a sane state and making it a proper root
+    inline void extract_root() {
+        minorminer_assert(prev != nullptr);
+        if (prev->desc == this)
+            prev->desc = next;
+        else
+            prev->next = next;
+
+        if (next != nullptr) {
+            next->prev = prev;
+            next = nullptr;
+        }
+        prev = nullptr;
+    }
 };
 
 //! A priority queue based on a pairing heap, with fixed memory footprint
@@ -471,8 +499,7 @@ class decrease_queue {
     inline bool check_insert(N *n, const P &v) {
         minorminer_assert(n != nullptr);
         if (!current(n)) {
-            n->val = v;
-            root = n->merge_roots(root);
+            insert_value(n, v);
             return true;
         } else {
             return false;
@@ -534,21 +561,6 @@ class decrease_queue {
 
   public:
     //! Decrease the value of k to v
-    //! NOTE: Assumes that v is lower than the current value of k
-    inline void decrease_value(int k, const P &v) { decrease_value(node(k), v); }
-
-  protected:
-    //! protected variant of `decrease_value` using a node pointer
-    inline void decrease_value(N *n, const P &v) {
-        minorminer_assert(n != nullptr);
-        minorminer_assert(v < n->val);
-
-        n->val = v;
-        decrease(n);
-    }
-
-  public:
-    //! Decrease the value of k to v
     //! Does nothing if v isn't actually a decrease.
     inline bool check_decrease_value(int k, const P &v) { return check_decrease_value(node(k), v); }
 
@@ -556,17 +568,15 @@ class decrease_queue {
     //! protected variant of `check_decrease_value` using a node pointer
     inline bool check_decrease_value(N *n, const P &v) {
         minorminer_assert(n != nullptr);
-        if (current(n)) {
+        if (current(n) && n->active()) {
             if (v < n->val) {
-                n->val = v;
-                decrease(n);
+                decrease_value(n, v);
                 return true;
             } else {
                 return false;
             }
         } else {
-            n->val = v;
-            root = n->merge_roots(root);
+            insert_value(n, v);
             return true;
         }
     }
@@ -579,46 +589,68 @@ class decrease_queue {
     //! protected variant of `set_value` using a node pointer
     inline void set_value(N *n, const P &v) {
         minorminer_assert(n != nullptr);
-        if (current(n) && n->prev != n) {
+        if (current(n) && n->active()) {
             if (v < n->val) {
-                n->val = v;
-                decrease(n);
+                decrease_value(n, v);
             } else if (n->val < v) {
-                n->val = v;
-                remove(n);
-                root = n->merge_roots(root);
+                increase_value(n, v);
             }
         } else {
-            n->val = v;
-            root = n->merge_roots(root);
+            insert_value(n, v);
         }
     }
 
-    //! INTERNAL USE ONLY removes node `a` from the pairing queue, assuming
-    //! it is not the root
-    inline void remove(N *a) {
-        minorminer_assert(a != nullptr);
-        N *b = a->prev;
-        N *c = a->next;
-        minorminer_assert(b != nullptr);
-        if (b->desc == a)
-            b->desc = c;
-        else
-            b->next = c;
+  public:
+    //! Decrease the value of k to v
+    //! NOTE: Assumes that v is lower than the current value of k
+    inline void decrease_value(int k, const P &v) { decrease_value(node(k), v); }
 
-        if (c != nullptr) {
-            c->prev = b;
-            a->next = nullptr;
-        }
+  protected:
+    //! protected variant of `decrease_value` using a node pointer
+    inline void decrease_value(N *n, const P &v) {
+        minorminer_assert(n != nullptr);
+        minorminer_assert(v < n->val);
+
+        n->val = v;
+        restructure_decrease(n);
+    }
+
+    //! protected variant of `decrease_value` using a node pointer
+    inline void increase_value(N *n, const P &v) {
+        minorminer_assert(n != nullptr);
+        minorminer_assert(v > n->val);
+
+        n->val = v;
+        restructure_increase(n);
+    }
+
+    inline void insert_value(N *n, const P &v) {
+        minorminer_assert(n != nullptr);
+
+        n->val = v;
+        root = n->merge_roots(root);
     }
 
     //! update the data structure to reflect a decrease in the value of `a`
-    inline void decrease(N *a) {
+    inline void restructure_decrease(N *a) {
         minorminer_assert(a != nullptr);
-        if (a->prev != nullptr) {
-            minorminer_assert(a != root);  // theoretically, root is the only node with empty(prev)
-            remove(a);
-            root = a->merge_roots(root);
+        if (a != root) {
+            a->extract_root();
+            root = root->merge_roots(a);
+        } else {
+            minorminer_assert(a->prev == nullptr);
+        }
+    }
+
+    //! update the data structure to reflect a increase in the value of `a`
+    inline void restructure_increase(N *a) {
+        minorminer_assert(a != nullptr);
+        if (a != root) {
+            a->extract_root();
+            a = a->increase_root();
+            root = root->merge_roots(a);
+        } else {
+            root = root->increase_root();
         }
     }
 };
