@@ -427,7 +427,7 @@ class pathfinder_base : public pathfinder_public_interface {
                 for (auto &p : ep.qubit_neighbors(q)) {
                     if (std::is_same<behavior_tag, embedded_tag>::value) {
                         if (emb.weight(p) == 0) {
-                            pq.set_value(p, 1);
+                            pq.check_insert(p, 1);
                             parent[p] = q;
                             visited[p] = 1;
                         } else {
@@ -436,7 +436,7 @@ class pathfinder_base : public pathfinder_public_interface {
                     }
                     if (std::is_same<behavior_tag, default_tag>::value) {
                         if (emb.weight(p) < ep.weight_bound) {
-                            pq.set_value(p, qubit_weight[p]);
+                            pq.check_insert(p, 1);
                             parent[p] = q;
                             visited[p] = 1;
                         } else {
@@ -447,7 +447,7 @@ class pathfinder_base : public pathfinder_public_interface {
             }
         } else {
             for (auto &q : emb.get_chain(v)) {
-                pq.set_value(q, 0);
+                pq.check_insert(q, 1);
                 parent[q] = -1;
                 visited[q] = 1;
             }

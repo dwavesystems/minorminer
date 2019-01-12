@@ -206,9 +206,11 @@ struct key_node {
     }
 };
 
-//! A priority queue based on a pairing heap, with fixed memory footprint
-template <typename P, typename K = uint64_t, typename N = order_node<P, K>>
-class pairing_queue {
+//! A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
+template <typename P, typename N>
+class base_queue {
+    using self = base_queue<P, N>;
+
   public:
     typedef P value_type;
 
@@ -223,27 +225,14 @@ class pairing_queue {
     //-------------
     // constructors
     //-------------
-
-    //! this constructor calls `rng()` for each of `n` nodes,
-    //! storing a value for tie-breaking purposes.
-    template <typename R>
-    pairing_queue(int n, R &rng) : nodes(n), root(nullptr), now(0) {
-        reorder(rng);
-    }
-
-    //! this constructor is generally bad idea, but tie-breaking is still
-    //! deterministic
-    pairing_queue(int n) : nodes(n), root(nullptr), now(0) {
-        int k = 0;
-        for (auto &n : nodes) n.order = k++;
-    }
+    base_queue(int n) : nodes(n), root(nullptr) {}
 
     //-----------------------------------
     // priority-queue interface functions
     //-----------------------------------
 
-    //! swap the memory of self with another pairing_queue
-    void swap(pairing_queue<P, K, N> &other) {
+    //! swap the memory of self with another base_queue
+    void swap(base_queue<P, N> &other) {
         nodes.swap(other.nodes);
         std::swap(root, other.root);
         std::swap(now, other.now);
@@ -262,7 +251,7 @@ class pairing_queue {
 
   protected:
     //! check if the node `n` is current (has `time=now`) and if not,
-    //! reset it (making it current)
+    //! reset_node it (making it current)
     inline bool current(N *n) {
         if (n->time != now) {
             n->reset(now);
@@ -277,46 +266,32 @@ class pairing_queue {
     inline bool delete_min() {
         if (empty()) return false;
 
-        N *newroot = root->desc;
-        if (newroot != nullptr) newroot = newroot->merge_pairs();
-        root->reset();
-        root = newroot;
+        restructure_pop();
         return true;
     }
 
     //! Remove and return (in args) the minimum key, value pair
     inline bool pop_min(int &key, P &value) {
-        if (empty()) {
-            return false;
-        }
+        if (empty()) return false;
         key = min_key();
         value = min_value();
-        delete_min();
+        restructure_pop();
         return true;
     }
 
-  public:
-    //! set the value associated with `k` to `v`
-    inline void set_value(int k, const P &v) { set_value(node(k), v); }
-
   protected:
-    //! protected variant of `set_value` using a node pointer
-    inline void set_value(N *n, const P &v) {
-        minorminer_assert(n != nullptr);
-        if (current(n) && n->active()) {
-            if (n->val != v) {
-                throw std::runtime_error("bad use of priority queue");
-            }
-        } else {
-            n->val = v;
-            root = n->merge_roots(root);
-        }
+    //! Remove the root and restructure.
+    inline void restructure_pop() {
+        N *newroot = root->desc;
+        if (newroot != nullptr) newroot = newroot->merge_pairs();
+        root->reset();
+        root = newroot;
     }
 
   public:
     //! Set the value of k to v
     //! Does nothing if v is already present.
-    inline bool check_insert(int k, const P &v) { return check_insert(node(k), v); }
+    inline bool check_insert(int k, const P &v) { return check_insert(self::node(k), v); }
 
   protected:
     inline bool check_insert(N *n, const P &v) {
@@ -332,12 +307,12 @@ class pairing_queue {
 
   public:
     //! Safe value getter.  If `k` doesn't have a value (safely or unsafely set)
-    //! since the last reset, returns numeric_limits<P>::max().  This works even
+    //! since the last reset_node, returns numeric_limits<P>::max().  This works even
     //! after `k` has been popped.
-    inline P get_value(int k) const { return get_value(const_node(k)); }
+    inline P get_value(int k) const { return _get_value(const_node(k)); }
 
   protected:
-    inline P get_value(const N *n) const {
+    inline P _get_value(const N *n) const {
         if (n->time == now)
             return n->val;
         else
@@ -345,15 +320,15 @@ class pairing_queue {
     }
 
   public:
-    //! set the value associated with `k` to `v` without inserting / updating its position
-    //! in the queue -- this must only be used on keys that are not in the queue
-    inline void set_value_unsafe(int k, const P &v) { set_value_unsafe(node(k), v); }
+    //! set the value associated with `k` to `v` and don't insert it into the queue
+    //! unchecked precondition: `k` must not be in the queue
+    inline void set_value_unsafe(int k, const P &v) { _set_value_unsafe(self::node(k), v); }
 
   protected:
     // protected variant of `set_value_unsafe` using a node pointer
-    inline void set_value_unsafe(N *n, const P &v) {
+    inline void _set_value_unsafe(N *n, const P &v) {
         minorminer_assert(!empty(n));
-        n->time = now;
+        current(n);
         n->val = v;
     }
 
@@ -376,11 +351,15 @@ class pairing_queue {
 
   public:
     //! trueue this queue is empty
-    inline bool empty(void) const { return root == nullptr; }
+    inline bool empty(void) const { return empty(root); }
+
+  protected:
+    //! protected variant of `empty`, can be used for non-root nodes
+    inline bool empty(N *n) const { return n == nullptr; }
 
   public:
     //! return the stored value for `k`.  does not check that this value has
-    //! been initialized or re-initialized since the last reset
+    //! been initialized or re-initialized since the last reset_node
     inline P value(int k) const { return const_node(k)->val; }
 
   protected:
@@ -394,6 +373,50 @@ class pairing_queue {
     inline const N *const_node(int k) const {
         minorminer_assert(0 <= k && k < size());
         return nodes.data() + k;
+    }
+};
+
+//! A priority queue based on a pairing heap, with fixed memory footprint
+template <typename P, typename K = uint64_t, typename N = order_node<P, K>>
+class pairing_queue : public base_queue<P, N> {
+    using super = base_queue<P, N>;
+    friend class base_queue<P, N>;
+
+  public:
+    typedef P value_type;
+
+    //-------------
+    // constructors
+    //-------------
+    //! this constructor calls `rng()` for each of `n` nodes,
+    //! storing a value for tie-breaking purposes.
+    template <typename R>
+    pairing_queue(int n, R &rng) : super(n) {
+        reorder(rng);
+    }
+
+    //! this constructor is generally bad idea, but tie-breaking is still
+    //! deterministic
+    pairing_queue(int n) : super(n) {
+        int k = 0;
+        for (auto &n : super::nodes) n.order = k++;
+    }
+
+    //-----------------------------------
+    // priority-queue interface functions
+    //-----------------------------------
+
+  public:
+    //! set the value associated with `k` to `v` without inserting / updating its position
+    //! in the queue -- this must only be used on keys that are not in the queue
+    inline void set_value_unsafe(int k, const P &v) { set_value_unsafe(super::node(k), v); }
+
+  protected:
+    // protected variant of `set_value_unsafe` using a node pointer
+    inline void set_value_unsafe(N *n, const P &v) {
+        minorminer_assert(!empty(n));
+        n->time = super::now;
+        n->val = v;
     }
 
     //----------------------
@@ -402,173 +425,59 @@ class pairing_queue {
   protected:
     //! updates the tie-breaker for `n`
     template <typename R>
-    inline void reorder(N *n, R &rng, int size, int ord) {
+    inline void _reorder(N *n, R &rng, int size, int ord) {
         n->order = rng() * size + ord;
     }
 
     //! fetch the tie-breaker for `n`
-    inline K get_order(int k) const { return const_node(k)->order; }
+    inline K get_order(int k) const { return super::const_node(k)->order; }
 
   public:
     //! refresh the tie-breaking with a new set of random values
     template <typename R>
     inline void reorder(R &rng) {
-        int size = nodes.size();
+        int size = super::nodes.size();
         for (int k = size; k--;) {
-            reorder(node(k), rng, size, k);
+            _reorder(super::node(k), rng, size, k);
         }
     }
 
     //! duplicate the tie-breaking of another pairing_queue
     inline void reorder_copy(const pairing_queue<P, K, N> &other) {
-        int size = nodes.size();
+        int size = super::nodes.size();
         for (int k = size; k--;) {
-            node(k)->order = other.get_order(k);
+            super::node(k)->order = other.get_order(k);
         }
     }
 };
 
 //! A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
 template <typename P, typename N = key_node<P>>
-class decrease_queue {
+class decrease_queue : public base_queue<P, N> {
+    using super = base_queue<P, N>;
+
   public:
     typedef P value_type;
 
-  protected:
-    std::vector<N> nodes;
+    //-------------
+    // constructors
+    //-------------
+    decrease_queue(int n) : super(n) {}
 
-    N *root;
-
-    uint64_t now;
-
-  public:
-    decrease_queue(int n) : nodes(n), root(nullptr), now(0) {}
-
-    //! Size of the queue
-    inline int size() const { return nodes.size(); }
-
-    //! clear out this data structure or make it ready for the first time
-    inline void reset() {
-        root = nullptr;
-        if (!now++) {
-            for (auto &n : nodes) n.time = 0;
-        }
-    }
-
-  protected:
-    //! check if the node `n` is current (has `time=now`) and if not,
-    //! reset it (making it current)
-    inline bool current(N *n) {
-        if (n->time != now) {
-            n->reset(now);
-            return false;
-        }
-        return true;
-    }
-
-  public:
-    //! Remove the minimum value
-    //! return true if any change is made
-    inline bool delete_min() {
-        if (empty()) return false;
-
-        N *newroot = root->desc;
-        if (newroot != nullptr) newroot = newroot->merge_pairs();
-        root->reset();
-        root = newroot;
-        return true;
-    }
-
-    //! Remove and return (in args) the minimum key, value pair
-    inline bool pop_min(int &key, P &value) {
-        if (empty()) {
-            return false;
-        }
-        key = min_key();
-        value = min_value();
-        delete_min();
-        return true;
-    }
-
-  public:
-    //! Set the value of k to v
-    //! Does nothing if v is already present.
-    inline bool check_insert(int k, const P &v) { return check_insert(node(k), v); }
-
-  protected:
-    inline bool check_insert(N *n, const P &v) {
-        minorminer_assert(n != nullptr);
-        if (!current(n)) {
-            insert_value(n, v);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-  public:
-    //! Safe value getter.  If `k` doesn't have a value (safely or unsafely set)
-    //! since the last reset, returns numeric_limits<P>::max().  This works even
-    //! after `k` has been popped.
-    inline P get_value(int k) const { return get_value(const_node(k)); }
-
-  protected:
-    inline P get_value(const N *n) const {
-        if (n->time == now)
-            return n->val;
-        else
-            return max_P;
-    }
-
-  public:
-    //! get the current minimum value (assumes `!empty()`)
-    inline P min_value() const {
-        minorminer_assert(!empty());
-        return root->val;
-    }
-
-    //! get the current minimum-value key (assumes `!empty()`)
-    inline int min_key() const {
-        minorminer_assert(!empty());
-        return key(root);
-    }
-
-  protected:
-    //! get the key of a node
-    inline int key(N *n) const { return n - nodes.data(); }
-
-  public:
-    //! trueue this queue is empty
-    inline bool empty(void) const { return root == nullptr; }
-
-  public:
-    //! return the stored value for `k`.  does not check that this value has
-    //! been initialized or re-initialized since the last reset
-    inline P value(int k) const { return const_node(k)->val; }
-
-  protected:
-    //! node pointer accessor
-    inline N *node(int k) {
-        minorminer_assert(0 <= k && k < size());
-        return nodes.data() + k;
-    }
-
-    //! const node pointer accessor
-    inline const N *const_node(int k) const {
-        minorminer_assert(0 <= k && k < size());
-        return nodes.data() + k;
-    }
+    //-----------------------------------
+    // priority-queue interface functions
+    //-----------------------------------
 
   public:
     //! Decrease the value of k to v
     //! Does nothing if v isn't actually a decrease.
-    inline bool check_decrease_value(int k, const P &v) { return check_decrease_value(node(k), v); }
+    inline bool check_decrease_value(int k, const P &v) { return check_decrease_value(super::node(k), v); }
 
   protected:
     //! protected variant of `check_decrease_value` using a node pointer
     inline bool check_decrease_value(N *n, const P &v) {
         minorminer_assert(n != nullptr);
-        if (current(n) && n->active()) {
+        if (super::current(n) && n->active()) {
             if (v < n->val) {
                 decrease_value(n, v);
                 return true;
@@ -583,13 +492,13 @@ class decrease_queue {
 
   public:
     //! set the value associated with `k` to `v`
-    inline void set_value(int k, const P &v) { set_value(node(k), v); }
+    inline void set_value(int k, const P &v) { set_value(super::node(k), v); }
 
   protected:
     //! protected variant of `set_value` using a node pointer
     inline void set_value(N *n, const P &v) {
         minorminer_assert(n != nullptr);
-        if (current(n) && n->active()) {
+        if (super::current(n) && n->active()) {
             if (v < n->val) {
                 decrease_value(n, v);
             } else if (n->val < v) {
@@ -603,7 +512,7 @@ class decrease_queue {
   public:
     //! Decrease the value of k to v
     //! NOTE: Assumes that v is lower than the current value of k
-    inline void decrease_value(int k, const P &v) { decrease_value(node(k), v); }
+    inline void decrease_value(int k, const P &v) { decrease_value(super::node(k), v); }
 
   protected:
     //! protected variant of `decrease_value` using a node pointer
@@ -628,15 +537,15 @@ class decrease_queue {
         minorminer_assert(n != nullptr);
 
         n->val = v;
-        root = n->merge_roots(root);
+        super::root = n->merge_roots(super::root);
     }
 
     //! update the data structure to reflect a decrease in the value of `a`
     inline void restructure_decrease(N *a) {
         minorminer_assert(a != nullptr);
-        if (a != root) {
+        if (a != super::root) {
             a->extract_root();
-            root = root->merge_roots(a);
+            super::root = super::root->merge_roots(a);
         } else {
             minorminer_assert(a->prev == nullptr);
         }
@@ -645,12 +554,12 @@ class decrease_queue {
     //! update the data structure to reflect a increase in the value of `a`
     inline void restructure_increase(N *a) {
         minorminer_assert(a != nullptr);
-        if (a != root) {
+        if (a != super::root) {
             a->extract_root();
             a = a->increase_root();
-            root = root->merge_roots(a);
+            super::root = super::root->merge_roots(a);
         } else {
-            root = root->increase_root();
+            super::root = super::root->increase_root();
         }
     }
 };
