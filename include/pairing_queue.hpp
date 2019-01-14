@@ -10,7 +10,6 @@
 #include <limits>
 
 #include "debug.hpp"
-#include "util.hpp"
 
 // Macros local to this file, undefined at the end
 #define max_P (numeric_limits<P>::max())
@@ -289,8 +288,7 @@ class base_queue {
     }
 
   public:
-    //! Set the value of k to v
-    //! Does nothing if v is already present.
+    //! Set the value of `k` to `v`.  Does nothing if `k` has been inserted since the last reset.
     inline bool check_insert(int k, const P &v) { return check_insert(self::node(k), v); }
 
   protected:
@@ -309,27 +307,14 @@ class base_queue {
     //! Safe value getter.  If `k` doesn't have a value (safely or unsafely set)
     //! since the last reset_node, returns numeric_limits<P>::max().  This works even
     //! after `k` has been popped.
-    inline P get_value(int k) const { return _get_value(const_node(k)); }
+    inline P get_value(int k) const { return get_value(const_node(k)); }
 
   protected:
-    inline P _get_value(const N *n) const {
+    inline P get_value(const N *n) const {
         if (n->time == now)
             return n->val;
         else
             return max_P;
-    }
-
-  public:
-    //! set the value associated with `k` to `v` and don't insert it into the queue
-    //! unchecked precondition: `k` must not be in the queue
-    inline void set_value_unsafe(int k, const P &v) { _set_value_unsafe(self::node(k), v); }
-
-  protected:
-    // protected variant of `set_value_unsafe` using a node pointer
-    inline void _set_value_unsafe(N *n, const P &v) {
-        minorminer_assert(!empty(n));
-        current(n);
-        n->val = v;
     }
 
   public:
@@ -402,30 +387,13 @@ class pairing_queue : public base_queue<P, N> {
         for (auto &n : super::nodes) n.order = k++;
     }
 
-    //-----------------------------------
-    // priority-queue interface functions
-    //-----------------------------------
-
-  public:
-    //! set the value associated with `k` to `v` without inserting / updating its position
-    //! in the queue -- this must only be used on keys that are not in the queue
-    inline void set_value_unsafe(int k, const P &v) { set_value_unsafe(super::node(k), v); }
-
-  protected:
-    // protected variant of `set_value_unsafe` using a node pointer
-    inline void set_value_unsafe(N *n, const P &v) {
-        minorminer_assert(!empty(n));
-        n->time = super::now;
-        n->val = v;
-    }
-
     //----------------------
     // tie-breaker functions
     //----------------------
   protected:
     //! updates the tie-breaker for `n`
     template <typename R>
-    inline void _reorder(N *n, R &rng, int size, int ord) {
+    inline void reorder(N *n, R &rng, int size, int ord) {
         n->order = rng() * size + ord;
     }
 
@@ -438,7 +406,7 @@ class pairing_queue : public base_queue<P, N> {
     inline void reorder(R &rng) {
         int size = super::nodes.size();
         for (int k = size; k--;) {
-            _reorder(super::node(k), rng, size, k);
+            reorder(super::node(k), rng, size, k);
         }
     }
 
