@@ -615,17 +615,16 @@ TEST(decrease_queue, increase) {
 }
 
 // Fill a queue with random values, ensure sortedness.
-TEST(decrease_queue, setvalue_vs_sort) {
+TEST(decrease_queue, checkinsert_vs_sort) {
     std::random_device rng;
     vector<unsigned int> values(10);
     pairing_queue::decrease_queue<unsigned int> queue(10);
     queue.reset();
 
-    for (int i = 0; i < 500; i++) {
+    for (int i = 0; i < 20; i++) {
         unsigned int v = rng();
         int k = i % 10;
-        queue.set_value(k, v);
-        values[k] = v;
+        if (queue.check_insert(k, v)) values[k] = v;
     }
 
     vector<int> keys;
@@ -643,28 +642,60 @@ TEST(decrease_queue, setvalue_vs_sort) {
 }
 
 // Fill a queue with random values, ensure sortedness.
+TEST(decrease_queue, setvalue_vs_sort) {
+    std::random_device rng;
+    vector<unsigned int> values(10);
+    pairing_queue::decrease_queue<unsigned int> queue(10);
+    for (int j = 500; j--;) {
+        queue.reset();
+
+        for (int i = 0; i < 500; i++) {
+            unsigned int v = rng();
+            int k = i % 10;
+            queue.set_value(k, v);
+            values[k] = v;
+        }
+
+        vector<int> keys;
+        unsigned int last_v;
+        for (int i = 0; i < 10; i++) {
+            int k = queue.min_key();
+            unsigned int v = queue.min_value();
+            queue.delete_min();
+            keys.push_back(k);
+            EXPECT_EQ(v, values[k]);
+            if (i) EXPECT_LE(last_v, v);
+            last_v = v;
+        }
+        EXPECT_TRUE(queue.empty());
+    }
+}
+
+// Fill a queue with random values, ensure sortedness.
 TEST(decrease_queue, checkdecrease_vs_sort) {
     std::random_device rng;
     vector<unsigned int> values(10);
     pairing_queue::decrease_queue<unsigned int> queue(10);
-    queue.reset();
+    for (int j = 500; j--;) {
+        queue.reset();
 
-    for (int i = 0; i < 500; i++) {
-        unsigned int v = rng();
-        int k = i % 10;
-        if (queue.check_decrease_value(k, v)) values[k] = v;
-    }
+        for (int i = 0; i < 500; i++) {
+            unsigned int v = rng();
+            int k = i % 10;
+            if (queue.check_decrease_value(k, v)) values[k] = v;
+        }
 
-    vector<int> keys;
-    unsigned int last_v;
-    for (int i = 0; i < 10; i++) {
-        int k = queue.min_key();
-        unsigned int v = queue.min_value();
-        queue.delete_min();
-        keys.push_back(k);
-        EXPECT_EQ(v, values[k]);
-        if (i) EXPECT_LE(last_v, v);
-        last_v = v;
+        vector<int> keys;
+        unsigned int last_v;
+        for (int i = 0; i < 10; i++) {
+            int k = queue.min_key();
+            unsigned int v = queue.min_value();
+            queue.delete_min();
+            keys.push_back(k);
+            EXPECT_EQ(v, values[k]);
+            if (i) EXPECT_LE(last_v, v);
+            last_v = v;
+        }
+        EXPECT_TRUE(queue.empty());
     }
-    EXPECT_TRUE(queue.empty());
 }

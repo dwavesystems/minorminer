@@ -49,10 +49,11 @@ inline N *_merge_pairs(N *a) {
         a = _merge_roots_unsafe(a, r);
         r = t;
     }
+    a->next = nullptr;
     return a;
 }
 
-//! merge_roots, assuming `other` is not null null, possibly invalidating
+//! merge_roots, assuming `other` is not null, possibly invalidating
 //! the internal data structure (see source for details)
 template <typename N>
 inline N *_merge_roots_unsafe(N *a, N *b) {
@@ -80,18 +81,12 @@ struct order_node {
 
     // initialize this node and update its timestamp
     inline void reset(time_t now) {
-        desc = nullptr;
-        next = this;
+        reset();
         time = now;
     }
 
     // initialize this node
-    inline void reset() {
-        desc = nullptr;
-        next = this;
-    }
-
-    inline bool active() { return next != this; }
+    inline void reset() { next = desc = nullptr; }
 
     inline order_node<P, K> *merge_pairs() { return _merge_pairs(this); }
 
@@ -141,7 +136,7 @@ struct key_node {
         prev = this;
     }
 
-    inline bool active() { return next != this; }
+    inline bool active() { return prev != this; }
 
     inline key_node<P> *merge_pairs() {
         key_node<P> *t = _merge_pairs(this);
@@ -179,7 +174,7 @@ struct key_node {
     // restructure after an increase-key, return a root
     inline key_node<P> *increase_root() {
         minorminer_assert(prev == nullptr);
-        if (desc == nullptr || *this < *desc) {
+        if (desc == nullptr) {
             return this;
         } else {
             key_node<P> *d = desc->merge_pairs();
@@ -204,6 +199,32 @@ struct key_node {
         prev = nullptr;
     }
 };
+
+#ifdef CPPDEBUG
+template <typename N>
+bool valid(N *curr) {
+    if (curr == nullptr) return true;
+    if (curr->next != nullptr) {
+        std::cout << "pairing queue bad root" << std::endl;
+        return false;
+    }
+    return valid(curr->desc, curr);
+}
+template <typename N>
+bool valid(N *curr, N *prev) {
+    if (curr == nullptr) return true;
+    if (*curr < *prev) {
+        std::cout << "pairing queue disorder" << std::endl;
+        return false;
+    }
+    if (curr->next != curr && !valid(curr->next, prev)) return false;
+    if (!valid(curr->desc, curr)) return false;
+    return true;
+}
+#else
+template <typename N>
+N *valid(N *curr) {}
+#endif
 
 //! A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
 template <typename P, typename N>
@@ -283,8 +304,10 @@ class base_queue {
     inline void restructure_pop() {
         N *newroot = root->desc;
         if (newroot != nullptr) newroot = newroot->merge_pairs();
+
         root->reset();
         root = newroot;
+        minorminer_assert(valid(root));
     }
 
   public:
@@ -297,6 +320,7 @@ class base_queue {
         if (!current(n)) {
             n->val = v;
             root = n->merge_roots(root);
+            minorminer_assert(valid(root));
             return true;
         } else {
             return false;
@@ -506,6 +530,7 @@ class decrease_queue : public base_queue<P, N> {
 
         n->val = v;
         super::root = n->merge_roots(super::root);
+        minorminer_assert(valid(super::root));
     }
 
     //! update the data structure to reflect a decrease in the value of `a`
@@ -514,6 +539,7 @@ class decrease_queue : public base_queue<P, N> {
         if (a != super::root) {
             a->extract_root();
             super::root = super::root->merge_roots(a);
+            minorminer_assert(valid(super::root));
         } else {
             minorminer_assert(a->prev == nullptr);
         }
@@ -526,8 +552,10 @@ class decrease_queue : public base_queue<P, N> {
             a->extract_root();
             a = a->increase_root();
             super::root = super::root->merge_roots(a);
+            minorminer_assert(valid(super::root));
         } else {
             super::root = super::root->increase_root();
+            minorminer_assert(valid(super::root));
         }
     }
 };
