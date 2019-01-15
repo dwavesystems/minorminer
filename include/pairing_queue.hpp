@@ -202,28 +202,22 @@ struct key_node {
 
 #ifdef CPPDEBUG
 template <typename N>
-bool valid(N *curr) {
-    if (curr == nullptr) return true;
-    if (curr->next != nullptr) {
-        std::cout << "pairing queue bad root" << std::endl;
-        return false;
-    }
-    return valid(curr->desc, curr);
+void assert_heap_root(N *curr) {
+    if (curr == nullptr) return;
+    if (curr->next != nullptr) throw std::runtime_error("priority queue has bad root (next not null)");
+    assert_heap_node(curr->desc, curr);
 }
 template <typename N>
-bool valid(N *curr, N *prev) {
-    if (curr == nullptr) return true;
-    if (*curr < *prev) {
-        std::cout << "pairing queue disorder" << std::endl;
-        return false;
-    }
-    if (curr->next != curr && !valid(curr->next, prev)) return false;
-    if (!valid(curr->desc, curr)) return false;
-    return true;
+void assert_heap_node(N *curr, N *prev) {
+    if (curr == nullptr) return;
+    if (*curr < *prev) throw std::runtime_error("priority queue violates heap-ordering criterion");
+    if (curr->next == curr) throw std::runtime_error("priority queue has self-referential node");
+    assert_heap_node(curr->next, prev);
+    assert_heap_node(curr->desc, curr);
 }
 #else
 template <typename N>
-N *valid(N *curr) {}
+void assert_heap_root(N *) {}
 #endif
 
 //! A priority queue based on a pairing heap, with fixed memory footprint and support for a decrease-key operation
@@ -245,7 +239,7 @@ class base_queue {
     //-------------
     // constructors
     //-------------
-    base_queue(int n) : nodes(n), root(nullptr) {}
+    base_queue(int n) : nodes(n), root(nullptr), now(0) {}
 
     //-----------------------------------
     // priority-queue interface functions
@@ -268,6 +262,8 @@ class base_queue {
             for (auto &n : nodes) n.time = 0;
         }
     }
+
+    inline void assert_valid_heap() { assert_heap_root(root); }
 
   protected:
     //! check if the node `n` is current (has `time=now`) and if not,
@@ -307,7 +303,7 @@ class base_queue {
 
         root->reset();
         root = newroot;
-        minorminer_assert(valid(root));
+        assert_valid_heap();
     }
 
   public:
@@ -320,7 +316,7 @@ class base_queue {
         if (!current(n)) {
             n->val = v;
             root = n->merge_roots(root);
-            minorminer_assert(valid(root));
+            assert_valid_heap();
             return true;
         } else {
             return false;
@@ -530,7 +526,7 @@ class decrease_queue : public base_queue<P, N> {
 
         n->val = v;
         super::root = n->merge_roots(super::root);
-        minorminer_assert(valid(super::root));
+        super::assert_valid_heap();
     }
 
     //! update the data structure to reflect a decrease in the value of `a`
@@ -539,7 +535,7 @@ class decrease_queue : public base_queue<P, N> {
         if (a != super::root) {
             a->extract_root();
             super::root = super::root->merge_roots(a);
-            minorminer_assert(valid(super::root));
+            super::assert_valid_heap();
         } else {
             minorminer_assert(a->prev == nullptr);
         }
@@ -552,10 +548,10 @@ class decrease_queue : public base_queue<P, N> {
             a->extract_root();
             a = a->increase_root();
             super::root = super::root->merge_roots(a);
-            minorminer_assert(valid(super::root));
+            super::assert_valid_heap();
         } else {
             super::root = super::root->increase_root();
-            minorminer_assert(valid(super::root));
+            super::assert_valid_heap();
         }
     }
 };
