@@ -3,12 +3,13 @@
 #include <chrono>
 #include <iterator>
 #include <mutex>
+#include <queue>
 #include <random>
 #include <thread>
 #include <unordered_map>
 #include "debug.hpp"
 #include "fastrng.hpp"
-#include "pairing_queue.hpp"
+#include "priority_queue.hpp"
 
 namespace find_embedding {
 // Import some things from the std library
@@ -33,9 +34,8 @@ using distance_t = long long int;
 constexpr distance_t max_distance = numeric_limits<distance_t>::max();
 using RANDOM = fastrng;
 using clock = std::chrono::high_resolution_clock;
-using pairing_queue::pairing_queue_fast_reset;
-using distance_queue = pairing_queue::pairing_queue_fast_reset_rtb<distance_t>;
-using int_queue = pairing_queue::pairing_queue_fast_reset<int64_t>;
+using priority_queue = std::priority_queue<priority_node<int>>;
+using dirty_priority_queue = std::priority_queue<dirty_priority_node<distance_t>>;
 
 //! Interface for communication between the library and various bindings.
 //!
