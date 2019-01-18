@@ -387,10 +387,12 @@ class embedding_problem_base {
                             bfs_component(v, var_nbrs, var_order_space, var_order_visited, var_order_shuffle);
                             break;
                         case VARORDER_PFS:
-                            pfs_component(v, var_nbrs, var_order_space, var_order_visited, var_order_shuffle);
+                            pfs_component(v, var_nbrs, var_order_space, var_order_visited, var_order_shuffle,
+                                          min_heap_tag{});
                             break;
                         case VARORDER_RPFS:
-                            rpfs_component(v, var_nbrs, var_order_space, var_order_visited, var_order_shuffle);
+                            pfs_component(v, var_nbrs, var_order_space, var_order_visited, var_order_shuffle,
+                                          max_heap_tag{});
                             break;
                         default:
                             throw - 1;
@@ -419,32 +421,10 @@ class embedding_problem_base {
 
   private:
     //! Perform a priority first search (priority = #of visited neighbors)
+    template <typename heap_tag>
     void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited,
-                       vector<int> shuffled) {
-        std::priority_queue<dirty_priority_node<int>> pq;
-        pq.emplace(x, shuffled[x], 0);
-        while (!pq.empty()) {
-            auto z = pq.top();
-            pq.pop();
-            x = z.node;
-            if (visited[x]) continue;
-            visited[x] = 1;
-            component.push_back(x);
-
-            for (auto y : neighbors[x]) {
-                if (!visited[y]) {
-                    int d = 0;
-                    for (auto w : neighbors[y]) d += visited[w];
-                    pq.emplace(y, shuffled[y], d);
-                }
-            }
-        }
-    }
-
-    //! Perform a reverse priority first search (reverse priority = #of unvisited neighbors)
-    void rpfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited,
-                        vector<int> &shuffled) {
-        std::priority_queue<dirty_priority_node<int>> pq;
+                       vector<int> shuffled, heap_tag) {
+        std::priority_queue<priority_node<int, heap_tag>> pq;
         pq.emplace(x, shuffled[x], 0);
         while (!pq.empty()) {
             auto z = pq.top();
@@ -467,20 +447,20 @@ class embedding_problem_base {
     //! Perform a breadth first search, shuffling level sets
     void bfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited,
                        vector<int> &shuffled) {
-        std::priority_queue<dirty_priority_node<int>> pq;
+        min_queue<int> pq;
         pq.emplace(x, shuffled[x], 0);
+        visited[x] = 1;
         while (!pq.empty()) {
             auto z = pq.top();
             pq.pop();
             x = z.node;
             auto d = z.dist;
-            if (visited[x]) continue;
-            visited[x] = 1;
             component.push_back(x);
 
             for (auto y : neighbors[x]) {
                 if (!visited[y]) {
                     pq.emplace(y, shuffled[y], d + 1);
+                    visited[y] = 1;
                 }
             }
         }

@@ -34,8 +34,10 @@ using distance_t = long long int;
 constexpr distance_t max_distance = numeric_limits<distance_t>::max();
 using RANDOM = fastrng;
 using clock = std::chrono::high_resolution_clock;
-using priority_queue = std::priority_queue<priority_node<int>>;
-using dirty_priority_queue = std::priority_queue<dirty_priority_node<distance_t>>;
+template <typename P>
+using min_queue = std::priority_queue<priority_node<P, min_heap_tag>>;
+template <typename P>
+using max_queue = std::priority_queue<priority_node<P, max_heap_tag>>;
 
 //! Interface for communication between the library and various bindings.
 //!

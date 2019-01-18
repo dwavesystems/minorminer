@@ -361,15 +361,14 @@ class pathfinder_base : public pathfinder_public_interface {
 
         unsigned int stopcheck = static_cast<unsigned int>(max(last_size, target_chainsize));
 
-        vector<dirty_priority_queue> PQ;
+        vector<min_queue<distance_t>> PQ(ep.var_neighbors(u).size());
+        int v_i = 0;
         for (auto &v : ep.var_neighbors(u, shuffle_first{})) {
-            dirty_priority_queue pq;
-            PQ.push_back(pq);
             ep.prepare_visited(visited_list[v], u, v);
-            dijkstra_initialize_chain(emb, v, parents[v], visited_list[v], pq, embedded_tag{});
+            dijkstra_initialize_chain(emb, v, parents[v], visited_list[v], PQ[v_i++], embedded_tag{});
         }
         for (distance_t D = 0; D <= last_size; D++) {
-            int v_i = 0;
+            v_i = 0;
             for (auto &v : ep.var_neighbors(u)) {
                 auto &pq = PQ[v_i++];
                 auto &parent = parents[v];
@@ -423,7 +422,7 @@ class pathfinder_base : public pathfinder_public_interface {
     //!
     template <typename behavior_tag>
     void dijkstra_initialize_chain(const embedding_t &emb, const int &v, vector<int> &parent, vector<int> &visited,
-                                   dirty_priority_queue &pq, behavior_tag) {
+                                   min_queue<distance_t> &pq, behavior_tag) {
         static_assert(std::is_same<behavior_tag, embedded_tag>::value || std::is_same<behavior_tag, default_tag>::value,
                       "unknown behavior tag");
         auto &permutation = qubit_permutations[v];
@@ -462,7 +461,7 @@ class pathfinder_base : public pathfinder_public_interface {
     //! note: qubits are only visited if `visited[q] = 1`.  the value `-1` is used to prevent
     //! searching of overfull qubits
     void compute_distances_from_chain(const embedding_t &emb, const int &v, vector<int> &visited) {
-        dirty_priority_queue pq;
+        min_queue<distance_t> pq;
         auto &parent = parents[v];
         auto &permutation = qubit_permutations[v];
         auto &distance = distances[v];
