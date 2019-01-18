@@ -702,8 +702,9 @@ class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
             super::accumulate_distance(emb, v, super::visited_list[v]);
         }
 
-        for (int q = super::num_qubits; q--;)
-            if (emb.weight(q) >= super::ep.weight_bound) super::total_distance[q] = max_distance;
+        if (!neighbors_embedded)
+            for (int q = super::num_qubits; q--;)
+                if (emb.weight(q) >= super::ep.weight_bound) super::total_distance[q] = max_distance;
     }
 };
 
@@ -745,7 +746,6 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
             super::compute_distances_from_chain(emb, v, visited);
 
             get_job.lock();
-            super::accumulate_distance_at_chain(emb, v);
         }
     }
 
@@ -792,10 +792,10 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
         int maxwid = *std::max_element(begin(thread_weight), end(thread_weight));
         super::ep.populate_weight_table(maxwid);
 
-        exec_chunked([this, &emb](int a, int b) { super::compute_qubit_weights(emb, a, b); });
-
-        exec_chunked(
-                [this, u](int a, int b) { this->ep.prepare_distances(this->total_distance, u, max_distance, a, b); });
+        exec_chunked([this, &emb, u](int a, int b) {
+            super::compute_qubit_weights(emb, a, b);
+            this->ep.prepare_distances(this->total_distance, u, max_distance, a, b);
+        });
 
         nbr_i = 0;
         neighbors_embedded = 0;
@@ -804,12 +804,19 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
         for (int i = 0; i < num_threads; i++) futures[i].wait();
 
         for (auto &v : super::ep.var_neighbors(u)) {
-            if (emb.chainsize(v)) {
-                exec_chunked([this, &emb, v](int a, int b) {
-                    this->accumulate_distance(emb, v, super::visited_list[v], a, b);
-                });
-            }
+            super::accumulate_distance_at_chain(emb, v);  // this isn't parallel but at least it should be sparse?
         }
+
+        exec_chunked([this, &emb, u](int a, int b) {
+            for (auto &v : super::ep.var_neighbors(u)) {
+                if (emb.chainsize(v)) {
+                    this->accumulate_distance(emb, v, super::visited_list[v], a, b);
+                }
+            }
+            if (!neighbors_embedded)
+                for (int q = a; q < b; q++)
+                    if (emb.weight(q) >= super::ep.weight_bound) super::total_distance[q] = max_distance;
+        });
     }
 };
 }
