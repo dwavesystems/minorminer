@@ -352,66 +352,67 @@ class pathfinder_base : public pathfinder_public_interface {
     //! estimated chainlength.  this procedure takes quite a long time and requires that `emb` is
     //! a valid embedding with no overlaps.
     void find_short_chain(embedding_t &emb, const int u, const int target_chainsize) {
-        int last_size = emb.freeze_out(u);
-        auto &counts = total_distance;
-        counts.assign(num_qubits, 0);
-        unsigned int best_size = std::numeric_limits<unsigned int>::max();
-        int q, degree = ep.var_neighbors(u).size();
-        distance_t d;
+        find_chain(emb, u, target_chainsize);
+        /*        int last_size = emb.freeze_out(u);
+                auto &counts = total_distance;
+                counts.assign(num_qubits, 0);
+                unsigned int best_size = std::numeric_limits<unsigned int>::max();
+                int q, degree = ep.var_neighbors(u).size();
+                distance_t d;
 
-        unsigned int stopcheck = static_cast<unsigned int>(max(last_size, target_chainsize));
+                unsigned int stopcheck = static_cast<unsigned int>(max(last_size, target_chainsize));
 
-        vector<min_queue<distance_t>> PQ(ep.var_neighbors(u).size());
-        int v_i = 0;
-        for (auto &v : ep.var_neighbors(u, shuffle_first{})) {
-            ep.prepare_visited(visited_list[v], u, v);
-            dijkstra_initialize_chain(emb, v, parents[v], visited_list[v], PQ[v_i++], embedded_tag{});
-        }
-        for (distance_t D = 0; D <= last_size; D++) {
-            v_i = 0;
-            for (auto &v : ep.var_neighbors(u)) {
-                auto &pq = PQ[v_i++];
-                auto &parent = parents[v];
-                auto &permutation = qubit_permutations[v];
-                auto &distance = distances[v];
-                auto &visited = visited_list[v];
-                while (!pq.empty()) {
-                    auto z = pq.top();
-                    if (z.dist > D) break;
-                    q = z.node;
-                    distance[q] = d = z.dist;
-                    pq.pop();
-                    if (!emb.weight(q)) counts[q]++;
+                vector<min_queue<distance_t>> PQ(ep.var_neighbors(u).size());
+                int v_i = 0;
+                for (auto &v : ep.var_neighbors(u, shuffle_first{})) {
+                    ep.prepare_visited(visited_list[v], u, v);
+                    dijkstra_initialize_chain(emb, v, parents[v], visited_list[v], PQ[v_i++], embedded_tag{});
+                }
+                for (distance_t D = 0; D <= last_size; D++) {
+                    v_i = 0;
+                    for (auto &v : ep.var_neighbors(u)) {
+                        auto &pq = PQ[v_i++];
+                        auto &parent = parents[v];
+                        auto &permutation = qubit_permutations[v];
+                        auto &distance = distances[v];
+                        auto &visited = visited_list[v];
+                        while (!pq.empty()) {
+                            auto z = pq.top();
+                            if (z.dist > D) break;
+                            q = z.node;
+                            distance[q] = d = z.dist;
+                            pq.pop();
+                            if (!emb.weight(q)) counts[q]++;
 
-                    if (counts[q] == degree) {
-                        emb.construct_chain_steiner(u, q, parents, distances, visited_list);
-                        unsigned int cs = emb.chainsize(u);
-                        if (cs < best_size) {
-                            best_size = cs;
-                            if (best_size < stopcheck) goto finish;
-                            emb.freeze_out(u);
-                        } else {
-                            emb.tear_out(u);
-                        }
-                    }
+                            if (counts[q] == degree) {
+                                emb.construct_chain_steiner(u, q, parents, distances, visited_list);
+                                unsigned int cs = emb.chainsize(u);
+                                if (cs < best_size) {
+                                    best_size = cs;
+                                    if (best_size < stopcheck) goto finish;
+                                    emb.freeze_out(u);
+                                } else {
+                                    emb.tear_out(u);
+                                }
+                            }
 
-                    d += 1;
-                    visited[q] = 1;
-                    for (auto &p : ep.qubit_neighbors(q)) {
-                        if (!visited[p]) {
-                            visited[p] = 1;
-                            if (!emb.weight(p)) {
-                                parent[p] = q;
-                                pq.emplace(p, permutation[p], d);
+                            d += 1;
+                            visited[q] = 1;
+                            for (auto &p : ep.qubit_neighbors(q)) {
+                                if (!visited[p]) {
+                                    visited[p] = 1;
+                                    if (!emb.weight(p)) {
+                                        parent[p] = q;
+                                        pq.emplace(p, permutation[p], d);
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
-        emb.thaw_back(u);
-    finish:
-        emb.flip_back(u, target_chainsize);
+                emb.thaw_back(u);
+            finish:
+                emb.flip_back(u, target_chainsize);*/
     }
 
   private:
@@ -420,9 +421,9 @@ class pathfinder_base : public pathfinder_public_interface {
 
     //! this function prepares the parent & distance-priority-queue before running dijkstra's algorithm
     //!
-    template <typename behavior_tag>
+    template <typename pq_t, typename behavior_tag>
     void dijkstra_initialize_chain(const embedding_t &emb, const int &v, vector<int> &parent, vector<int> &visited,
-                                   min_queue<distance_t> &pq, behavior_tag) {
+                                   pq_t &pq, behavior_tag) {
         static_assert(std::is_same<behavior_tag, embedded_tag>::value || std::is_same<behavior_tag, default_tag>::value,
                       "unknown behavior tag");
         auto &permutation = qubit_permutations[v];
@@ -461,7 +462,8 @@ class pathfinder_base : public pathfinder_public_interface {
     //! note: qubits are only visited if `visited[q] = 1`.  the value `-1` is used to prevent
     //! searching of overfull qubits
     void compute_distances_from_chain(const embedding_t &emb, const int &v, vector<int> &visited) {
-        min_queue<distance_t> pq;
+        // min_queue<distance_t> pq;
+        pairing_queue<pairing_node<priority_node<distance_t, min_heap_tag>>> pq(num_qubits);
         auto &parent = parents[v];
         auto &permutation = qubit_permutations[v];
         auto &distance = distances[v];
