@@ -77,56 +77,29 @@ class pairing_node : public N {
   public:
     inline pairing_node<N> *merge_pairs() {
         pairing_node<N> *a = this;
-        pairing_node<N> *r = nullptr;
-        do {
+        pairing_node<N> *r = next;
+        if (r == nullptr) {
+            return a;
+        } else {
+            pairing_node<N> *c = r->next;
+            r->next = nullptr;
+            r = a->merge_roots_unsafe(r);
+            r->next = nullptr;
+            a = c;
+        }
+        while (a != nullptr) {
             pairing_node<N> *b = a->next;
-            if (b != nullptr) {
+            if (b == nullptr) {
+                return a->merge_roots_unsafe(r);
+            } else {
                 pairing_node<N> *c = b->next;
                 b = a->merge_roots_unsafe(b);
-                b->next = r;
-                r = b;
+                b->next = nullptr;
+                r = b->merge_roots_unsafe(r);
                 a = c;
-            } else {
-                a->next = r;
-                r = a;
-                break;
             }
-        } while (a != nullptr);
-        a = r;
-        r = a->next;
-        while (r != nullptr) {
-            pairing_node<N> *t = r->next;
-            a = r->merge_roots_unsafe(a);
-            r = t;
         }
-        a->next = nullptr;
-        return a;
-
-        /*
-                pairing_node<N> *a = this;
-                pairing_node<N> *r = next;
-                if (r == nullptr) {
-                    return a;
-                } else {
-                    pairing_node<N> *c = r->next;
-                    r->next = nullptr;
-                    r = a->merge_roots_unsafe(r);
-                    r->next = nullptr;
-                    a = c;
-                }
-                while (a != nullptr) {
-                    pairing_node<N> *b = a->next;
-                    if (b == nullptr) {
-                        return a->merge_roots_unsafe(r);
-                    } else {
-                        pairing_node<N> *c = b->next;
-                        b = a->merge_roots_unsafe(b);
-                        b->next = nullptr;
-                        r = b->merge_roots_unsafe(r);
-                        a = c;
-                    }
-                }
-                return r;*/
+        return r;
     }
 };
 
