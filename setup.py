@@ -28,18 +28,18 @@ else:
     exec(open(path_to_package_info).read())
 
 extra_compile_args = {
-    'msvc': ['/std:c++latest', '/MT', '/EHsc'],
-    'unix': ['-std=c++11', '-Wextra', '-Wno-format-security', '-Ofast', '-fomit-frame-pointer', '-DNDEBUG', '-fno-rtti'],
+    'msvc': ['/std:c++17', '/MT', '/EHsc'],
+    'unix': ['-std=c++17', '-Wextra', '-Wno-format-security', '-Ofast', '-fomit-frame-pointer', '-DNDEBUG', '-fno-rtti'],
 }
 
 extra_link_args = {
     'msvc': [],
-    'unix': ['-std=c++11'],
+    'unix': ['-std=c++17'],
 }
 
 if '--debug' in sys.argv or '-g' in sys.argv or 'CPPDEBUG' in os.environ:
     extra_compile_args['msvc'].append('/DCPPDEBUG')
-    extra_compile_args['unix'] = ['-std=c++1y', '-w',
+    extra_compile_args['unix'] = ['-std=c++17', '-w',
                                   '-O0', '-g', '-fipa-pure-const', '-DCPPDEBUG']
 
 
