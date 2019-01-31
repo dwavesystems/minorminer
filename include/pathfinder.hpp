@@ -361,14 +361,15 @@ class pathfinder_base : public pathfinder_public_interface {
 
         unsigned int stopcheck = static_cast<unsigned int>(max(last_size, target_chainsize));
 
-        vector<min_queue<distance_t>> PQ(ep.var_neighbors(u).size());
-        int v_i = 0;
+        vector<distance_queue> PQ;
+        PQ.reserve(ep.var_neighbors(u).size());
         for (auto &v : ep.var_neighbors(u, shuffle_first{})) {
+            PQ.emplace_back(num_qubits);
             ep.prepare_visited(visited_list[v], u, v);
-            dijkstra_initialize_chain(emb, v, parents[v], visited_list[v], PQ[v_i++], embedded_tag{});
+            dijkstra_initialize_chain(emb, v, parents[v], visited_list[v], PQ.back(), embedded_tag{});
         }
         for (distance_t D = 0; D <= last_size; D++) {
-            v_i = 0;
+            int v_i = 0;
             for (auto &v : ep.var_neighbors(u)) {
                 auto &pq = PQ[v_i++];
                 auto &parent = parents[v];
@@ -461,8 +462,7 @@ class pathfinder_base : public pathfinder_public_interface {
     //! note: qubits are only visited if `visited[q] = 1`.  the value `-1` is used to prevent
     //! searching of overfull qubits
     void compute_distances_from_chain(const embedding_t &emb, const int &v, vector<int> &visited) {
-        // min_queue<distance_t> pq;
-        pairing_queue<pairing_node<priority_node<distance_t, max_heap_tag>>> pq(num_qubits);
+        distance_queue pq(num_qubits);
         auto &parent = parents[v];
         auto &permutation = qubit_permutations[v];
         auto &distance = distances[v];

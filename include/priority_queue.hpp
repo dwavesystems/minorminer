@@ -11,7 +11,7 @@ class priority_node {
     int node;
     int dirt;
     P dist;
-
+    priority_node() {}
     priority_node(int n, int r, P d) : node(n), dirt(r), dist(d) {}
     bool operator<(const priority_node<P, heap_tag> &b) const {
         if (std::is_same<min_heap_tag, heap_tag>::value)
@@ -27,6 +27,8 @@ class pairing_node : public N {
     pairing_node *desc;
 
   public:
+    pairing_node<N>() {}
+
     template <class... Args>
     pairing_node<N>(Args... args) : N(args...), next(nullptr), desc(nullptr) {}
 
@@ -53,7 +55,7 @@ class pairing_node : public N {
     //! the basic operation of the pairing queue -- put `this` and `other`
     //! into heap-order
     inline pairing_node<N> *merge_roots_unsafe(pairing_node<N> *other) {
-        if (*this < *other)
+        if (*other < *this)
             return merge_roots_unchecked(other);
         else
             return other->merge_roots_unchecked(this);
@@ -67,7 +69,7 @@ class pairing_node : public N {
         // * doesn't ensure that the returned node has next = nullval
         // * doesn't check that this < other
         minorminer_assert(other != nullptr);
-        minorminer_assert(*this < *other);
+        minorminer_assert(*other < *this);
 
         other->next = desc;
         desc = other;
@@ -111,11 +113,15 @@ class pairing_queue {
     N *mem;
 
   public:
-    pairing_queue(int n) : count(0), size(n), root(nullptr), mem(static_cast<N *>(malloc(n * sizeof(N)))) {
-        if (mem == nullptr) throw std::bad_alloc();
+    pairing_queue(int n) : count(0), size(n), root(nullptr), mem(new N[n]) {}
+
+    pairing_queue(pairing_queue &&other) : count(other.count), size(other.size), root(other.root), mem(other.mem) {
+        other.mem = nullptr;
     }
 
-    ~pairing_queue() { free(mem); }
+    ~pairing_queue() {
+        if (mem != nullptr) delete[] mem;
+    }
 
     inline void reset() {
         root = nullptr;

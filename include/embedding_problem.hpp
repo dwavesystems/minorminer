@@ -387,12 +387,12 @@ class embedding_problem_base {
                             bfs_component(v, var_nbrs, var_order_space, var_order_visited, var_order_shuffle);
                             break;
                         case VARORDER_PFS:
-                            pfs_component(v, var_nbrs, var_order_space, var_order_visited, var_order_shuffle,
-                                          min_heap_tag{});
+                            pfs_component<min_queue<int>>(v, var_nbrs, var_order_space, var_order_visited,
+                                                          var_order_shuffle);
                             break;
                         case VARORDER_RPFS:
-                            pfs_component(v, var_nbrs, var_order_space, var_order_visited, var_order_shuffle,
-                                          max_heap_tag{});
+                            pfs_component<max_queue<int>>(v, var_nbrs, var_order_space, var_order_visited,
+                                                          var_order_shuffle);
                             break;
                         default:
                             throw - 1;
@@ -421,10 +421,10 @@ class embedding_problem_base {
 
   private:
     //! Perform a priority first search (priority = #of visited neighbors)
-    template <typename heap_tag>
+    template <typename queue_t>
     void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited,
-                       vector<int> shuffled, heap_tag) {
-        std::priority_queue<priority_node<int, heap_tag>> pq;
+                       vector<int> shuffled) {
+        queue_t pq;
         pq.emplace(x, shuffled[x], 0);
         while (!pq.empty()) {
             auto z = pq.top();

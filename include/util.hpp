@@ -39,6 +39,8 @@ using min_queue = std::priority_queue<priority_node<P, min_heap_tag>>;
 template <typename P>
 using max_queue = std::priority_queue<priority_node<P, max_heap_tag>>;
 
+using distance_queue = pairing_queue<pairing_node<priority_node<distance_t, min_heap_tag>>>;
+
 //! Interface for communication between the library and various bindings.
 //!
 //! Any bindings of this library need to provide a concrete subclass.
