@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iterator>
+#include <map>
 #include <mutex>
 #include <queue>
 #include <random>
@@ -9,7 +10,7 @@
 #include <unordered_map>
 #include "debug.hpp"
 #include "fastrng.hpp"
-#include "priority_queue.hpp"
+#include "pairing_queue.hpp"
 
 namespace find_embedding {
 // Import some things from the std library
@@ -39,7 +40,7 @@ using min_queue = std::priority_queue<priority_node<P, min_heap_tag>>;
 template <typename P>
 using max_queue = std::priority_queue<priority_node<P, max_heap_tag>>;
 
-using distance_queue = pairing_queue<pairing_node<priority_node<distance_t, min_heap_tag>>>;
+using distance_queue = pairing_queue<priority_node<distance_t, min_heap_tag>>;
 
 //! Interface for communication between the library and various bindings.
 //!

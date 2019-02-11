@@ -5,7 +5,7 @@ namespace find_embedding {
 class min_heap_tag {};
 class max_heap_tag {};
 
-template <typename P, typename heap_tag>
+template <typename P, typename heap_tag = min_heap_tag>
 class priority_node {
   public:
     int node;
@@ -109,11 +109,11 @@ template <typename N>
 class pairing_queue {
     int count;
     int size;
-    N *root;
-    N *mem;
+    pairing_node<N> *root;
+    pairing_node<N> *mem;
 
   public:
-    pairing_queue(int n) : count(0), size(n), root(nullptr), mem(new N[n]) {}
+    pairing_queue(int n) : count(0), size(n), root(nullptr), mem(new pairing_node<N>[n]) {}
 
     pairing_queue(pairing_queue &&other) : count(other.count), size(other.size), root(other.root), mem(other.mem) {
         other.mem = nullptr;
@@ -132,12 +132,12 @@ class pairing_queue {
 
     template <class... Args>
     inline void emplace(Args... args) {
-        N *x = mem + (count++);
+        pairing_node<N> *x = mem + (count++);
         x->refresh(args...);
         root = x->merge_roots(root);
     }
 
-    inline N top() { return *root; }
+    inline N top() { return static_cast<N>(*root); }
 
     inline void pop() {
         root = root->next_root();

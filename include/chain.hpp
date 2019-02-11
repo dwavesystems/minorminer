@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include "util.hpp"
 
 namespace find_embedding {
