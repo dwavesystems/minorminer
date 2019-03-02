@@ -174,5 +174,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# PyCharm
+.idea/
 
 # End of https://www.gitignore.io/api/c,c++,python

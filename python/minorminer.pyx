@@ -41,6 +41,8 @@ This implementation adds several useful features:
 """
 include "minorminer.pxi"
 import os
+from collections import Counter
+
 
 def find_embedding(S, T, **params):
     """
@@ -208,10 +210,32 @@ def find_embedding(S, T, **params):
             chain = chains[v]
             rchain[_in.SL.label(v)] = [_in.TL.label(z) for z in chain]
 
+    emb_info = EmbeddingInfo(rchain)
+
     if _in.opts.return_overlap:
-        return rchain, success
+        return rchain, emb_info, success
     else:
-        return rchain
+        return rchain, emb_info
+
+
+class EmbeddingInfo(object):
+    """
+    Container for embedding information.
+    """
+
+    def __init__(self, chains):
+        self.max_chain_length = self._get_max_chain_length(chains)
+        self.num_max_length_chains = self._get_num_max_length_chains(chains)
+
+    def _get_max_chain_length(self, chains):
+        return max([len(chain) for chain in chains.values()])
+
+    def _get_num_max_length_chains(self, chains):
+        num_chains = Counter()
+        for chain in chains.values():
+            num_chains[len(chain)] += 1
+        return num_chains
+
 
 class EmptySourceGraphError(RuntimeError):
     pass
