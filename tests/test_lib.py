@@ -689,6 +689,15 @@ def test_isolated_variables_as_if_that_was_smart():
     return find_embedding(K, C, tries=1, chainlength_patience=0)
 
 
+@success_count(30)
+def test_isolated_variables_parallel():
+    C = Chimera(4)
+    K = Clique(16)
+    K.add_edges_from((x, x) for x in range(16, 32))
+    C.add_edges_from((x, x) for x in range(16, 32))
+    return find_embedding(K, C, tries=1, chainlength_patience=0, threads=10)
+
+
 @success_perfect(1)
 def test_empty_source():
     # re: issue 64

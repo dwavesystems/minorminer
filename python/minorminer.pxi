@@ -40,11 +40,6 @@ cdef extern from "../include/graph.hpp" namespace "graph":
         int num_nodes()
         void clear()
 
-
-cdef extern from "../include/pairing_queue.hpp" namespace "pairing_queue":
-    cppclass pairing_queue
-    cppclass pairing_queue_fast_reset
-
 cdef extern from "../include/pathfinder.hpp" namespace "find_embedding":
     cppclass pathfinder_public_interface
 

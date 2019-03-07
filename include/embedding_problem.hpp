@@ -227,8 +227,6 @@ class embedding_problem_base {
     vector<int> var_order_visited;
     vector<int> var_order_shuffle;
 
-    int_queue var_order_pq;
-
     unsigned int exponent_margin;  // probably going to move this weight stuff out to another handler
   public:
     //! A mutable reference to the user specified parameters
@@ -251,7 +249,6 @@ class embedding_problem_base {
               var_order_space(n_v),
               var_order_visited(n_v, 0),
               var_order_shuffle(n_v),
-              var_order_pq(max(n_v + n_f, n_q + n_r)),
               exponent_margin(compute_margin()),
               params(p_) {
         if (exponent_margin <= 0) throw MinorMinerException("problem has too few nodes or edges");
@@ -387,13 +384,15 @@ class embedding_problem_base {
                             dfs_component(v, var_nbrs, var_order_space, var_order_visited);
                             break;
                         case VARORDER_BFS:
-                            bfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                            bfs_component(v, var_nbrs, var_order_space, var_order_visited, var_order_shuffle);
                             break;
                         case VARORDER_PFS:
-                            pfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                            pfs_component<min_queue<int>>(v, var_nbrs, var_order_space, var_order_visited,
+                                                          var_order_shuffle);
                             break;
                         case VARORDER_RPFS:
-                            rpfs_component(v, var_nbrs, var_order_space, var_order_visited);
+                            pfs_component<max_queue<int>>(v, var_nbrs, var_order_space, var_order_visited,
+                                                          var_order_shuffle);
                             break;
                         default:
                             throw - 1;
@@ -422,61 +421,49 @@ class embedding_problem_base {
 
   private:
     //! Perform a priority first search (priority = #of visited neighbors)
-    void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
-        int_queue::value_type d;
-        var_order_pq.reset();
-        var_order_pq.set_value(x, 0);
-        while (var_order_pq.pop_min(x, d)) {
+    template <typename queue_t>
+    void pfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited,
+                       vector<int> shuffled) {
+        queue_t pq;
+        pq.emplace(x, shuffled[x], 0);
+        while (!pq.empty()) {
+            auto z = pq.top();
+            pq.pop();
+            x = z.node;
+            if (visited[x]) continue;
             visited[x] = 1;
             component.push_back(x);
-            for (auto adjacent_var : neighbors[x]) {
-                if (!visited[adjacent_var]) {
-                    if (!var_order_pq.check_decrease_value(adjacent_var, 0)) {
-                        d = var_order_pq.get_value(adjacent_var) >> 8;
-                        var_order_pq.decrease_value(adjacent_var, ((d - 1) << 8) + randint(0, 255));
-                    }
-                }
-            }
-        }
-    }
 
-    //! Perform a reverse priority first search (reverse priority = #of unvisited neighbors)
-    void rpfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
-        int_queue::value_type d;
-        var_order_pq.reset();
-        var_order_pq.set_value(x, 0);
-        while (var_order_pq.pop_min(x, d)) {
-            visited[x] = 1;
-            component.push_back(x);
-            for (auto &y : neighbors[x]) {
+            for (auto y : neighbors[x]) {
                 if (!visited[y]) {
-                    int z = 0;
-                    for (auto &w : neighbors[y])
-                        if (!visited[w]) z++;
-                    var_order_pq.set_value(y, z * 256 + randint(0, 255));
+                    int d = 0;
+                    for (auto w : neighbors[y]) d -= visited[w];
+                    pq.emplace(y, shuffled[y], d);
                 }
             }
         }
     }
 
     //! Perform a breadth first search, shuffling level sets
-    void bfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited) {
-        size_t front = component.size();
-        int_queue::value_type d = 0, d0 = 0;
-        var_order_pq.reset();
-        var_order_pq.set_value(x, 0);
-        while (var_order_pq.pop_min(x, d)) {
-            if (d0 && d > d0) {
-                shuffle(std::begin(component) + front, std::end(component));
-                d0 = d;
-                front = component.size();
-            }
-            visited[x] = 1;
+    void bfs_component(int x, const vector<vector<int>> &neighbors, vector<int> &component, vector<int> &visited,
+                       vector<int> &shuffled) {
+        min_queue<int> pq;
+        pq.emplace(x, shuffled[x], 0);
+        visited[x] = 1;
+        while (!pq.empty()) {
+            auto z = pq.top();
+            pq.pop();
+            x = z.node;
+            auto d = z.dist;
             component.push_back(x);
-            for (auto &y : neighbors[x])
-                if (!visited[y]) var_order_pq.check_decrease_value(y, d + 1);
+
+            for (auto y : neighbors[x]) {
+                if (!visited[y]) {
+                    pq.emplace(y, shuffled[y], d + 1);
+                    visited[y] = 1;
+                }
+            }
         }
-        shuffle(std::begin(component) + front, std::end(component));
     }
 };
 

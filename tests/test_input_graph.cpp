@@ -1,5 +1,6 @@
 #include "graph.hpp"
 #include "gtest/gtest.h"
+#include "util.hpp"
 
 // Construct a graph, clear the graph
 TEST(input_graph, construction_empty) {

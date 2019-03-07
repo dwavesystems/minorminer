@@ -2,7 +2,9 @@
 #include <algorithm>
 #include <chrono>
 #include <iterator>
+#include <map>
 #include <mutex>
+#include <queue>
 #include <random>
 #include <thread>
 #include <unordered_map>
@@ -33,9 +35,12 @@ using distance_t = long long int;
 constexpr distance_t max_distance = numeric_limits<distance_t>::max();
 using RANDOM = fastrng;
 using clock = std::chrono::high_resolution_clock;
-using pairing_queue::pairing_queue_fast_reset;
-using distance_queue = pairing_queue::pairing_queue_fast_reset_rtb<distance_t>;
-using int_queue = pairing_queue::pairing_queue_fast_reset<int64_t>;
+template <typename P>
+using min_queue = std::priority_queue<priority_node<P, min_heap_tag>>;
+template <typename P>
+using max_queue = std::priority_queue<priority_node<P, max_heap_tag>>;
+
+using distance_queue = pairing_queue<priority_node<distance_t, min_heap_tag>>;
 
 //! Interface for communication between the library and various bindings.
 //!

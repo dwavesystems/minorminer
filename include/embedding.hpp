@@ -10,7 +10,6 @@
 
 #include "chain.hpp"
 #include "embedding_problem.hpp"
-#include "pairing_queue.hpp"
 #include "util.hpp"
 
 namespace find_embedding {
@@ -183,15 +182,15 @@ class embedding {
     //!    `qw` -> `parents[w][qw]` -> ...
     //! this has an opportunity to make shorter chains than `construct_chain`
     void construct_chain_steiner(const int u, const int q, const vector<vector<int>> &parents,
-                                 const vector<distance_queue> &dijkstras) {
+                                 const vector<vector<distance_t>> &distances, vector<vector<int>> &visited_list) {
         var_embedding[u].set_root(q);
         for (auto &v : ep.var_neighbors(u)) {
             if (chainsize(v)) {
                 int qv = q;
-                distance_t dqv = dijkstras[v].get_value(q);
+                distance_t dqv = visited_list[v][q] ? distances[v][q] : max_distance;
                 for (auto &p : var_embedding[u]) {
                     if (var_embedding[u].refcount(p) > 1) {
-                        distance_t dp = dijkstras[v].get_value(p);
+                        distance_t dp = visited_list[v][p] ? distances[v][p] : max_distance;
                         if (dp < dqv) {
                             dqv = dp;
                             qv = p;
