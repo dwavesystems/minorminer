@@ -42,6 +42,11 @@ This implementation adds several useful features:
 include "minorminer.pxi"
 import os
 
+parameters = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
+         "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
+         "return_overlap", "skip_initialization", "inner_rounds", "threads",
+         "restrict_chains", "suspend_chains", "max_beta"}
+
 def find_embedding(S, T, **params):
     """
     find_embedding(S, T, **params)
@@ -588,4 +593,4 @@ cdef _read_graph(input_graph &g, E):
         g.push_back(L[a],L[b])
     return L
 
-__all__ = ["find_embedding", "VARORDER", "miner"]
+__all__ = ["find_embedding", "VARORDER", "miner", "parameters"]
