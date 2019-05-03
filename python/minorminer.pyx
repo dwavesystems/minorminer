@@ -232,13 +232,8 @@ cdef class _input_parser:
 
         self.opts.localInteractionPtr.reset(new LocalInteractionPython())
 
-        names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
-                 "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
-                 "return_overlap", "skip_initialization", "inner_rounds", "threads",
-                 "restrict_chains", "suspend_chains", "max_beta"}
-
         for name in params:
-            if name not in names:
+            if name not in parameters:
                 raise ValueError("%s is not a valid parameter for find_embedding"%name)
 
         try: self.opts.max_no_improvement = int( params["max_no_improvement"] )
