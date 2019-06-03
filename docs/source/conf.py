@@ -135,6 +135,10 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+def setup(app):
+   app.add_stylesheet('cookie_notice.css')
+   app.add_javascript('cookie_notice.js')
+
 # Configuration for intersphinx.
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
     'dimod': ('https://docs.ocean.dwavesys.com/projects/dimod/en/latest/', None),
