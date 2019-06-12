@@ -108,7 +108,7 @@ jobs:
           name: install package
           command: |
             . env/bin/activate
-            python setup.py build_ext --inplace
+            python setup.py install
 
       - run: &run-tests-template
           name: run unittests
