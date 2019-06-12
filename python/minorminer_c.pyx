@@ -39,7 +39,7 @@ This implementation adds several useful features:
 
 [1] https://arxiv.org/abs/1406.2741
 """
-include "minorminer.pxi"
+include "minorminer_h.pxi"
 import os
 
 def find_embedding(S, T, **params):
@@ -224,6 +224,7 @@ cdef class _input_parser:
     def __init__(self, S, T, params):
         cdef uint64_t *seed
         cdef vector[int] chain
+        cdef object z
 
         self.opts.localInteractionPtr.reset(new LocalInteractionPython())
 
@@ -236,44 +237,57 @@ cdef class _input_parser:
             if name not in names:
                 raise ValueError("%s is not a valid parameter for find_embedding"%name)
 
-        try: self.opts.max_no_improvement = int( params["max_no_improvement"] )
-        except KeyError: pass
+        z = params.get("max_no_improvement")
+        if z is not None:
+            self.opts.max_no_improvement = int(z)
 
-        try: self.opts.skip_initialization = int( params["skip_initialization"] )
-        except KeyError: pass
+        z = params.get("skip_initialization")
+        if z is not None:
+            self.opts.skip_initialization = int(z)
 
-        try: self.opts.chainlength_patience = int( params["chainlength_patience"] )
-        except KeyError: pass
+        z = params.get("chainlength_patience")
+        if z is not None:
+            self.opts.chainlength_patience = int(z)
 
-        try: self.opts.seed( long(params["random_seed"]) )
-        except KeyError:
+        z = params.get("random_seed")
+        if z is not None:
+            self.opts.seed( long(z) )
+        else:
             seed_obj = os.urandom(sizeof(uint64_t))
             seed = <uint64_t *>(<void *>(<uint8_t *>(seed_obj)))
             self.opts.seed(seed[0])
 
-        try: self.opts.tries = int(params["tries"])
-        except KeyError: pass
+        z = params.get("tries")
+        if z is not None:
+            self.opts.tries = int(z)
 
-        try: self.opts.verbose = int(params["verbose"])
-        except KeyError: pass
+        z = params.get("verbose")
+        if z is not None:
+            self.opts.verbose = int(z)
 
-        try: self.opts.inner_rounds = int(params["inner_rounds"])
-        except KeyError: pass
+        z = params.get("inner_rounds")
+        if z is not None:
+            self.opts.inner_rounds = int(z)
 
-        try: self.opts.timeout = float(params["timeout"])
-        except KeyError: pass
+        z = params.get("timeout")
+        if z is not None:
+            self.opts.timeout = float(z)
 
-        try: self.opts.max_beta = float(params["max_beta"])
-        except KeyError: pass
+        z = params.get("max_beta")
+        if z is not None:
+            self.opts.max_beta = float(z)
 
-        try: self.opts.return_overlap = int(params["return_overlap"])
-        except KeyError: pass
+        z = params.get("return_overlap")
+        if z is not None:
+            self.opts.return_overlap = int(z)
 
-        try: self.opts.max_fill = int(params["max_fill"])
-        except KeyError: pass
+        z = params.get("max_fill")
+        if z is not None:
+            self.opts.max_fill = int(z)
 
-        try: self.opts.threads = int(params["threads"])
-        except KeyError: pass
+        z = params.get("threads")
+        if z is not None:
+            self.opts.threads = int(z)
 
         self.SL = _read_graph(self.Sg, S)
         if not self.SL:
@@ -312,8 +326,8 @@ cdef class _input_parser:
                             raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
 
         _get_chainmap(fixed_chains, self.opts.fixed_chains, self.SL, self.TL, "fixed_chains")
-        _get_chainmap(params.get("initial_chains",[]), self.opts.initial_chains, self.SL, self.TL, "initial_chains")
-        _get_chainmap(params.get("restrict_chains",[]), self.opts.restrict_chains, self.SL, self.TL, "restrict_chains")
+        _get_chainmap(params.get("initial_chains",()), self.opts.initial_chains, self.SL, self.TL, "initial_chains")
+        _get_chainmap(params.get("restrict_chains",()), self.opts.restrict_chains, self.SL, self.TL, "restrict_chains")
 
 
 

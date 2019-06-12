@@ -1,0 +1,42 @@
+from minorminer_c import miner, VARORDER, find_embedding as __find_embedding
+
+
+def find_embedding(S, T,
+                   max_no_improvement=10,
+                   random_seed=None,
+                   timeout=1000,
+                   max_beta=None,
+                   tries=10,
+                   inner_rounds=None,
+                   chainlength_patience=10,
+                   max_fill=None,
+                   threads=1,
+                   return_overlap=False,
+                   skip_initialization=False,
+                   verbose=0,
+                   initial_chains=(),
+                   fixed_chains=(),
+                   restrict_chains=(),
+                   suspend_chains=()
+                   ):
+    return __find_embedding(S, T,
+                            max_no_improvement=max_no_improvement,
+                            random_seed=random_seed,
+                            timeout=timeout,
+                            max_beta=max_beta,
+                            tries=tries,
+                            inner_rounds=inner_rounds,
+                            chainlength_patience=chainlength_patience,
+                            max_fill=max_fill,
+                            threads=threads,
+                            return_overlap=return_overlap,
+                            skip_initialization=skip_initialization,
+                            verbose=verbose,
+                            initial_chains=initial_chains,
+                            fixed_chains=fixed_chains,
+                            restrict_chains=restrict_chains,
+                            suspend_chains=suspend_chains,
+                            )
+
+
+find_embedding.__doc__ = __find_embedding.__doc__
