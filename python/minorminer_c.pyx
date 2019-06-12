@@ -299,9 +299,11 @@ cdef class _input_parser:
 
         pincount = 0
         cdef int nonempty
-        cdef dict fixed_chains = params.get("fixed_chains", {})
+        cdef dict fixed_chains 
         if "suspend_chains" in params:
-            suspend_chains = params["suspend_chains"]
+            #make a copy so we don't surprise the user
+            fixed_chains = dict(params.get("fixed_chains", {}))
+            suspend_chains = params["suspend_chains"] or {}
             for v, blobs in suspend_chains.items():
                 for i,blob in enumerate(blobs):
                     nonempty = 0
@@ -324,10 +326,12 @@ cdef class _input_parser:
                             self.Sg.push_back(self.SL[v], self.SL[pin])
                         else:
                             raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
+        else:
+            fixed_chains = params.get("fixed_chains", ())
 
         _get_chainmap(fixed_chains, self.opts.fixed_chains, self.SL, self.TL, "fixed_chains")
-        _get_chainmap(params.get("initial_chains",()), self.opts.initial_chains, self.SL, self.TL, "initial_chains")
-        _get_chainmap(params.get("restrict_chains",()), self.opts.restrict_chains, self.SL, self.TL, "restrict_chains")
+        _get_chainmap(params.get("initial_chains", ()), self.opts.initial_chains, self.SL, self.TL, "initial_chains")
+        _get_chainmap(params.get("restrict_chains", ()), self.opts.restrict_chains, self.SL, self.TL, "restrict_chains")
 
 
 
