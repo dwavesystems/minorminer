@@ -65,6 +65,17 @@ def check_embedding(Q, A, emb, **args):
         if not nx.is_connected(Ag.subgraph(embx)):
             check_embedding.errcode = "broken chain for %s: (%s)" % (x, embx)
             return False
+
+    for x, chain in emb.items():
+        if not Qg.has_node(x):
+            check_embedding.errcode = "chain for nonexistent variable %s" % x
+            return False
+
+        for q in chain:
+            if not Ag.has_node(q):
+                check_embedding.errcode = "chain includes nonexistent qubit %s" % q
+                return False
+
     if len(footprint) != qubhits:
         check_embedding.errcode = "overlapped chains"
         return False
@@ -478,6 +489,31 @@ def test_grid_suspend(n):
     suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
 
     return find_embedding(grid, chim, fixed_chains=suspension, chainlength_patience=0)
+
+
+@success_count(30)
+def test_suspend_example1():
+    K3 = nx.Graph([('A', 'B'), ('B', 'C'), ('C', 'A')])
+    C = dnx.chimera_graph(1, 2, coordinates=False)
+
+    # Example with one blob for one node. Source node will use at least one.
+    blob = [4, 5, 12, 13]
+    suspend_chains = {'A': [blob]}
+    return find_embedding(K3, C, suspend_chains=suspend_chains)
+
+
+@success_count(30)
+def test_suspend_example2():
+    K3 = nx.Graph([('A', 'B'), ('B', 'C'), ('C', 'A')])
+    C = dnx.chimera_graph(1, 2, coordinates=False)
+
+    # Example with one blob for one node, and two blobs for another.
+    # Second source node is forced to use at least one in each blob.
+    blob_A0 = [4, 5]
+    blob_A1 = [12, 13]
+    blob_C0 = [6, 7, 14, 15]
+    suspend_chains = {'A': [blob_A0, blob_A1], 'C': [blob_C0]}
+    return find_embedding(K3, C, suspend_chains=suspend_chains)
 
 
 @success_count(30, 5)

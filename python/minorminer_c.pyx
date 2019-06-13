@@ -297,7 +297,7 @@ cdef class _input_parser:
         if not self.TL:
             raise ValueError("Cannot embed a non-empty source graph into an empty target graph.")
 
-        pincount = 0
+        self.pincount = 0
         cdef int nonempty
         cdef dict fixed_chains 
         if "suspend_chains" in params:
@@ -320,7 +320,7 @@ cdef class _input_parser:
                             raise RuntimeError("suspend_chains use target node labels that weren't referred to by any edges")
                         nonempty = 1
                     if nonempty:
-                        pincount += 1
+                        self.pincount += 1
                         fixed_chains[pin] = [pin]
                         if v in self.SL:
                             self.Sg.push_back(self.SL[v], self.SL[pin])
