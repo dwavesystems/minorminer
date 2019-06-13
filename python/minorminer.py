@@ -1,6 +1,9 @@
 from minorminer_c import miner, VARORDER, find_embedding as __find_embedding
+from functools import wraps as __wraps
 
-
+# This wrapper exists to overcome a curious limitation of Cython, and make
+# find_embedding friendlier for the inspect module.
+@__wraps(__find_embedding)
 def find_embedding(S, T,
                    max_no_improvement=10,
                    random_seed=None,
@@ -37,6 +40,3 @@ def find_embedding(S, T,
                             restrict_chains=restrict_chains,
                             suspend_chains=suspend_chains,
                             )
-
-
-find_embedding.__doc__ = __find_embedding.__doc__
