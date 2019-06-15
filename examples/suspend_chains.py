@@ -25,7 +25,4 @@ blob_C0 = [6,7,14,15]
 suspend_chains = {'A': [blob_A0, blob_A1],'C':[blob_C0]}
 embedding = minorminer.find_embedding(K3, C, suspend_chains=suspend_chains)
 plt.subplot(2,2,4)
-# ISSUE: show labels in networkx iterates through labels and uses key in
-# pos. If label is given but not pos, there's an error.
-# This line fails.
 dnx.draw_chimera_embedding(C, embedding, show_labels=True)
