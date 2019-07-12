@@ -223,7 +223,6 @@ cdef class _input_parser:
     cdef int pincount
     def __init__(self, S, T, params):
         cdef uint64_t *seed
-        cdef vector[int] chain
         cdef object z
 
         self.opts.localInteractionPtr.reset(new LocalInteractionPython())
@@ -297,13 +296,16 @@ cdef class _input_parser:
         if not self.TL:
             raise ValueError("Cannot embed a non-empty source graph into an empty target graph.")
 
+        _get_chainmap(params.get("fixed_chains", ()), self.opts.fixed_chains, self.SL, self.TL, "fixed_chains")
+        _get_chainmap(params.get("initial_chains", ()), self.opts.initial_chains, self.SL, self.TL, "initial_chains")
+        _get_chainmap(params.get("restrict_chains", ()), self.opts.restrict_chains, self.SL, self.TL, "restrict_chains")
+
         self.pincount = 0
         cdef int nonempty
-        cdef dict fixed_chains 
-        if "suspend_chains" in params:
-            #make a copy so we don't surprise the user
-            fixed_chains = dict(params.get("fixed_chains", {}))
-            suspend_chains = params["suspend_chains"] or {}
+        cdef int pinlabel
+        cdef vector[int] chain
+        suspend_chains = params.get("suspend_chains", ())
+        if suspend_chains:
             for v, blobs in suspend_chains.items():
                 for i,blob in enumerate(blobs):
                     nonempty = 0
@@ -320,20 +322,15 @@ cdef class _input_parser:
                             raise RuntimeError("suspend_chains use target node labels that weren't referred to by any edges")
                         nonempty = 1
                     if nonempty:
+                        chain.clear()
                         self.pincount += 1
-                        fixed_chains[pin] = [pin]
+                        pinlabel = <int> self.SL[pin]
+                        chain.push_back(<int> self.TL[pin])
+                        self.opts.fixed_chains.insert(pair[int,vector[int]](pinlabel,chain))
                         if v in self.SL:
                             self.Sg.push_back(self.SL[v], self.SL[pin])
                         else:
                             raise RuntimeError("suspend_chains use source node labels that weren't referred to by any edges")
-        else:
-            fixed_chains = params.get("fixed_chains", ())
-
-        _get_chainmap(fixed_chains, self.opts.fixed_chains, self.SL, self.TL, "fixed_chains")
-        _get_chainmap(params.get("initial_chains", ()), self.opts.initial_chains, self.SL, self.TL, "initial_chains")
-        _get_chainmap(params.get("restrict_chains", ()), self.opts.restrict_chains, self.SL, self.TL, "restrict_chains")
-
-
 
 cdef class miner:
     """
@@ -563,8 +560,8 @@ cdef class miner:
         if embedded:
             O = []
         else:
-            o = self.count_overlaps(emb.values())
-            O = self.histogram_key(o.values())
+            o = self.count_overlaps(list(emb.values()))
+            O = self.histogram_key(list(o.values()))
             if len(O):
                 state = 1
 
