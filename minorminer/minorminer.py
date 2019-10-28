@@ -1,4 +1,5 @@
-from minorminer_c import miner, VARORDER, find_embedding as __find_embedding
+from __future__ import absolute_import as __absolute_import
+from minorminer._minorminer import miner, VARORDER, find_embedding as __find_embedding
 from functools import wraps as __wraps
 
 # This wrapper exists to overcome a curious limitation of Cython, and make
