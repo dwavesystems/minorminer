@@ -143,7 +143,7 @@ build_script:
   # Build the compiled extension
   - "%CMD_IN_ENV% python setup.py bdist_wheel -d %MM_BUILD_DIR%"
   - "dir %MM_BUILD_DIR%"
-  - "pip install minorminer --no-index -f %MM_BUILD_DIR%"
+  - python setup.py build_ext --inplace
 
 test_script:
   # Run the project tests
