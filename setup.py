@@ -65,7 +65,7 @@ class Extension(extension.Extension, object):
 ext = '.pyx' if USE_CYTHON else '.cpp'
 
 extensions = [Extension(
-    name="_minorminer",
+    name="minorminer._minorminer",
     sources=["./minorminer/_minorminer" + ext],
     include_dirs=['', './include/'],
     language='c++',
@@ -100,8 +100,7 @@ setup(
     version=__version__,
     license="Apache 2.0",
     ext_modules=extensions,
-    py_modules=['minorminer'],
-    package_dir={'': 'minorminer'},
+    packages=['minorminer'],
     classifiers=classifiers,
     python_requires=python_requires,
     cmdclass={'build_ext': build_ext_compiler_check}
