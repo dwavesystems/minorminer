@@ -226,7 +226,7 @@ jobs:
   test-osx-3.7:
     <<: *osx-tests-template
     environment:
-      PYTHON: 3.7.5
+      PYTHON: 3.7.4
       HOMEBREW_NO_AUTO_UPDATE: 1
 
   test-osx-3.6:
