@@ -68,12 +68,14 @@ def check_embedding(Q, A, emb, **args):
 
     for x, chain in emb.items():
         if not Qg.has_node(x):
-            check_embedding.errcode = "chain for nonexistent variable %s" % x
+            check_embedding.errcode = "chain for nonexistent variable %s" % (
+                x,)
             return False
 
         for q in chain:
             if not Ag.has_node(q):
-                check_embedding.errcode = "chain includes nonexistent qubit %s" % q
+                check_embedding.errcode = "chain includes nonexistent qubit %s" % (
+                    q,)
                 return False
 
     if len(footprint) != qubhits:
@@ -134,7 +136,6 @@ def NAE3SAT(n):
 
 def ChordalCycle(p):
     G = nx.generators.chordal_cycle_graph(p)
-    G.remove_edges_from(list(G.selfloop_edges()))
     return G.edges()
 
 
@@ -765,6 +766,13 @@ def test_point_target():
     C = Clique(2)
     _ = find_embedding(C, [(0, 0)], tries=1)
     return True
+
+
+@success_perfect(30)
+def test_fixed_chain_issue91():
+    K2 = Clique(2)
+    K3 = Clique(3)
+    return find_embedding(K2, K3, fixed_chains={0: [0, 1]})
 
 
 @success_count(30)

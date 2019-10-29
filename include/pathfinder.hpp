@@ -435,6 +435,7 @@ class pathfinder_base : public pathfinder_public_interface {
             for (auto &q : emb.get_chain(v)) {
                 parent[q] = -1;
                 for (auto &p : ep.qubit_neighbors(q)) {
+                    if (visited[p]) continue;
                     if (std::is_same<behavior_tag, embedded_tag>::value)
                         if (emb.weight(p) == 0) {
                             pq.emplace(p, permutation[p], 1);
