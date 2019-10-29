@@ -73,9 +73,9 @@ jobs:
             coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
             fi;
 
-  test-3.7: &full-test-template
+  test-3.8: &full-test-template
     docker:
-      - image: circleci/python:3.7-stretch
+      - image: circleci/python:3.8-buster
 
     working_directory: ~/repo
 
@@ -108,7 +108,7 @@ jobs:
           name: install package
           command: |
             . env/bin/activate
-            python setup.py install
+            python setup.py build_ext --inplace
 
       - run: &run-tests-template
           name: run unittests
@@ -142,6 +142,11 @@ jobs:
             . env_cython_sdist/bin/activate
             pip install cython
             pip install dist/minorminer-*.tar.gz
+
+  test-3.7:
+    <<: *full-test-template
+    docker:
+      - image: circleci/python:3.6-jessie
 
   test-3.6:
     <<: *full-test-template
@@ -519,6 +524,7 @@ workflows:
             - coverage-gcc
             - coverage-gcc-4.8
             - coverage-clang
+      - test-3.8
       - test-3.7
       - test-3.6
       - test-2.7
