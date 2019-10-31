@@ -3,8 +3,8 @@ from setuptools.command.build_ext import build_ext
 import sys
 import os
 import platform
-
 cwd = os.path.abspath(os.path.dirname(__file__))
+
 if not os.path.exists(os.path.join(cwd, 'PKG-INFO')):
     try:
         from Cython.Build import cythonize
@@ -21,7 +21,7 @@ setup_folder_loc = os.path.dirname(os.path.abspath(__file__))
 os.chdir(setup_folder_loc)
 
 # Add __version__, __author__, __authoremail__, __description__ to this namespace
-path_to_package_info = os.path.join('.', 'package_info.py')
+path_to_package_info = os.path.join('.', 'minorminer', 'package_info.py')
 if _PY2:
     execfile(path_to_package_info)
 else:
@@ -65,8 +65,8 @@ class Extension(extension.Extension, object):
 ext = '.pyx' if USE_CYTHON else '.cpp'
 
 extensions = [Extension(
-    name="minorminer_c",
-    sources=["./python/minorminer_c" + ext],
+    name="minorminer._minorminer",
+    sources=["./minorminer/_minorminer" + ext],
     include_dirs=['', './include/'],
     language='c++',
 )]
@@ -100,8 +100,7 @@ setup(
     version=__version__,
     license="Apache 2.0",
     ext_modules=extensions,
-    py_modules=['minorminer'],
-    package_dir={'': 'python'},
+    packages=['minorminer'],
     classifiers=classifiers,
     python_requires=python_requires,
     cmdclass={'build_ext': build_ext_compiler_check}

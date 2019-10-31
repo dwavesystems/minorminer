@@ -7,8 +7,8 @@ environment:
     # /E:ON and /V:ON options are not enabled in the batch script intepreter
     # See: http://stackoverflow.com/a/13751649/163740
     CMD_IN_ENV: "cmd /E:ON /V:ON /C %APPVEYOR_BUILD_FOLDER%\\ci\\appveyor\\run_with_env.cmd"
-    TRUE_MM_BUILD_DIR: "%APPVEYOR_BUILD_FOLDER%\\python\\dist"
-    DEBUG_MM_BUILD_DIR: "%APPVEYOR_BUILD_FOLDER%\\python\\debug_dist"
+    TRUE_MM_BUILD_DIR: "%APPVEYOR_BUILD_FOLDER%\\minorminer\\dist"
+    DEBUG_MM_BUILD_DIR: "%APPVEYOR_BUILD_FOLDER%\\minorminer\\debug_dist"
 
   # PyPI login
   username: dwtools
@@ -143,7 +143,7 @@ build_script:
   # Build the compiled extension
   - "%CMD_IN_ENV% python setup.py bdist_wheel -d %MM_BUILD_DIR%"
   - "dir %MM_BUILD_DIR%"
-  - "pip install minorminer --no-index -f %MM_BUILD_DIR%"
+  - python setup.py build_ext --inplace
 
 test_script:
   # Run the project tests
@@ -156,11 +156,11 @@ after_test:
 
 artifacts:
   # Archive the generated packages in the ci.appveyor.com build report.
-  - path: "python\\dist"
+  - path: "minorminer\\dist"
 
 deploy_script:
   - "echo [pypi] > %USERPROFILE%\\.pypirc"
   - "echo username: %username% >> %USERPROFILE%\\.pypirc"
   - "echo password: %password% >> %USERPROFILE%\\.pypirc"
   - "%CMD_IN_ENV% pip install twine"
-  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] if NOT [%CPPDEBUG%]==[1] twine upload --skip-existing python\\dist\\*.whl"
+  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] if NOT [%CPPDEBUG%]==[1] twine upload --skip-existing minorminer\\dist\\*.whl"

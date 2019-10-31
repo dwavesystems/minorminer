@@ -1,3 +1,6 @@
+# distutils: language = c++
+# cython: language_level=2
+# Note: chosing to use language_level=2 because of how `enum VARORDER` is exposed
 """
 `minorminer` is a tool for finding graph minor embeddings, developed to embed Ising problems onto quantum annealers (QA). While it can be used to find minors in arbitrary graphs, it is particularly geared toward state-of-the-art QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.
 
@@ -39,7 +42,7 @@ This implementation adds several useful features:
 
 [1] https://arxiv.org/abs/1406.2741
 """
-include "minorminer_h.pxi"
+include "_minorminer_h.pxi"
 import os
 
 def find_embedding(S, T, **params):

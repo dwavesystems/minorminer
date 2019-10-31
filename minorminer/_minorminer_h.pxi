@@ -130,6 +130,6 @@ cdef extern from "../include/find_embedding.hpp" namespace "find_embedding":
     int findEmbedding(input_graph, input_graph, optional_parameters, vector[vector[int]]&) except +
 
 
-cdef extern from "minorminer.pyx.hpp" namespace "":
+cdef extern from "src/pyutil.hpp" namespace "":
     cppclass LocalInteractionPython(LocalInteraction):
         LocalInteractionPython()
