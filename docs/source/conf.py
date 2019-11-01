@@ -22,12 +22,13 @@ import sys
 # sys.path.insert(0, os.path.abspath('.'))
 config_directory = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(
-    os.path.join(config_directory, '../../python')))
+    os.path.join(config_directory, '../../minorminer')))
 
 _PY2 = sys.version_info.major == 2
 
 # Add __version__, __author__, __authoremail__, __description__ to this namespace
-path_to_package_info = os.path.join('..', '..', 'package_info.py')
+path_to_package_info = os.path.join(
+    '..', '..', 'minorminer', 'package_info.py')
 if _PY2:
     execfile(path_to_package_info)
 else:
@@ -135,23 +136,25 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+
 def setup(app):
-   app.add_stylesheet('cookie_notice.css')
-   app.add_javascript('cookie_notice.js')
+    app.add_stylesheet('cookie_notice.css')
+    app.add_javascript('cookie_notice.js')
+
 
 # Configuration for intersphinx.
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
-    'dimod': ('https://docs.ocean.dwavesys.com/projects/dimod/en/latest/', None),
-    'binarycsp': ('https://docs.ocean.dwavesys.com/projects/binarycsp/en/latest/', None),
-    'cloud-client': ('https://docs.ocean.dwavesys.com/projects/cloud-client/en/latest/', None),
-    'neal': ('https://docs.ocean.dwavesys.com/projects/neal/en/latest/', None),
-    'networkx': ('https://docs.ocean.dwavesys.com/projects/dwave-networkx/en/latest/', None),
-    'system': ('https://docs.ocean.dwavesys.com/projects/system/en/latest/', None),
-    'penaltymodel': ('https://docs.ocean.dwavesys.com/projects/penaltymodel/en/latest/', None),
-    'minorminer': ('https://docs.ocean.dwavesys.com/projects/minorminer/en/latest/', None),
-    'qbsolv': ('https://docs.ocean.dwavesys.com/projects/qbsolv/en/latest/', None),
-    'oceandocs': ('https://docs.ocean.dwavesys.com/en/latest/', None),
-    'sysdocs_gettingstarted': ('https://docs.dwavesys.com/docs/latest/', None)}
+                       'dimod': ('https://docs.ocean.dwavesys.com/projects/dimod/en/latest/', None),
+                       'binarycsp': ('https://docs.ocean.dwavesys.com/projects/binarycsp/en/latest/', None),
+                       'cloud-client': ('https://docs.ocean.dwavesys.com/projects/cloud-client/en/latest/', None),
+                       'neal': ('https://docs.ocean.dwavesys.com/projects/neal/en/latest/', None),
+                       'networkx': ('https://docs.ocean.dwavesys.com/projects/dwave-networkx/en/latest/', None),
+                       'system': ('https://docs.ocean.dwavesys.com/projects/system/en/latest/', None),
+                       'penaltymodel': ('https://docs.ocean.dwavesys.com/projects/penaltymodel/en/latest/', None),
+                       'minorminer': ('https://docs.ocean.dwavesys.com/projects/minorminer/en/latest/', None),
+                       'qbsolv': ('https://docs.ocean.dwavesys.com/projects/qbsolv/en/latest/', None),
+                       'oceandocs': ('https://docs.ocean.dwavesys.com/en/latest/', None),
+                       'sysdocs_gettingstarted': ('https://docs.dwavesys.com/docs/latest/', None)}
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.

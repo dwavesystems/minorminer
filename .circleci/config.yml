@@ -44,7 +44,10 @@ jobs:
 
   coverage-osx:
     macos:
-      xcode: "9.0"
+      xcode: "11.2.0"
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      PYTHON: 3.8.0
     working_directory: ~/repo
     steps:
       - checkout
@@ -63,12 +66,34 @@ jobs:
             C_COMPILER: clang
             CXX_COMPILER: clang++
       - run:
+          name: install pyenv
+          command: |
+            brew install pyenv
+      - restore_cache:
+          keys:
+            - pyenv-{{ .Environment.CIRCLE_JOB }}
+      - run:
+          name: install python
+          command: |
+            pyenv install $PYTHON -s
+      - save_cache:
+          paths:
+            - ~/.pyenv
+          key: pyenv-{{ .Environment.CIRCLE_JOB }}
+      - run:
+          name: create virtualenv
+          command: |
+            eval "$(pyenv init -)"
+            pyenv local $PYTHON
+            python -m pip install virtualenv
+            python -m virtualenv env
+      - run:
           name: coveralls
           command: |
             if [[ -n $COVERALLS_REPO_TOKEN ]];
             then python -m virtualenv env;
             . env/bin/activate;
-            pip install cpp-coveralls;
+            python -m pip install cpp-coveralls;
             find build \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} . \;
             coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
             fi;
