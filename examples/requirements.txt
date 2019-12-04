@@ -1,2 +1,3 @@
 dwave_networkx
+scipy
 future
