@@ -40,7 +40,7 @@ def planar_initialization_chimera(S, C):
 
     # Check if the chimera graph uses linear indices
     coordinates = isinstance(next(iter(C.nodes())), tuple)
-    if not(coordinates):
+    if not coordinates:
         mapping = {i: dnx.linear_to_chimera(i, chimera_dim) for i in C.nodes()}
         C = nx.relabel_nodes(C, mapping, copy=True)
 
@@ -49,14 +49,14 @@ def planar_initialization_chimera(S, C):
     for x in S.nodes():
 
         pos[x] = (pos[x]/max_coord_value + 1)/2.
-        i, j = (math.floor(chimera_dim*pos[x][idx]) for idx in [0,1])
-        unit_tile = [(a,b,c,d) for (a,b,c,d) in C.nodes() if (a==i) and (b==j)]
-        if not(unit_tile):
+        i, j = (math.floor(chimera_dim*pos[x][idx]) for idx in [0, 1])
+        unit_tile = [(a, b, c, d) for (a, b, c, d) in C.nodes() if (a == i) and (b == j)]
+        if not unit_tile:
             raise ValueError('Empty unit tile.')
         initial_chains[x] = [random.choice(unit_tile)]
 
     # Convert initial chains to linear indices
-    if not(coordinates):
+    if not coordinates:
         for x, chain in initial_chains.items():
             initial_chains[x] = [dnx.chimera_to_linear(*t, m=chimera_dim) for t in chain]
 
@@ -83,7 +83,7 @@ def planar_initialization_pegasus(S, P):
 
     # Check if the pegasus graph uses linear indices
     coordinates = isinstance(next(iter(P.nodes())), tuple)
-    if not(coordinates):
+    if not coordinates:
         mapping = {i: dnx.pegasus_coordinates(pegasus_dim).linear_to_pegasus(i) for i in P.nodes()}
         P = nx.relabel_nodes(P, mapping, copy=True)
 
@@ -91,16 +91,16 @@ def planar_initialization_pegasus(S, P):
     initial_chains = {}
     for x in S.nodes():
         pos[x] = (pos[x] / max_coord_value + 1) / 2.
-        i, j = (math.floor(pegasus_dim * pos[x][idx]) for idx in [0,1])
-        i2, j2 = (math.floor((pegasus_dim-1) * pos[x][idx]) for idx in [0,1])
+        i, j = (math.floor(pegasus_dim * pos[x][idx]) for idx in [0, 1])
+        i2, j2 = (math.floor((pegasus_dim-1) * pos[x][idx]) for idx in [0, 1])
         unit_tile = [(a, b, c, d) for (a, b, c, d) in P.nodes() if ((a == 0) and (b == i) and (d == j2)) or
-                     ((a==1) and (b == j) and (d == i2))]
-        if not (unit_tile):
+                     ((a == 1) and (b == j) and (d == i2))]
+        if not unit_tile:
             raise ValueError('Empty unit tile.')
         initial_chains[x] = [random.choice(unit_tile)]
 
     # Convert initial chains to linear indices
-    if not(coordinates):
+    if not coordinates:
         for x, chain in initial_chains.items():
             initial_chains[x] = [dnx.pegasus_coordinates(pegasus_dim).pegasus_to_linear(t) for t in chain]
 
@@ -134,21 +134,3 @@ if __name__ == '__main__':
             print("\tMaximum chain length: {},    number of qubits: {}".format(max_chain_length, num_qubits))
         else:
             print("\tFailed.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
