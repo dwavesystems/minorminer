@@ -6,7 +6,7 @@ are allowed to overlap. After all chains have inserted, the algorithm iterativel
 attempting to minimize the amount of overlap between them. Eventually all overlap will be removed, and the result is
 a valid embedding.
 
-In this example, a complete graph K_9 is embedded into a chimera_graph C_2.
+In this example, a complete graph K_8 is embedded into a chimera_graph C_2.
 
 """
 
@@ -48,6 +48,7 @@ plt.ion()
 m = miner(G, C, random_seed=0)
 found = False
 emb = {}
+print("Embedding K_8 into Chimera C(2).")
 for iteration in range(3):
     if iteration == 0:
         print("\nInitialization phase...")
