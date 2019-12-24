@@ -28,7 +28,7 @@ This example minor embeds a triangular source K4 graph onto a square target grap
     # [[0, 1], [2], [3]]
     # [[3], [1, 0], [2]]
 
-.. figure:: _static/Embedding_TriangularSquare.png
+.. figure:: _images/Embedding_TriangularSquare.png
   :name: Embedding_TriangularSquare
   :scale: 60 %
   :alt: Embedding a triangular source graph into a square target graph
@@ -80,7 +80,7 @@ This example minor embeds a fully connected K6 graph into a 30-node random regul
      4: [11, 24, 13],
      5: [2, 14, 26, 5, 3]}
 
-.. figure:: _static/Embedding_K6Random3.png
+.. figure:: _images/Embedding_K6Random3.png
   :name: Embedding_K6Random3
   :scale: 80 %
   :alt: Embedding a K6 graph into a 30-node random graph
