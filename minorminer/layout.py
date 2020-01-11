@@ -31,11 +31,11 @@ def get_embedding(S, T, layout="kamada_kawai_2d", placement="closest", chains="s
     emb : dict
         Output is dependant upon kwargs passed to minonminer, but more or less
         emb is a mapping from vertices of S (keys) to chains in T (values).
-    """"
+    """
     S_layout = get_layout(S, strategy=layout)
     T_layout = get_layout(T, strategy=layout)
     placement = get_placement(S_layout, T_layout, strategy=placement)
-    chains = get_chains(placement, strategy=chains)
+    chains = get_chains(S, T, placement, strategy=chains)
     return mm.find_embedding(S, T, initial_chains=chains, **kwargs)
 
 
