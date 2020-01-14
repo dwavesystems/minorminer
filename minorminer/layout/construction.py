@@ -72,7 +72,7 @@ def extend(S, T, placement, nhbd_ext=False):
         return extended_chains
 
     for u, C in extended_chains.items():
-        for v in C:
+        for v in list(C):
             extended_chains[u].update(closed_neighbors(T, v))
 
     return extended_chains
