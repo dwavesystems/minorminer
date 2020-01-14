@@ -47,9 +47,9 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
     if construction is singleton:
         chains = construction(vertex_map)
     elif construction is neighborhood:
-        chains = construction(T, vertex_map, kwargs.get("second", False))
+        chains = construction(T, vertex_map, second)
     elif construction is extend:
-        chains = construction(S, T, vertex_map, kwargs.get("nhbd_ext", False))
+        chains = construction(S, T, vertex_map, nhbd_ext)
 
     return hinting(S, T, chains, kwargs)
 

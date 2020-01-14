@@ -46,10 +46,9 @@ def injective(S_layout, T_layout):
         A mapping from vertices of S (keys) to vertices of T (values).
     """
     X = nx.Graph()
-    # TODO: Refactor this
     for u, u_pos in S_layout.items():
         for v, v_pos in T_layout.items():
-            assert u != v, "H and G must be labeled with different alphabets."
-            X.add_edge(u, v, weight=euclidean(u_pos, v_pos))
+            # Alter the name of the vertices from T so that they differ from those in S
+            X.add_edge(u, ("T", v), weight=euclidean(u_pos, v_pos))
     M = nx.bipartite.minimum_weight_full_matching(X, S_layout.keys())
-    return {v: M[v] for v in S_layout.keys()}
+    return {v: M[v][1] for v in S_layout.keys()}
