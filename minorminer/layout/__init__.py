@@ -6,7 +6,7 @@ from minorminer.layout.placement import *
 
 def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=singleton, hinting=initial, **kwargs):
     """
-    Tries to embed S in T by computing layout aware initial_chains and passing them to minorminer, see 
+    Tries to embed S in T by computing layout aware chains and passing them to minorminer, see 
     minorminer.find_embedding for additional keyword arguments.
 
     Parameters
