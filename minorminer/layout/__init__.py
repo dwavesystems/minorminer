@@ -1,7 +1,7 @@
-from construction_algs import *
-from hinting_algs import *
-from layout_algs import *
-from placement_algs import *
+from minorminer.layout.construction import *
+from minorminer.layout.hinting import *
+from minorminer.layout.layout import *
+from minorminer.layout.placement import *
 
 
 def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=singleton, hinting=initial, **kwargs):
@@ -22,7 +22,7 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
     construction : str (default "singleton")
         The chain construction algorithm to call.
     kwargs : dict 
-        Keyword arguments are passed to minorminer.find_embedding()
+        Keyword arguments are passed to various functions.
 
     Returns
     -------
@@ -30,22 +30,47 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
         Output is dependant upon kwargs passed to minonminer, but more or less emb is a mapping from vertices of 
         S (keys) to chains in T (values).
     """
+    # Parse kwargs
+    d, second, nhbd_ext = parse_kwargs(kwargs)
+
     # Parse the layout parameter
     if isinstance(layout, tuple):
-        S_layout = layout[0](S)
-        T_layout = layout[1](T)
+        S_layout = layout[0](S, d)
+        T_layout = layout[1](T, d)
     else:
-        S_layout, T_layout = layout(S), layout(T)
+        S_layout, T_layout = layout(S, d), layout(T, d)
 
     # Compute the placement
     vertex_map = placement(S_layout, T_layout)
 
     # Create the chains
-    if construction is construction_algs.singleton:
-        chains = construction(placement)
-    elif construction is construction_algs.neighborhood:
-        chains = construction(T, placement, kwargs.get("second"))
-    elif construction is construction_algs.extend:
-        chains = construction(S, T, placement, kwargs.get("nhbd_ext"))
+    if construction is singleton:
+        chains = construction(vertex_map)
+    elif construction is neighborhood:
+        chains = construction(T, vertex_map, kwargs.get("second", False))
+    elif construction is extend:
+        chains = construction(S, T, vertex_map, kwargs.get("nhbd_ext", False))
 
-    return mm.find_embedding(S, T, initial_chains=chains, **kwargs)
+    return hinting(S, T, chains, kwargs)
+
+
+def parse_kwargs(kwargs):
+    d = kwargs.get("d", 2)
+    try:
+        del kwargs["d"]
+    except KeyError:
+        pass
+
+    second = kwargs.get("second", False)
+    try:
+        del kwargs["second"]
+    except KeyError:
+        pass
+
+    nhbd_ext = kwargs.get("nhbd_ext", False)
+    try:
+        del kwargs["nhbd_ext"]
+    except KeyError:
+        pass
+
+    return d, second, nhbd_ext

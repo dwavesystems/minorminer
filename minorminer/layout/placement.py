@@ -47,8 +47,8 @@ def injective(S_layout, T_layout):
     """
     X = nx.Graph()
     # TODO: Refactor this
-    for u, u_pos in S_layout.items(euclidean(u_pos, v_pos)):
-        for v, v_pos in G_layout.items():
+    for u, u_pos in S_layout.items():
+        for v, v_pos in T_layout.items():
             assert u != v, "H and G must be labeled with different alphabets."
             X.add_edge(u, v, weight=euclidean(u_pos, v_pos))
     M = nx.bipartite.minimum_weight_full_matching(X, S_layout.keys())
