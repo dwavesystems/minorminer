@@ -3,7 +3,7 @@ from collections import defaultdict
 import minorminer as mm
 
 
-def singleton(placement):
+def singleton(S, T, placement, extend=False):
     """
     Given a placement (a map phi from vertices of S to vertices of T), form the chain [phi(u)] for each u in S.
 
@@ -13,16 +13,22 @@ def singleton(placement):
         The graph you are embedding into (target).
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
+    extend : bool (default False)
+        If True, extend chains to mimic the structure of S in T.
 
     Returns
     -------
     chains: dict
         A mapping from vertices of S (keys) to chains of T (values).
     """
-    return {u: [v] for u, v in placement.items()}
+    chains = {u: [v] for u, v in placement.items()}
+    if extend:
+        return extend_chains(S, T, chains)
+
+    return chains
 
 
-def neighborhood(T, placement, second):
+def neighborhood(S, T, placement, second=False, extend=False):
     """
     Given a placement (a map phi from vertices of S to vertices of T), form the chain N_T(phi(u)) (closed neighborhood 
     of v in T) for each u in S.
@@ -33,54 +39,29 @@ def neighborhood(T, placement, second):
         The graph you are embedding into (target).
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
-    second : bool
+    second : bool (default False)
         If True, gets the closed 2nd neighborhood of each vertex. If False, get the closed 1st neighborhood of each
         vertex. 
+    extend : bool (default False)
+        If True, extend chains to mimic the structure of S in T.
+
 
     Returns
     -------
     chains: dict
         A mapping from vertices of S (keys) to chains of T (values).
     """
-    return {u: closed_neighbors(T, v, second=second) for u, v in placement.items()}
+    chains = {u: closed_neighbors(T, v, second=second)
+              for u, v in placement.items()}
+    if extend:
+        return extend_chains(S, T, chains)
+
+    return chains
 
 
-def extend(S, T, placement, nhbd_ext=False):
+def extend_chains(S, T, initial_chains):
     """
-    Given a placement (a map phi from vertices of S to vertices of T), form the chain that is the union of phi(u) and 
-    "optimal" open paths between phi(u) and each vertex in phi(N_S(u)). Optimal paths are shortest nonoverlapping paths.
-
-    Parameters
-    ----------
-    S : NetworkX graph
-        The graph you are embedding (source).
-    T : NetworkX graph
-        The graph you are embedding into (target).
-    placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
-    nhbd_ext : bool (default False)
-        If True, return the closed neighborhood of each chain extension. If False, just return the chain extensions.
-
-    Returns
-    -------
-    chains: dict
-        A mapping from vertices of S (keys) to chains of T (values).
-    """
-    extended_chains = extend_chains(S, T, placement)
-
-    if not nhbd_ext:
-        return extended_chains
-
-    for u, C in extended_chains.items():
-        for v in list(C):
-            extended_chains[u].update(closed_neighbors(T, v))
-
-    return extended_chains
-
-
-def extend_chains(S, T, placement):
-    """
-    Extend initial_chains in T so that their structure matches that of S. That is, form an overlap embedding of S in T
+    Extend chains in T so that their structure matches that of S. That is, form an overlap embedding of S in T
     where the initial_chains are subsets of the overlap embedding chains. This is done via minorminer.
 
     Parameters
@@ -89,8 +70,8 @@ def extend_chains(S, T, placement):
         The graph you are embedding (source).
     T : NetworkX graph
         The graph you are embedding into (target).
-    placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
+    initial_chains : dict
+        A mapping from vertices of S (keys) to chains of T (values).
 
     Returns
     -------
@@ -98,7 +79,6 @@ def extend_chains(S, T, placement):
         A mapping from vertices of S (keys) to chains of T (values).
     """
     # Extend the chains to minimal overlapped embedding
-    initial_chains = {u: [v] for u, v in placement.items()}
     miner = mm.miner(S, T, initial_chains=initial_chains)
     extended_chains = defaultdict(set)
     for u in S:
@@ -114,6 +94,7 @@ def extend_chains(S, T, placement):
         for v in S[u]:
             extended_chains[u].update(
                 set(emb[v]).difference(initial_chains[v]))
+
     return extended_chains
 
 
