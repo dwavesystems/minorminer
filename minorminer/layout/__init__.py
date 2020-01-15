@@ -14,13 +14,15 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
         The graph you are embedding (source).
     T : NetworkX graph
         The graph you are embedding into (target).
-    layout : function or (function, function) (default kamada_kawai)
-        The layout algorithm to call. If a single function, the same layout algorithm is called on both S and T. If a
-        tuple of functions, the 1st function is called on S and the 2nd is called on T.
-    placement : str (default "closest")
+    layout : function or (function/dict, function/dict) (default kamada_kawai)
+        Will either compute a layout or pass along precomputed layouts. If it's a single object, it has to be a function
+        and it applies to both S and T. If it's a tuple of objects the first applies to S and the second applies to T.
+    placement : function (default closest)
         The placement algorithm to call.
-    construction : str (default "singleton")
+    construction : function (default singleton)
         The chain construction algorithm to call.
+    hinting : function (default initial)
+        The type of minorminer hinting to call.
     kwargs : dict 
         Keyword arguments are passed to various functions.
 
@@ -34,9 +36,23 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
     layout_kwargs, construction_kwargs = parse_kwargs(kwargs)
 
     # Parse the layout parameter
+    # It's two things, one for S and one for T
     if isinstance(layout, tuple):
-        S_layout = layout[0](S, **layout_kwargs)
-        T_layout = layout[1](T, **layout_kwargs)
+        # It's a layout for S
+        if isinstance(layout[0], dict):
+            S_layout = layout[0]
+        # It's a function for S
+        else:
+            S_layout = layout[0](S, **layout_kwargs)
+
+        # It's a layout for T
+        if isinstance(layout[1], dict):
+            T_layout = layout[1]
+        # It's a function for T
+        else:
+            T_layout = layout[1](T, **layout_kwargs)
+
+    # It's a layout function to compute
     else:
         S_layout, T_layout = layout(
             S, **layout_kwargs), layout(T, **layout_kwargs)
