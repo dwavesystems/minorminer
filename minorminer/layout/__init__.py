@@ -32,47 +32,41 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
         S (keys) to chains in T (values).
     """
     # Parse kwargs
-    d, second, nhbd_ext = _parse_kwargs(kwargs)
+    layout_kwargs, construction_kwargs = _parse_kwargs(kwargs)
 
     # Parse the layout parameter
     if isinstance(layout, tuple):
-        S_layout = layout[0](S, d)
-        T_layout = layout[1](T, d)
+        S_layout = layout[0](S, **layout_kwargs)
+        T_layout = layout[1](T, **layout_kwargs)
     else:
-        S_layout = layout(S, d)
-        T_layout = layout(T, d)
+        S_layout = layout(S, **layout_kwargs)
+        T_layout = layout(T, **layout_kwargs)
 
     # Compute the placement
     vertex_map = placement(S_layout, T_layout)
 
     # Create the chains
-    if construction is singleton:
-        chains = construction(vertex_map)
-    elif construction is neighborhood:
-        chains = construction(T, vertex_map, second)
-    elif construction is extend:
-        chains = construction(S, T, vertex_map, nhbd_ext)
+    chains = construction(S, T, vertex_map, **construction_kwargs)
 
     return hinting(S, T, chains, kwargs)
 
 
 def _parse_kwargs(kwargs):
-    d = kwargs.get("d", 2)
-    try:
+    """
+    Pull out kwargs for layout and construction functions. Leave the remaining ones for minorminer.
+    """
+    layout_kwargs = {}
+    if "d" in kwargs:
+        layout_kwargs["d"] = kwargs["d"]
         del kwargs["d"]
-    except KeyError:
-        pass
 
-    second = kwargs.get("second", False)
-    try:
+    construction_kwargs = {}
+    if "second" in kwargs:
+        construction_kwargs["second"] = kwargs["second"]
         del kwargs["second"]
-    except KeyError:
-        pass
 
-    nhbd_ext = kwargs.get("nhbd_ext", False)
-    try:
-        del kwargs["nhbd_ext"]
-    except KeyError:
-        pass
+    if "extend" in kwargs:
+        construction_kwargs["extend"] = kwargs["extend"]
+        del kwargs["extend"]
 
-    return d, second, nhbd_ext
+    return layout_kwargs, construction_kwargs

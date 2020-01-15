@@ -3,7 +3,7 @@ from collections import defaultdict
 import minorminer as mm
 
 
-def singleton(placement):
+def singleton(S, T, placement, extend=False):
     """
     Given a placement (a map phi from vertices of S to vertices of T), form the chain [phi(u)] for each u in S.
 
@@ -13,16 +13,22 @@ def singleton(placement):
         The graph you are embedding into (target).
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
+    extend : bool (default False)
+        If True, extend chains to mimic the structure of S in T.
 
     Returns
     -------
     chains: dict
         A mapping from vertices of S (keys) to chains of T (values).
     """
-    return {u: [v] for u, v in placement.items()}
+    chains = {u: [v] for u, v in placement.items()}
+    if extend:
+        return extend_chains(S, T, chains)
+
+    return chains
 
 
-def neighborhood(T, placement, second):
+def neighborhood(S, T, placement, second=False, extend=False):
     """
     Given a placement (a map phi from vertices of S to vertices of T), form the chain N_T(phi(u)) (closed neighborhood 
     of v in T) for each u in S.
@@ -33,9 +39,11 @@ def neighborhood(T, placement, second):
         The graph you are embedding into (target).
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
-    second : bool
+    second : bool (default False)
         If True, gets the closed 2nd neighborhood of each vertex. If False, get the closed 1st neighborhood of each
         vertex. 
+    extend : bool (default False)
+        If True, extend chains to mimic the structure of S in T.
 
     Returns
     -------
