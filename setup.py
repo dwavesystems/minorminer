@@ -97,7 +97,7 @@ setup(
     version=__version__,
     license="Apache 2.0",
     ext_modules=extensions,
-    packages=['minorminer'],
+    packages=['minorminer', 'minorminer.layout'],
     classifiers=classifiers,
     python_requires=python_requires,
     cmdclass={'build_ext': build_ext_compiler_check}
