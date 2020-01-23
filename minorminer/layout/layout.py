@@ -1,9 +1,11 @@
 import networkx as nx
+import numpy as np
 
 
 def kamada_kawai(G, d=2, **kwargs):
     """
-    The d-dimensional Kamada-Kawai spring layout.
+    The d-dimensional Kamada-Kawai spring layout. Axes are [0, 1] for all components except for the second component--it
+    is [0, -1]. This adhears to the dwave_networkx.draw_chimera() convention.
 
     Parameters
     ----------
@@ -21,9 +23,30 @@ def kamada_kawai(G, d=2, **kwargs):
     """
     # NetworkX has a bug #3658.
     # Once fixed, these can collapse and `dim=n` can be part of `**kwargs`.
+
+    # Extract the seed in case its there for random fixing
+    random_kwargs = {}
+    if "seed" in kwargs:
+        random_kwargs["seed"] = kwargs["seed"]
+        del kwargs["seed"]
+
     if d in (1, 2):
         return nx.kamada_kawai_layout(G, dim=d, **kwargs)
     else:
+        # The random_layout is in [0, 1]^d
+        random_layout = nx.random_layout(G, dim=d, **random_kwargs)
+        # Convert it to [-1, 1]^d
+        std_random_layout = standardize_coordinates(random_layout, "random")
+
         return nx.kamada_kawai_layout(
-            G, center=d*(1/2, ), scale=1/2, pos=nx.random_layout(G, dim=d), dim=d, **kwargs
-        )
+            G, pos=std_random_layout, dim=d, **kwargs)
+
+
+def standardize_coordinates(layout, layout_type):
+    """
+    Most of networkx layouts return points in [-1, 1]^d. This is a helper function to standardize to this convention.
+    """
+    if layout_type == "random":
+        return {v: list(map(lambda x: 2*x - 1, p)) for v, p in layout.items()}
+    else:
+        raise TypeError(f"The layout_type {layout_type} is not supported.")
