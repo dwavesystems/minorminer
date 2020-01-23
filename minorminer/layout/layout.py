@@ -63,5 +63,19 @@ def chimera(G, d=2, **kwargs):
     layout : dict
         A mapping from vertices of G (keys) to points in [-1, 1]^d (values).
     """
-    return dnx.chimera_layout(
-        G, dim=d, center=(-1, 1), scale=2, **kwargs)
+    if d == 2:
+        return dnx.chimera_layout(
+            G, dim=d, center=(-1, 1), scale=2, **kwargs)
+    elif d > 2:
+        layout = dnx.chimera_layout(
+            G, center=(-1, 1) + (d-2)*(0,), scale=2, dim=d)
+        for q, p in layout.items():
+            if isinstance(q, tuple):
+                coordinates = q
+            else:
+                coordinates = G.nodes[q]["chimera_index"]
+            if coordinates[2] == 0:
+                p[2] = -1
+            elif coordinates[2] == 1:
+                p[2] = 1
+        return layout
