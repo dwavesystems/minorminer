@@ -17,10 +17,9 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
         The graph you are embedding (source) or a NetworkX supported data structure (see to_networkx_graph()).
     T : NetworkX graph or edges data structure (dict, list, ...)
         The graph you are embedding into (target) or a NetworkX supported data structure (see to_networkx_graph()).
-    layout : function or (function/dict, function/dict)
-        Will either compute a layout or pass along precomputed layouts. If it's a single object, it has to be a function
-        and it applies to both S and T. If it's a tuple of objects the first applies to S and the second applies to T.
-        Default is kamada_kawai.
+    layout : function or [function/dict, function/dict] (default kamada_kawai)
+        Specifies either a single function to compute the layout for both S and T or a 2-tuple consisting of functions 
+        or pre-computed layouts, the first applying to S and the second applying to T.
     placement : function (default closest)
         The placement algorithm to call; each algorithm uses the layouts of S and T to map the vertices of S to the 
         vertices of T.
@@ -53,6 +52,7 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
     # Create the chains
     chains = construction(S, T, vertex_map, **construction_kwargs)
 
+    # Run minerminor.find_embedding()
     return hinting(S, T, chains, kwargs)
 
 
