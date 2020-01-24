@@ -8,8 +8,8 @@ from minorminer.layout.placement import *
 
 def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=singleton, hinting=initial, **kwargs):
     """
-    Tries to embed S in T by computing layout aware chains and passing them to minorminer, see 
-    minorminer.find_embedding for additional keyword arguments.
+    Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding. Chains are 
+    passed as either initial_chains or suspend_chains (see documentation for minorminer.find_embedding to learn more).
 
     Parameters
     ----------
@@ -17,13 +17,15 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
         The graph you are embedding (source) or a NetworkX supported data structure (see to_networkx_graph()).
     T : NetworkX graph or edges data structure (dict, list, ...)
         The graph you are embedding into (target) or a NetworkX supported data structure (see to_networkx_graph()).
-    layout : function or (function/dict, function/dict) (default kamada_kawai)
-        Will either compute a layout or pass along precomputed layouts. If it's a single object, it has to be a function
-        and it applies to both S and T. If it's a tuple of objects the first applies to S and the second applies to T.
+    layout : function or [function/dict, function/dict] (default kamada_kawai)
+        Specifies either a single function to compute the layout for both S and T or a 2-tuple consisting of functions 
+        or pre-computed layouts, the first applying to S and the second applying to T.
     placement : function (default closest)
-        The placement algorithm to call.
+        The placement algorithm to call; each algorithm uses the layouts of S and T to map the vertices of S to the 
+        vertices of T.
     construction : function (default singleton)
-        The chain construction algorithm to call.
+        The chain construction algorithm to call; each algorithm uses the placement to build chains to hand to 
+        minorminer.find_embedding(). 
     hinting : function (default initial)
         The type of minorminer hinting to call.
     kwargs : dict 
@@ -32,7 +34,7 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
     Returns
     -------
     emb : dict
-        Output is dependant upon kwargs passed to minorminer, but more or less emb is a mapping from vertices of 
+        Output is dependant upon kwargs passed to minorminer, but more or less emb is a mapping from vertices of
         S (keys) to chains in T (values).
     """
     # Parse graphs
@@ -50,6 +52,7 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
     # Create the chains
     chains = construction(S, T, vertex_map, **construction_kwargs)
 
+    # Run minerminor.find_embedding()
     return hinting(S, T, chains, kwargs)
 
 
@@ -72,21 +75,23 @@ def _parse_graphs(S, T):
 
 def _parse_kwargs(kwargs):
     """
-    Pull out kwargs for layout and construction functions. Leave the remaining ones for minorminer.
+    Extract kwargs for layout and construction functions. Leave the remaining ones for minorminer.find_embedding().
     """
     layout_kwargs = {}
     if "d" in kwargs:
-        layout_kwargs["d"] = kwargs["d"]
-        del kwargs["d"]
+        layout_kwargs["d"] = kwargs.pop("d")
+    if "seed" in kwargs:
+        layout_kwargs["seed"] = kwargs.pop("seed")
+    if "center" in kwargs:
+        layout_kwargs["center"] = kwargs.pop("center")
+    if "scale" in kwargs:
+        layout_kwargs["scale"] = kwargs.pop("scale")
 
     construction_kwargs = {}
     if "second" in kwargs:
-        construction_kwargs["second"] = kwargs["second"]
-        del kwargs["second"]
-
+        construction_kwargs["second"] = kwargs.pop("second")
     if "extend" in kwargs:
-        construction_kwargs["extend"] = kwargs["extend"]
-        del kwargs["extend"]
+        construction_kwargs["extend"] = kwargs.pop("extend")
 
     return layout_kwargs, construction_kwargs
 
