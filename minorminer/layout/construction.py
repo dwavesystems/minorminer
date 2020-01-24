@@ -5,7 +5,7 @@ import minorminer as mm
 
 def singleton(S, T, placement, extend=False):
     """
-    Given a placement (a map phi from vertices of S to vertices of T), form the chain [phi(u)] for each u in S.
+    Given a placement (a map, phi, from vertices of S to vertices of T), form the chain [phi(u)] for each u in S.
 
     Parameters
     ----------
@@ -30,7 +30,7 @@ def singleton(S, T, placement, extend=False):
 
 def neighborhood(S, T, placement, second=False, extend=False):
     """
-    Given a placement (a map phi from vertices of S to vertices of T), form the chain N_T(phi(u)) (closed neighborhood 
+    Given a placement (a map, phi, from vertices of S to vertices of T), form the chain N_T(phi(u)) (closed neighborhood 
     of v in T) for each u in S.
 
     Parameters

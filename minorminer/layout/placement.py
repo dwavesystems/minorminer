@@ -1,3 +1,5 @@
+from itertools import product
+
 import networkx as nx
 from scipy.spatial.distance import euclidean
 
@@ -28,7 +30,7 @@ def closest(S_layout, T_layout):
 
 def injective(S_layout, T_layout):
     """
-    Injectively maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. This is the 
+    Injectively maps vertices of S to the closest vertices of T as given by S_layout and T_layout. This is the 
     assignment problem. To solve this it builds a complete bipartite graph between S and T with edge weights the 
     Euclidean distances of the incident vertices; a minimum weight full matching is then computed. This runs in 
     O(|S||T|log(|T|)) time.
@@ -50,7 +52,7 @@ def injective(S_layout, T_layout):
     # Relabel the vertices from S and T in case of name conflict; S --> 0 and T --> 1.
     X.add_edges_from(
         (
-            (0, u), (1, v), dict(weight=euclidean(u_pos, v_pos))
+            ((0, u), (1, v), dict(weight=euclidean(u_pos, v_pos)))
             for (u, u_pos), (v, v_pos) in product(S_layout.items(), T_layout.items())
         )
     )

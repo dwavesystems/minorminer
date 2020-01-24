@@ -8,7 +8,8 @@ from minorminer.layout.placement import *
 
 def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=singleton, hinting=initial, **kwargs):
     """
-    Tries to embed S in T by computing layout aware initial_chains and passing them to minorminer.
+    Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding(). Chains are 
+    passed as either initial_chains or suspend_chains (see documentation for minorminer.find_embedding to learn more).
 
     Parameters
     ----------
@@ -16,13 +17,16 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
         The graph you are embedding (source) or a NetworkX supported data structure (see to_networkx_graph()).
     T : NetworkX graph or edges data structure (dict, list, ...)
         The graph you are embedding into (target) or a NetworkX supported data structure (see to_networkx_graph()).
-    layout : function or (function/dict, function/dict) (default kamada_kawai)
+    layout : function or (function/dict, function/dict)
         Will either compute a layout or pass along precomputed layouts. If it's a single object, it has to be a function
         and it applies to both S and T. If it's a tuple of objects the first applies to S and the second applies to T.
+        Default is kamada_kawai.
     placement : function (default closest)
-        The placement algorithm to call.
+        The placement algorithm to call; each algorithm uses the layouts of S and T to map the vertices of S to the 
+        vertices of T.
     construction : function (default singleton)
-        The chain construction algorithm to call.
+        The chain construction algorithm to call; each algorithm uses the placement to build chains to hand to 
+        minorminer.find_embedding(). 
     hinting : function (default initial)
         The type of minorminer hinting to call.
     kwargs : dict 
@@ -31,7 +35,7 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
     Returns
     -------
     emb : dict
-        Output is dependant upon kwargs passed to minonminer, but more or less emb is a mapping from vertices of 
+        Output is dependent upon kwargs passed to minonminer, but more or less emb is a mapping from vertices of 
         S (keys) to chains in T (values).
     """
     # Parse graphs
@@ -71,12 +75,15 @@ def parse_graphs(S, T):
 
 def parse_kwargs(kwargs):
     """
-    Pull out kwargs for layout and construction functions. Leave the remaining ones for minorminer.
+    Extract kwargs for layout and construction functions. Leave the remaining ones for minorminer.find_embedding().
     """
     layout_kwargs = {}
     if "d" in kwargs:
         layout_kwargs["d"] = kwargs["d"]
         del kwargs["d"]
+    if "seed" in kwargs:
+        layout_kwargs["seed"] = kwargs["seed"]
+        del kwargs["seed"]
 
     construction_kwargs = {}
     if "second" in kwargs:

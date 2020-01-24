@@ -46,8 +46,9 @@ def kamada_kawai(G, d=2, **kwargs):
 
 def chimera(G, d=2, **kwargs):
     """
-    The d-dimensional Chimera layout adjusted so that it fills [-1, 1]^2 instead of [0, 1] x [0, -1]. As per the 
-    implementation of dnx.chimera_layout() coordinates beyond the second, in layouts with d > 2, are 0.
+    The d-dimensional Chimera layout adjusted so that it fills [-1, 1]^2 instead of [0, 1] x [0, -1]. A nontrivial d=3
+    layout is implemented, sending qubits with (*, *, 1, *) to (*, *, 1) and those with (*, *, 0, *) to (*, *, -1). As 
+    per the implementation of dnx.chimera_layout() in layouts with d > 2, coordinates beyond the third are 0.
 
     Parameters
     ----------
