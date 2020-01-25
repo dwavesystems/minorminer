@@ -17,8 +17,8 @@ class TestLayout(unittest.TestCase):
 
     def test_kamada_kawai(self):
         """
-        Tests that the Kamada-Kawai layout is correct for K_4,4 (dimensions 1, 2, 3, 10); i.e. that it matches the pre-
-        computed values in [-1, 1]^d.
+        Tests that the Kamada-Kawai layout is correct for K_4,4 (dimensions 1, 2, 3, 10); i.e. that it matches the 
+        precomputed layout.
         """
         G = nx.complete_bipartite_graph(4, 4)
 
@@ -35,8 +35,8 @@ class TestLayout(unittest.TestCase):
 
     def test_chimera(self):
         """
-        Tests that the layout is correct for Chimera(4) (dimensions 2 and 3); i.e. that it matches the pre-computed 
-        values in [-1, 1]^d.
+        Tests that the layout is correct for Chimera(4) (dimensions 2 and 3); i.e. that it matches the precomputed 
+        layout.
         """
         G = dnx.chimera_graph(4)
         layouts = {d: mml.chimera(
@@ -49,6 +49,31 @@ class TestLayout(unittest.TestCase):
                     self.assertAlmostEqual(coordinate, x)
                     self.assertGreaterEqual(coordinate, -1)
                     self.assertLessEqual(coordinate, 1)
+
+    def test_center_scale(self):
+        """
+        Tests that all layouts correctly recenter and scale. Chooses a random center in [-10, 10]^2 and a random scale
+        in [0, 10].
+        """
+        G = dnx.chimera_graph(4)
+        center = (random.random() * random.randint(-10, 10),
+                  random.random() * random.randint(-10, 10))
+        scale = random.random() * random.randint(1, 10)
+
+        # Test all layouts
+        layouts = []
+        layouts.append(mml.chimera(G, center=center, scale=scale))
+        layouts.append(mml.kamada_kawai(G, center=center, scale=scale))
+
+        for layout in layouts:
+            for v, p in layout.items():
+                for i, x in enumerate(p):
+                    coordinate = layout[v][i]
+                    # My own implementations of self.assertAlmostGreater[Less]Equal
+                    self.assertTrue(round(coordinate, 7) >=
+                                    round(center[i] - scale, 7))
+                    self.assertTrue(round(coordinate, 7) <=
+                                    round(center[i] + scale, 7))
 
 
 if __name__ == '__main__':

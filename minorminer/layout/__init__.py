@@ -79,20 +79,19 @@ def parse_kwargs(kwargs):
     """
     layout_kwargs = {}
     if "d" in kwargs:
-        layout_kwargs["d"] = kwargs["d"]
-        del kwargs["d"]
+        layout_kwargs["d"] = kwargs.pop("d")
     if "seed" in kwargs:
-        layout_kwargs["seed"] = kwargs["seed"]
-        del kwargs["seed"]
+        layout_kwargs["seed"] = kwargs.pop("seed")
+    if "center" in kwargs:
+        layout_kwargs["center"] = kwargs.pop("center")
+    if "scale" in kwargs:
+        layout_kwargs["scale"] = kwargs.pop("scale")
 
     construction_kwargs = {}
     if "second" in kwargs:
-        construction_kwargs["second"] = kwargs["second"]
-        del kwargs["second"]
-
+        construction_kwargs["second"] = kwargs.pop("second")
     if "extend" in kwargs:
-        construction_kwargs["extend"] = kwargs["extend"]
-        del kwargs["extend"]
+        construction_kwargs["extend"] = kwargs.pop("extend")
 
     return layout_kwargs, construction_kwargs
 

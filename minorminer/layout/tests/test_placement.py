@@ -17,7 +17,7 @@ class TestLayout(unittest.TestCase):
         placement = mml.closest(S_layout, T_layout)
         self.assertEqual(placement, precomputed_closest)
 
-    def test_chimera(self):
+    def test_injective(self):
         """
         Tests that injective placement is correct for embedding random cubic graph, S, in Chimera(4); i.e. that points 
         in the layout of S are optimally injectively mapped to the closest points in the layout of Chimera(4).
