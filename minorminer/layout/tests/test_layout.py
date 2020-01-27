@@ -23,7 +23,7 @@ class TestLayout(unittest.TestCase):
         G = nx.complete_bipartite_graph(4, 4)
 
         layouts = {d: mml.kamada_kawai(
-            G, d=d, seed=seed) for d in precomputed_kamada_kawai}
+            G, d=d, seed=seed).layout for d in precomputed_kamada_kawai}
 
         for d, l in precomputed_kamada_kawai.items():
             for v, p in l.items():
@@ -40,7 +40,7 @@ class TestLayout(unittest.TestCase):
         """
         G = dnx.chimera_graph(4)
         layouts = {d: mml.chimera(
-            G, d=d) for d in precomputed_chimera}
+            G, d=d).layout for d in precomputed_chimera}
 
         for d, l in precomputed_chimera.items():
             for v, p in l.items():
@@ -62,8 +62,8 @@ class TestLayout(unittest.TestCase):
 
         # Test all layouts
         layouts = []
-        layouts.append(mml.chimera(G, center=center, scale=scale))
-        layouts.append(mml.kamada_kawai(G, center=center, scale=scale))
+        layouts.append(mml.chimera(G, center=center, scale=scale).layout)
+        layouts.append(mml.kamada_kawai(G, center=center, scale=scale).layout)
 
         for layout in layouts:
             for v, p in layout.items():

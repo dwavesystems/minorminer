@@ -174,7 +174,8 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# VSCode
-.vscode/
+### IDEs ###
+# VSCode settings
+.vscode
 
 # End of https://www.gitignore.io/api/c,c++,python

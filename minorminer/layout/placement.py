@@ -1,6 +1,8 @@
+import random
 from itertools import product
 
 import networkx as nx
+from minorminer.layout.layout import Layout
 from scipy.spatial.distance import euclidean
 
 
@@ -60,3 +62,46 @@ def injective(S_layout, T_layout):
         X, ((0, u) for u in S_layout))
 
     return {u: M[(0, u)][1] for u in S_layout.keys()}
+
+
+def binning(S_layout, T_layout, bins=3, strategy="random"):
+    """
+    Map the vertices of S to the vertices of T by first mapping both to an integer lattice.
+
+    Parameters
+    ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to the plane.
+    T_layout : layout.Layout
+        A layout for T; i.e. a map from T to the plane.
+    bins : tuple or int (default 3)
+        The number of bins to put along dimensions; see Layout.to_integer_lattice().
+    strategy : string (default "random")
+        The binning strategy to use.
+        random : For each vertex in S, randomly select a vertex from T that lies in the same bin.
+    """
+    assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
+        "Layout class instances must be passed in.")
+
+    S_binned = S_layout.to_integer_lattice(bins - 1)
+    T_binned = T_layout.to_integer_lattice(bins - 1, points_as_keys=True)
+
+    placement = {}
+    if strategy == "random":
+        for v, p in S_binned.items():
+            assert T_binned[p] != [], (
+                "S got binned to a point where none of T get binned to :(. Try fewer bins.")
+
+            placement[v] = random.choice(T_binned[p])
+
+    return placement
+
+
+def _parse_layout(layout):
+    """
+    Take in a layout class object or a dictionary and return the dictionary representation.
+    """
+    if isinstance(layout, Layout):
+        return layout.layout
+    else:
+        return layout

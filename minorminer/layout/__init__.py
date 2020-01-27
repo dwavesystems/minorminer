@@ -2,11 +2,13 @@ import networkx as nx
 
 from minorminer.layout.construction import singleton, neighborhood
 from minorminer.layout.hinting import initial, suspend
-from minorminer.layout.layout import chimera, kamada_kawai
+from minorminer.layout.layout import Layout, kamada_kawai, chimera
 from minorminer.layout.placement import closest, injective
 
 
-def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=singleton, hinting=initial, **kwargs):
+def find_embedding(
+    S, T, layout=kamada_kawai, placement=closest, construction=singleton, hinting=initial, **kwargs
+):
     """
     Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding. Chains are 
     passed as either initial_chains or suspend_chains (see documentation for minorminer.find_embedding to learn more).
@@ -17,9 +19,9 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
         The graph you are embedding (source) or a NetworkX supported data structure (see to_networkx_graph()).
     T : NetworkX graph or edges data structure (dict, list, ...)
         The graph you are embedding into (target) or a NetworkX supported data structure (see to_networkx_graph()).
-    layout : function or [function/dict, function/dict] (default kamada_kawai)
+    layout : function or [function/dict, function/dict] (default None)
         Specifies either a single function to compute the layout for both S and T or a 2-tuple consisting of functions 
-        or pre-computed layouts, the first applying to S and the second applying to T.
+        or pre-computed layouts, the first applying to S and the second applying to T. If None, kamada_kawai is used.
     placement : function (default closest)
         The placement algorithm to call; each algorithm uses the layouts of S and T to map the vertices of S to the 
         vertices of T.
@@ -102,21 +104,21 @@ def _parse_layout_parameter(S, T, layout, layout_kwargs):
     if isinstance(layout, tuple):
         # It's a layout for S
         if isinstance(layout[0], dict):
-            S_layout = layout[0]
+            S_layout = Layout(S, layout=layout[0], **layout_kwargs).layout
         # It's a function for S
         else:
-            S_layout = layout[0](S, **layout_kwargs)
+            S_layout = layout(S, **layout_kwargs)
 
         # It's a layout for T
         if isinstance(layout[1], dict):
-            T_layout = layout[1]
+            T_layout = Layout(T, layout=layout[1], **layout_kwargs).layout
         # It's a function for T
         else:
-            T_layout = layout[1](T, **layout_kwargs)
+            T_layout = layout(T, **layout_kwargs)
 
-    # It's a layout function to compute
+    # It's a function for both
     else:
-        S_layout, T_layout = layout(
-            S, **layout_kwargs), layout(T, **layout_kwargs)
+        S_layout = layout(S, **layout_kwargs)
+        T_layout = layout(T, **layout_kwargs)
 
     return S_layout, T_layout
