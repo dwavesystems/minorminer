@@ -1,0 +1,4 @@
+dwave-networkx
+networkx
+numpy
+scipy
