@@ -1,9 +1,8 @@
 import networkx as nx
-
-from minorminer.layout.construction import singleton, neighborhood
+from minorminer.layout.construction import neighborhood, singleton
 from minorminer.layout.hinting import initial, suspend
-from minorminer.layout.layout import Layout, kamada_kawai, chimera
-from minorminer.layout.placement import closest, injective
+from minorminer.layout.layout import Layout, chimera, kamada_kawai
+from minorminer.layout.placement import binning, closest, injective
 
 
 def find_embedding(
@@ -43,13 +42,14 @@ def find_embedding(
     S, T = _parse_graphs(S, T)
 
     # Parse kwargs
-    layout_kwargs, construction_kwargs = _parse_kwargs(kwargs)
+    layout_kwargs, placement_kwargs, construction_kwargs = _parse_kwargs(
+        kwargs)
 
     # Parse the layout parameter
     S_layout, T_layout = _parse_layout_parameter(S, T, layout, layout_kwargs)
 
     # Compute the placement
-    vertex_map = placement(S_layout, T_layout)
+    vertex_map = placement(S_layout, T_layout, **placement_kwargs)
 
     # Create the chains
     chains = construction(S, T, vertex_map, **construction_kwargs)
@@ -89,11 +89,15 @@ def _parse_kwargs(kwargs):
     if "scale" in kwargs:
         layout_kwargs["scale"] = kwargs.pop("scale")
 
+    placement_kwargs = {}
+    if "bins" in kwargs:
+        placement_kwargs["bins"] = kwargs.pop("bins")
+
     construction_kwargs = {}
     if "second" in kwargs:
         construction_kwargs["second"] = kwargs.pop("second")
 
-    return layout_kwargs, construction_kwargs
+    return layout_kwargs, placement_kwargs, construction_kwargs
 
 
 def _parse_layout_parameter(S, T, layout, layout_kwargs):
@@ -104,14 +108,14 @@ def _parse_layout_parameter(S, T, layout, layout_kwargs):
     if isinstance(layout, tuple):
         # It's a layout for S
         if isinstance(layout[0], dict):
-            S_layout = Layout(S, layout=layout[0], **layout_kwargs).layout
+            S_layout = Layout(S, layout=layout[0], **layout_kwargs)
         # It's a function for S
         else:
             S_layout = layout(S, **layout_kwargs)
 
         # It's a layout for T
         if isinstance(layout[1], dict):
-            T_layout = Layout(T, layout=layout[1], **layout_kwargs).layout
+            T_layout = Layout(T, layout=layout[1], **layout_kwargs)
         # It's a function for T
         else:
             T_layout = layout(T, **layout_kwargs)

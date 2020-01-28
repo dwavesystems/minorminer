@@ -1,16 +1,16 @@
 import statistics
+from collections import defaultdict
 from itertools import combinations
 
 import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
-from scipy.spatial.distance import euclidean
-
 from minorminer.layout import utils
+from scipy.spatial.distance import euclidean
 
 
 class Layout():
-    def __init__(self, G, d=2, center=None, scale=1., layout=None, **kwargs):
+    def __init__(self, G, d=2, center=None, scale=1., layout=None, seed=None, **kwargs):
         """
         Compute a layout for G, i.e., a map from G to R^d.
 
@@ -26,13 +26,13 @@ class Layout():
             The scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space.
         layout : dict (default None)
             You can specifies a pre-computed layout for G.
+        seed : int (default None)
+            When d > 2, kamada_kawai uses networkx.random_layout(). The seed is passed to this function.
         kwargs : dict
             Keyword arguments are passed to one of the layout algorithms below.
         """
         # Ensure G is a graph object
         self.G = utils.parse_graph(G)
-
-        self.d = d
 
         # Construct the origin if need be
         if center is None:
@@ -40,19 +40,13 @@ class Layout():
         else:
             self.center = np.array(center)
 
+        # Set remaining parameters
+        self.d = d
         self.scale = scale
-
         self.layout = layout
+        self.seed = seed
 
-        # # Parse the layout parameter
-        # if isinstance(layout, dict):
-        #     self.layout = layout
-        # elif layout is None:
-        #     self.layout = self.kamada_kawai(**kwargs)
-        # else:
-        #     self.layout = layout(self, **kwargs)
-
-    def kamada_kawai(self, seed=None, **kwargs):
+    def kamada_kawai(self, **kwargs):
         """
         The d-dimensional Kamada-Kawai spring layout.
 
@@ -71,16 +65,21 @@ class Layout():
         # NetworkX has a bug #3658.
         # Once fixed, these can collapse and `dim=n` can be part of `**kwargs`.
         if self.d in (1, 2):
-            return nx.kamada_kawai_layout(self.G, dim=self.d, center=self.center, scale=self.scale, **kwargs)
+            layout = nx.kamada_kawai_layout(
+                self.G, dim=self.d, center=self.center, scale=self.scale, **kwargs)
         else:
             # The random_layout is in [0, 1]^d
-            random_layout = nx.random_layout(self.G, dim=self.d, seed=seed)
+            random_layout = nx.random_layout(
+                self.G, dim=self.d, seed=self.seed)
 
             # Convert it to [center - scale, center + scale]^d
             transformed_random_layout = self.scale_unit_layout(random_layout)
 
-            return nx.kamada_kawai_layout(
+            layout = nx.kamada_kawai_layout(
                 self.G, pos=transformed_random_layout, dim=self.d, center=self.center, scale=self.scale, **kwargs)
+
+        self.layout = layout
+        return layout
 
     def chimera(self, **kwargs):
         """
@@ -100,21 +99,36 @@ class Layout():
         # Convert center and scale for dwave_networkx to consume.
         top_left, new_scale = self.center_to_top_left()
 
-        return dnx.chimera_layout(self.G, dim=self.d, center=top_left, scale=new_scale, **kwargs)
+        layout = dnx.chimera_layout(
+            self.G, dim=self.d, center=top_left, scale=new_scale, **kwargs)
 
-    def to_integer_lattice(self, lattice_points=10):
+        self.layout = layout
+        return layout
+
+    def to_integer_lattice(self, lattice_points=3, points_as_keys=False):
         """
         Map the vertices in a layout to their closest integer points.
 
         Parameters
         ----------
-        lattice_points : int or tuple (default 10)
+        lattice_points : int or tuple (default 3)
             The number of lattice points in each dimension. If it is an integer, there will be that many lattice points
             in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
             dimension in the layout.
+        points_as_keys : bool (default False)
+            If False, vertices are keys and points in Z^d are values. If True, points in Z^d are keys and lists of 
+            vertices are values.
         """
         scaled_layout = self.scale_to_positive_orthant(lattice_points)
-        return {v: tuple(round(x) for x in p) for v, p in scaled_layout.items()}
+
+        if not points_as_keys:
+            return {v: tuple(round(x) for x in p) for v, p in scaled_layout.items()}
+
+        integer_point_map = defaultdict(list)
+        for v, p in scaled_layout.items():
+            integer_point_map[tuple(round(x) for x in p)].append(v)
+
+        return integer_point_map
 
     def scale_to_positive_orthant(self, length=1):
         """

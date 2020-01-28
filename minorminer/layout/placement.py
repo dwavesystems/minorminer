@@ -13,16 +13,17 @@ def closest(S_layout, T_layout):
 
     Parameters
     ----------
-    S_layout : dict
+    S_layout : dict or layout.Layout
         A layout for S; i.e. a map from S to the plane.
-    T_layout : dict
-        A layout for T; i.e. a map from T to the plane..
+    T_layout : dict or layout.Layout
+        A layout for T; i.e. a map from T to the plane.
 
     Returns
     -------
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
+    S_layout, T_layout = _parse_layout(S_layout), _parse_layout(T_layout)
     placement = {}
     for u, u_pos in S_layout.items():
         placement[u] = min(
@@ -39,18 +40,19 @@ def injective(S_layout, T_layout):
 
     Parameters
     ----------
-    S_layout : dict
+    S_layout : dict or layout.Layout
         A layout for S; i.e. a map from S to the plane.
-    T_layout : dict
-        A layout for T; i.e. a map from T to the plane..
+    T_layout : dict or layout.Layout
+        A layout for T; i.e. a map from T to the plane.
 
     Returns
     -------
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
-    X = nx.Graph()
+    S_layout, T_layout = _parse_layout(S_layout), _parse_layout(T_layout)
 
+    X = nx.Graph()
     # Relabel the vertices from S and T in case of name conflict; S --> 0 and T --> 1.
     X.add_edges_from(
         (
