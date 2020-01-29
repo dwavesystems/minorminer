@@ -79,7 +79,7 @@ def binning(S_layout, T_layout, bins=3, strategy="random"):
     bins : tuple or int (default 3)
         The number of bins to put along dimensions; see Layout.to_integer_lattice().
     strategy : string (default "random")
-        The binning strategy to use. 
+        The binning strategy to use.
         random : For each vertex in S, randomly select a vertex from T that lies in the same bin.
     """
     assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (

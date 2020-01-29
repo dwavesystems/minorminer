@@ -83,7 +83,7 @@ class Layout():
 
     def chimera(self, **kwargs):
         """
-        The d-dimensional Chimera layout adjusted so that it fills [-1, 1]^2 instead of [0, 1] x [0, -1]. As per the 
+        The d-dimensional Chimera layout adjusted so that it fills [-1, 1]^2 instead of [0, 1] x [0, -1]. As per the
         implementation of dnx.chimera_layout() in layouts with d > 2, coordinates beyond the second are 0.
 
         Parameters
@@ -116,7 +116,7 @@ class Layout():
             in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
             dimension in the layout.
         points_as_keys : bool (default False)
-            If False, vertices are keys and points in Z^d are values. If True, points in Z^d are keys and lists of 
+            If False, vertices are keys and points in Z^d are values. If True, points in Z^d are keys and lists of
             vertices are values.
         """
         scaled_layout = self.scale_to_positive_orthant(lattice_points)
@@ -138,13 +138,13 @@ class Layout():
         Parameters
         ----------
         length : int or tuple (default 1)
-            The maximum value in each dimension. If it is an integer, this is the max for all dimensions; if it is a 
+            The maximum value in each dimension. If it is an integer, this is the max for all dimensions; if it is a
             tuple, each entry specifies a max for each dimension in the layout.
 
         Returns
         -------
         layout : dict
-            A mapping from vertices of G (keys) to points in 
+            A mapping from vertices of G (keys) to points in
             [0, length[0]] x [0, length[1]] x ... x [0, length[d-1]] (values).
         """
         # Temporary data structure to pull the information out of the matrix created below.
@@ -157,10 +157,7 @@ class Layout():
         # Map it to [0, 1]^d
         L = L / (2*self.scale)
         # Scale it to the desired length
-        if isinstance(length, int):
-            scale = np.array(self.d*(length,))
-        else:
-            scale = np.array(length)
+        scale = scale_vector(length, self.d)
         L = L * scale
 
         return {vertices[i]: p for i, p in enumerate(L)}
@@ -257,7 +254,7 @@ def scale_edge_length(layout, edge_length=1., to_scale="median"):
 def kamada_kawai(G, d=2, center=None, scale=1., seed=None, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
-    #FIXME: There's surely a better way of doing this.
+    # FIXME: There's surely a better way of doing this.
     """
     L = Layout(G, d=d, center=center, scale=scale, seed=seed)
     _ = L.kamada_kawai(**kwargs)
@@ -267,8 +264,23 @@ def kamada_kawai(G, d=2, center=None, scale=1., seed=None, **kwargs):
 def chimera(G, d=2, center=None, scale=1., **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
-    #FIXME: There's surely a better way of doing this.
+    # FIXME: There's surely a better way of doing this.
     """
     L = Layout(G, d, center, scale)
     _ = L.chimera(**kwargs)
     return L
+
+
+def scale_vector(length, d):
+    """
+    If length is an integer, it creates a d-dimensional array with values length. Otherwise it creates an array based
+    on the length iterable and checks that is the same dimension as d. 
+    """
+    if isinstance(length, int):
+        return np.array(d*(length,))
+
+    scale = np.array(length)
+    assert scale.size == d, (
+        f"You inputed a scale vector of size {scale.size} for a {d}-dimensional space."
+    )
+    return scale
