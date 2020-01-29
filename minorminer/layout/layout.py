@@ -259,7 +259,7 @@ def kamada_kawai(G, d=2, center=None, scale=1., seed=None, **kwargs):
     Top level function for minorminer.layout.__init__() use as a parameter.
     #FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d, center, scale, seed)
+    L = Layout(G, d=d, center=center, scale=scale, seed=seed)
     _ = L.kamada_kawai(**kwargs)
     return L
 
