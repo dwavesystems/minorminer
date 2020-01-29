@@ -5,8 +5,9 @@ from itertools import combinations
 import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
-from minorminer.layout import utils
 from scipy.spatial.distance import euclidean
+
+from minorminer.layout import utils
 
 
 class Layout():
@@ -96,6 +97,9 @@ class Layout():
         layout : dict
             A mapping from vertices of G (keys) to points in [-1, 1]^d (values).
         """
+        # Check that the graph will work.
+        _, _, _ = utils.check_dnx(self.G)
+
         # Convert center and scale for dwave_networkx to consume.
         top_left, new_scale = self.center_to_top_left()
 
@@ -105,9 +109,10 @@ class Layout():
         self.layout = layout
         return layout
 
-    def to_integer_lattice(self, lattice_points=3, points_as_keys=False):
+    def integer_lattice_layout(self, lattice_points=3, is_chimera=False):
         """
-        Map the vertices in a layout to their closest integer points.
+        Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see 
+        scale_to_positive_orthant().
 
         Parameters
         ----------
@@ -115,30 +120,80 @@ class Layout():
             The number of lattice points in each dimension. If it is an integer, there will be that many lattice points
             in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
             dimension in the layout.
-        points_as_keys : bool (default False)
-            If False, vertices are keys and points in Z^d are values. If True, points in Z^d are keys and lists of
-            vertices are values.
+        is_chimera : bool (default False)
+            If True, use the coordinates of the vertices of Chimera to establish the lattice for S.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in S (values). 
         """
+        if is_chimera:
+            _, _, _ = utils.check_dnx(self.G, needs_data=True)
+
+            if self.G.graph["labels"] == "coordinate":
+                return {v: (v[0], v[1]) + (self.d-2)*(0,) for v in self.G}
+            else:
+                return {
+                    v: (self.G.nodes[v]["chimera_index"][0],
+                        self.G.nodes[v]["chimera_index"][1]) + (self.d-2)*(0,)
+                    for v in self.G
+                }
+
         scaled_layout = self.scale_to_positive_orthant(lattice_points)
+        return {v: tuple(round(x) for x in p) for v, p in scaled_layout.items()}
 
-        if not points_as_keys:
-            return {v: tuple(round(x) for x in p) for v, p in scaled_layout.items()}
+    def integer_lattice_bins(self, lattice_points=None, is_chimera=False):
+        """
+        Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant, S; see 
+        scale_to_positive_orthant().
 
+        Parameters
+        ----------
+        lattice_points : int or tuple (default None)
+            The number of lattice points in each dimension. If it is an integer, there will be that many lattice points
+            in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
+            dimension in the layout.
+        is_chimera : bool (default False)
+            If True, use the coordinates of the vertices of Chimera to establish bins in S.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from points in S (keys) to lists of vertices of G (values).
+        """
         integer_point_map = defaultdict(list)
-        for v, p in scaled_layout.items():
-            integer_point_map[tuple(round(x) for x in p)].append(v)
+
+        if is_chimera:
+            _, _, _ = utils.check_dnx(self.G, needs_data=True)
+
+            if self.G.graph["labels"] == "coordinate":
+                for v in self.G:
+                    integer_point_map[(v[0], v[1]) + (self.d-2)*(0,)].append(v)
+            else:
+                for v in self.G:
+                    integer_point_map[(self.G.nodes[v]["chimera_index"][0],
+                                       self.G.nodes[v]["chimera_index"][1]) + (self.d-2)*(0,)].append(v)
+
+        else:
+            # TODO: set a better default value that somehow depends on the graph
+            lattice_points = lattice_points or 2
+
+            scaled_layout = self.scale_to_positive_orthant(lattice_points)
+            for v, p in scaled_layout.items():
+                integer_point_map[tuple(round(x) for x in p)].append(v)
 
         return integer_point_map
 
     def scale_to_positive_orthant(self, length=1):
         """
         This helper function transforms the layout [center - scale, center + scale]^d to the positive orthant
-        [0, length[0]] x [0, length[1]] x ... x [0, length[d-1]].
+        [0, scale[0]] x [0, scale[1]] x ... x [0, scale[d-1]].
 
         Parameters
         ----------
         length : int or tuple (default 1)
-            The maximum value in each dimension. If it is an integer, this is the max for all dimensions; if it is a
+            Specifies a vector called scale. If length is an integer, it is the max for all dimensions; if it is a
             tuple, each entry specifies a max for each dimension in the layout.
 
         Returns

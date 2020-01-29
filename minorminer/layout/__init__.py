@@ -71,6 +71,10 @@ def parse_kwargs(kwargs):
     placement_kwargs = {}
     if "bins" in kwargs:
         placement_kwargs["bins"] = kwargs.pop("bins")
+    if "is_chimera" in kwargs:
+        placement_kwargs["is_chimera"] = kwargs.pop("is_chimera")
+    if "strategy" in kwargs:
+        placement_kwargs["strategy"] = kwargs.pop("strategy")
 
     construction_kwargs = {}
     if "second" in kwargs:
@@ -92,14 +96,14 @@ def parse_layout_parameter(S, T, layout, layout_kwargs):
             S_layout = Layout(S, layout=layout[0], **layout_kwargs)
         # It's a function for S
         else:
-            S_layout = layout(S, **layout_kwargs)
+            S_layout = layout[0](S, **layout_kwargs)
 
         # It's a layout for T
         if isinstance(layout[1], dict):
             T_layout = Layout(T, layout=layout[1], **layout_kwargs)
         # It's a function for T
         else:
-            T_layout = layout(T, **layout_kwargs)
+            T_layout = layout[1](T, **layout_kwargs)
 
     # It's a function for both
     else:
