@@ -6,6 +6,7 @@ import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
 from minorminer.layout import utils
+from minorminer.layout.utils import layout_utils
 from scipy.spatial.distance import euclidean
 
 
@@ -105,9 +106,14 @@ class Layout():
         self.layout = layout
         return layout
 
-    def to_integer_lattice(self, lattice_points=3, points_as_keys=False):
+    def integer_lattice_layout(self, lattice_points=3):
         """
-        Map the vertices in a layout to their closest integer points.
+        Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see 
+        scale_to_positive_orthant().
+
+        Note: if the graph is Chimera or Pegasus, lattice points are inferred from the graph object and the layout is 
+        ignored. If the user desires to have lattice points computed from a layout (e.g. kamada_kawai), make sure that 
+        the graph object is created with the following flags: dnx.*_graph(coordinates=False, data=False).
 
         Parameters
         ----------
@@ -115,31 +121,82 @@ class Layout():
             The number of lattice points in each dimension. If it is an integer, there will be that many lattice points
             in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
             dimension in the layout.
-        points_as_keys : bool (default False)
-            If False, vertices are keys and points in Z^d are values. If True, points in Z^d are keys and lists of 
-            vertices are values.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in S (values). 
         """
-        scaled_layout = self.scale_to_positive_orthant(lattice_points)
+        # Look to see if you can get the lattice information from the graph object
+        coordinates = utils.lookup_dnx_coordinates(self.G)
+        if coordinates:
+            return {v: coord + (self.d-2)*(0,) for v, coord in coordinates.items()}
 
-        if not points_as_keys:
-            return {v: tuple(round(x) for x in p) for v, p in scaled_layout.items()}
+        # Compute the lattice information by scaling and rounding
+        lattice_vector = layout_utils.to_vector(lattice_points, self.d)
+        scaled_layout = self.scale_to_positive_orthant(
+            lattice_vector+1, border=1)
+        return {v: layout_utils.border_round(p, lattice_vector-1, self.d) for v, p in scaled_layout.items()}
 
+    def integer_lattice_bins(self, lattice_points=3):
+        """
+        Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant, S; see 
+        scale_to_positive_orthant().
+
+        Note: If the graph is Chimera or Pegasus, lattice points are inferred from the graph object using the first two
+        coordinates of vertices of Chimera and Pegasus, i.e. the layout is ignored. If the user desires to have lattice
+        points computed from a layout (e.g. kamada_kawai), make sure that the graph object is created with the following
+        flags: dnx.*_graph(coordinates=False, data=False).
+
+        Parameters
+        ----------
+        lattice_points : int or tuple (default 3)
+            The number of lattice points in each dimension. If it is an integer, there will be that many lattice points
+            in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
+            dimension in the layout.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from points in S (keys) to lists of vertices of G (values).
+        """
         integer_point_map = defaultdict(list)
+
+        # Look to see if you can get the lattice information from the graph object.
+        # If so, look them up and return.
+        coordinates = utils.lookup_dnx_coordinates(self.G)
+        if coordinates:
+            for v, coord in coordinates.items():
+                integer_point_map[coord + (self.d-2)*(0,)].append(v)
+            return integer_point_map
+
+        # Compute the lattice information by scaling and rounding
+        lattice_vector = layout_utils.to_vector(lattice_points, self.d)
+        scaled_layout = self.scale_to_positive_orthant(
+            lattice_vector+1, border=1)
+
         for v, p in scaled_layout.items():
-            integer_point_map[tuple(round(x) for x in p)].append(v)
+            integer_point_map[
+                layout_utils.border_round(p, lattice_vector-1, self.d)
+            ].append(v)
 
         return integer_point_map
 
-    def scale_to_positive_orthant(self, length=1):
+    def scale_to_positive_orthant(self, length=1, border=0.):
         """
-        This helper function transforms the layout [center - scale, center + scale]^d to the positive orthant
-        [0, length[0]] x [0, length[1]] x ... x [0, length[d-1]].
+        This helper function transforms the layout [self.center - self.scale, self.center + self.scale]^d to the 
+        semi-positive orthant: 
+        [0 - border, length[0] + border] x [0 - border, length[1] + border] x ... x [0 - border, length[d-1] + border].
+
+        Default values of length=1 and border=0 give the unit positive orthant.
 
         Parameters
         ----------
         length : int or tuple (default 1)
-            The maximum value in each dimension. If it is an integer, this is the max for all dimensions; if it is a
+            Specifies a vector called scale. If length is an integer, it is the max for all dimensions; if it is a
             tuple, each entry specifies a max for each dimension in the layout.
+        border : float (default 0)
+            Will shift the positive_orthant representation by the given amount in each dimension.
 
         Returns
         -------
@@ -156,9 +213,10 @@ class Layout():
         L = L + (self.scale - self.center)
         # Map it to [0, 1]^d
         L = L / (2*self.scale)
-        # Scale it to the desired length
-        scale = _scale_vector(length, self.d)
-        L = L * scale
+        # Scale it to the desired length [0, length]^d
+        L = L * layout_utils.to_vector(length, self.d)
+        # Extend it by the border amount
+        L = L - border
 
         return {vertices[i]: p for i, p in enumerate(L)}
 
@@ -252,6 +310,13 @@ def scale_edge_length(layout, edge_length=1., to_scale="median"):
     return {v: scale*p for v, p in layout.items()}
 
 
+def lattice_points_to_length(lattice_points):
+    if isinstance(lattice_points, int):
+        return lattice_points - 1
+    else:
+        return tuple(x-1 for x in lattice_points)
+
+
 def kamada_kawai(G, d=2, center=None, scale=1., seed=None, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
@@ -270,18 +335,3 @@ def chimera(G, d=2, center=None, scale=1., **kwargs):
     L = Layout(G, d, center, scale)
     _ = L.chimera(**kwargs)
     return L
-
-
-def _scale_vector(length, d):
-    """
-    If length is an integer, it creates a d-dimensional array with values length. Otherwise it creates an array based
-    on the length iterable and checks that is the same dimension as d. 
-    """
-    if isinstance(length, int):
-        return np.array(d*(length,))
-
-    scale = np.array(length)
-    assert scale.size == d, (
-        f"You inputed a scale vector of size {scale.size} for a {d}-dimensional space."
-    )
-    return scale

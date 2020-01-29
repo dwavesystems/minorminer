@@ -1,12 +1,13 @@
 import networkx as nx
-from minorminer.layout.construction import neighborhood, singleton
+
+from minorminer.layout.construction import neighborhood, pass_along
 from minorminer.layout.hinting import initial, suspend
 from minorminer.layout.layout import Layout, chimera, kamada_kawai
 from minorminer.layout.placement import binning, closest, injective
 
 
 def find_embedding(
-    S, T, layout=kamada_kawai, placement=closest, construction=singleton, hinting=initial, **kwargs
+    S, T, layout=None, placement=closest, construction=pass_along, hinting=initial, **kwargs
 ):
     """
     Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding. Chains are 
@@ -18,13 +19,13 @@ def find_embedding(
         The graph you are embedding (source) or a NetworkX supported data structure (see to_networkx_graph()).
     T : NetworkX graph or edges data structure (dict, list, ...)
         The graph you are embedding into (target) or a NetworkX supported data structure (see to_networkx_graph()).
-    layout : function or [function/dict, function/dict] (default None)
+    layout : function or [function/dict/Layout, function/dict/Layout] (default kamada_kawai)
         Specifies either a single function to compute the layout for both S and T or a 2-tuple consisting of functions 
-        or pre-computed layouts, the first applying to S and the second applying to T. If None, kamada_kawai is used.
+        or pre-computed layouts, the first applying to S and the second applying to T.
     placement : function (default closest)
         The placement algorithm to call; each algorithm uses the layouts of S and T to map the vertices of S to the 
         vertices of T.
-    construction : function (default singleton)
+    construction : function (default pass_along)
         The chain construction algorithm to call; each algorithm uses the placement to build chains to hand to 
         minorminer.find_embedding(). 
     hinting : function (default initial)
@@ -92,6 +93,8 @@ def _parse_kwargs(kwargs):
     placement_kwargs = {}
     if "bins" in kwargs:
         placement_kwargs["bins"] = kwargs.pop("bins")
+    if "strategy" in kwargs:
+        placement_kwargs["strategy"] = kwargs.pop("strategy")
 
     construction_kwargs = {}
     if "second" in kwargs:
@@ -109,16 +112,20 @@ def _parse_layout_parameter(S, T, layout, layout_kwargs):
         # It's a layout for S
         if isinstance(layout[0], dict):
             S_layout = Layout(S, layout=layout[0], **layout_kwargs)
+        elif isinstance(layout[0], Layout):
+            S_layout = layout[0]
         # It's a function for S
         else:
-            S_layout = layout(S, **layout_kwargs)
+            S_layout = layout[0](S, **layout_kwargs)
 
         # It's a layout for T
         if isinstance(layout[1], dict):
             T_layout = Layout(T, layout=layout[1], **layout_kwargs)
+        elif isinstance(layout[1], Layout):
+            T_layout = layout[1]
         # It's a function for T
         else:
-            T_layout = layout(T, **layout_kwargs)
+            T_layout = layout[1](T, **layout_kwargs)
 
     # It's a function for both
     else:

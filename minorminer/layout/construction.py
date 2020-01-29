@@ -1,11 +1,13 @@
 from collections import defaultdict
 
+from minorminer.layout.utils import layout_utils
 import minorminer as mm
 
 
-def singleton(S, T, placement):
+def pass_along(S, T, placement):
     """
-    Given a placement (a map, phi, from vertices of S to vertices of T), form the chain [phi(u)] for each u in S.
+    Given a placement (a map, phi, from vertices of S to vertices (or subsets of vertices) of T), form the chain 
+    [phi(u)] (or phi(u)) for each u in S.
 
     Parameters
     ----------
@@ -19,7 +21,11 @@ def singleton(S, T, placement):
     chains: dict
         A mapping from vertices of S (keys) to chains of T (values).
     """
-    return {u: [v] for u, v in placement.items()}
+    # Test if you need to convert values or not
+    if layout_utils.convert_to_chains(placement):
+        return {u: [v] for u, v in placement.items()}
+    else:
+        return placement
 
 
 def neighborhood(S, T, placement, second=False):
