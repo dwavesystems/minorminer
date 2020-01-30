@@ -1,6 +1,6 @@
 import random
 import warnings
-from itertools import product
+from itertools import cycle, product
 
 import networkx as nx
 from scipy.spatial.distance import euclidean
@@ -69,7 +69,7 @@ def injective(S_layout, T_layout):
     return {u: M[(0, u)][1] for u in S_layout.keys()}
 
 
-def binning(S_layout, T_layout, bins=None, strategy=random.choice, is_chimera=False):
+def binning(S_layout, T_layout, bins=None):
     """
     Map the vertices of S to the vertices of T by first mapping both to an integer lattice.
 
@@ -80,35 +80,27 @@ def binning(S_layout, T_layout, bins=None, strategy=random.choice, is_chimera=Fa
     T_layout : layout.Layout
         A layout for T; i.e. a map from T to the plane.
     bins : tuple or int (default None)
-        The number of bins to put along dimensions; see Layout.to_integer_lattice(). If None, the strategy determines
-        the default value to be used.
-    strategy : function (default random.choice)
-        For each v in S, v is binned to some point (x1, x2, ..., xd) that contains a possibly empty list L of vertices
-        of T. The strategy function is called on L, i.e., strategy(L).
-    is_chimera : bool (default False)
-        If True, use the coordinates of the vertices of Chimera to establish bins in S.
+        The number of bins to put along dimensions; see Layout.to_integer_lattice(). If None, check to see if T is a
+        dnx.*_graph() object. If it is, compute bins to be the grid dimension of T.
     """
     assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
         "Layout class instances must be passed in.")
 
     if bins is None:
-        if is_chimera:
-            n, m, _ = utils.check_dnx(T_layout.G)
-            bins = (m, n) + (T_layout.d-2)*(0,)
+        dims = utils.lookup_dnx_dims(T_layout.G)
+        if dims:
+            n, m = dims[0], dims[1]
+            bins = (m-1, n-1) + (T_layout.d-2)*(0,)
         else:
             bins = 2
 
-    S_binned = S_layout.integer_lattice_layout(bins)
-    T_binned = T_layout.integer_lattice_bins(bins, is_chimera)
+    S_binned = S_layout.integer_lattice_bins(bins)
+    T_binned = T_layout.integer_lattice_bins(bins)
 
     placement = {}
-    for v, p in S_binned.items():
-        try:
-            placement[v] = strategy(T_binned[p])
-        except:
-            warnings.warn(
-                f"The strategy {strategy} failed for putting vertex {v} of S into bin {p}. The bin {p} contains the \
-                    following vertices from T {T_binned[p]}. This results in no hinting for {v}.")
+    for p, V in S_binned.items():
+        for v, q in zip(V, cycle(T_binned[p])):
+            placement[v] = q
 
     return placement
 

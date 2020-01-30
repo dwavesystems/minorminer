@@ -97,9 +97,6 @@ class Layout():
         layout : dict
             A mapping from vertices of G (keys) to points in [-1, 1]^d (values).
         """
-        # Check that the graph will work.
-        _, _, _ = utils.check_dnx(self.G)
-
         # Convert center and scale for dwave_networkx to consume.
         top_left, new_scale = self.center_to_top_left()
 
@@ -109,10 +106,13 @@ class Layout():
         self.layout = layout
         return layout
 
-    def integer_lattice_layout(self, lattice_points=3, is_chimera=False):
+    def integer_lattice_layout(self, lattice_points=3):
         """
         Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see 
-        scale_to_positive_orthant().
+        scale_to_positive_orthant(). 
+        Note: if the graph is Chimera or Pegasus, lattice points are inferred from the graph object and the layout is 
+        ignored. If the user desires to have lattice points computed from a layout (e.g. kamada_kawai), make sure that 
+        the graph object is created with the following flags: dnx.*_graph(coordinates=False, data=False).
 
         Parameters
         ----------
@@ -120,42 +120,37 @@ class Layout():
             The number of lattice points in each dimension. If it is an integer, there will be that many lattice points
             in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
             dimension in the layout.
-        is_chimera : bool (default False)
-            If True, use the coordinates of the vertices of Chimera to establish the lattice for S.
 
         Returns
         -------
         layout : dict
             A mapping from vertices of G (keys) to points in S (values). 
         """
-        if is_chimera:
-            _, _, _ = utils.check_dnx(self.G, needs_data=True)
+        # Look to see if you can get the lattice information from the graph object
+        coordinates = utils.lookup_dnx_coordinates(self.G)
+        if coordinates:
+            return {v: coord + (self.d-2)*(0,) for v, coord in coordinates.items()}
 
-            if self.G.graph["labels"] == "coordinate":
-                return {v: (v[0], v[1]) + (self.d-2)*(0,) for v in self.G}
-            else:
-                return {
-                    v: (self.G.nodes[v]["chimera_index"][0],
-                        self.G.nodes[v]["chimera_index"][1]) + (self.d-2)*(0,)
-                    for v in self.G
-                }
-
+        # Compute the lattice information by scaling and rounding
         scaled_layout = self.scale_to_positive_orthant(lattice_points)
         return {v: tuple(round(x) for x in p) for v, p in scaled_layout.items()}
 
-    def integer_lattice_bins(self, lattice_points=None, is_chimera=False):
+    def integer_lattice_bins(self, lattice_points=2):
         """
         Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant, S; see 
         scale_to_positive_orthant().
 
+        Note: If the graph is Chimera or Pegasus, lattice points are inferred from the graph object using the first two
+        coordinates of vertices of Chimera and Pegasus, i.e. the layout is ignored. If the user desires to have lattice
+        points computed from a layout (e.g. kamada_kawai), make sure that the graph object is created with the following
+        flags: dnx.*_graph(coordinates=False, data=False).
+
         Parameters
         ----------
-        lattice_points : int or tuple (default None)
+        lattice_points : int or tuple (default 2)
             The number of lattice points in each dimension. If it is an integer, there will be that many lattice points
             in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
             dimension in the layout.
-        is_chimera : bool (default False)
-            If True, use the coordinates of the vertices of Chimera to establish bins in S.
 
         Returns
         -------
@@ -164,24 +159,17 @@ class Layout():
         """
         integer_point_map = defaultdict(list)
 
-        if is_chimera:
-            _, _, _ = utils.check_dnx(self.G, needs_data=True)
+        # Look to see if you can get the lattice information from the graph object
+        coordinates = utils.lookup_dnx_coordinates(self.G)
+        if coordinates:
+            for v, coord in coordinates.items():
+                integer_point_map[coord + (self.d-2)*(0,)].append(v)
+            return integer_point_map
 
-            if self.G.graph["labels"] == "coordinate":
-                for v in self.G:
-                    integer_point_map[(v[0], v[1]) + (self.d-2)*(0,)].append(v)
-            else:
-                for v in self.G:
-                    integer_point_map[(self.G.nodes[v]["chimera_index"][0],
-                                       self.G.nodes[v]["chimera_index"][1]) + (self.d-2)*(0,)].append(v)
-
-        else:
-            # TODO: set a better default value that somehow depends on the graph
-            lattice_points = lattice_points or 2
-
-            scaled_layout = self.scale_to_positive_orthant(lattice_points)
-            for v, p in scaled_layout.items():
-                integer_point_map[tuple(round(x) for x in p)].append(v)
+        # Compute the lattice information by scaling and rounding
+        scaled_layout = self.scale_to_positive_orthant(lattice_points)
+        for v, p in scaled_layout.items():
+            integer_point_map[tuple(round(x) for x in p)].append(v)
 
         return integer_point_map
 
