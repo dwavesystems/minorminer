@@ -109,7 +109,8 @@ class Layout():
     def integer_lattice_layout(self, lattice_points=3):
         """
         Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see 
-        scale_to_positive_orthant(). 
+        scale_to_positive_orthant().
+
         Note: if the graph is Chimera or Pegasus, lattice points are inferred from the graph object and the layout is 
         ignored. If the user desires to have lattice points computed from a layout (e.g. kamada_kawai), make sure that 
         the graph object is created with the following flags: dnx.*_graph(coordinates=False, data=False).
@@ -132,10 +133,11 @@ class Layout():
             return {v: coord + (self.d-2)*(0,) for v, coord in coordinates.items()}
 
         # Compute the lattice information by scaling and rounding
-        scaled_layout = self.scale_to_positive_orthant(lattice_points)
+        scaled_layout = self.scale_to_positive_orthant(
+            lattice_points_to_length(lattice_points))
         return {v: tuple(round(x) for x in p) for v, p in scaled_layout.items()}
 
-    def integer_lattice_bins(self, lattice_points=2):
+    def integer_lattice_bins(self, lattice_points=3):
         """
         Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant, S; see 
         scale_to_positive_orthant().
@@ -147,7 +149,7 @@ class Layout():
 
         Parameters
         ----------
-        lattice_points : int or tuple (default 2)
+        lattice_points : int or tuple (default 3)
             The number of lattice points in each dimension. If it is an integer, there will be that many lattice points
             in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
             dimension in the layout.
@@ -167,7 +169,8 @@ class Layout():
             return integer_point_map
 
         # Compute the lattice information by scaling and rounding
-        scaled_layout = self.scale_to_positive_orthant(lattice_points)
+        scaled_layout = self.scale_to_positive_orthant(
+            lattice_points_to_length(lattice_points))
         for v, p in scaled_layout.items():
             integer_point_map[tuple(round(x) for x in p)].append(v)
 
@@ -294,6 +297,28 @@ def scale_edge_length(layout, edge_length=1., to_scale="median"):
     return {v: scale*p for v, p in layout.items()}
 
 
+def scale_vector(length, d):
+    """
+    If length is an integer, it creates a d-dimensional array with values length. Otherwise it creates an array based
+    on the length iterable and checks that is the same dimension as d. 
+    """
+    if isinstance(length, int):
+        return np.array(d*(length,))
+
+    scale = np.array(length)
+    assert scale.size == d, (
+        f"You inputed a scale vector of size {scale.size} for a {d}-dimensional space."
+    )
+    return scale
+
+
+def lattice_points_to_length(lattice_points):
+    if isinstance(lattice_points, int):
+        return lattice_points - 1
+    else:
+        return tuple(x-1 for x in lattice_points)
+
+
 def kamada_kawai(G, d=2, center=None, scale=1., seed=None, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
@@ -312,18 +337,3 @@ def chimera(G, d=2, center=None, scale=1., **kwargs):
     L = Layout(G, d, center, scale)
     _ = L.chimera(**kwargs)
     return L
-
-
-def scale_vector(length, d):
-    """
-    If length is an integer, it creates a d-dimensional array with values length. Otherwise it creates an array based
-    on the length iterable and checks that is the same dimension as d. 
-    """
-    if isinstance(length, int):
-        return np.array(d*(length,))
-
-    scale = np.array(length)
-    assert scale.size == d, (
-        f"You inputed a scale vector of size {scale.size} for a {d}-dimensional space."
-    )
-    return scale

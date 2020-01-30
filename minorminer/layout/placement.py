@@ -90,7 +90,7 @@ def binning(S_layout, T_layout, bins=None):
         dims = utils.lookup_dnx_dims(T_layout.G)
         if dims:
             n, m = dims[0], dims[1]
-            bins = (m-1, n-1) + (T_layout.d-2)*(0,)
+            bins = (m, n) + (T_layout.d-2)*(0,)
         else:
             bins = 2
 

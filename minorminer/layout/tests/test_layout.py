@@ -1,5 +1,6 @@
 import random
 import unittest
+from itertools import product
 
 import dwave_networkx as dnx
 import networkx as nx
@@ -66,14 +67,47 @@ class TestLayout(unittest.TestCase):
         layouts.append(mml.kamada_kawai(G, center=center, scale=scale).layout)
 
         for layout in layouts:
-            for v, p in layout.items():
+            for p in layout.values():
                 for i, x in enumerate(p):
-                    coordinate = layout[v][i]
                     # My own implementations of self.assertAlmostGreater[Less]Equal
-                    self.assertTrue(round(coordinate, 7) >=
+                    self.assertTrue(round(x, 7) >=
                                     round(center[i] - scale, 7))
-                    self.assertTrue(round(coordinate, 7) <=
+                    self.assertTrue(round(x, 7) <=
                                     round(center[i] + scale, 7))
+
+    def test_integer_lattice_layout(self):
+        """
+        Tests that a layout correctly bins to an integer lattice. Randomly chooses integers between [4, 100] as 
+        dimensions for a 2d layout; 4 is the lower bound since the size of dnx.*_graphs() dictate the integer lattice 
+        and G is dnx.chimera_graph(4) is a test case.
+        """
+        G = dnx.chimera_graph(4)
+        H = dnx.chimera_graph(4, data=False)
+        J = nx.random_regular_graph(3, 60)
+
+        # Test all layouts
+        empty_layout = mml.Layout(G)
+        chimera_layout = mml.chimera(H)
+        kamada_kawai_layout = mml.kamada_kawai(J)
+
+        layouts = [empty_layout, chimera_layout, kamada_kawai_layout]
+
+        for _ in range(5):
+            rand_x = random.randint(4, 100)
+            rand_y = random.randint(4, 100)
+            squares = [layout.integer_lattice_layout(
+                rand_x) for layout in layouts]
+            rectangles = [layout.integer_lattice_layout(
+                (rand_x, rand_y)) for layout in layouts]
+
+            for square in squares:
+                for p in square.values():
+                    self.assertIn(
+                        p, list(product(range(rand_x), range(rand_x))))
+            for rectangle in rectangles:
+                for p in rectangle.values():
+                    self.assertIn(
+                        p, list(product(range(rand_x), range(rand_y))))
 
 
 if __name__ == '__main__':
