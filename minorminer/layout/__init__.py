@@ -1,5 +1,6 @@
 import networkx as nx
-from minorminer.layout.construction import neighborhood, singleton
+
+from minorminer.layout.construction import neighborhood, pass_along, singleton
 from minorminer.layout.hinting import initial, suspend
 from minorminer.layout.layout import Layout, chimera, kamada_kawai
 from minorminer.layout.placement import binning, closest, injective
@@ -69,6 +70,8 @@ def parse_kwargs(kwargs):
         layout_kwargs["scale"] = kwargs.pop("scale")
 
     placement_kwargs = {}
+    if "max_subset_size" in kwargs:
+        placement_kwargs["max_subset_size"] = kwargs.pop("max_subset_size")
     if "bins" in kwargs:
         placement_kwargs["bins"] = kwargs.pop("bins")
     if "strategy" in kwargs:
@@ -89,9 +92,10 @@ def parse_layout_parameter(S, T, layout, layout_kwargs):
     """
     # It's two things, one for S and one for T
     if isinstance(layout, tuple):
-        # It's a layout for S
+        # It's a dict layout for S
         if isinstance(layout[0], dict):
             S_layout = Layout(S, layout=layout[0], **layout_kwargs)
+        # It's a Layout object for S
         elif isinstance(layout[0], Layout):
             S_layout = layout[0]
         # It's a function for S
@@ -101,6 +105,7 @@ def parse_layout_parameter(S, T, layout, layout_kwargs):
         # It's a layout for T
         if isinstance(layout[1], dict):
             T_layout = Layout(T, layout=layout[1], **layout_kwargs)
+        # It's a Layout object for T
         elif isinstance(layout[1], Layout):
             T_layout = layout[1]
         # It's a function for T

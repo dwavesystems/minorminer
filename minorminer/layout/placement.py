@@ -3,13 +3,14 @@ import warnings
 from itertools import cycle, product
 
 import networkx as nx
-from scipy.spatial.distance import euclidean
+import numpy as np
+from scipy.spatial import distance, KDTree
 
-from minorminer.layout import utils
+from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
 from minorminer.layout.layout import Layout
 
 
-def closest(S_layout, T_layout):
+def closest(S_layout, T_layout, max_subset_size=(1, 1)):
     """
     Maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. For each vertex u in 
     S_layout and each vertex v in T_layout, map u to the v with minimum Euclidean distance (||u - v||_2).
@@ -20,17 +21,50 @@ def closest(S_layout, T_layout):
         A layout for S; i.e. a map from S to the plane.
     T_layout : dict or layout.Layout
         A layout for T; i.e. a map from T to the plane.
+    max_subset_size : tuple (default (1, 1))
+        A lower bound and an upper bound on the size of subets of T that will be considered when mapping vertices of S.
 
     Returns
     -------
     placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
+        A mapping from vertices of S (keys) to subsets of vertices of T (values).
     """
-    S_layout, T_layout = parse_layout(S_layout), parse_layout(T_layout)
+    # Copy the dictionary layout for T so we can modify it.
+    layout = dict(T_layout.layout)
+    # Get the graph for layout T
+    T = T_layout.G
+
+    # Get connected subgraphs to consider mapping to
+    if max_subset_size != (1, 1):
+        T_subgraphs = graph_utils.get_connected_subgraphs(
+            T, max_subset_size[0], max_subset_size[1])
+
+        # Calculate the barycenter (centroid) of each subset with size > 1
+        for k in range(max(2, max_subset_size[0]), max_subset_size[1]+1):
+            for subgraph in T_subgraphs[k]:
+                layout[subgraph] = np.mean(
+                    tuple(layout[v] for v in subgraph), axis=0)
+
+        # Determine if you need to delete or modify subsets of size 1
+        if max_subset_size[0] == 1:
+            for v in T:
+                layout[frozenset((v,))] = layout[v]
+                del layout[v]
+        else:
+            for v in T:
+                del layout[v]
+
+    # Use scipy's KDTree to solve the nearest neighbor problem.
+    # This requires a few lookup tables
+    T_vertex_lookup = {tuple(p): v for v, p in layout.items()}
+    layout_points = [tuple(p) for p in layout.values()]
+    tree = KDTree(layout_points)
+
     placement = {}
-    for u, u_pos in S_layout.items():
-        placement[u] = min(
-            T_layout, key=lambda v: euclidean(u_pos, T_layout[v]))
+    for u, u_pos in S_layout.layout.items():
+        _, v_index = tree.query(u_pos)
+        placement[u] = T_vertex_lookup[layout_points[v_index]]
+
     return placement
 
 
@@ -59,7 +93,7 @@ def injective(S_layout, T_layout):
     # Relabel the vertices from S and T in case of name conflict; S --> 0 and T --> 1.
     X.add_edges_from(
         (
-            ((0, u), (1, v), dict(weight=euclidean(u_pos, v_pos)))
+            ((0, u), (1, v), dict(weight=distance.euclidean(u_pos, v_pos)))
             for (u, u_pos), (v, v_pos) in product(S_layout.items(), T_layout.items())
         )
     )
@@ -82,12 +116,17 @@ def binning(S_layout, T_layout, bins=None):
     bins : tuple or int (default None)
         The number of bins to put along dimensions; see Layout.to_integer_lattice(). If None, check to see if T is a
         dnx.*_graph() object. If it is, compute bins to be the grid dimension of T.
+
+    Returns
+    -------
+    placement : dict
+        A mapping from vertices of S (keys) to vertices of T (values).
     """
     assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
         "Layout class instances must be passed in.")
 
     if bins is None:
-        dims = utils.lookup_dnx_dims(T_layout.G)
+        dims = dnx_utils.lookup_dnx_dims(T_layout.G)
         if dims:
             n, m = dims[0], dims[1]
             bins = (m, n) + (T_layout.d-2)*(0,)
