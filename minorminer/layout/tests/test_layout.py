@@ -7,6 +7,7 @@ import networkx as nx
 
 import minorminer.layout.layout as mml
 from .data import precomputed_chimera, precomputed_kamada_kawai
+from minorminer.layout.utils import layout_utils
 
 # Set a seed to standardize the randomness.
 n = 9999
@@ -18,7 +19,7 @@ class TestLayout(unittest.TestCase):
 
     def test_kamada_kawai(self):
         """
-        Tests that the Kamada-Kawai layout is correct for K_4,4 (dimensions 1, 2, 3, 10); i.e. that it matches the 
+        Tests that the Kamada-Kawai layout is correct for K_4,4 (dimensions 1, 2, 3, 10); i.e. that it matches the
         precomputed layout.
         """
         G = nx.complete_bipartite_graph(4, 4)
@@ -36,7 +37,7 @@ class TestLayout(unittest.TestCase):
 
     def test_chimera(self):
         """
-        Tests that the layout is correct for Chimera(4) (dimensions 2 and 3); i.e. that it matches the precomputed 
+        Tests that the layout is correct for Chimera(4) (dimensions 2 and 3); i.e. that it matches the precomputed
         layout.
         """
         G = dnx.chimera_graph(4)
@@ -77,8 +78,8 @@ class TestLayout(unittest.TestCase):
 
     def test_integer_lattice_layout(self):
         """
-        Tests that a layout correctly bins to an integer lattice. Randomly chooses integers between [4, 100] as 
-        dimensions for a 2d layout; 4 is the lower bound since the size of dnx.*_graphs() dictate the integer lattice 
+        Tests that a layout correctly bins to an integer lattice. Randomly chooses integers between [4, 100] as
+        dimensions for a 2d layout; 4 is the lower bound since the size of dnx.*_graphs() dictate the integer lattice
         and G is dnx.chimera_graph(4) is a test case.
         """
         G = dnx.chimera_graph(4)

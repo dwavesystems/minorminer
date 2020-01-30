@@ -5,9 +5,9 @@ from itertools import combinations
 import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
-from minorminer.layout import utils
-from minorminer.layout.utils import layout_utils
 from scipy.spatial.distance import euclidean
+
+from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
 
 
 class Layout():
@@ -33,7 +33,7 @@ class Layout():
             Keyword arguments are passed to one of the layout algorithms below.
         """
         # Ensure G is a graph object
-        self.G = utils.parse_graph(G)
+        self.G = graph_utils.parse_graph(G)
 
         # Construct the origin if need be
         if center is None:
@@ -128,7 +128,7 @@ class Layout():
             A mapping from vertices of G (keys) to points in S (values). 
         """
         # Look to see if you can get the lattice information from the graph object
-        coordinates = utils.lookup_dnx_coordinates(self.G)
+        coordinates = dnx_utils.lookup_dnx_coordinates(self.G)
         if coordinates:
             return {v: coord + (self.d-2)*(0,) for v, coord in coordinates.items()}
 
@@ -162,9 +162,8 @@ class Layout():
         """
         integer_point_map = defaultdict(list)
 
-        # Look to see if you can get the lattice information from the graph object.
-        # If so, look them up and return.
-        coordinates = utils.lookup_dnx_coordinates(self.G)
+        # Look to see if you can get the lattice information from the graph object
+        coordinates = dnx_utils.lookup_dnx_coordinates(self.G)
         if coordinates:
             for v, coord in coordinates.items():
                 integer_point_map[coord + (self.d-2)*(0,)].append(v)
@@ -173,8 +172,7 @@ class Layout():
         # Compute the lattice information by scaling and rounding
         lattice_vector = layout_utils.to_vector(lattice_points, self.d)
         scaled_layout = self.scale_to_positive_orthant(
-            lattice_vector+1, border=1)
-
+            layout_utils.lattice_points_to_length(lattice_points))
         for v, p in scaled_layout.items():
             integer_point_map[
                 layout_utils.border_round(p, lattice_vector-1, self.d)
@@ -213,10 +211,9 @@ class Layout():
         L = L + (self.scale - self.center)
         # Map it to [0, 1]^d
         L = L / (2*self.scale)
-        # Scale it to the desired length [0, length]^d
-        L = L * layout_utils.to_vector(length, self.d)
-        # Extend it by the border amount
-        L = L - border
+        # Scale it to the desired length
+        scale = layout_utils.to_vector(length, self.d)
+        L = L * scale
 
         return {vertices[i]: p for i, p in enumerate(L)}
 
@@ -308,13 +305,6 @@ def scale_edge_length(layout, edge_length=1., to_scale="median"):
             "Parameter to_scale={} is not supported.".format(to_scale))
 
     return {v: scale*p for v, p in layout.items()}
-
-
-def lattice_points_to_length(lattice_points):
-    if isinstance(lattice_points, int):
-        return lattice_points - 1
-    else:
-        return tuple(x-1 for x in lattice_points)
 
 
 def kamada_kawai(G, d=2, center=None, scale=1., seed=None, **kwargs):

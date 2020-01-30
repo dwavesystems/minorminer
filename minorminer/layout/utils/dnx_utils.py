@@ -1,15 +1,3 @@
-import networkx as nx
-
-
-def parse_graph(G):
-    """
-    Determines if a graph object or a collection of edges was passed in. Returns a NetworkX graph.
-    """
-    if hasattr(G, "edges"):
-        return G
-    return nx.Graph(G)
-
-
 def lookup_dnx_coordinates(G):
     """
     Checks to see if G is a dnx.*_graph(). If it is, it checks to see if G has coordinate information. If it does it 
