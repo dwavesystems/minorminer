@@ -1,4 +1,4 @@
-.. _cppdocs:
+.. _cppdocs_minorminer:
 
 C++ Library
 ===========

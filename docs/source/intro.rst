@@ -1,4 +1,4 @@
-.. intro:
+.. intro_minorminer:
 
 ============
 Introduction
