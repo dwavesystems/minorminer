@@ -53,6 +53,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
+    'sphinx.ext.ifconfig',
 ]
 extensions += ['breathe']  # , 'sphinxcontrib.matlab']
 
@@ -92,7 +93,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = []
+exclude_patterns = ['_build', 'sdk_index.rst']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -140,18 +141,10 @@ html_static_path = ['_static']
 def setup(app):
     app.add_stylesheet('cookie_notice.css')
     app.add_javascript('cookie_notice.js')
-
+    app.add_config_value('target', 'repo', 'env')
 
 # Configuration for intersphinx.
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
-                       'dimod': ('https://docs.ocean.dwavesys.com/projects/dimod/en/latest/', None),
-                       'binarycsp': ('https://docs.ocean.dwavesys.com/projects/binarycsp/en/latest/', None),
-                       'cloud-client': ('https://docs.ocean.dwavesys.com/projects/cloud-client/en/latest/', None),
-                       'neal': ('https://docs.ocean.dwavesys.com/projects/neal/en/latest/', None),
-                       'networkx': ('https://docs.ocean.dwavesys.com/projects/dwave-networkx/en/latest/', None),
-                       'system': ('https://docs.ocean.dwavesys.com/projects/system/en/latest/', None),
-                       'penaltymodel': ('https://docs.ocean.dwavesys.com/projects/penaltymodel/en/latest/', None),
-                       'minorminer': ('https://docs.ocean.dwavesys.com/projects/minorminer/en/latest/', None),
                        'qbsolv': ('https://docs.ocean.dwavesys.com/projects/qbsolv/en/latest/', None),
                        'oceandocs': ('https://docs.ocean.dwavesys.com/en/latest/', None),
                        'sysdocs_gettingstarted': ('https://docs.dwavesys.com/docs/latest/', None)}
