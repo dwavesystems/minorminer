@@ -1,4 +1,4 @@
-.. _sdk_index:
+.. _sdk_index_minorminer:
 
 .. include:: /readmes/binarycsp.rst
    :start-after: index-start-marker
