@@ -1,13 +1,13 @@
 import networkx as nx
 
-from minorminer.layout.construction import neighborhood, pass_along, singleton
+from minorminer.layout.construction import neighborhood, pass_along
 from minorminer.layout.hinting import initial, suspend
 from minorminer.layout.layout import Layout, chimera, kamada_kawai
 from minorminer.layout.placement import binning, closest, injective
 
 
 def find_embedding(
-    S, T, layout=None, placement=closest, construction=singleton, hinting=initial, **kwargs
+    S, T, layout=None, placement=closest, construction=pass_along, hinting=initial, **kwargs
 ):
     """
     Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding(). Chains are 
@@ -25,7 +25,7 @@ def find_embedding(
     placement : function (default closest)
         The placement algorithm to call; each algorithm uses the layouts of S and T to map the vertices of S to the 
         vertices of T.
-    construction : function (default singleton)
+    construction : function (default pass_along)
         The chain construction algorithm to call; each algorithm uses the placement to build chains to hand to 
         minorminer.find_embedding(). 
     hinting : function (default initial)

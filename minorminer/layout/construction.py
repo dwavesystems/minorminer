@@ -1,11 +1,13 @@
 from collections import defaultdict
 
+from minorminer.layout.utils import layout_utils
 import minorminer as mm
 
 
-def singleton(S, T, placement, extend=False):
+def pass_along(S, T, placement, extend=False):
     """
-    Given a placement (a map, phi, from vertices of S to vertices of T), form the chain [phi(u)] for each u in S.
+    Given a placement (a map, phi, from vertices of S to vertices (or subsets of vertices) of T), form the chain 
+    [phi(u)] (or phi(u)) for each u in S.
 
     Parameters
     ----------
@@ -21,7 +23,12 @@ def singleton(S, T, placement, extend=False):
     chains: dict
         A mapping from vertices of S (keys) to chains of T (values).
     """
-    chains = {u: [v] for u, v in placement.items()}
+    # Test if you need to convert values or not
+    if layout_utils.convert_to_chains(placement):
+        chains = {u: [v] for u, v in placement.items()}
+    else:
+        chains = placement
+
     if extend:
         return extend_chains(S, T, chains)
 
@@ -96,25 +103,6 @@ def extend_chains(S, T, initial_chains):
                 set(emb[v]).difference(initial_chains[v]))
 
     return extended_chains
-
-
-def pass_along(S, T, placement):
-    """
-    Given a placement consisting of chains, for each u in S simply pass the chain phi(u) along.
-
-    Parameters
-    ----------
-    T : NetworkX graph
-        The graph you are embedding into (target).
-    placement : dict
-        A mapping from vertices of S (keys) to subsets of vertices of T (values).
-
-    Returns
-    -------
-    chains: dict
-        A mapping from vertices of S (keys) to chains of T (values).
-    """
-    return placement
 
 
 def closed_neighbors(G, u, second=False):

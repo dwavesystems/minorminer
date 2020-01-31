@@ -133,9 +133,10 @@ class Layout():
             return {v: coord + (self.d-2)*(0,) for v, coord in coordinates.items()}
 
         # Compute the lattice information by scaling and rounding
+        lattice_vector = layout_utils.to_vector(lattice_points, self.d)
         scaled_layout = self.scale_to_positive_orthant(
-            layout_utils.lattice_points_to_length(lattice_points))
-        return {v: tuple(round(x) for x in p) for v, p in scaled_layout.items()}
+            lattice_vector+1, border=1)
+        return {v: layout_utils.border_round(p, lattice_vector-1, self.d) for v, p in scaled_layout.items()}
 
     def integer_lattice_bins(self, lattice_points=3):
         """
@@ -161,7 +162,8 @@ class Layout():
         """
         integer_point_map = defaultdict(list)
 
-        # Look to see if you can get the lattice information from the graph object
+        # Look to see if you can get the lattice information from the graph object.
+        # If so, look them up and return.
         coordinates = dnx_utils.lookup_dnx_coordinates(self.G)
         if coordinates:
             for v, coord in coordinates.items():
@@ -169,23 +171,32 @@ class Layout():
             return integer_point_map
 
         # Compute the lattice information by scaling and rounding
+        lattice_vector = layout_utils.to_vector(lattice_points, self.d)
         scaled_layout = self.scale_to_positive_orthant(
-            layout_utils.lattice_points_to_length(lattice_points))
+            lattice_vector+1, border=1)
+
         for v, p in scaled_layout.items():
-            integer_point_map[tuple(round(x) for x in p)].append(v)
+            integer_point_map[
+                layout_utils.border_round(p, lattice_vector-1, self.d)
+            ].append(v)
 
         return integer_point_map
 
-    def scale_to_positive_orthant(self, length=1):
+    def scale_to_positive_orthant(self, length=1, border=0.):
         """
-        This helper function transforms the layout [center - scale, center + scale]^d to the positive orthant
-        [0, scale[0]] x [0, scale[1]] x ... x [0, scale[d-1]].
+        This helper function transforms the layout [self.center - self.scale, self.center + self.scale]^d to the 
+        semi-positive orthant: 
+        [0 - border, length[0] + border] x [0 - border, length[1] + border] x ... x [0 - border, length[d-1] + border].
+
+        Default values of length=1 and border=0 give the unit positive orthant.
 
         Parameters
         ----------
         length : int or tuple (default 1)
             Specifies a vector called scale. If length is an integer, it is the max for all dimensions; if it is a
             tuple, each entry specifies a max for each dimension in the layout.
+        border : float (default 0)
+            Will shift the positive_orthant representation by the given amount in each dimension.
 
         Returns
         -------
@@ -202,9 +213,10 @@ class Layout():
         L = L + (self.scale - self.center)
         # Map it to [0, 1]^d
         L = L / (2*self.scale)
-        # Scale it to the desired length
-        scale = layout_utils.scale_vector(length, self.d)
-        L = L * scale
+        # Scale it to the desired length [0, length]^d
+        L = L * layout_utils.to_vector(length, self.d)
+        # Extend it by the border amount
+        L = L - border
 
         return {vertices[i]: p for i, p in enumerate(L)}
 
