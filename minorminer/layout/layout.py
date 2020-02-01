@@ -13,7 +13,7 @@ from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
 class Layout():
     def __init__(self, G, d=2, center=None, scale=1., layout=None, seed=None, **kwargs):
         """
-        Compute a layout for G, i.e., a map from G to R^d.
+        Compute a layout for G, i.e., a map from G to [center - scale, center + scale]^d.
 
         Parameters
         ----------
@@ -74,7 +74,8 @@ class Layout():
                 self.G, dim=self.d, seed=self.seed)
 
             # Convert it to [center - scale, center + scale]^d
-            transformed_random_layout = self.scale_unit_layout(random_layout)
+            transformed_random_layout = self.scale_and_center(
+                random_layout, center=self.d*(1/2,), scale=1/2)
 
             layout = nx.kamada_kawai_layout(
                 self.G, pos=transformed_random_layout, dim=self.d, center=self.center, scale=self.scale, **kwargs)
@@ -106,13 +107,48 @@ class Layout():
         self.layout = layout
         return layout
 
+    def pca(self, m=None, **kwargs):
+        """
+        Embeds a graph in a m-dimensional space and then projects to a d-dimensional space using principal component
+        analysis (PCA).
+
+        See http://www.wisdom.weizmann.ac.il/~harel/papers/highdimensionalGD.pdf
+        """
+        # Pick the number of dimensions to initially embed into
+        n = len(self.G)
+        m = n if n < 50 else 50
+
+        V = [v for v in self.G]
+
+        starting_points = layout_utils.build_starting_points(
+            self.G, m, self.seed)
+
+        # Form the shifted matrix X from the paper.
+        L = np.array([starting_points[v] for v in V])
+        X = np.transpose(L - np.mean(L, axis=0))
+        X_T = np.transpose(X)
+
+        # Form the covarience matrix from the paper
+        S = 1/n*(X @ X_T)
+
+        # Compute the normalized sorted eigenvectors
+        _, eigenvectors = np.linalg.eigh(S)
+
+        # Choose the eigenvectors that correspond to the largest k eigenvalues and project in those dimensions
+        Y = np.column_stack(
+            [X_T @ u for u in list(reversed(eigenvectors))[:self.d]])
+
+        scaled_layout = self.scale_and_center(Y)
+        self.layout = scaled_layout
+        return scaled_layout
+
     def integer_lattice_layout(self, lattice_points=3):
         """
-        Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see 
+        Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see
         scale_to_positive_orthant().
 
-        Note: if the graph is Chimera or Pegasus, lattice points are inferred from the graph object and the layout is 
-        ignored. If the user desires to have lattice points computed from a layout (e.g. kamada_kawai), make sure that 
+        Note: if the graph is Chimera or Pegasus, lattice points are inferred from the graph object and the layout is
+        ignored. If the user desires to have lattice points computed from a layout (e.g. kamada_kawai), make sure that
         the graph object is created with the following flags: dnx.*_graph(coordinates=False, data=False).
 
         Parameters
@@ -125,7 +161,7 @@ class Layout():
         Returns
         -------
         layout : dict
-            A mapping from vertices of G (keys) to points in S (values). 
+            A mapping from vertices of G (keys) to points in S (values).
         """
         # Look to see if you can get the lattice information from the graph object
         coordinates = dnx_utils.lookup_dnx_coordinates(self.G)
@@ -140,7 +176,7 @@ class Layout():
 
     def integer_lattice_bins(self, lattice_points=3):
         """
-        Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant, S; see 
+        Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant, S; see
         scale_to_positive_orthant().
 
         Note: If the graph is Chimera or Pegasus, lattice points are inferred from the graph object using the first two
@@ -182,8 +218,8 @@ class Layout():
 
     def scale_to_positive_orthant(self, length=1, border=0.):
         """
-        This helper function transforms the layout [self.center - self.scale, self.center + self.scale]^d to the 
-        semi-positive orthant: 
+        This helper function transforms the layout [self.center - self.scale, self.center + self.scale]^d to the
+        semi-positive orthant:
         [0 - border, length[0] + border] x [0 - border, length[1] + border] x ... x [0 - border, length[d-1] + border].
 
         Default values of length=1 and border=0 give the unit positive orthant.
@@ -203,10 +239,10 @@ class Layout():
             [0, length[0]] x [0, length[1]] x ... x [0, length[d-1]] (values).
         """
         # Temporary data structure to pull the information out of the matrix created below.
-        vertices = [v for v in self.G]
+        V = [v for v in self.G]
 
         # Make a matrix of the positions
-        L = np.array([self.layout[v] for v in vertices])
+        L = np.array([self.layout[v] for v in V])
         # Shift it from [center - scale, center + scale]^d to [0, 2*scale]^d
         L = L + (self.scale - self.center)
         # Map it to [0, 1]^d
@@ -215,39 +251,12 @@ class Layout():
         scale = layout_utils.to_vector(length, self.d)
         L = L * scale
 
-        return {vertices[i]: p for i, p in enumerate(L)}
-
-    def scale_unit_layout(self, unit_layout):
-        """
-        The function networkx.random_layout() maps to [0, 1]^d. This helper function transforms this layout to the user
-        desired [center - scale, center + scale]^d.
-
-        Parameters
-        ----------
-        unit_layout : dict
-            A mapping from vertices of G (keys) to points in [0, 1]^d (values).
-
-        Returns
-        -------
-        layout : dict
-            A mapping from vertices of G (keys) to points in [center - scale, center + scale]^d (values).
-        """
-        # Temporary data structure to pull the information out of the matrix created below.
-        vertices = [v for v in unit_layout]
-
-        # Make a matrix of the positions
-        L = np.array([unit_layout[v] for v in vertices])
-        # Map it from [0, 1]^d to [0, 2*scale]^d
-        L = (2*self.scale) * L
-        # Shift it to [center - scale, center + scale]^d
-        L = L + (self.center - self.scale)
-
-        return {vertices[i]: p for i, p in enumerate(L)}
+        return {v: p for v, p in zip(V, L)}
 
     def center_to_top_left(self):
         """
-        This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^d, to
-        the dwave_networkx convention, [center, center-scale] x [center, center+scale]^(d-1).
+        This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^d, 
+        to the dwave_networkx convention, [center, center-scale] x [center, center+scale]^(d-1).
 
         Parameters
         ----------
@@ -270,6 +279,48 @@ class Layout():
         new_scale = 2*self.scale
 
         return top_left, new_scale
+
+    def scale_and_center(self, layout, center=None, scale=None):
+        """
+        This helper function transforms a layout to the user desired 
+        [self.center - self.scale, self.center + self.scale]^d.
+
+        Parameters
+        ----------
+        layout : dict or numpy array
+            A mapping from vertices of G (keys) to points in R^d (values).
+        center : tuple or numpy array (default None)
+            A point in R^d representing the center of the parameter layout. If None, the center of layout is computed.
+        scale : float (default None)
+            The scale of the parameter layout. If None, the approximate scale of layout is computed.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in [center - scale, center + scale]^d (values).
+        """
+        # Temporary data structure to pull the information out of the matrix created below.
+        V = [v for v in self.G]
+
+        if isinstance(layout, dict):
+            # Make a matrix of the positions
+            L = np.array([layout[v] for v in V])
+        else:
+            L = layout
+
+        # Translate the layout so that the center matches the user's center
+        if center is None:
+            center = np.mean(L, axis=0)
+        L = L + (self.center - center)
+
+        # Calculate the extent and scale so that it expands to fill [center - scale, center + scale]^d
+        if scale is None:
+            min_value, max_value = np.min(L), np.max(L)
+            scale = max(abs(min_value), abs(max_value))
+
+        L = (self.scale/scale) * L
+
+        return {v: p for v, p in zip(V, L)}
 
 
 def scale_edge_length(layout, edge_length=1., to_scale="median"):
@@ -322,6 +373,16 @@ def chimera(G, d=2, center=None, scale=1., **kwargs):
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d, center, scale)
+    L = Layout(G, d=d, center=center, scale=scale)
     _ = L.chimera(**kwargs)
+    return L
+
+
+def pca(G, d=2, center=None, scale=1., seed=None, **kwargs):
+    """
+    Top level function for minorminer.layout.__init__() use as a parameter.
+    # FIXME: There's surely a better way of doing this.
+    """
+    L = Layout(G, d=d, center=center, scale=scale, seed=seed)
+    _ = L.pca(**kwargs)
     return L

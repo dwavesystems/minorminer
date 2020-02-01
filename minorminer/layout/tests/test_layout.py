@@ -6,13 +6,11 @@ import dwave_networkx as dnx
 import networkx as nx
 
 import minorminer.layout.layout as mml
-from .data import precomputed_chimera, precomputed_kamada_kawai
+from .data import precomputed_chimera, precomputed_kamada_kawai, precomputed_pca
 from minorminer.layout.utils import layout_utils
 
 # Set a seed to standardize the randomness.
-n = 9999
-random.seed(n)
-seed = random.randint(1, n)
+seed = 2035
 
 
 class TestLayout(unittest.TestCase):
@@ -49,6 +47,24 @@ class TestLayout(unittest.TestCase):
                 for i, x in enumerate(p):
                     coordinate = layouts[d][v][i]
                     self.assertAlmostEqual(coordinate, x, 3)
+                    self.assertGreaterEqual(coordinate, -1)
+                    self.assertLessEqual(coordinate, 1)
+
+    def test_pca(self):
+        """
+        Tests that the PCA layout is correct for K_4,4 (dimensions 1, 2, 3, 8); i.e. that it matches the
+        precomputed layout.
+        """
+        G = nx.complete_bipartite_graph(4, 4)
+
+        layouts = {d: mml.pca(
+            G, d=d, seed=seed).layout for d in precomputed_pca}
+
+        for d, l in precomputed_pca.items():
+            for v, p in l.items():
+                for i, x in enumerate(p):
+                    coordinate = layouts[d][v][i]
+                    self.assertAlmostEqual(coordinate, x)
                     self.assertGreaterEqual(coordinate, -1)
                     self.assertLessEqual(coordinate, 1)
 
