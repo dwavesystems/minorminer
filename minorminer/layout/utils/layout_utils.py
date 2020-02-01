@@ -1,5 +1,8 @@
 import math
+import random
+from collections import defaultdict
 
+import networkx as nx
 import numpy as np
 from scipy.spatial.distance import euclidean
 
@@ -35,7 +38,7 @@ def convert_to_chains(placement):
     Helper function to determine whether or not an input is in a chain-ready data structure. 
     """
     for v in placement.values():
-        if isinstance(v, (list, frozenset, set, tuple)):
+        if isinstance(v, (list, frozenset, set)):
             return False
         return True
 
@@ -54,3 +57,26 @@ def border_round(point, border_max, d):
         else:
             new_point.append(round(p))
     return tuple(new_point)
+
+
+def build_starting_points(G, m):
+    """
+    Helper function for pca.
+    """
+    starting_positions = defaultdict(list)
+    pivots = [random.choice(list(G))]
+
+    for i in range(m):
+        # Get shortest paths from a pivot
+        shortest_paths = nx.shortest_path_length(G, pivots[i])
+
+        # Assign the distances as coordinate i in each vector
+        max_dist = 0
+        for v, dist in shortest_paths.items():
+            max_dist = max(max_dist, dist)
+            starting_positions[v].append(dist)
+
+        pivots.append(random.choice(
+            [v for v, dist in shortest_paths.items() if dist == max_dist]))
+
+    return starting_positions

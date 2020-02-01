@@ -106,13 +106,45 @@ class Layout():
         self.layout = layout
         return layout
 
+    def pca(self, m=None, **kwargs):
+        """
+        Embeds a graph in a m-dimensional space and then projects to a d-dimensional space using principal component
+        analysis (PCA).
+
+        See http://www.wisdom.weizmann.ac.il/~harel/papers/highdimensionalGD.pdf
+        """
+        # Pick the number of dimensions to initially embed into
+        n = len(self.G)
+        m = n if n < 50 else 50
+
+        V = [v for v in self.G]
+
+        starting_points = layout_utils.build_starting_points(self.G, m)
+
+        # Form the shifted matrix X from the paper.
+        L = np.array([starting_points[v] for v in V])
+        X = np.transpose(L - np.mean(L, axis=0))
+        X_T = np.transpose(X)
+
+        # Form the covarience matrix from the paper
+        S = 1/n*(X @ X_T)
+
+        # Compute the normalized sorted eigenvectors
+        _, eigenvectors = np.linalg.eigh(S)
+
+        # Choose the eigenvectors that correspond to the largest k eigenvalues and project in those dimensions
+        Y = np.column_stack(
+            [X_T @ u for u in list(reversed(eigenvectors))[:self.d]])
+
+        return {v: row for v, row in zip(V, Y)}
+
     def integer_lattice_layout(self, lattice_points=3):
         """
-        Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see 
+        Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see
         scale_to_positive_orthant().
 
-        Note: if the graph is Chimera or Pegasus, lattice points are inferred from the graph object and the layout is 
-        ignored. If the user desires to have lattice points computed from a layout (e.g. kamada_kawai), make sure that 
+        Note: if the graph is Chimera or Pegasus, lattice points are inferred from the graph object and the layout is
+        ignored. If the user desires to have lattice points computed from a layout (e.g. kamada_kawai), make sure that
         the graph object is created with the following flags: dnx.*_graph(coordinates=False, data=False).
 
         Parameters
@@ -125,7 +157,7 @@ class Layout():
         Returns
         -------
         layout : dict
-            A mapping from vertices of G (keys) to points in S (values). 
+            A mapping from vertices of G (keys) to points in S (values).
         """
         # Look to see if you can get the lattice information from the graph object
         coordinates = dnx_utils.lookup_dnx_coordinates(self.G)
@@ -140,7 +172,7 @@ class Layout():
 
     def integer_lattice_bins(self, lattice_points=3):
         """
-        Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant, S; see 
+        Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant, S; see
         scale_to_positive_orthant().
 
         Note: If the graph is Chimera or Pegasus, lattice points are inferred from the graph object using the first two
@@ -184,8 +216,8 @@ class Layout():
 
     def scale_to_positive_orthant(self, length=1, border=0.):
         """
-        This helper function transforms the layout [self.center - self.scale, self.center + self.scale]^d to the 
-        semi-positive orthant: 
+        This helper function transforms the layout [self.center - self.scale, self.center + self.scale]^d to the
+        semi-positive orthant:
         [0 - border, length[0] + border] x [0 - border, length[1] + border] x ... x [0 - border, length[d-1] + border].
 
         Default values of length=1 and border=0 give the unit positive orthant.
