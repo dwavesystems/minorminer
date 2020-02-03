@@ -65,18 +65,19 @@ def build_starting_points(G, m):
     """
     starting_positions = defaultdict(list)
     pivots = [random.choice(list(G))]
+    shortest_distance_to_pivots = {}
 
     for i in range(m):
         # Get shortest paths from a pivot
         shortest_paths = nx.shortest_path_length(G, pivots[i])
 
         # Assign the distances as coordinate i in each vector
-        max_dist = 0
         for v, dist in shortest_paths.items():
-            max_dist = max(max_dist, dist)
             starting_positions[v].append(dist)
+            shortest_distance_to_pivots[v] = min(
+                shortest_distance_to_pivots.get(v, float("inf")), dist)
 
-        pivots.append(random.choice(
-            [v for v, dist in shortest_paths.items() if dist == max_dist]))
+        pivots.append(max(shortest_distance_to_pivots,
+                          key=shortest_distance_to_pivots.get))
 
     return starting_positions
