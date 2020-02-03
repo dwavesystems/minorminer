@@ -59,10 +59,13 @@ def border_round(point, border_max, d):
     return tuple(new_point)
 
 
-def build_starting_points(G, m):
+def build_starting_points(G, m, seed=None):
     """
     Helper function for pca.
     """
+    if seed:
+        random.seed(seed)
+
     starting_positions = defaultdict(list)
     pivots = [random.choice(list(G))]
     shortest_distance_to_pivots = {}

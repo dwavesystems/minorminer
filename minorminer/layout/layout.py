@@ -74,7 +74,8 @@ class Layout():
                 self.G, dim=self.d, seed=self.seed)
 
             # Convert it to [center - scale, center + scale]^d
-            transformed_random_layout = self.scale_unit_layout(random_layout)
+            transformed_random_layout = self.scale_and_center(
+                random_layout, center=self.d*(1/2,), scale=1/2)
 
             layout = nx.kamada_kawai_layout(
                 self.G, pos=transformed_random_layout, dim=self.d, center=self.center, scale=self.scale, **kwargs)
@@ -119,7 +120,8 @@ class Layout():
 
         V = [v for v in self.G]
 
-        starting_points = layout_utils.build_starting_points(self.G, m)
+        starting_points = layout_utils.build_starting_points(
+            self.G, m, self.seed)
 
         # Form the shifted matrix X from the paper.
         L = np.array([starting_points[v] for v in V])
@@ -254,37 +256,10 @@ class Layout():
 
         return {v: p for v, p in zip(V, L)}
 
-    def scale_unit_layout(self, unit_layout):
-        """
-        The function networkx.random_layout() maps to [0, 1]^d. This helper function transforms this layout to the user
-        desired [center - scale, center + scale]^d.
-
-        Parameters
-        ----------
-        unit_layout : dict
-            A mapping from vertices of G (keys) to points in [0, 1]^d (values).
-
-        Returns
-        -------
-        layout : dict
-            A mapping from vertices of G (keys) to points in [center - scale, center + scale]^d (values).
-        """
-        # Temporary data structure to pull the information out of the matrix created below.
-        V = [v for v in self.G]
-
-        # Make a matrix of the positions
-        L = np.array([unit_layout[v] for v in V])
-        # Map it from [0, 1]^d to [0, 2*scale]^d
-        L = (2*self.scale) * L
-        # Shift it to [center - scale, center + scale]^d
-        L = L + (self.center - self.scale)
-
-        return {v: p for v, p in zip(V, L)}
-
     def center_to_top_left(self):
         """
-        This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^d, to
-        the dwave_networkx convention, [center, center-scale] x [center, center+scale]^(d-1).
+        This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^d, 
+        to the dwave_networkx convention, [center, center-scale] x [center, center+scale]^(d-1).
 
         Parameters
         ----------
@@ -308,14 +283,19 @@ class Layout():
 
         return top_left, new_scale
 
-    def scale_and_center(self, layout):
+    def scale_and_center(self, layout, center=None, scale=None):
         """
-        This helper function transforms a layout to the user desired [center - scale, center + scale]^d.
+        This helper function transforms a layout to the user desired 
+        [self.center - self.scale, self.center + self.scale]^d.
 
         Parameters
         ----------
         layout : dict or numpy array
             A mapping from vertices of G (keys) to points in R^d (values).
+        center : tuple or numpy array (default None)
+            A point in R^d representing the center of the parameter layout. If None, the center of layout is computed.
+        scale : float (default None)
+            The scale of the parameter layout. If None, the approximate scale of layout is computed.
 
         Returns
         -------
@@ -332,12 +312,15 @@ class Layout():
             L = layout
 
         # Translate the layout so that the center matches the user's center
-        center = np.mean(L, axis=0)
-        L = L - (self.center - center)
+        if center is None:
+            center = np.mean(L, axis=0)
+        L = L + (self.center - center)
 
         # Calculate the extent and scale so that it expands to fill [center - scale, center + scale]^d
-        min_value, max_value = np.min(L), np.max(L)
-        scale = max(abs(min_value), abs(max_value))
+        if scale is None:
+            min_value, max_value = np.min(L), np.max(L)
+            scale = max(abs(min_value), abs(max_value))
+
         L = (self.scale/scale) * L
 
         return {v: p for v, p in zip(V, L)}
@@ -392,16 +375,16 @@ def chimera(G, d=2, center=None, scale=1., **kwargs):
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d, center, scale)
+    L = Layout(G, d=d, center=center, scale=scale)
     _ = L.chimera(**kwargs)
     return L
 
 
-def pca(G, d=2, center=None, scale=1., **kwargs):
+def pca(G, d=2, center=None, scale=1., seed=None, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d, center, scale)
+    L = Layout(G, d=d, center=center, scale=scale, seed=seed)
     _ = L.pca(**kwargs)
     return L
