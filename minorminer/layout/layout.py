@@ -13,7 +13,7 @@ from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
 class Layout():
     def __init__(self, G, d=2, center=None, scale=1., layout=None, seed=None, **kwargs):
         """
-        Compute a layout for G, i.e., a map from G to R^d.
+        Compute a layout for G, i.e., a map from G to [center - scale, center + scale]^d.
 
         Parameters
         ----------
@@ -136,7 +136,9 @@ class Layout():
         Y = np.column_stack(
             [X_T @ u for u in list(reversed(eigenvectors))[:self.d]])
 
-        return {v: row for v, row in zip(V, Y)}
+        scaled_layout = self.scale_and_center(Y)
+        self.layout = scaled_layout
+        return scaled_layout
 
     def integer_lattice_layout(self, lattice_points=3):
         """
@@ -237,10 +239,10 @@ class Layout():
             [0, length[0]] x [0, length[1]] x ... x [0, length[d-1]] (values).
         """
         # Temporary data structure to pull the information out of the matrix created below.
-        vertices = [v for v in self.G]
+        V = [v for v in self.G]
 
         # Make a matrix of the positions
-        L = np.array([self.layout[v] for v in vertices])
+        L = np.array([self.layout[v] for v in V])
         # Shift it from [center - scale, center + scale]^d to [0, 2*scale]^d
         L = L + (self.scale - self.center)
         # Map it to [0, 1]^d
@@ -250,7 +252,7 @@ class Layout():
         # Extend it by the border amount
         L = L - border
 
-        return {vertices[i]: p for i, p in enumerate(L)}
+        return {v: p for v, p in zip(V, L)}
 
     def scale_unit_layout(self, unit_layout):
         """
@@ -268,16 +270,16 @@ class Layout():
             A mapping from vertices of G (keys) to points in [center - scale, center + scale]^d (values).
         """
         # Temporary data structure to pull the information out of the matrix created below.
-        vertices = [v for v in unit_layout]
+        V = [v for v in self.G]
 
         # Make a matrix of the positions
-        L = np.array([unit_layout[v] for v in vertices])
+        L = np.array([unit_layout[v] for v in V])
         # Map it from [0, 1]^d to [0, 2*scale]^d
         L = (2*self.scale) * L
         # Shift it to [center - scale, center + scale]^d
         L = L + (self.center - self.scale)
 
-        return {vertices[i]: p for i, p in enumerate(L)}
+        return {v: p for v, p in zip(V, L)}
 
     def center_to_top_left(self):
         """
@@ -305,6 +307,40 @@ class Layout():
         new_scale = 2*self.scale
 
         return top_left, new_scale
+
+    def scale_and_center(self, layout):
+        """
+        This helper function transforms a layout to the user desired [center - scale, center + scale]^d.
+
+        Parameters
+        ----------
+        layout : dict or numpy array
+            A mapping from vertices of G (keys) to points in R^d (values).
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in [center - scale, center + scale]^d (values).
+        """
+        # Temporary data structure to pull the information out of the matrix created below.
+        V = [v for v in self.G]
+
+        if isinstance(layout, dict):
+            # Make a matrix of the positions
+            L = np.array([layout[v] for v in V])
+        else:
+            L = layout
+
+        # Translate the layout so that the center matches the user's center
+        center = np.mean(L, axis=0)
+        L = L - (self.center - center)
+
+        # Calculate the extent and scale so that it expands to fill [center - scale, center + scale]^d
+        min_value, max_value = np.min(L), np.max(L)
+        scale = max(abs(min_value), abs(max_value))
+        L = (self.scale/scale) * L
+
+        return {v: p for v, p in zip(V, L)}
 
 
 def scale_edge_length(layout, edge_length=1., to_scale="median"):
@@ -358,4 +394,14 @@ def chimera(G, d=2, center=None, scale=1., **kwargs):
     """
     L = Layout(G, d, center, scale)
     _ = L.chimera(**kwargs)
+    return L
+
+
+def pca(G, d=2, center=None, scale=1., **kwargs):
+    """
+    Top level function for minorminer.layout.__init__() use as a parameter.
+    # FIXME: There's surely a better way of doing this.
+    """
+    L = Layout(G, d, center, scale)
+    _ = L.pca(**kwargs)
     return L
