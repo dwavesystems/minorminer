@@ -8,7 +8,7 @@ def lookup_dnx_coordinates(G):
 
     # Look to see if you can get the lattice information from the graph object
     family = graph_data.get("family")
-    if family in ("chimera", "pegasus"):
+    if family == "chimera":
         if graph_data["labels"] == "coordinate":
             return {v: (v[0], v[1]) for v in G}
         if graph_data["data"]:
@@ -17,6 +17,10 @@ def lookup_dnx_coordinates(G):
                     G.nodes[v][f"{family}_index"][1])
                 for v in G
             }
+    elif family == "pegasus":
+        if graph_data["labels"] == "nice":
+            # (t, y, x, u, k) |--> (3x + t, 3y + 2 - t)
+            return {v: (3*v[2] + v[0], 3*v[1] + (2 - v[0])) for v in G}
     return None
 
 

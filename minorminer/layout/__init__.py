@@ -2,7 +2,7 @@ import networkx as nx
 
 from minorminer.layout.construction import neighborhood, pass_along
 from minorminer.layout.hinting import initial, suspend
-from minorminer.layout.layout import Layout, chimera, kamada_kawai, pca
+from minorminer.layout.layout import Layout, dnx_layout, kamada_kawai, pca
 from minorminer.layout.placement import binning, closest, injective
 
 

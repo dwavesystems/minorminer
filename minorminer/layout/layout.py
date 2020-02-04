@@ -11,7 +11,7 @@ from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
 
 
 class Layout():
-    def __init__(self, G, d=2, center=None, scale=1., layout=None, seed=None, **kwargs):
+    def __init__(self, G, d=2, center=None, scale=1., layout=None, seed=None, rescale=True, **kwargs):
         """
         Compute a layout for G, i.e., a map from G to [center - scale, center + scale]^d.
 
@@ -26,9 +26,12 @@ class Layout():
         scale : float (default 1.)
             The scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space.
         layout : dict (default None)
-            You can specifies a pre-computed layout for G.
+            You can specify a pre-computed layout for G.
         seed : int (default None)
             When d > 2, kamada_kawai uses networkx.random_layout(). The seed is passed to this function.
+        rescale : bool (default True)
+            If True, the layout is scaled to the user specified [center - scale, center + scale]^d. If False, the layout
+            assumes the dimensions of the layout algorithm used.
         kwargs : dict
             Keyword arguments are passed to one of the layout algorithms below.
         """
@@ -46,6 +49,7 @@ class Layout():
         self.scale = scale
         self.layout = layout
         self.seed = seed
+        self.rescale = rescale
 
     def kamada_kawai(self, **kwargs):
         """
@@ -63,6 +67,8 @@ class Layout():
         layout : dict
             A mapping from vertices of G (keys) to points in R^d (values).
         """
+        # TODO: Handle rescaling. This will depend on how the conversation of #3808 in NetworkX goes.
+
         # NetworkX has a bug #3658.
         # Once fixed, these can collapse and `dim=n` can be part of `**kwargs`.
         if self.d in (1, 2):
@@ -83,36 +89,55 @@ class Layout():
         self.layout = layout
         return layout
 
-    def chimera(self, **kwargs):
+    def dnx_layout(self, **kwargs):
         """
-        The d-dimensional Chimera layout adjusted so that it fills [-1, 1]^2 instead of [0, 1] x [0, -1]. As per the
-        implementation of dnx.chimera_layout() in layouts with d > 2, coordinates beyond the second are 0.
+        The d-dimensional Chimera or Pegasus layout from dwave_networkx. As per the implementation of dnx.*_layout() in 
+        layouts with d > 2, coordinates beyond the second are 0.
 
         Parameters
         ----------
         kwargs : dict
-            Keyword arguments are passed to dnx.chimera_layout().
+            Keyword arguments are passed to dnx.*_layout().
 
         Returns
         -------
         layout : dict
-            A mapping from vertices of G (keys) to points in [-1, 1]^d (values).
+            A mapping from vertices of G (keys) to points in R^d (values).
         """
-        # Convert center and scale for dwave_networkx to consume.
-        top_left, new_scale = self.center_to_top_left()
+        family = self.G.graph.get("family")
+        if family not in ("chimera", "pegasus"):
+            raise ValueError("Only dnx.chimera_graph() and dnx.pegasus_graph() are supported.")
 
-        layout = dnx.chimera_layout(
-            self.G, dim=self.d, center=top_left, scale=new_scale, **kwargs)
+        # If you are rescalling (recommended) add kwargs for dwave_networkx to consume.
+        if self.rescale:
+            top_left, new_scale = self.center_to_top_left()
+            kwargs["center"] = top_left
+            kwargs["scale"] = new_scale
+
+        if family == "chimera":
+            layout = dnx.chimera_layout(self.G, dim=self.d, **kwargs)
+        elif family == "pegasus":
+            layout = dnx.pegasus_layout(self.G, dim=self.d, **kwargs)
 
         self.layout = layout
         return layout
 
-    def pca(self, m=None, **kwargs):
+    def pca(self, m=None):
         """
         Embeds a graph in a m-dimensional space and then projects to a d-dimensional space using principal component
         analysis (PCA).
 
         See http://www.wisdom.weizmann.ac.il/~harel/papers/highdimensionalGD.pdf
+
+        Parameters
+        ----------
+        m : int (default None)
+            The dimension to first embed into. If None, it is computed as the min(G, 50).
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in R^d (values).
         """
         # Pick the number of dimensions to initially embed into
         n = len(self.G)
@@ -138,9 +163,13 @@ class Layout():
         Y = np.column_stack(
             [X_T @ u for u in list(reversed(eigenvectors))[:self.d]])
 
-        scaled_layout = self.scale_and_center(Y)
-        self.layout = scaled_layout
-        return scaled_layout
+        if self.rescale:
+            layout = self.scale_and_center(Y)
+        else:
+            layout = {v: row for v, row in zip(V, Y)}
+        
+        self.layout = layout
+        return layout
 
     def integer_lattice_layout(self, lattice_points=3):
         """
@@ -261,15 +290,6 @@ class Layout():
         This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^d, 
         to the dwave_networkx convention, [center, center-scale] x [center, center+scale]^(d-1).
 
-        Parameters
-        ----------
-        center : tuple
-            A d-dimensional tuple representing the center of a layout.
-        scale : float
-            A scalar to add to and subtract from the center to create the layout.
-        d : int
-            The dimension of the layout.
-
         Returns
         -------
         top_left : float
@@ -370,13 +390,13 @@ def kamada_kawai(G, d=2, center=None, scale=1., seed=None, **kwargs):
     return L
 
 
-def chimera(G, d=2, center=None, scale=1., **kwargs):
+def dnx_layout(G, d=2, center=None, scale=1., **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
     L = Layout(G, d=d, center=center, scale=scale)
-    _ = L.chimera(**kwargs)
+    _ = L.dnx_layout(**kwargs)
     return L
 
 
