@@ -11,7 +11,7 @@ from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
 
 
 class Layout():
-    def __init__(self, G, d=2, center=None, scale=1., layout=None, seed=None, rescale=True, **kwargs):
+    def __init__(self, G, d=2, center=None, scale=1., layout=None, seed=None, rescale=True, rotate=True, **kwargs):
         """
         Compute a layout for G, i.e., a map from G to [center - scale, center + scale]^d.
 
@@ -32,6 +32,9 @@ class Layout():
         rescale : bool (default True)
             If True, the layout is scaled to the user specified [center - scale, center + scale]^d. If False, the layout
             assumes the dimensions of the layout algorithm used.
+        rotate : bool (default True)
+            If True, the minimum area bounding box for the layout is computed and rotated so that it aligned with the
+            x and y axes. If False, the layout is not rotated.
         kwargs : dict
             Keyword arguments are passed to one of the layout algorithms below.
         """
@@ -50,6 +53,7 @@ class Layout():
         self.layout = layout
         self.seed = seed
         self.rescale = rescale
+        self.rotate = rotate
 
     def kamada_kawai(self, **kwargs):
         """
@@ -57,8 +61,6 @@ class Layout():
 
         Parameters
         ----------
-        seed : int (default None)
-            When d > 2, networkx.random_layout() is called. The seed is passed to this function.
         kwargs : dict
             Keyword arguments are passed to nx.kamada_kawai_layout().
 
@@ -67,8 +69,6 @@ class Layout():
         layout : dict
             A mapping from vertices of G (keys) to points in R^d (values).
         """
-        # TODO: Handle rescaling. This will depend on how the conversation of #3808 in NetworkX goes.
-
         # NetworkX has a bug #3658.
         # Once fixed, these can collapse and `dim=n` can be part of `**kwargs`.
         if self.d in (1, 2):
@@ -86,12 +86,17 @@ class Layout():
             layout = nx.kamada_kawai_layout(
                 self.G, pos=transformed_random_layout, dim=self.d, center=self.center, scale=self.scale, **kwargs)
 
+        if self.rotate:
+            layout = layout_utils.rotate_layout(layout)
+        if self.rescale:
+            layout = self.scale_and_center(layout)
+
         self.layout = layout
         return layout
 
     def dnx_layout(self, **kwargs):
         """
-        The d-dimensional Chimera or Pegasus layout from dwave_networkx. As per the implementation of dnx.*_layout() in 
+        The d-dimensional Chimera or Pegasus layout from dwave_networkx. As per the implementation of dnx.*_layout() in
         layouts with d > 2, coordinates beyond the second are 0.
 
         Parameters
@@ -106,7 +111,8 @@ class Layout():
         """
         family = self.G.graph.get("family")
         if family not in ("chimera", "pegasus"):
-            raise ValueError("Only dnx.chimera_graph() and dnx.pegasus_graph() are supported.")
+            raise ValueError(
+                "Only dnx.chimera_graph() and dnx.pegasus_graph() are supported.")
 
         # If you are rescalling (recommended) add kwargs for dwave_networkx to consume.
         if self.rescale:
@@ -122,7 +128,7 @@ class Layout():
         self.layout = layout
         return layout
 
-    def pca(self, m=None):
+    def pca(self, m=None, pca=True):
         """
         Embeds a graph in a m-dimensional space and then projects to a d-dimensional space using principal component
         analysis (PCA).
@@ -133,6 +139,8 @@ class Layout():
         ----------
         m : int (default None)
             The dimension to first embed into. If None, it is computed as the min(G, 50).
+        pca : bool (default True)
+            Whether or not to project down to d-dimensional space using PCA.
 
         Returns
         -------
@@ -145,29 +153,37 @@ class Layout():
 
         V = [v for v in self.G]
 
-        starting_points = layout_utils.build_starting_points(
+        starting_layout = layout_utils.build_starting_points(
             self.G, m, self.seed)
 
-        # Form the shifted matrix X from the paper.
-        L = np.array([starting_points[v] for v in V])
-        X = np.transpose(L - np.mean(L, axis=0))
-        X_T = np.transpose(X)
+        if pca:
+            # Form the shifted matrix X from the paper.
+            L = np.array([starting_layout[v] for v in V])
+            X = (L - np.mean(L, axis=0)).T
+            X_T = X.T
 
-        # Form the covarience matrix from the paper
-        S = 1/n*(X @ X_T)
+            # Form the covarience matrix
+            S = (1/n)*(X @ X_T)
 
-        # Compute the normalized sorted eigenvectors
-        _, eigenvectors = np.linalg.eigh(S)
+            # Compute the normalized sorted eigenvectors
+            _, eigenvectors = np.linalg.eigh(S)
 
-        # Choose the eigenvectors that correspond to the largest k eigenvalues and project in those dimensions
-        Y = np.column_stack(
-            [X_T @ u for u in list(reversed(eigenvectors))[:self.d]])
+            # Choose the eigenvectors that correspond to the largest k eigenvalues and project in those dimensions
+            Y = np.column_stack(
+                [X_T @ u for u in list(reversed(eigenvectors))[:self.d]])
 
-        if self.rescale:
-            layout = self.scale_and_center(Y)
-        else:
             layout = {v: row for v, row in zip(V, Y)}
-        
+
+        else:
+            layout = starting_layout
+
+        # Rotate the layout
+        if self.rotate:
+            layout = layout_utils.rotate_layout(layout)
+        # Scale the layout
+        if self.rescale:
+            layout = self.scale_and_center(layout)
+
         self.layout = layout
         return layout
 
@@ -287,7 +303,7 @@ class Layout():
 
     def center_to_top_left(self):
         """
-        This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^d, 
+        This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^d,
         to the dwave_networkx convention, [center, center-scale] x [center, center+scale]^(d-1).
 
         Returns
@@ -305,7 +321,7 @@ class Layout():
 
     def scale_and_center(self, layout, center=None, scale=None):
         """
-        This helper function transforms a layout to the user desired 
+        This helper function transforms a layout to the user desired
         [self.center - self.scale, self.center + self.scale]^d.
 
         Parameters
@@ -325,7 +341,7 @@ class Layout():
         # Temporary data structure to pull the information out of the matrix created below.
         V = [v for v in self.G]
 
-        if isinstance(layout, dict):
+        if isinstance(layout, (dict, defaultdict)):
             # Make a matrix of the positions
             L = np.array([layout[v] for v in V])
         else:
@@ -334,6 +350,7 @@ class Layout():
         # Translate the layout so that the center matches the user's center
         if center is None:
             center = np.mean(L, axis=0)
+
         L = L + (self.center - center)
 
         # Calculate the extent and scale so that it expands to fill [center - scale, center + scale]^d
@@ -380,31 +397,34 @@ def scale_edge_length(layout, edge_length=1., to_scale="median"):
     return {v: scale*p for v, p in layout.items()}
 
 
-def kamada_kawai(G, d=2, center=None, scale=1., seed=None, **kwargs):
+def kamada_kawai(G, d=2, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d=d, center=center, scale=scale, seed=seed)
+    L = Layout(G, d=d, center=center, scale=scale,
+               seed=seed, rescale=rescale, rotate=rotate)
     _ = L.kamada_kawai(**kwargs)
     return L
 
 
-def dnx_layout(G, d=2, center=None, scale=1., **kwargs):
+def dnx_layout(G, d=2, center=None, scale=1., rescale=True, rotate=True, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d=d, center=center, scale=scale)
+    L = Layout(G, d=d, center=center, scale=scale,
+               rescale=rescale, rotate=rotate)
     _ = L.dnx_layout(**kwargs)
     return L
 
 
-def pca(G, d=2, center=None, scale=1., seed=None, **kwargs):
+def pca(G, d=2, m=None, pca=True, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d=d, center=center, scale=scale, seed=seed)
-    _ = L.pca(**kwargs)
+    L = Layout(G, d=d, center=center, scale=scale,
+               seed=seed, rescale=rescale, rotate=rotate)
+    _ = L.pca(m, pca, **kwargs)
     return L

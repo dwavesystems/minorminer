@@ -7,7 +7,7 @@ from minorminer.layout.placement import binning, closest, injective
 
 
 def find_embedding(
-    S, T, layout=None, placement=closest, construction=pass_along, hinting=initial, **kwargs
+    S, T, layout=None, placement=closest, construction=pass_along, hinting=initial, return_layout=False, **kwargs
 ):
     """
     Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding(). Chains are 
@@ -52,6 +52,8 @@ def find_embedding(
     chains = construction(S, T, vertex_map, **construction_kwargs)
 
     # Run minerminor.find_embedding()
+    if return_layout:
+        return hinting(S, T, chains, kwargs), (S_layout, T_layout)
     return hinting(S, T, chains, kwargs)
 
 
@@ -68,6 +70,10 @@ def parse_kwargs(kwargs):
         layout_kwargs["center"] = kwargs.pop("center")
     if "scale" in kwargs:
         layout_kwargs["scale"] = kwargs.pop("scale")
+    if "rescale" in kwargs:
+        layout_kwargs["rescale"] = kwargs.pop("rescale")
+    if "rotate" in kwargs:
+        layout_kwargs["rotate"] = kwargs.pop("rotate")
 
     placement_kwargs = {}
     if "max_subset_size" in kwargs:

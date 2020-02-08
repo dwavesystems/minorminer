@@ -4,7 +4,8 @@ from collections import defaultdict
 
 import networkx as nx
 import numpy as np
-from scipy.spatial.distance import euclidean
+from scipy import ndimage
+from scipy import spatial
 
 
 def to_vector(length, d):
@@ -57,6 +58,91 @@ def border_round(point, border_max, d):
         else:
             new_point.append(round(p))
     return tuple(new_point)
+
+
+def minimum_bounding_rectangle(points):
+    """
+    Uses the rotating calipers algorithm to compute a rectangle that contains layout with minimum area.
+    """
+    # Compute the convex hull
+    hull = spatial.ConvexHull(points)
+
+    # Look up the points that constitute the convex hull
+    hull_points = points[hull.vertices]
+
+    pi2 = np.pi/2
+
+    # calculate edge angles
+    edges = np.zeros((len(hull_points)-1, 2))
+    edges = hull_points[1:] - hull_points[:-1]
+
+    angles = np.zeros((len(edges)))
+    angles = np.arctan2(edges[:, 1], edges[:, 0])
+
+    angles = np.abs(np.mod(angles, pi2))
+    angles = np.unique(angles)
+
+    # find rotation matrices
+    rotations = np.vstack([
+        np.cos(angles),
+        -np.sin(angles),
+        np.sin(angles),
+        np.cos(angles)]).T
+    rotations = rotations.reshape((-1, 2, 2))
+
+    # apply rotations to the hull
+    rot_points = np.dot(rotations, hull_points.T)
+
+    # find the bounding points
+    min_x = np.nanmin(rot_points[:, 0], axis=1)
+    max_x = np.nanmax(rot_points[:, 0], axis=1)
+    min_y = np.nanmin(rot_points[:, 1], axis=1)
+    max_y = np.nanmax(rot_points[:, 1], axis=1)
+
+    # find the box with the best area
+    areas = (max_x - min_x) * (max_y - min_y)
+    best_idx = np.argmin(areas)
+
+    # return the best box
+    x1 = max_x[best_idx]
+    x2 = min_x[best_idx]
+    y1 = max_y[best_idx]
+    y2 = min_y[best_idx]
+    r = rotations[best_idx]
+
+    rval = np.zeros((4, 2))
+    rval[0] = np.dot([x1, y2], r)
+    rval[1] = np.dot([x2, y2], r)
+    rval[2] = np.dot([x2, y1], r)
+    rval[3] = np.dot([x1, y1], r)
+
+    return rval
+
+
+def rotate_layout(layout):
+    """
+    Rotate a layout to be aligned with the x and y axes.
+    """
+    # Convert to an array
+    points = np.array(list(layout.values()))
+
+    # Compute the minimum area bounding box
+    bounding_box = minimum_bounding_rectangle(points)
+    bottom_right = bounding_box[0]
+    bottom_left = bounding_box[1]
+
+    # Find the angle to rotate
+    delta_x = abs(bottom_right[0] - bottom_left[0])
+    delta_y = abs(bottom_right[1] - bottom_left[1])
+    theta = np.arctan2(delta_y, delta_x)
+
+    # Build a rotation matrix
+    rotation = np.array([[np.cos(theta), -np.sin(theta)],
+                         [np.sin(theta), np.cos(theta)]])
+
+    rotated_points = (rotation @ points.T).T
+
+    return {v: p for v, p in zip(layout, rotated_points)}
 
 
 def build_starting_points(G, m, seed=None):
