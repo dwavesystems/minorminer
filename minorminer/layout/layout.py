@@ -86,10 +86,10 @@ class Layout():
             layout = nx.kamada_kawai_layout(
                 self.G, pos=transformed_random_layout, dim=self.d, center=self.center, scale=self.scale, **kwargs)
 
-        if self.rotate:
-            layout = layout_utils.rotate_layout(layout)
+        if self.rotate and self.d == 2:
+            layout = self.rotate_layout(layout, center=self.center)
         if self.rescale:
-            layout = self.scale_and_center(layout)
+            layout = self.scale_and_center(layout, center=self.center)
 
         self.layout = layout
         return layout
@@ -147,18 +147,19 @@ class Layout():
         layout : dict
             A mapping from vertices of G (keys) to points in R^d (values).
         """
-        # Pick the number of dimensions to initially embed into
+        # The number of vertices bounds the dimension
         n = len(self.G)
-        m = n if n < 50 else 50
+        assert self.d <= n, f"You want me to find {self.d} eigenvectors in a graph with {n} vertices."
 
-        V = [v for v in self.G]
+        # Pick the number of dimensions to initially embed into
+        m = n if n < 50 else 50
 
         starting_layout = layout_utils.build_starting_points(
             self.G, m, self.seed)
 
         if pca:
             # Form the shifted matrix X from the paper.
-            L = np.array([starting_layout[v] for v in V])
+            L = np.array([starting_layout[v] for v in self.G])
             X = (L - np.mean(L, axis=0)).T
             X_T = X.T
 
@@ -172,14 +173,14 @@ class Layout():
             Y = np.column_stack(
                 [X_T @ u for u in list(reversed(eigenvectors))[:self.d]])
 
-            layout = {v: row for v, row in zip(V, Y)}
+            layout = {v: row for v, row in zip(list(self.G), Y)}
 
         else:
             layout = starting_layout
 
         # Rotate the layout
-        if self.rotate:
-            layout = layout_utils.rotate_layout(layout)
+        if self.rotate and self.d == 2:
+            layout = self.rotate_layout(layout)
         # Scale the layout
         if self.rescale:
             layout = self.scale_and_center(layout)
@@ -319,48 +320,111 @@ class Layout():
 
         return top_left, new_scale
 
-    def scale_and_center(self, layout, center=None, scale=None):
+    def scale_and_center(self, layout=None, center=None, scale=None):
         """
-        This helper function transforms a layout to the user desired
+        This helper function transforms a layout from [center - scale, center + scale]^d to the user desired
         [self.center - self.scale, self.center + self.scale]^d.
 
         Parameters
         ----------
-        layout : dict or numpy array
-            A mapping from vertices of G (keys) to points in R^d (values).
+        layout : dict or numpy array (default None)
+            A mapping from vertices of G (keys) to points in R^d (values). If None, self.layout is used.
         center : tuple or numpy array (default None)
-            A point in R^d representing the center of the parameter layout. If None, the center of layout is computed.
+            A point in R^d representing the center of the layout. If None, the approximate center of layout is computed 
+            by calculating the center of mass (or centroid).
         scale : float (default None)
-            The scale of the parameter layout. If None, the approximate scale of layout is computed.
+            The scale of the parameter layout. If None, the approximate scale of layout is computed by taking the 
+            maximum distance from the center.
 
         Returns
         -------
         layout : dict
             A mapping from vertices of G (keys) to points in [center - scale, center + scale]^d (values).
         """
-        # Temporary data structure to pull the information out of the matrix created below.
-        V = [v for v in self.G]
+        # If layout is empty, grab the object's
+        if layout is None:
+            layout = self.layout
 
+        # Support layouts of different datatypes. Convert to a matrix.
         if isinstance(layout, (dict, defaultdict)):
-            # Make a matrix of the positions
-            L = np.array([layout[v] for v in V])
+            L = np.array([layout[v] for v in self.G])
         else:
             L = layout
 
-        # Translate the layout so that the center matches the user's center
+        # If center and scale are empty, compute them
         if center is None:
             center = np.mean(L, axis=0)
-
-        L = L + (self.center - center)
-
-        # Calculate the extent and scale so that it expands to fill [center - scale, center + scale]^d
         if scale is None:
             min_value, max_value = np.min(L), np.max(L)
             scale = max(abs(min_value), abs(max_value))
 
+        # Translate the layout to [-scale, scale]^d
+        L = L - center
+
+        # Scale so that it expands to fill [-self.scale, self.scale]^d
         L = (self.scale/scale) * L
 
-        return {v: p for v, p in zip(V, L)}
+        # Translate the layout to [self.center - self.scale, self.center + self.scale]^d
+        L = L + self.center
+
+        return {v: p for v, p in zip(list(self.G), L)}
+
+    def rotate_layout(self, layout=None, center=None):
+        """
+        Finds a minimum bounding box and rotates a (2-dimensional) layout so that it is aligned with the x and y axes.
+
+        Parameters
+        ----------
+        layout : dict or numpy array (default None)
+            A mapping from vertices of G (keys) to points in R^d (values). If None, self.layout is used.
+        center : tuple or numpy array (default None)
+            A point in R^d representing the center of the layout. If None, the approximate center of layout is computed 
+            by calculating the center of mass (or centroid).
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in R^d (values).
+        """
+        # If layout is empty, grab the object's
+        if layout is None:
+            layout = self.layout
+
+        # Support layouts of different datatypes. Convert to a matrix.
+        if isinstance(layout, (dict, defaultdict)):
+            L = np.array([layout[v] for v in self.G])
+        else:
+            L = layout
+
+        assert len(
+            L[0] == 2), "I only know how to rotate 2-dimensional layouts."
+
+        # If center is empty, use the object's
+        if center is None:
+            center = np.mean(L, axis=0)
+
+        # Translate the layout to the origin
+        L = L - center
+
+        # Compute the minimum area bounding box
+        bounding_box = layout_utils.minimum_bounding_rectangle(L)
+        bottom_right = bounding_box[0]
+        bottom_left = bounding_box[1]
+
+        # Find the angle to rotate and build a rotation matrix
+        delta_x = abs(bottom_right[0] - bottom_left[0])
+        delta_y = abs(bottom_right[1] - bottom_left[1])
+        theta = np.arctan2(delta_y, delta_x)
+        R = np.array([[np.cos(theta), -np.sin(theta)],
+                      [np.sin(theta), np.cos(theta)]])
+
+        # Rotate the thing
+        rotated_L = (R @ L.T).T
+
+        # Translate back to the center you started with
+        rotated_L = rotated_L + center
+
+        return {v: p for v, p in zip(list(self.G), rotated_L)}
 
 
 def scale_edge_length(layout, edge_length=1., to_scale="median"):

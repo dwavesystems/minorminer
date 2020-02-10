@@ -119,32 +119,6 @@ def minimum_bounding_rectangle(points):
     return rval
 
 
-def rotate_layout(layout):
-    """
-    Rotate a layout to be aligned with the x and y axes.
-    """
-    # Convert to an array
-    points = np.array(list(layout.values()))
-
-    # Compute the minimum area bounding box
-    bounding_box = minimum_bounding_rectangle(points)
-    bottom_right = bounding_box[0]
-    bottom_left = bounding_box[1]
-
-    # Find the angle to rotate
-    delta_x = abs(bottom_right[0] - bottom_left[0])
-    delta_y = abs(bottom_right[1] - bottom_left[1])
-    theta = np.arctan2(delta_y, delta_x)
-
-    # Build a rotation matrix
-    rotation = np.array([[np.cos(theta), -np.sin(theta)],
-                         [np.sin(theta), np.cos(theta)]])
-
-    rotated_points = (rotation @ points.T).T
-
-    return {v: p for v, p in zip(layout, rotated_points)}
-
-
 def build_starting_points(G, m, seed=None):
     """
     Helper function for pca.

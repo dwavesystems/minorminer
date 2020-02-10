@@ -6,7 +6,6 @@ import dwave_networkx as dnx
 import networkx as nx
 
 import minorminer.layout.layout as mml
-from data import precomputed_chimera, precomputed_kamada_kawai, precomputed_pca
 from minorminer.layout.utils import layout_utils
 
 # Set a seed to standardize the randomness.
@@ -17,56 +16,54 @@ class TestLayout(unittest.TestCase):
 
     def test_kamada_kawai(self):
         """
-        Tests that the Kamada-Kawai layout is correct for K_4,4 (dimensions 1, 2, 3, 10); i.e. that it matches the
-        precomputed layout.
+        Tests that the Kamada-Kawai layout is correct for K_4,4 (dimensions 1, 2, 3, 10).
         """
         G = nx.complete_bipartite_graph(4, 4)
+        dims = [1, 2, 3, 10]
 
-        layouts = {d: mml.kamada_kawai(
-            G, d=d, seed=seed).layout for d in precomputed_kamada_kawai}
+        layouts = [
+            mml.kamada_kawai(G, d=d, seed=seed).layout for d in dims
+        ]
 
-        for d, l in precomputed_kamada_kawai.items():
-            for v, p in l.items():
-                for i, x in enumerate(p):
-                    coordinate = layouts[d][v][i]
-                    self.assertAlmostEqual(coordinate, x)
+        for layout in layouts:
+            for p in layout.values():
+                for coordinate in p:
                     self.assertGreaterEqual(coordinate, -1)
-                    self.assertLessEqual(coordinate, 1)
+                    self.assertLessEqual(coordinate,  1)
 
     def test_chimera(self):
         """
-        Tests that the layout is correct for Chimera(4) (dimensions 2 and 3); i.e. that it matches the precomputed
-        layout.
+        Tests that the layout is correct for Chimera(4) (dimensions 2 and 3).
         """
         G = dnx.chimera_graph(4)
-        layouts = {d: mml.chimera(
-            G, d=d).layout for d in precomputed_chimera}
+        dims = [2, 3, 10]
 
-        for d, l in precomputed_chimera.items():
-            for v, p in l.items():
-                for i, x in enumerate(p):
-                    coordinate = layouts[d][v][i]
-                    self.assertAlmostEqual(coordinate, x)
+        layouts = [
+            mml.dnx_layout(G, d=d).layout for d in dims
+        ]
+
+        for layout in layouts:
+            for p in layout.values():
+                for coordinate in p:
                     self.assertGreaterEqual(coordinate, -1)
-                    self.assertLessEqual(coordinate, 1)
+                    self.assertLessEqual(coordinate,  1)
 
     def test_pca(self):
         """
-        Tests that the PCA layout is correct for K_4,4 (dimensions 1, 2, 3, 8); i.e. that it matches the
-        precomputed layout.
+        Tests that the PCA layout is correct for K_4,4 (dimensions 1, 2, 3, 8).
         """
         G = nx.complete_bipartite_graph(4, 4)
+        dims = [1, 2, 3, 8]
 
-        layouts = {d: mml.pca(
-            G, d=d, seed=seed).layout for d in precomputed_pca}
+        layouts = [
+            mml.pca(G, d=d, seed=seed).layout for d in dims
+        ]
 
-        for d, l in precomputed_pca.items():
-            for v, p in l.items():
-                for i, x in enumerate(p):
-                    coordinate = layouts[d][v][i]
-                    self.assertAlmostEqual(coordinate, x)
+        for layout in layouts:
+            for p in layout.values():
+                for coordinate in p:
                     self.assertGreaterEqual(coordinate, -1)
-                    self.assertLessEqual(coordinate, 1)
+                    self.assertLessEqual(coordinate,  1)
 
     def test_center_scale(self):
         """
@@ -80,8 +77,9 @@ class TestLayout(unittest.TestCase):
 
         # Test all layouts
         layouts = []
-        layouts.append(mml.chimera(G, center=center, scale=scale).layout)
+        layouts.append(mml.dnx_layout(G, center=center, scale=scale).layout)
         layouts.append(mml.kamada_kawai(G, center=center, scale=scale).layout)
+        layouts.append(mml.pca(G, center=center, scale=scale).layout)
 
         for layout in layouts:
             for p in layout.values():
@@ -104,7 +102,7 @@ class TestLayout(unittest.TestCase):
 
         # Test all layouts
         empty_layout = mml.Layout(G)
-        chimera_layout = mml.chimera(H)
+        chimera_layout = mml.dnx_layout(H)
         kamada_kawai_layout = mml.kamada_kawai(J)
 
         layouts = [empty_layout, chimera_layout, kamada_kawai_layout]
