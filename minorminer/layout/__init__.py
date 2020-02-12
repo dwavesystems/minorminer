@@ -22,8 +22,9 @@ def find_embedding(
     layout : function or [function/dict/Layout, function/dict/Layout] (default kamada_kawai)
         Specifies either a single function to compute the layout for both S and T or a 2-tuple consisting of functions 
         or pre-computed layouts, the first applying to S and the second applying to T.
-    placement : function (default closest)
-        The placement algorithm to call; each algorithm uses the layouts of S and T to map the vertices of S to the 
+    placement : function or dict (default closest)
+        If a function, it is the placement algorithm to call; each algorithm uses the layouts of S and T to map the 
+        vertices of S to subsets of vertices of T. If it is a dict, it should be a map from the vertices of S to subsets of
         vertices of T.
     construction : function (default pass_along)
         The chain construction algorithm to call; each algorithm uses the placement to build chains to hand to 
@@ -46,7 +47,8 @@ def find_embedding(
     S_layout, T_layout = parse_layout_parameter(S, T, layout, layout_kwargs)
 
     # Compute the placement
-    vertex_map = placement(S_layout, T_layout, **placement_kwargs)
+    vertex_map = parse_placement_parameter(
+        S_layout, T_layout, placement, placement_kwargs)
 
     # Create the chains
     chains = construction(S, T, vertex_map, **construction_kwargs)
@@ -124,3 +126,16 @@ def parse_layout_parameter(S, T, layout, layout_kwargs):
         T_layout = layout(T, **layout_kwargs)
 
     return S_layout, T_layout
+
+
+def parse_placement_parameter(S_layout, T_layout, placement, placement_kwargs):
+    """
+    Determine if placement is a function or a dict.
+    """
+    # It's a preprocessed placement
+    if isinstance(placement, dict):
+        return placement
+
+    # It's a function
+    else:
+        return placement(S_layout, T_layout, **placement_kwargs)
