@@ -169,19 +169,74 @@ def minimize_overlap(distances, v_indices, T_vertex_lookup, layout_points, overl
     return cheapest_subset
 
 
+def fast_graph_distances(G, k=1):
+    """
+    Compute an approximation of the distance matrix of G by measuring distance from k nodes, building a predecessor
+    graph, and computing the distance in that graph. 
+
+    Parameters
+    ----------
+    G : NetworkX Graph
+        The graph to find the distance matrix of.
+
+    k : int (default 1)
+        The number of vertices of G from which to calculate distance from.
+
+    Returns
+    -------
+    G_distances : dict
+        A dict of dicts containing distance information of G.
+    """
+    distances = {}
+
+    # Pick a random node to start from
+    pivots = [random.choice(list(G))]
+    shortest_distance_to_pivots = {}
+
+    for pivot in pivots:
+        # Compute shortest path predecessors
+        pred, dist = nx.dijkstra_predecessor_and_distance(G, pivot)
+
+        # Remember distance to all pivots
+        for v, d in dist.items():
+            shortest_distance_to_pivots[v] = min(
+                shortest_distance_to_pivots.get(v, float("inf")), d)
+
+        # Pick a point furthest from all previous pivots as the new pivot
+        pivots.append(max(shortest_distance_to_pivots,
+                          key=shortest_distance_to_pivots.get))
+
+        # Build graph of predecessors
+        H = nx.Graph([(v, p) for v, P in pred.items() for p in P])
+
+        # Compute shortest paths in the predecessor graph and update distances with min
+        if distances == {}:
+            distances = dict(nx.all_pairs_shortest_path_length(H))
+        else:
+            for v, D in nx.all_pairs_shortest_path_length(H):
+                for u, d in D.items():
+                    distances[v][u] = min(distances[v][u], d)
+
+        # Quit after k pivots
+        if len(pivots) > k:
+            break
+
+    return distances
+
+
 def graph_distances(G):
     """
     Compute the distance matrix of G.
 
     Parameters
     ----------
-    G: NetworkX Graph
-    The graph to find the distance matrix of.
+    G : NetworkX Graph
+        The graph to find the distance matrix of.
 
     Returns
     -------
-    G_distances: Numpy 2d array
-    An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
+    G_distances : Numpy 2d array
+        An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
     """
     return jnp.array(
         [
@@ -196,13 +251,13 @@ def random_layout(G):
 
     Parameters
     ----------
-    G: NetworkX Graph
-    The graph to embed in R^2 x T.
+    G : NetworkX Graph
+        The graph to embed in R^2 x T.
 
     Returns
     -------
-    layout: Numpy Array
-    A vector indexed by vertices of G (ordered by iterating through G) whose values are points in R^2 x T.
+    layout : Numpy Array
+        A vector indexed by vertices of G (ordered by iterating through G) whose values are points in R^2 x T.
     """
     # Function to get a random angle
     def random_angle(): return random.random()*jnp.pi*2
@@ -221,22 +276,22 @@ def cost_function(layout, G_distances, distance_function, k):
 
     Parameters
     ----------
-    layout: Numpy Array
-    A vector indexed by vertices of G (ordered by iterating through G) whose values are points in some metric space.
+    layout : Numpy Array
+        A vector indexed by vertices of G (ordered by iterating through G) whose values are points in some metric space.
 
-    G_distances: Numpy 2d array
-    An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
+    G_distances : Numpy 2d array
+        An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
 
-    distance_function: function
-    A function that takes p, q as parameters and returns d(p,q).
+    distance_function : function
+        A function that takes p, q as parameters and returns d(p,q).
 
-    k: int
-    The dimension of the metric space. This will reshape the flattened array passed in to the cost function.
+    k : int
+        The dimension of the metric space. This will reshape the flattened array passed in to the cost function.
 
     Returns
     -------
-    cost: float
-    The sum of differences squared between the metric distance and the graph distance.
+    cost : float
+        The sum of differences squared between the metric distance and the graph distance.
     """
     # Reconstitute the flattened array that scipy.optimize.minimize passed in
     n = len(G_distances)
@@ -255,16 +310,16 @@ def metric_distances(layout, distance_function):
 
     Parameters
     ----------
-    layout: Numpy Array
-    A vector indexed by vertices of G (ordered by iterating through G) whose values are points in some metric space.
+    layout : Numpy Array
+        A vector indexed by vertices of G (ordered by iterating through G) whose values are points in some metric space.
 
-    distance_function: function
-    A function that takes p, q as parameters and returns d(p,q).
+    distance_function : function
+        A function that takes p, q as parameters and returns d(p,q).
 
     Returns
     -------
-    M_distances: Numpy 2d array
-    A matrix indexed by vertices of G (ordered by iterating through G) whose i,j value is d(i,j).
+    M_distances : Numpy 2d array
+        A matrix indexed by vertices of G (ordered by iterating through G) whose i,j value is d(i,j).
     """
     return jnp.array([[distance_function(p, q) for p in layout] for q in layout])
 
@@ -275,18 +330,18 @@ def R2xT_distance(p, q):
 
     Parameters
     ----------
-    p: Numpy array
-    A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., p = (x_1, x_2, theta_1, theta_2) where 
-    x_* in R^2 and theta_* in [0, 2*pi].
+    p : Numpy array
+        A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., p = (x_1, x_2, theta_1, theta_2) where 
+        x_* in R^2 and theta_* in [0, 2*pi].
 
-    q: Numpy array
-    A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., q = (x_1, x_2, theta_1, theta_2) where 
-    x_* in R^2 and theta_* in [0, 2*pi].
+    q : Numpy array
+        A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., q = (x_1, x_2, theta_1, theta_2) where 
+        x_* in R^2 and theta_* in [0, 2*pi].
 
     Returns
     -------
-    distance: float
-    The l_1-norm of the l_1-norm of R^2 and the l_2 norm of T.
+    distance : float
+        The l_1-norm of the l_1-norm of R^2 and the l_2 norm of T.
     """
     plane_p, plane_q = p[:2], q[:2]
     torus_p, torus_q = p[2:], q[2:]
@@ -321,18 +376,18 @@ def torus_distance(s, t, radius=sqrt2_pi):
 
     Parameters
     ----------
-    s: Numpy array
-    A point on the torus. It is defined by 2 angles, i.e., s = (theta_1, theta_2) where theta_* in [0, 2*pi]. 
-    Each angle represents a position on a circle with the given radius.
+    s : Numpy array
+        A point on the torus. It is defined by 2 angles, i.e., s = (theta_1, theta_2) where theta_* in [0, 2*pi]. 
+        Each angle represents a position on a circle with the given radius.
 
-    t: Numpy array
-    A point on the torus. It is defined by 2 angles, i.e., t = (theta_1, theta_2) where theta_* in [0, 2*pi]. 
-    Each angle represents a position on a circle with the given radius.
+    t : Numpy array
+        A point on the torus. It is defined by 2 angles, i.e., t = (theta_1, theta_2) where theta_* in [0, 2*pi]. 
+        Each angle represents a position on a circle with the given radius.
 
     Returns
     -------
-    distance: float
-    The l_2-norm of the arc lengths of each circle.
+    distance : float
+        The l_2-norm of the arc lengths of each circle.
     """
     # Pick the shorter direction around the circle
     diff_1 = jnp.abs(s[0] - t[0])
