@@ -4,8 +4,11 @@ from collections import defaultdict
 
 import networkx as nx
 import numpy as np
-from scipy import ndimage
-from scipy import spatial
+import jax.numpy as jnp
+from scipy import ndimage, spatial
+
+
+sqrt2_pi = jnp.sqrt(2)/jnp.pi  # Radius of the torus circles
 
 
 def to_vector(length, d):
@@ -42,16 +45,6 @@ def convert_to_chains(placement):
         if isinstance(v, (list, frozenset, set)):
             return False
         return True
-
-
-def parse_layout(layout):
-    """
-    Take in a layout class object or a dictionary and return the dictionary representation.
-    """
-    if isinstance(layout, Layout):
-        return layout.layout
-    else:
-        return layout
 
 
 def border_round(point, border_max, d):
@@ -174,3 +167,181 @@ def minimize_overlap(distances, v_indices, T_vertex_lookup, layout_points, overl
     cheapest_subset = min(subsets, key=subsets.get)
     overlap_counter.update(cheapest_subset)
     return cheapest_subset
+
+
+def graph_distances(G):
+    """
+    Compute the distance matrix of G.
+
+    Parameters
+    ----------
+    G: NetworkX Graph
+    The graph to find the distance matrix of.
+
+    Returns
+    -------
+    G_distances: Numpy 2d array
+    An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
+    """
+    return jnp.array(
+        [
+            [V[v] for v in G] for u, V in nx.all_pairs_shortest_path_length(G)
+        ]
+    )
+
+
+def random_layout(G):
+    """
+    Randomly embed G in R^2 x T.
+
+    Parameters
+    ----------
+    G: NetworkX Graph
+    The graph to embed in R^2 x T.
+
+    Returns
+    -------
+    layout: Numpy Array
+    A vector indexed by vertices of G (ordered by iterating through G) whose values are points in R^2 x T.
+    """
+    # Function to get a random angle
+    def random_angle(): return random.random()*jnp.pi*2
+
+    return jnp.array(
+        [
+            tuple(pos) + (random_angle(), random_angle())
+            for pos in nx.random_layout(G).values()
+        ]
+    )
+
+
+def cost_function(layout, G_distances, distance_function, k):
+    """
+    Compute the sum of differences squared between the metric distance and the graph distance.
+
+    Parameters
+    ----------
+    layout: Numpy Array
+    A vector indexed by vertices of G (ordered by iterating through G) whose values are points in some metric space.
+
+    G_distances: Numpy 2d array
+    An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
+
+    distance_function: function
+    A function that takes p, q as parameters and returns d(p,q).
+
+    k: int
+    The dimension of the metric space. This will reshape the flattened array passed in to the cost function.
+
+    Returns
+    -------
+    cost: float
+    The sum of differences squared between the metric distance and the graph distance.
+    """
+    # Reconstitute the flattened array that scipy.optimize.minimize passed in
+    n = len(G_distances)
+    unflat = layout.reshape(n, k)
+
+    # Compute the distance in R^2 x T
+    M_distances = metric_distances(unflat, distance_function)
+
+    # Compute the cost
+    return jnp.sum((G_distances - M_distances)**2)
+
+
+def metric_distances(layout, distance_function):
+    """
+    Compute the distance matrix of a layout.
+
+    Parameters
+    ----------
+    layout: Numpy Array
+    A vector indexed by vertices of G (ordered by iterating through G) whose values are points in some metric space.
+
+    distance_function: function
+    A function that takes p, q as parameters and returns d(p,q).
+
+    Returns
+    -------
+    M_distances: Numpy 2d array
+    A matrix indexed by vertices of G (ordered by iterating through G) whose i,j value is d(i,j).
+    """
+    return jnp.array([[distance_function(p, q) for p in layout] for q in layout])
+
+
+def R2xT_distance(p, q):
+    """
+    Computes the l_1-norm of R^2, the l_2-norm of T, and the l_1_norm of the product metric space.
+
+    Parameters
+    ----------
+    p: Numpy array
+    A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., p = (x_1, x_2, theta_1, theta_2) where 
+    x_* in R^2 and theta_* in [0, 2*pi].
+
+    q: Numpy array
+    A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., q = (x_1, x_2, theta_1, theta_2) where 
+    x_* in R^2 and theta_* in [0, 2*pi].
+
+    Returns
+    -------
+    distance: float
+    The l_1-norm of the l_1-norm of R^2 and the l_2 norm of T.
+    """
+    plane_p, plane_q = p[:2], q[:2]
+    torus_p, torus_q = p[2:], q[2:]
+
+    # JAX doesn't like this. I think it's because scipy uses numpy and not jax.numpy.
+    # plane_dist = spatial.distance.cityblock(plane_p, plane_q)
+    plane_dist = cityblock(plane_p, plane_q)
+    torus_dist = torus_distance(torus_p, torus_q)
+
+    return plane_dist + torus_dist
+
+
+def cityblock(p, q):
+    """
+    Computes the l_1-norm.
+    """
+    return jnp.sum(jnp.abs(p-q))
+
+
+def cornerblock(p, q):
+    """
+    Computes the l_1-norm rotated.
+    """
+    pp = jnp.array([p[0]+p[1], p[0]-p[1]])
+    qq = jnp.array([q[0]+q[1], q[0]-q[1]])
+    return jnp.sum(jnp.abs(pp-qq))
+
+
+def torus_distance(s, t, radius=sqrt2_pi):
+    """
+    Computes the l_2-norm distance in a torus.
+
+    Parameters
+    ----------
+    s: Numpy array
+    A point on the torus. It is defined by 2 angles, i.e., s = (theta_1, theta_2) where theta_* in [0, 2*pi]. 
+    Each angle represents a position on a circle with the given radius.
+
+    t: Numpy array
+    A point on the torus. It is defined by 2 angles, i.e., t = (theta_1, theta_2) where theta_* in [0, 2*pi]. 
+    Each angle represents a position on a circle with the given radius.
+
+    Returns
+    -------
+    distance: float
+    The l_2-norm of the arc lengths of each circle.
+    """
+    # Pick the shorter direction around the circle
+    diff_1 = jnp.abs(s[0] - t[0])
+    theta_1 = jnp.min((diff_1, 2*jnp.pi - diff_1))
+    diff_2 = jnp.abs(s[1] - t[1])
+    theta_2 = jnp.min((diff_2, 2*jnp.pi - diff_2))
+
+    arc_length_1 = radius*theta_1
+    arc_length_2 = radius*theta_2
+
+    return jnp.sqrt(arc_length_1**2 + arc_length_2**2)
+#     return spatial.distance.euclidean(arc_length_1, arc_length_2)

@@ -3,11 +3,69 @@ from collections import defaultdict
 from itertools import combinations
 
 import dwave_networkx as dnx
+import jax
 import networkx as nx
 import numpy as np
+from scipy import optimize
 from scipy.spatial.distance import euclidean
 
 from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
+
+
+def kamada_kawai(G, d=2, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
+    """
+    Top level function for minorminer.layout.__init__() use as a parameter.
+    # FIXME: There's surely a better way of doing this.
+    """
+    L = Layout(G, d=d, center=center, scale=scale,
+               seed=seed, rescale=rescale, rotate=rotate)
+    _ = L.kamada_kawai(**kwargs)
+    return L
+
+
+def dnx_layout(G, d=2, center=None, scale=1., rescale=True, rotate=True, **kwargs):
+    """
+    Top level function for minorminer.layout.__init__() use as a parameter.
+    # FIXME: There's surely a better way of doing this.
+    """
+    L = Layout(G, d=d, center=center, scale=scale,
+               rescale=rescale, rotate=rotate)
+    _ = L.dnx_layout(**kwargs)
+    return L
+
+
+def pca(G, d=2, m=None, pca=True, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
+    """
+    Top level function for minorminer.layout.__init__() use as a parameter.
+    # FIXME: There's surely a better way of doing this.
+    """
+    L = Layout(G, d=d, center=center, scale=scale,
+               seed=seed, rescale=rescale, rotate=rotate)
+    _ = L.pca(m, pca, **kwargs)
+    return L
+
+
+def custom_metric_space(
+    G,
+    starting_layout=None,
+    distance_function=None,
+    G_distances=None,
+    d=2,
+    center=None,
+    scale=1.,
+    rescale=True,
+    rotate=True,
+    **kwargs
+):
+    """
+    Top level function for minorminer.layout.__init__() use as a parameter.
+    # FIXME: There's surely a better way of doing this.
+    """
+    L = Layout(G, d=d, center=center, scale=scale,
+               rescale=rescale, rotate=rotate)
+    _ = L.custom_metric_space(
+        starting_layout, distance_function, G_distances, **kwargs)
+    return L
 
 
 class Layout():
@@ -188,6 +246,79 @@ class Layout():
         self.layout = layout
         return layout
 
+    def custom_metric_space(self, starting_layout, distance_function, G_distances=None, **kwargs):
+        """
+        Embeds a graph in a custom metric space and minimizes a Kamada-Kawai-esque objective function to achieve
+        an embedding with low distortion. This computes a layout where the graph distance and the distance_function are 
+        very close to each other.
+
+        Parameters
+        ----------
+        starting_layout : dict or Numpy Array
+            A mapping from the vertices of G to points in the metric space.
+        distance_function : function
+            The distance function in the metric space to make close to the graph distance. 
+        G_distances : dict or Numpy 2d array (default None)
+            A dictionary of dictionaries representing distances from every vertex in G to every other vertex in G, or
+            a matrix representing the same data. If None, it is computed.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in R^d (values).
+        """
+        # Pick a random R^2 x T layout
+        if starting_layout is None:
+            starting_layout = layout_utils.random_layout(self.G)
+
+        # Make sure the layout is a vector
+        if isinstance(starting_layout, dict):
+            starting_layout = np.array(
+                [pos for pos in starting_layout.values()])
+
+        # Save on distance calculations by passing them in
+        if G_distances is None:
+            G_distances = layout_utils.graph_distances(self.G)
+
+        # Make sure the distances are a matrix
+        if isinstance(G_distances, dict):
+            G_distances = np.array(
+                [[V[v] for v in self.G] for u, V in G_distances.items()]
+            )
+
+        # Pick the R^2 x T distance function
+        if distance_function is None:
+            distance_function = layout_utils.R2xT_distance
+
+        # Get the dimension of the layout
+        k = starting_layout.shape[1]
+
+        # Use automatic differentiation to compute the gradient
+        if "jac" not in kwargs:
+            kwargs["jac"] = jax.grad(layout_utils.cost_function)
+
+        # Solve the Kamada-Kawai-esque minimization function
+        X = optimize.minimize(
+            layout_utils.cost_function,
+            starting_layout,
+            args=(G_distances, distance_function, k),
+            **kwargs
+        )
+
+        # Reshape the solution and convert to dictionary.
+        layout = {v: pos for v, pos in zip(
+            self.G, X.x.reshape(len(self.G), k))}
+
+        # Rotate the layout
+        if self.rotate and self.d == 2:
+            layout = self.rotate_layout(layout)
+        # Scale the layout
+        if self.rescale:
+            layout = self.scale_and_center(layout)
+
+        self.layout = layout
+        return layout
+
     def integer_lattice_layout(self, lattice_points=3):
         """
         Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see
@@ -354,14 +485,15 @@ class Layout():
         # If center and scale are empty, compute them
         if center is None:
             center = np.mean(L, axis=0)
+
+        # Translate the layout so that it's center is the origin
+        L = L - center
+
+        # Scale so that it expands to fill [-self.scale, self.scale]^d
         if scale is None:
             min_value, max_value = np.min(L), np.max(L)
             scale = max(abs(min_value), abs(max_value))
 
-        # Translate the layout to [-scale, scale]^d
-        L = L - center
-
-        # Scale so that it expands to fill [-self.scale, self.scale]^d
         L = (self.scale/scale) * L
 
         # Translate the layout to [self.center - self.scale, self.center + self.scale]^d
@@ -459,36 +591,3 @@ def scale_edge_length(layout, edge_length=1., to_scale="median"):
         raise ValueError(f"Parameter to_scale={to_scale} is not supported.")
 
     return {v: scale*p for v, p in layout.items()}
-
-
-def kamada_kawai(G, d=2, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
-    """
-    Top level function for minorminer.layout.__init__() use as a parameter.
-    # FIXME: There's surely a better way of doing this.
-    """
-    L = Layout(G, d=d, center=center, scale=scale,
-               seed=seed, rescale=rescale, rotate=rotate)
-    _ = L.kamada_kawai(**kwargs)
-    return L
-
-
-def dnx_layout(G, d=2, center=None, scale=1., rescale=True, rotate=True, **kwargs):
-    """
-    Top level function for minorminer.layout.__init__() use as a parameter.
-    # FIXME: There's surely a better way of doing this.
-    """
-    L = Layout(G, d=d, center=center, scale=scale,
-               rescale=rescale, rotate=rotate)
-    _ = L.dnx_layout(**kwargs)
-    return L
-
-
-def pca(G, d=2, m=None, pca=True, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
-    """
-    Top level function for minorminer.layout.__init__() use as a parameter.
-    # FIXME: There's surely a better way of doing this.
-    """
-    L = Layout(G, d=d, center=center, scale=scale,
-               seed=seed, rescale=rescale, rotate=rotate)
-    _ = L.pca(m, pca, **kwargs)
-    return L

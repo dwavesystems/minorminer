@@ -32,6 +32,8 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
     placement : dict
         A mapping from vertices of S (keys) to subsets of vertices of T (values).
     """
+    S_layout = parse_layout(S_layout)
+
     # Copy the dictionary layout for T so we can modify it.
     layout = dict(T_layout.layout)
     # Get the graph for layout T
@@ -92,8 +94,8 @@ def injective(S_layout, T_layout):
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
-    S_layout = layout_utils.parse_layout(S_layout)
-    T_layout = layout_utils.parse_layout(T_layout)
+    S_layout = parse_layout(S_layout)
+    T_layout = parse_layout(T_layout)
 
     X = nx.Graph()
     # Relabel the vertices from S and T in case of name conflict; S --> 0 and T --> 1.
@@ -148,3 +150,13 @@ def binning(S_layout, T_layout, bins=None):
             placement[v] = q
 
     return placement
+
+
+def parse_layout(layout):
+    """
+    Take in a layout class object or a dictionary and return the dictionary representation.
+    """
+    if isinstance(layout, Layout):
+        return layout.layout
+    else:
+        return layout
