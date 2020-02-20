@@ -321,7 +321,7 @@ class Layout():
 
     def integer_lattice_layout(self, lattice_points=3):
         """
-        Map the vertices in a layout to their closest integer points in the scaled positive orthant, S; see
+        Map the vertices in a layout to their closest integer points in the scaled positive orthant; see
         scale_to_positive_orthant().
 
         Note: if the graph is Chimera or Pegasus, lattice points are inferred from the graph object and the layout is
@@ -338,7 +338,7 @@ class Layout():
         Returns
         -------
         layout : dict
-            A mapping from vertices of G (keys) to points in S (values).
+            A mapping from vertices of G (keys) to points in the scaled positive orthant (values).
         """
         # Look to see if you can get the lattice information from the graph object
         coordinates = dnx_utils.lookup_dnx_coordinates(self.G)
@@ -348,12 +348,12 @@ class Layout():
         # Compute the lattice information by scaling and rounding
         lattice_vector = layout_utils.to_vector(lattice_points, self.d)
         scaled_layout = self.scale_to_positive_orthant(
-            lattice_vector+1, border=1)
+            lattice_vector+1, border=1, invert=True)
         return {v: layout_utils.border_round(p, lattice_vector-1, self.d) for v, p in scaled_layout.items()}
 
     def integer_lattice_bins(self, lattice_points=3):
         """
-        Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant, S; see
+        Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant; see
         scale_to_positive_orthant().
 
         Note: If the graph is Chimera or Pegasus, lattice points are inferred from the graph object using the first two
@@ -371,7 +371,7 @@ class Layout():
         Returns
         -------
         layout : dict
-            A mapping from points in S (keys) to lists of vertices of G (values).
+            A mapping from points in the scaled positive orthant (keys) to lists of vertices of G (values).
         """
         integer_point_map = defaultdict(list)
 
@@ -386,7 +386,7 @@ class Layout():
         # Compute the lattice information by scaling and rounding
         lattice_vector = layout_utils.to_vector(lattice_points, self.d)
         scaled_layout = self.scale_to_positive_orthant(
-            lattice_vector+1, border=1)
+            lattice_vector+1, border=1, invert=True)
 
         for v, p in scaled_layout.items():
             integer_point_map[
@@ -395,7 +395,7 @@ class Layout():
 
         return integer_point_map
 
-    def scale_to_positive_orthant(self, length=1, border=0.):
+    def scale_to_positive_orthant(self, length=1, border=0., invert=False):
         """
         This helper function transforms the layout [self.center - self.scale, self.center + self.scale]^d to the
         semi-positive orthant:
@@ -410,6 +410,9 @@ class Layout():
             tuple, each entry specifies a max for each dimension in the layout.
         border : float (default 0)
             Will shift the positive_orthant representation by the given amount in each dimension.
+        invert : bool (default False)
+            If true, will perform a reflection about the x-axis during the transformation. This is so that layouts match
+            the dnx.*_layouts (whos scheme is matrixy notation, i.e., y increases as you go down). 
 
         Returns
         -------
@@ -423,7 +426,16 @@ class Layout():
         # Make a matrix of the positions
         L = np.array([self.layout[v] for v in V])
         # Shift it from [center - scale, center + scale]^d to [0, 2*scale]^d
-        L = L + (self.scale - self.center)
+        if invert:
+            assert self.d == 2, "Inversion is only supported in 2-dimensions."
+            # First move it to the origin
+            L = L - self.center
+            # Reflect about the x-axis
+            L = L @ np.array([[1, 0], [0, -1]])
+            # Move it to the positive orthant
+            L = L + self.scale
+        else:
+            L = L + (self.scale - self.center)
         # Map it to [0, 1]^d
         L = L / (2*self.scale)
         # Scale it to the desired length [0, length]^d

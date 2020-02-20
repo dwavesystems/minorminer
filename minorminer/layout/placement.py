@@ -3,6 +3,7 @@ import warnings
 from collections import Counter
 from itertools import cycle, product
 
+import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
 from scipy.spatial import KDTree, distance
@@ -13,15 +14,15 @@ from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
 
 def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
     """
-    Maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. For each vertex u in 
+    Maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. For each vertex u in
     S_layout and each vertex v in T_layout, map u to the v with minimum Euclidean distance (||u - v||_2).
 
     Parameters
     ----------
     S_layout : dict or layout.Layout
-        A layout for S; i.e. a map from S to the plane.
+        A layout for S; i.e. a map from S to R^d.
     T_layout : dict or layout.Layout
-        A layout for T; i.e. a map from T to the plane.
+        A layout for T; i.e. a map from T to R^d.
     max_subset_size : tuple (default (1, 1))
         A lower bound and an upper bound on the size of subets of T that will be considered when mapping vertices of S.
     num_neighbors: int (default 1)
@@ -67,7 +68,7 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
     tree = KDTree(layout_points)
 
     placement = {}
-    for u, u_pos in S_layout.layout.items():
+    for u, u_pos in S_layout.items():
         distances, v_indices = tree.query(u_pos, num_neighbors)
         placement[u] = layout_utils.minimize_overlap(
             distances, v_indices, T_vertex_lookup, layout_points, overlap_counter)
@@ -77,17 +78,17 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
 
 def injective(S_layout, T_layout):
     """
-    Injectively maps vertices of S to the closest vertices of T as given by S_layout and T_layout. This is the 
-    assignment problem. To solve this it builds a complete bipartite graph between S and T with edge weights the 
-    Euclidean distances of the incident vertices; a minimum weight full matching is then computed. This runs in 
+    Injectively maps vertices of S to the closest vertices of T as given by S_layout and T_layout. This is the
+    assignment problem. To solve this it builds a complete bipartite graph between S and T with edge weights the
+    Euclidean distances of the incident vertices; a minimum weight full matching is then computed. This runs in
     O(|S||T|log(|T|)) time.
 
     Parameters
     ----------
     S_layout : dict or layout.Layout
-        A layout for S; i.e. a map from S to the plane.
+        A layout for S; i.e. a map from S to R^d.
     T_layout : dict or layout.Layout
-        A layout for T; i.e. a map from T to the plane.
+        A layout for T; i.e. a map from T to R^d.
 
     Returns
     -------
@@ -118,9 +119,9 @@ def binning(S_layout, T_layout, bins=None):
     Parameters
     ----------
     S_layout : layout.Layout
-        A layout for S; i.e. a map from S to the plane.
+        A layout for S; i.e. a map from S to R^d.
     T_layout : layout.Layout
-        A layout for T; i.e. a map from T to the plane.
+        A layout for T; i.e. a map from T to R^d.
     bins : tuple or int (default None)
         The number of bins to put along dimensions; see Layout.to_integer_lattice(). If None, check to see if T is a
         dnx.*_graph() object. If it is, compute bins to be the grid dimension of T.
@@ -150,6 +151,73 @@ def binning(S_layout, T_layout, bins=None):
             placement[v] = q
 
     return placement
+
+
+def crosses(S_layout, T_layout):
+    """
+    Map the vertices of S to the intersection of qubits of T (T must be a D-Wave hardware graph).
+
+    Parameters
+    ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T_layout : layout.Layout
+        A layout for T; i.e. a map from T to R^d.
+
+    Returns
+    -------
+    placement : dict
+        A mapping from vertices of S (keys) to vertices of T (values).
+    """
+    # Get those assertions out of the way
+    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
+    assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
+        "Layout class instances must be passed in.")
+    dims = dnx_utils.lookup_dnx_dims(T_layout.G)
+    assert dims is not None, "I need a D-Wave NetworkX graph."
+
+    # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
+    n, m, t = dims
+    columns, rows = n*t-1, m*t-1
+    scaled_layout = S_layout.scale_to_positive_orthant(
+        (columns, rows), invert=True)
+
+    placement = {}
+    for v, pos in scaled_layout.items():
+        r_x, j, x_k = dnx_utils.get_row_or_column(pos[0], t)
+        r_y, i, y_k = dnx_utils.get_row_or_column(pos[1], t)
+
+        min_x, max_x = r_x, r_x
+        min_y, max_y = r_y, r_y
+        # Extend the cross for as long as your neighbors
+        for u in S_layout.G[v]:
+            x, _, _ = dnx_utils.get_row_or_column(scaled_layout[u][0], t)
+            min_x = min(min_x, x)
+            max_x = max(max_x, x)
+
+            y, _, _ = dnx_utils.get_row_or_column(scaled_layout[u][1], t)
+            min_y = min(min_y, y)
+            max_y = max(max_y, y)
+
+        # Compute the qubits as you run along a row and column
+        row_qubits = set()
+        for p in range(min_x, max_x+1):
+            _, col, _ = dnx_utils.get_row_or_column(p, t)
+            row_qubits.add((i, col, 1, y_k))
+
+        column_qubits = set()
+        for p in range(min_y, max_y+1):
+            _, row, _ = dnx_utils.get_row_or_column(p, t)
+            column_qubits.add((row, j, 0, x_k))
+
+        placement[v] = row_qubits | column_qubits
+
+    # Return the right type of vertices
+    if T_layout.G.graph["labels"] == "coordinate":
+        return placement
+    else:
+        C = dnx.chimera_coordinates(m, n, t)
+        return {v: [C.chimera_to_linear(q) for q in Q] for v, Q in placement.items()}
 
 
 def parse_layout(layout):

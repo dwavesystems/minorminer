@@ -1,3 +1,6 @@
+import math
+
+
 def lookup_dnx_coordinates(G):
     """
     Checks to see if G is a dnx.*_graph(). If it is, it checks to see if G has coordinate information. If it does it 
@@ -33,3 +36,21 @@ def lookup_dnx_dims(G):
         return graph_data["rows"], graph_data["columns"], graph_data["tile"]
 
     return None
+
+
+def get_row_or_column(p, t):
+    """
+    Given a number from [0, t*m-1] or [0, t*n-1] where m is the number of rows, n is the number of columns, and t is the 
+    shore size, return the rounded number, the index of the chimera cell, and the k-value of the qubit.
+    """
+    # Round each position to the nearest integer (qubit)
+    r_p = int(round(p))
+
+    # Compute which unit cell it's going to end up in
+    cell_index = math.floor(r_p/t)
+
+    # Compute the k-value of the qubit in the unit cell
+    k = int(r_p - t*cell_index)
+
+    # Get the coordinate version of the qubit
+    return r_p, cell_index, k
