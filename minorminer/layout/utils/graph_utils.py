@@ -1,4 +1,6 @@
+import time
 from collections import defaultdict
+from functools import wraps
 
 import networkx as nx
 
@@ -63,3 +65,19 @@ def get_connected_subgraphs(G, k_min, k_max, single_set=False):
         return all_subgraphs
 
     return connected_subgraphs
+
+
+def timing(f):
+    """
+    A wrapper to time a function's execution.
+    """
+
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        start = time.process_time()
+        result = f(*args, **kwargs)
+        end = time.process_time()
+        print(f"{f.__name__} took: {round(end-start,2)} sec")
+        return result
+
+    return wrap

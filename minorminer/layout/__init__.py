@@ -1,13 +1,20 @@
 import networkx as nx
-
 from minorminer.layout.construction import neighborhood, pass_along
 from minorminer.layout.hinting import initial, suspend
-from minorminer.layout.layout import Layout, dnx_layout, kamada_kawai, pca, custom_metric_space
-from minorminer.layout.placement import binning, closest, injective
+from minorminer.layout.layout import (Layout, custom_metric_space, dnx_layout,
+                                      kamada_kawai, pca)
+from minorminer.layout.placement import binning, closest, crosses, injective, tees
 
 
 def find_embedding(
-    S, T, layout=kamada_kawai, placement=closest, construction=pass_along, hinting=initial, return_layout=False, **kwargs
+    S,
+    T,
+    layout=kamada_kawai,
+    placement=closest,
+    construction=pass_along,
+    hinting=initial,
+    return_layout=False,
+    **kwargs
 ):
     """
     Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding(). Chains are 
@@ -24,13 +31,15 @@ def find_embedding(
         or pre-computed layouts, the first applying to S and the second applying to T.
     placement : function or dict (default closest)
         If a function, it is the placement algorithm to call; each algorithm uses the layouts of S and T to map the 
-        vertices of S to subsets of vertices of T. If it is a dict, it should be a map from the vertices of S to subsets of
-        vertices of T.
+        vertices of S to subsets of vertices of T. If it is a dict, it should be a map from the vertices of S to subsets
+        of vertices of T.
     construction : function (default pass_along)
         The chain construction algorithm to call; each algorithm uses the placement to build chains to hand to 
         minorminer.find_embedding(). 
     hinting : function (default initial)
         The type of minorminer hinting to call.
+    return_layout : bool (default False)
+        Will return the layout objects of S and T.
     kwargs : dict 
         Keyword arguments are passed to various functions.
 

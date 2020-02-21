@@ -1,15 +1,14 @@
 import random
 import warnings
-from collections import Counter
+from collections import Counter, defaultdict
 from itertools import cycle, product
 
 import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
-from scipy.spatial import KDTree, distance
-
 from minorminer.layout.layout import Layout
 from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
+from scipy.spatial import KDTree, distance
 
 
 def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
@@ -51,14 +50,14 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
                 layout[subgraph] = np.mean(
                     tuple(layout[v] for v in subgraph), axis=0)
 
-        # Determine if you need to add or delete subsets of size 1
-        if max_subset_size[0] == 1:
-            for v in T:
-                layout[frozenset((v,))] = layout[v]
-                del layout[v]
-        else:
-            for v in T:
-                del layout[v]
+    # Determine if you need to add or delete subsets of size 1
+    if max_subset_size[0] == 1:
+        for v in T:
+            layout[frozenset((v,))] = layout[v]
+            del layout[v]
+    else:
+        for v in T:
+            del layout[v]
 
     # Use scipy's KDTree to solve the nearest neighbor problem.
     # This requires a few lookup tables
@@ -155,7 +154,14 @@ def binning(S_layout, T_layout, bins=None):
 
 def crosses(S_layout, T_layout):
     """
-    Map the vertices of S to the intersection of qubits of T (T must be a D-Wave hardware graph).
+    Map the vertices of S to rows and columns of qubits of T (T must be a D-Wave hardware graph). 
+
+    If you project the layout of S onto 1-dimensional subspaces, for each vertex u of S a chain is a minimal interval 
+    containing all neighbors of u. This amounts to a placement where each chain is a cross shaped chain where the middle 
+    of the cross is contained in a unit cell, and the legs of the cross extend horizontally and vertically as far as 
+    there are neighbors of u.
+
+    This guarantees in an overlap embedding of S in T.
 
     Parameters
     ----------
@@ -211,6 +217,90 @@ def crosses(S_layout, T_layout):
             column_qubits.add((row, j, 0, x_k))
 
         placement[v] = row_qubits | column_qubits
+
+    # Return the right type of vertices
+    if T_layout.G.graph["labels"] == "coordinate":
+        return placement
+    else:
+        C = dnx.chimera_coordinates(m, n, t)
+        return {v: [C.chimera_to_linear(q) for q in Q] for v, Q in placement.items()}
+
+
+def tees(S_layout, T_layout):
+    """
+    Map the vertices of S to rows and columns of qubits of T (T must be a D-Wave hardware graph). 
+
+    Order the vertices of S along the y-axis from bottom to top. For each vertex u of S, form a chain that is the 
+    minimal interval containing every neighbor "ahead" of u on the y-axis. For each v in N(u), form a chain that is the 
+    minimal interval containing v and the projection of u on the x-axis. This amounts to a placement where each chain 
+    has the shape a subset of a capital "T". For each vertex u of S, the intersection of the T (if it exists) is 
+    necessarily contained in unit cell given by the layout, and the legs of the T are as described above.
+
+    This guarantees in an overlap embedding of S in T.
+
+    Parameters
+    ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T_layout : layout.Layout
+        A layout for T; i.e. a map from T to R^d.
+
+    Returns
+    -------
+    placement : dict
+        A mapping from vertices of S (keys) to vertices of T (values).
+    """
+    # Get those assertions out of the way
+    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
+    assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
+        "Layout class instances must be passed in.")
+    dims = dnx_utils.lookup_dnx_dims(T_layout.G)
+    assert dims is not None, "I need a D-Wave NetworkX graph."
+
+    # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
+    n, m, t = dims
+    columns, rows = n*t-1, m*t-1
+    scaled_layout = S_layout.scale_to_positive_orthant(
+        (columns, rows), invert=True)
+
+    # Keep track of vertices that are connected
+    routed_vertices = set()
+
+    # Sort the vertices in the layout from bottom to top
+    placement = defaultdict(set)
+    for v, pos in sorted(scaled_layout.items(), key=lambda x: x[1][1]):
+        r_x, j, x_k = dnx_utils.get_row_or_column(pos[0], t)  # Column
+        r_y, _, _ = dnx_utils.get_row_or_column(pos[1], t)  # Row
+
+        max_y = r_y
+        for u in S_layout.G[v]:
+            # Skip over previously routed vertices
+            if u in routed_vertices:
+                continue
+
+            # Figure out how far you need to extend the leg of the T above you
+            u_y, u_i, u_y_k = dnx_utils.get_row_or_column(
+                scaled_layout[u][1], t)
+            max_y = max(max_y, u_y)
+
+            # Have your neighbors run left or right into you
+            row_qubits = set()
+            u_x, _, _ = dnx_utils.get_row_or_column(scaled_layout[u][0], t)
+            for p in range(min(u_x, r_x), max(u_x, r_x)+1):
+                _, col, _ = dnx_utils.get_row_or_column(p, t)
+                row_qubits.add((u_i, col, 1, u_y_k))
+
+            placement[u] |= row_qubits
+
+        column_qubits = set()
+        for p in range(r_y, max_y+1):
+            _, row, _ = dnx_utils.get_row_or_column(p, t)
+            column_qubits.add((row, j, 0, x_k))
+
+        placement[v] |= column_qubits
+
+        # The vertex v is now totally connected to its neighbors
+        routed_vertices.add(v)
 
     # Return the right type of vertices
     if T_layout.G.graph["labels"] == "coordinate":

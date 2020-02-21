@@ -153,7 +153,7 @@ def minimize_overlap(distances, v_indices, T_vertex_lookup, layout_points, overl
     """
     A greedy penalty-type model for choosing overlapping chains.
     """
-    # KDTree.query either returns a single index or a list of indexes
+    # KDTree.query either returns a single index or a list of indexes depending on how many neighbors are queried.
     # In the case of a single index, there is nothing to do here.
     if isinstance(v_indices, np.int64):
         return T_vertex_lookup[layout_points[v_indices]]
