@@ -4,11 +4,10 @@ from collections import defaultdict
 
 import networkx as nx
 import numpy as np
-import jax.numpy as jnp
 from scipy import ndimage, spatial
 
 
-sqrt2_pi = jnp.sqrt(2)/jnp.pi  # Radius of the torus circles
+sqrt2_pi = np.sqrt(2)/np.pi  # Radius of the torus circles
 
 
 def to_vector(length, d):
@@ -238,7 +237,7 @@ def graph_distances(G):
     G_distances : Numpy 2d array
         An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
     """
-    return jnp.array(
+    return np.array(
         [
             [V[v] for v in G] for u, V in nx.all_pairs_shortest_path_length(G)
         ]
@@ -260,9 +259,9 @@ def random_layout(G):
         A vector indexed by vertices of G (ordered by iterating through G) whose values are points in R^2 x T.
     """
     # Function to get a random angle
-    def random_angle(): return random.random()*jnp.pi*2
+    def random_angle(): return random.random()*np.pi*2
 
-    return jnp.array(
+    return np.array(
         [
             tuple(pos) + (random_angle(), random_angle())
             for pos in nx.random_layout(G).values()
@@ -270,7 +269,7 @@ def random_layout(G):
     )
 
 
-def cost_function(layout, G_distances, distance_function, k):
+def cost_function(layout_vector, G_distances, distance_function, k):
     """
     Compute the sum of differences squared between the metric distance and the graph distance.
 
@@ -295,13 +294,13 @@ def cost_function(layout, G_distances, distance_function, k):
     """
     # Reconstitute the flattened array that scipy.optimize.minimize passed in
     n = len(G_distances)
-    unflat = layout.reshape(n, k)
+    layout = layout_vector.reshape(n, k)
 
     # Compute the distance in R^2 x T
-    M_distances = metric_distances(unflat, distance_function)
+    M_distances = metric_distances(layout, distance_function)
 
     # Compute the cost
-    return jnp.sum((G_distances - M_distances)**2)
+    return np.sum((G_distances - M_distances)**2)
 
 
 def metric_distances(layout, distance_function):
@@ -321,7 +320,40 @@ def metric_distances(layout, distance_function):
     M_distances : Numpy 2d array
         A matrix indexed by vertices of G (ordered by iterating through G) whose i,j value is d(i,j).
     """
-    return jnp.array([[distance_function(p, q) for p in layout] for q in layout])
+    return np.array([[distance_function(p, q) for p in layout] for q in layout])
+
+
+def cityblock_gradient(layout_vector, G_distances, distance_function, k):
+    """
+    Computes the gradient of the energy function for a cityblock metric.
+    """
+    # Reconstitute the flattened array that scipy.optimize.minimize passed in
+    n = len(G_distances)
+    layout = layout_vector.reshape(n, k)
+
+    grad = np.zeros((n, k))
+    for i, p in enumerate(layout):
+        # Pull the x and y values from the point
+        x, y = p
+
+        # Compute the submatrix by deleting the row we are on
+        M = np.delete(layout, i, 0)
+
+        # This is a graph distance vector from a fixed vertex to every other vertex.
+        D = np.delete(G_distances[:, i], i)
+
+        x_diff = x - M[:, 0]
+        y_diff = y - M[:, 1]
+
+        # Compute the cost for both x and y
+        del_x = (2*x_diff*(np.absolute(x_diff) + np.absolute(y_diff) - D)) / \
+            np.absolute(x_diff)
+        del_y = (2*y_diff*(np.absolute(x_diff) + np.absolute(y_diff) - D)) / \
+            np.absolute(y_diff)
+
+        grad[i] = (del_x.sum(), del_y.sum())
+
+    return grad.ravel()
 
 
 def R2xT_distance(p, q):
@@ -346,28 +378,19 @@ def R2xT_distance(p, q):
     plane_p, plane_q = p[:2], q[:2]
     torus_p, torus_q = p[2:], q[2:]
 
-    # JAX doesn't like this. I think it's because scipy uses numpy and not jax.numpy.
-    # plane_dist = spatial.distance.cityblock(plane_p, plane_q)
-    plane_dist = cityblock(plane_p, plane_q)
+    plane_dist = spatial.distance.cityblock(plane_p, plane_q)
     torus_dist = torus_distance(torus_p, torus_q)
 
     return plane_dist + torus_dist
-
-
-def cityblock(p, q):
-    """
-    Computes the l_1-norm.
-    """
-    return jnp.sum(jnp.abs(p-q))
 
 
 def cornerblock(p, q):
     """
     Computes the l_1-norm rotated.
     """
-    pp = jnp.array([p[0]+p[1], p[0]-p[1]])
-    qq = jnp.array([q[0]+q[1], q[0]-q[1]])
-    return jnp.sum(jnp.abs(pp-qq))
+    pp = np.array([p[0]+p[1], p[0]-p[1]])
+    qq = np.array([q[0]+q[1], q[0]-q[1]])
+    return np.sum(np.abs(pp-qq))
 
 
 def torus_distance(s, t, radius=sqrt2_pi):
@@ -390,13 +413,12 @@ def torus_distance(s, t, radius=sqrt2_pi):
         The l_2-norm of the arc lengths of each circle.
     """
     # Pick the shorter direction around the circle
-    diff_1 = jnp.abs(s[0] - t[0])
-    theta_1 = jnp.min((diff_1, 2*jnp.pi - diff_1))
-    diff_2 = jnp.abs(s[1] - t[1])
-    theta_2 = jnp.min((diff_2, 2*jnp.pi - diff_2))
+    diff_1 = np.abs(s[0] - t[0])
+    theta_1 = np.min((diff_1, 2*np.pi - diff_1))
+    diff_2 = np.abs(s[1] - t[1])
+    theta_2 = np.min((diff_2, 2*np.pi - diff_2))
 
     arc_length_1 = radius*theta_1
     arc_length_2 = radius*theta_2
 
-    return jnp.sqrt(arc_length_1**2 + arc_length_2**2)
-#     return spatial.distance.euclidean(arc_length_1, arc_length_2)
+    return spatial.distance.euclidean(arc_length_1, arc_length_2)

@@ -3,7 +3,6 @@ from collections import defaultdict
 from itertools import combinations
 
 import dwave_networkx as dnx
-import jax
 import networkx as nx
 import numpy as np
 from scipy import optimize
@@ -293,14 +292,11 @@ class Layout():
         # Get the dimension of the layout
         k = starting_layout.shape[1]
 
-        # Use automatic differentiation to compute the gradient
-        if "jac" not in kwargs:
-            kwargs["jac"] = jax.grad(layout_utils.cost_function)
-
         # Solve the Kamada-Kawai-esque minimization function
         X = optimize.minimize(
             layout_utils.cost_function,
-            starting_layout,
+            starting_layout.ravel(),
+            method='L-BFGS-B',
             args=(G_distances, distance_function, k),
             **kwargs
         )
