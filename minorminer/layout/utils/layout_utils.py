@@ -326,30 +326,24 @@ def metric_distances(layout, distance_function):
 def cityblock_gradient(layout_vector, G_distances, distance_function, k):
     """
     Computes the gradient of the energy function for a cityblock metric.
+
+    Matries are 3d. One can think of an entry u_i,j,k as corresponding to vertices v_i, v_j, and the kth coordinate of
+    p. I.e., in the plane when k=2, p_0 is the x-value and p_1 is the y-value of p.
     """
     # Reconstitute the flattened array that scipy.optimize.minimize passed in
     n = len(G_distances)
     layout = layout_vector.reshape(n, k)
 
-    grad = np.zeros((n, k))
-    for i, p in enumerate(layout):
-        # This is a graph distance vector from a fixed vertex to every other vertex.
-        D = G_distances[:, i]
+    # Difference between pairs of points in a 3d matrix
+    diff = layout[:, np.newaxis, :] - layout[np.newaxis, :, :]
+    abs_x_diff, abs_y_diff = np.abs(diff[:, :, 0]), np.abs(diff[:, :, 1])
 
-        # Compute some terms to reuse
-        l1_diff = p - layout + \
-            np.array(
-                [[0 if i != j else 1e-3 for j in range(n)]]
-            ).T  # A small term to avoid division by 0
-        abs_x_diff = np.absolute(l1_diff[:, 0])
-        abs_y_diff = np.absolute(l1_diff[:, 1])
-        comp_diff = abs_x_diff + abs_y_diff - D
+    # A term that appears in both partial derivatives,
+    comp_diff = np.repeat(
+        (abs_x_diff + abs_y_diff - G_distances)[:, :, np.newaxis], 2, axis=-1)
 
-        # Compute the gradient
-        grad[i] = (
-            np.sum((2*l1_diff[:, 0]*comp_diff) / abs_x_diff),
-            np.sum((2*l1_diff[:, 1]*comp_diff) / abs_y_diff)
-        )
+    # The actual gradient function
+    grad = np.nansum(2*diff*comp_diff/np.abs(diff), axis=1)
 
     return grad.ravel()
 
