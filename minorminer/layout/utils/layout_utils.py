@@ -336,14 +336,16 @@ def cityblock_gradient(layout_vector, G_distances, distance_function, k):
 
     # Difference between pairs of points in a 3d matrix
     diff = layout[:, np.newaxis, :] - layout[np.newaxis, :, :]
-    abs_x_diff, abs_y_diff = np.abs(diff[:, :, 0]), np.abs(diff[:, :, 1])
-
-    # A term that appears in both partial derivatives,
-    comp_diff = np.repeat(
-        (abs_x_diff + abs_y_diff - G_distances)[:, :, np.newaxis], 2, axis=-1)
+    l1_dist = np.linalg.norm(diff, ord=1, axis=-1)
 
     # The actual gradient function
-    grad = np.nansum(2*diff*comp_diff/np.abs(diff), axis=1)
+    with np.errstate(divide='ignore', invalid='ignore'):  # handle division by 0
+        grad = np.einsum(
+            'ijk,ij,ijk->ik',
+            2*diff,
+            l1_dist - G_distances,
+            np.nan_to_num(1/np.abs(diff))
+        )
 
     return grad.ravel()
 
