@@ -13,7 +13,7 @@ sqrt2_pi = np.sqrt(2)/np.pi  # Radius of the torus circles
 def to_vector(length, d):
     """
     If length is an integer, it creates a d-dimensional array with values length. Otherwise it creates an array based
-    on the length iterable and checks that is the same dimension as d. 
+    on the length iterable and checks that is the same dimension as d.
     """
     if isinstance(length, (int, float)):
         return np.array(d*(length,))
@@ -27,7 +27,7 @@ def to_vector(length, d):
 
 def lattice_points_to_length(lattice_points):
     """
-    Converts between a number of desired lattice points in a dimension to the length in that dimension; i.e., if you 
+    Converts between a number of desired lattice points in a dimension to the length in that dimension; i.e., if you
     want 5 lattice points in a dimension, it should be length 4 resulting in integers [0, 1, 2, 3, 4].
     """
     if isinstance(lattice_points, int):
@@ -38,7 +38,7 @@ def lattice_points_to_length(lattice_points):
 
 def convert_to_chains(placement):
     """
-    Helper function to determine whether or not an input is in a chain-ready data structure. 
+    Helper function to determine whether or not an input is in a chain-ready data structure.
     """
     for v in placement.values():
         if isinstance(v, (list, frozenset, set)):
@@ -171,7 +171,7 @@ def minimize_overlap(distances, v_indices, T_vertex_lookup, layout_points, overl
 def fast_graph_distances(G, k=1):
     """
     Compute an approximation of the distance matrix of G by measuring distance from k nodes, building a predecessor
-    graph, and computing the distance in that graph. 
+    graph, and computing the distance in that graph.
 
     Parameters
     ----------
@@ -333,25 +333,23 @@ def cityblock_gradient(layout_vector, G_distances, distance_function, k):
 
     grad = np.zeros((n, k))
     for i, p in enumerate(layout):
-        # Pull the x and y values from the point
-        x, y = p
-
-        # Compute the submatrix by deleting the row we are on
-        M = np.delete(layout, i, 0)
-
         # This is a graph distance vector from a fixed vertex to every other vertex.
-        D = np.delete(G_distances[:, i], i)
+        D = G_distances[:, i]
 
-        x_diff = x - M[:, 0]
-        y_diff = y - M[:, 1]
+        # Compute some terms to reuse
+        l1_diff = p - layout + \
+            np.array(
+                [[0 if i != j else 1e-3 for j in range(n)]]
+            ).T  # A small term to avoid division by 0
+        abs_x_diff = np.absolute(l1_diff[:, 0])
+        abs_y_diff = np.absolute(l1_diff[:, 1])
+        comp_diff = abs_x_diff + abs_y_diff - D
 
-        # Compute the cost for both x and y
-        del_x = (2*x_diff*(np.absolute(x_diff) + np.absolute(y_diff) - D)) / \
-            np.absolute(x_diff)
-        del_y = (2*y_diff*(np.absolute(x_diff) + np.absolute(y_diff) - D)) / \
-            np.absolute(y_diff)
-
-        grad[i] = (del_x.sum(), del_y.sum())
+        # Compute the gradient
+        grad[i] = (
+            np.sum((2*l1_diff[:, 0]*comp_diff) / abs_x_diff),
+            np.sum((2*l1_diff[:, 1]*comp_diff) / abs_y_diff)
+        )
 
     return grad.ravel()
 
@@ -363,11 +361,11 @@ def R2xT_distance(p, q):
     Parameters
     ----------
     p : Numpy array
-        A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., p = (x_1, x_2, theta_1, theta_2) where 
+        A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., p = (x_1, x_2, theta_1, theta_2) where
         x_* in R^2 and theta_* in [0, 2*pi].
 
     q : Numpy array
-        A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., q = (x_1, x_2, theta_1, theta_2) where 
+        A point in R^2 x T. It is defined by an x, y pair and 2 angles, i.e., q = (x_1, x_2, theta_1, theta_2) where
         x_* in R^2 and theta_* in [0, 2*pi].
 
     Returns
@@ -400,11 +398,11 @@ def torus_distance(s, t, radius=sqrt2_pi):
     Parameters
     ----------
     s : Numpy array
-        A point on the torus. It is defined by 2 angles, i.e., s = (theta_1, theta_2) where theta_* in [0, 2*pi]. 
+        A point on the torus. It is defined by 2 angles, i.e., s = (theta_1, theta_2) where theta_* in [0, 2*pi].
         Each angle represents a position on a circle with the given radius.
 
     t : Numpy array
-        A point on the torus. It is defined by 2 angles, i.e., t = (theta_1, theta_2) where theta_* in [0, 2*pi]. 
+        A point on the torus. It is defined by 2 angles, i.e., t = (theta_1, theta_2) where theta_* in [0, 2*pi].
         Each angle represents a position on a circle with the given radius.
 
     Returns
