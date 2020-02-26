@@ -8,6 +8,7 @@ from scipy import ndimage, spatial
 
 
 sqrt2_pi = np.sqrt(2)/np.pi  # Radius of the torus circles
+pi_2 = 2*np.pi  # All the way around a circle
 
 
 def to_vector(length, d):
@@ -258,7 +259,6 @@ def random_layout(G):
     layout : Numpy Array
         A vector indexed by vertices of G (ordered by iterating through G) whose values are points in R^2 x T.
     """
-    # Function to get a random angle
     def random_angle(): return random.random()*np.pi*2
 
     return np.array(
@@ -269,9 +269,9 @@ def random_layout(G):
     )
 
 
-def cost_function(layout_vector, G_distances, distance_function, k):
+def manhattan(layout_vector, G_distances, k):
     """
-    Compute the sum of differences squared between the metric distance and the graph distance.
+    Compute the sum of differences squared between the l1-metric and the graph distance as well as the gradient.
 
     Parameters
     ----------
@@ -280,9 +280,6 @@ def cost_function(layout_vector, G_distances, distance_function, k):
 
     G_distances : Numpy 2d array
         An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
-
-    distance_function : function
-        A function that takes p, q as parameters and returns d(p,q).
 
     k : int
         The dimension of the metric space. This will reshape the flattened array passed in to the cost function.
@@ -296,49 +293,13 @@ def cost_function(layout_vector, G_distances, distance_function, k):
     n = len(G_distances)
     layout = layout_vector.reshape(n, k)
 
-    # Compute the distance in R^2 x T
-    M_distances = metric_distances(layout, distance_function)
-
-    # Compute the cost
-    return np.sum((G_distances - M_distances)**2)
-
-
-def metric_distances(layout, distance_function):
-    """
-    Compute the distance matrix of a layout.
-
-    Parameters
-    ----------
-    layout : Numpy Array
-        A vector indexed by vertices of G (ordered by iterating through G) whose values are points in some metric space.
-
-    distance_function : function
-        A function that takes p, q as parameters and returns d(p,q).
-
-    Returns
-    -------
-    M_distances : Numpy 2d array
-        A matrix indexed by vertices of G (ordered by iterating through G) whose i,j value is d(i,j).
-    """
-    return np.array([[distance_function(p, q) for p in layout] for q in layout])
-
-
-def cityblock_gradient(layout_vector, G_distances, distance_function, k):
-    """
-    Computes the gradient of the energy function for a cityblock metric.
-
-    Matries are 3d. One can think of an entry u_i,j,k as corresponding to vertices v_i, v_j, and the kth coordinate of
-    p. I.e., in the plane when k=2, p_0 is the x-value and p_1 is the y-value of p.
-    """
-    # Reconstitute the flattened array that scipy.optimize.minimize passed in
-    n = len(G_distances)
-    layout = layout_vector.reshape(n, k)
-
     # Difference between pairs of points in a 3d matrix
     diff = layout[:, np.newaxis, :] - layout[np.newaxis, :, :]
+
+    # A 2d matrix of the distances between points
     l1_dist = np.linalg.norm(diff, ord=1, axis=-1)
 
-    # The actual gradient function
+    # A vectorized version of the gradient function
     with np.errstate(divide='ignore', invalid='ignore'):  # handle division by 0
         grad = np.einsum(
             'ijk,ij,ijk->ik',
@@ -347,7 +308,117 @@ def cityblock_gradient(layout_vector, G_distances, distance_function, k):
             np.nan_to_num(1/np.abs(diff))
         )
 
-    return grad.ravel()
+    # Return the cost and the gradient
+    return np.sum((G_distances - l1_dist)**2), grad.ravel()
+
+
+def R2xT(layout_vector, G_distances):
+    """
+    Compute the sum of differences squared between the metric distance and the graph distance.
+
+    Parameters
+    ----------
+    layout : Numpy Array
+        A vector indexed by vertices of G (ordered by iterating through G) whose values are points in some metric space.
+
+    G_distances : Numpy 2d array
+        An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
+
+    Returns
+    -------
+    cost : float
+        The sum of differences squared between the metric distance and the graph distance.
+    """
+    # Reconstitute the flattened array that scipy.optimize.minimize passed in
+    n = len(G_distances)
+    layout = layout_vector.reshape(n, 4)
+
+    # Make sure we reset the angle going around the circles
+    layout[:, 2:] = np.mod(layout[:, 2:], pi_2)
+
+    # Difference between pairs of points in a 3d matrix
+    diff = layout[:, np.newaxis, :] - layout[np.newaxis, :, :]
+
+    # A 2d matrix of the l1 R2 distances between points
+    R2_dist = np.linalg.norm(diff[:, :, :2], ord=1, axis=-1)
+
+    # A 2d matrix of the distances between points
+    # FIXME: this should maybe use something like np.apply_along_axis()
+    T_dist = np.array([[T_distance(
+        diff[i, j, 2], diff[i, j, 3]) for j in range(n)] for i in range(n)])
+
+    # Compute the l1 norm of the two distances
+    # FIXME: we then have to call np.dstack() to build this back. This should probably be avoided.
+    R2xT_dist = np.linalg.norm(np.dstack((R2_dist, T_dist)), ord=1, axis=-1)
+
+    # A vectorized version of the gradient function
+    with np.errstate(divide='ignore', invalid='ignore'):  # handle division by 0
+        grad = np.einsum(
+            'ijk,ij,ijk->ik',
+            2*diff,
+            R2_dist + T_dist - G_distances,
+            np.nan_to_num(
+                1/np.dstack((np.abs(diff[:, :, :2]), T_dist, T_dist)))
+        )
+
+    # The gradient needs to be modified so that it respects the circles
+    # FIXME: I'm not sure that this is the best.
+    grad[:, 2:] = grad[:, 2:]/250
+
+    # Compute the cost
+    return np.sum((G_distances - R2xT_dist)**2), grad.ravel()
+
+
+def T_distance(diff_1, diff_2, radius=sqrt2_pi):
+    abs_diff_1, abs_diff_2 = diff_1, diff_2
+
+    # Pick the shorter direction around the circle
+    theta_1 = np.piecewise(
+        abs_diff_1,
+        [abs_diff_1 <= np.pi, abs_diff_1 > np.pi],
+        [abs_diff_1, 2*np.pi - abs_diff_1]
+    )
+    theta_2 = np.piecewise(
+        abs_diff_2,
+        [abs_diff_2 <= np.pi, abs_diff_2 > np.pi],
+        [abs_diff_2, 2*np.pi - abs_diff_2]
+    )
+
+    arc_length_1 = radius*theta_1
+    arc_length_2 = radius*theta_2
+
+    return spatial.distance.euclidean(arc_length_1, arc_length_2)
+
+
+def torus_distance(s, t, radius=sqrt2_pi):
+    """
+    Computes the l_2-norm distance in a torus.
+
+    Parameters
+    ----------
+    s : Numpy array
+        A point on the torus. It is defined by 2 angles, i.e., s = (theta_1, theta_2) where theta_* in [0, 2*pi].
+        Each angle represents a position on a circle with the given radius.
+
+    t : Numpy array
+        A point on the torus. It is defined by 2 angles, i.e., t = (theta_1, theta_2) where theta_* in [0, 2*pi].
+        Each angle represents a position on a circle with the given radius.
+
+    Returns
+    -------
+    distance : float
+        The l_2-norm of the arc lengths of each circle.
+    """
+    # Pick the shorter direction around the circle
+    diff_1 = np.abs(s[0] - t[0])
+    theta_1 = np.min((diff_1, 2*np.pi - diff_1))
+    diff_2 = np.abs(s[1] - t[1])
+    theta_2 = np.min((diff_2, 2*np.pi - diff_2))
+
+    arc_length_1 = radius*theta_1
+    arc_length_2 = radius*theta_2
+
+    return spatial.distance.euclidean(arc_length_1, arc_length_2)
 
 
 def R2xT_distance(p, q):
@@ -385,34 +456,3 @@ def cornerblock(p, q):
     pp = np.array([p[0]+p[1], p[0]-p[1]])
     qq = np.array([q[0]+q[1], q[0]-q[1]])
     return np.sum(np.abs(pp-qq))
-
-
-def torus_distance(s, t, radius=sqrt2_pi):
-    """
-    Computes the l_2-norm distance in a torus.
-
-    Parameters
-    ----------
-    s : Numpy array
-        A point on the torus. It is defined by 2 angles, i.e., s = (theta_1, theta_2) where theta_* in [0, 2*pi].
-        Each angle represents a position on a circle with the given radius.
-
-    t : Numpy array
-        A point on the torus. It is defined by 2 angles, i.e., t = (theta_1, theta_2) where theta_* in [0, 2*pi].
-        Each angle represents a position on a circle with the given radius.
-
-    Returns
-    -------
-    distance : float
-        The l_2-norm of the arc lengths of each circle.
-    """
-    # Pick the shorter direction around the circle
-    diff_1 = np.abs(s[0] - t[0])
-    theta_1 = np.min((diff_1, 2*np.pi - diff_1))
-    diff_2 = np.abs(s[1] - t[1])
-    theta_2 = np.min((diff_2, 2*np.pi - diff_2))
-
-    arc_length_1 = radius*theta_1
-    arc_length_2 = radius*theta_2
-
-    return spatial.distance.euclidean(arc_length_1, arc_length_2)

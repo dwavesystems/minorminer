@@ -1,9 +1,10 @@
 import networkx as nx
 from minorminer.layout.construction import neighborhood, pass_along
 from minorminer.layout.hinting import initial, suspend
-from minorminer.layout.layout import (Layout, custom_metric_space, dnx_layout,
-                                      kamada_kawai, pca)
-from minorminer.layout.placement import binning, closest, crosses, injective, tees
+from minorminer.layout.layout import (Layout, R2xT, dnx_layout, kamada_kawai,
+                                      manhattan, pca)
+from minorminer.layout.placement import (binning, closest, crosses, injective,
+                                         tees)
 
 
 def find_embedding(

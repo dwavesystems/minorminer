@@ -44,16 +44,15 @@ def pca(G, d=2, m=None, pca=True, center=None, scale=1., seed=None, rescale=True
     return L
 
 
-def custom_metric_space(
+def R2xT(
     G,
     starting_layout=None,
-    distance_function=None,
     G_distances=None,
-    d=2,
+    d=4,
     center=None,
     scale=1.,
-    rescale=True,
-    rotate=True,
+    rescale=False,
+    rotate=False,
     **kwargs
 ):
     """
@@ -62,8 +61,29 @@ def custom_metric_space(
     """
     L = Layout(G, d=d, center=center, scale=scale,
                rescale=rescale, rotate=rotate)
-    _ = L.custom_metric_space(
-        starting_layout, distance_function, G_distances, **kwargs)
+    _ = L.R2xT(
+        starting_layout, G_distances, **kwargs)
+    return L
+
+
+def manhattan(
+    G,
+    starting_layout=None,
+    G_distances=None,
+    d=2,
+    center=None,
+    scale=1.,
+    rescale=True,
+    rotate=False,
+    **kwargs
+):
+    """
+    Top level function for minorminer.layout.__init__() use as a parameter.
+    # FIXME: There's surely a better way of doing this.
+    """
+    L = Layout(G, d=d, center=center, scale=scale,
+               rescale=rescale, rotate=rotate)
+    _ = L.manhattan(starting_layout, G_distances, **kwargs)
     return L
 
 
@@ -245,18 +265,16 @@ class Layout():
         self.layout = layout
         return layout
 
-    def custom_metric_space(self, starting_layout, distance_function, G_distances=None, **kwargs):
+    def manhattan(self, starting_layout=None, G_distances=None, **kwargs):
         """
         Embeds a graph in a custom metric space and minimizes a Kamada-Kawai-esque objective function to achieve
-        an embedding with low distortion. This computes a layout where the graph distance and the distance_function are 
+        an embedding with low distortion. This computes a layout where the graph distance and the l1-distance are 
         very close to each other.
 
         Parameters
         ----------
         starting_layout : dict or Numpy Array
             A mapping from the vertices of G to points in the metric space.
-        distance_function : function
-            The distance function in the metric space to make close to the graph distance. 
         G_distances : dict or Numpy 2d array (default None)
             A dictionary of dictionaries representing distances from every vertex in G to every other vertex in G, or
             a matrix representing the same data. If None, it is computed.
@@ -266,9 +284,9 @@ class Layout():
         layout : dict
             A mapping from vertices of G (keys) to points in R^d (values).
         """
-        # Pick a random R^2 x T layout
+        # Pick a random layout in R^2
         if starting_layout is None:
-            starting_layout = layout_utils.random_layout(self.G)
+            starting_layout = nx.random_layout(self.G)
 
         # Make sure the layout is a vector
         if isinstance(starting_layout, dict):
@@ -285,19 +303,16 @@ class Layout():
                 [[V[v] for v in self.G] for u, V in G_distances.items()]
             )
 
-        # Pick the R^2 x T distance function
-        if distance_function is None:
-            distance_function = layout_utils.R2xT_distance
-
         # Get the dimension of the layout
         k = starting_layout.shape[1]
 
         # Solve the Kamada-Kawai-esque minimization function
         X = optimize.minimize(
-            layout_utils.cost_function,
+            layout_utils.manhattan,
             starting_layout.ravel(),
             method='L-BFGS-B',
-            args=(G_distances, distance_function, k),
+            args=(G_distances, k),
+            jac=True,
             **kwargs
         )
 
@@ -311,6 +326,74 @@ class Layout():
         # Scale the layout
         if self.rescale:
             layout = self.scale_and_center(layout)
+
+        self.layout = layout
+        return layout
+
+    def R2xT(self, starting_layout=None, G_distances=None, **kwargs):
+        """
+        Embeds a graph in a custom metric space and minimizes a Kamada-Kawai-esque objective function to achieve
+        an embedding with low distortion. This computes a layout where the graph distance and the distance in the plane
+        cross the torus are very close to each other.
+
+        Parameters
+        ----------
+        starting_layout : dict or Numpy Array
+            A mapping from the vertices of G to points in the metric space.
+        G_distances : dict or Numpy 2d array (default None)
+            A dictionary of dictionaries representing distances from every vertex in G to every other vertex in G, or
+            a matrix representing the same data. If None, it is computed.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in R^2 x T (values).
+        """
+        # Pick a random R^2 x T layout
+        if starting_layout is None:
+            starting_layout = layout_utils.random_layout(self.G)
+
+        # Make sure the layout is a vector
+        if isinstance(starting_layout, dict):
+            starting_layout = np.array(
+                [pos for pos in starting_layout.values()])
+
+        assert starting_layout.shape[1] == 4, "This is a 4-dimensional layout."
+
+        # Save on distance calculations by passing them in
+        if G_distances is None:
+            G_distances = layout_utils.graph_distances(self.G)
+
+        # Make sure the distances are a matrix
+        if isinstance(G_distances, dict):
+            G_distances = np.array(
+                [[V[v] for v in self.G] for u, V in G_distances.items()]
+            )
+
+        # Solve the Kamada-Kawai-esque minimization function
+        X = optimize.minimize(
+            layout_utils.R2xT,
+            starting_layout.ravel(),
+            # method='L-BFGS-B',
+            args=(G_distances, ),
+            jac=True,
+            **kwargs
+        )
+
+        # Make sure that the angles in the layout are in [0, 2*pi]
+        layout_matrix = X.x.reshape(len(self.G), 4)
+        layout_matrix[:, 2:] = np.mod(layout_matrix[:, 2:], 2*np.pi)
+
+        # Reshape the solution and convert to dictionary.
+        layout = {v: pos for v, pos in zip(self.G, layout_matrix)}
+
+        # FIXME: This needs to only rotate and scale the R2 projection of the layout.
+        # # Rotate the layout
+        # if self.rotate and self.d == 2:
+        #     layout = self.rotate_layout(layout)
+        # # Scale the layout
+        # if self.rescale:
+        #     layout = self.scale_and_center(layout)
 
         self.layout = layout
         return layout
