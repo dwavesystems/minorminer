@@ -24,6 +24,7 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
         A layout for T; i.e. a map from T to R^d.
     max_subset_size : tuple (default (1, 1))
         A lower bound and an upper bound on the size of subets of T that will be considered when mapping vertices of S.
+        If different from default, then T_layout must be a Layout object.
     num_neighbors: int (default 1)
         The number of closest neighbors to query from the KDTree--the neighbor with minimium overlap is chosen.
 
@@ -32,42 +33,50 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
     placement : dict
         A mapping from vertices of S (keys) to subsets of vertices of T (values).
     """
-    S_layout = parse_layout(S_layout)
+    S_layout_dict = parse_layout(S_layout)
 
-    # Copy the dictionary layout for T so we can modify it.
-    layout = dict(T_layout.layout)
-    # Get the graph for layout T
-    T = T_layout.G
+    # Different things happen based on the datatype of T_layout
+    T_layout_dict = None
 
     # Get connected subgraphs to consider mapping to
     if max_subset_size != (1, 1):
+        assert isinstance(
+            T_layout, Layout), "Pass in a Layout object so we can access the graph."
+
+        # Copy the dictionary layout for T so we can modify it.
+        T_layout_dict = dict(T_layout.layout)
+
         T_subgraphs = graph_utils.get_connected_subgraphs(
-            T, max_subset_size[0], max_subset_size[1])
+            T_layout.G, max_subset_size[0], max_subset_size[1])
 
         # Calculate the barycenter (centroid) of each subset with size > 1
         for k in range(max(2, max_subset_size[0]), max_subset_size[1]+1):
             for subgraph in T_subgraphs[k]:
-                layout[subgraph] = np.mean(
-                    tuple(layout[v] for v in subgraph), axis=0)
+                T_layout_dict[subgraph] = np.mean(
+                    tuple(T_layout_dict[v] for v in subgraph), axis=0)
+
+    # Copy the dictionary layout for T so we can modify it.
+    if T_layout_dict is None:
+        T_layout_dict = dict(T_layout)
 
     # Determine if you need to add or delete subsets of size 1
     if max_subset_size[0] == 1:
-        for v in T:
-            layout[frozenset((v,))] = layout[v]
-            del layout[v]
+        for v in T_layout_dict:
+            T_layout_dict[frozenset((v,))] = T_layout_dict[v]
+            del T_layout_dict[v]
     else:
-        for v in T:
-            del layout[v]
+        for v in T_layout_dict:
+            del T_layout_dict[v]
 
     # Use scipy's KDTree to solve the nearest neighbor problem.
     # This requires a few lookup tables
-    T_vertex_lookup = {tuple(p): v for v, p in layout.items()}
-    layout_points = [tuple(p) for p in layout.values()]
+    T_vertex_lookup = {tuple(p): v for v, p in T_layout_dict.items()}
+    layout_points = [tuple(p) for p in T_layout_dict.values()]
     overlap_counter = Counter()
     tree = KDTree(layout_points)
 
     placement = {}
-    for u, u_pos in S_layout.items():
+    for u, u_pos in S_layout_dict.items():
         distances, v_indices = tree.query(u_pos, num_neighbors)
         placement[u] = layout_utils.minimize_overlap(
             distances, v_indices, T_vertex_lookup, layout_points, overlap_counter)
@@ -94,24 +103,24 @@ def injective(S_layout, T_layout):
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
-    S_layout = parse_layout(S_layout)
-    T_layout = parse_layout(T_layout)
+    S_layout_dict = parse_layout(S_layout)
+    T_layout_dict = parse_layout(T_layout)
 
     X = nx.Graph()
     # Relabel the vertices from S and T in case of name conflict; S --> 0 and T --> 1.
     X.add_edges_from(
         (
             ((0, u), (1, v), dict(weight=distance.euclidean(u_pos, v_pos)))
-            for (u, u_pos), (v, v_pos) in product(S_layout.items(), T_layout.items())
+            for (u, u_pos), (v, v_pos) in product(S_layout_dict.items(), T_layout_dict.items())
         )
     )
     M = nx.bipartite.minimum_weight_full_matching(
-        X, ((0, u) for u in S_layout))
+        X, ((0, u) for u in S_layout_dict))
 
-    return {u: M[(0, u)][1] for u in S_layout.keys()}
+    return {u: [M[(0, u)][1]] for u in S_layout_dict.keys()}
 
 
-def binning(S_layout, T_layout, bins=None):
+def binning(S_layout, T_layout, bins=None, strategy="cycle"):
     """
     Map the vertices of S to the vertices of T by first mapping both to an integer lattice.
 
@@ -124,6 +133,9 @@ def binning(S_layout, T_layout, bins=None):
     bins : tuple or int (default None)
         The number of bins to put along dimensions; see Layout.to_integer_lattice(). If None, check to see if T is a
         dnx.*_graph() object. If it is, compute bins to be the grid dimension of T.
+    strategy : string (default "cycle")
+        cycle : Cycle through the qubits in the bin and assign vertices to them one at a time.
+        all : Map each vertex in a bin to all qubits in that bin.
 
     Returns
     -------
@@ -145,11 +157,61 @@ def binning(S_layout, T_layout, bins=None):
     T_binned = T_layout.integer_lattice_bins(bins)
 
     placement = {}
-    for p, V in S_binned.items():
-        for v, q in zip(V, cycle(T_binned[p])):
-            placement[v] = q
+    if strategy == "cycle":
+        for p, S in S_binned.items():
+            for v, q in zip(S, cycle(T_binned[p])):
+                placement[v] = [q]
+
+    elif strategy == "all":
+        for p, V in S_binned.items():
+            for v in V:
+                placement[v] = T_binned[p]
 
     return placement
+
+
+def row_col(S_layout, T_layout):
+    """
+    Map each vertex of S to its nearest row/column intersection qubit in T (T must be a D-Wave hardware graph). 
+
+    Parameters
+    ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T_layout : layout.Layout
+        A layout for T; i.e. a map from T to R^d.
+
+    Returns
+    -------
+    placement : dict
+        A mapping from vertices of S (keys) to vertices of T (values).
+    """
+    # Get those assertions out of the way
+    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
+    assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
+        "Layout class instances must be passed in.")
+    dims = dnx_utils.lookup_dnx_dims(T_layout.G)
+    assert dims is not None, "I need a D-Wave NetworkX graph."
+
+    # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
+    n, m, t = dims
+    columns, rows = n*t-1, m*t-1
+    scaled_layout = S_layout.scale_to_positive_orthant(
+        (columns, rows), invert=True)
+
+    placement = {}
+    for v, pos in scaled_layout.items():
+        _, j, x_k = dnx_utils.get_row_or_column(pos[0], t)
+        _, i, y_k = dnx_utils.get_row_or_column(pos[1], t)
+
+        placement[v] = [(i, j, 0, x_k), (i, j, 1, y_k)]
+
+    # Return the right type of vertices
+    if T_layout.G.graph["labels"] == "coordinate":
+        return placement
+    else:
+        C = dnx.chimera_coordinates(m, n, t)
+        return {v: [C.chimera_to_linear(q) for q in Q] for v, Q in placement.items()}
 
 
 def crosses(S_layout, T_layout):

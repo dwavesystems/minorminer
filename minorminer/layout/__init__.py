@@ -1,10 +1,12 @@
+import time
+
 import networkx as nx
 from minorminer.layout.construction import neighborhood, pass_along
 from minorminer.layout.hinting import initial, suspend
 from minorminer.layout.layout import (Layout, R2xT, dnx_layout, kamada_kawai,
                                       p_norm, pca)
 from minorminer.layout.placement import (binning, closest, crosses, injective,
-                                         tees)
+                                         row_col, tees)
 
 
 def find_embedding(
@@ -50,6 +52,8 @@ def find_embedding(
         Output is dependent upon kwargs passed to minonminer, but more or less emb is a mapping from vertices of 
         S (keys) to chains in T (values).
     """
+    start = time.process_time()
+
     # Parse kwargs
     layout_kwargs, placement_kwargs, construction_kwargs = parse_kwargs(kwargs)
 
@@ -61,7 +65,13 @@ def find_embedding(
         S_layout, T_layout, placement, placement_kwargs)
 
     # Create the chains
-    chains = construction(S, T, vertex_map, **construction_kwargs)
+    chains = construction(S_layout, T_layout, vertex_map,
+                          **construction_kwargs)
+
+    end = time.process_time()
+    timeout = kwargs.get("timeout")
+    if timeout:
+        kwargs["timeout"] = timeout - (end - start)
 
     # Run minerminor.find_embedding()
     if return_layout:
