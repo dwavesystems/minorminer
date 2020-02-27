@@ -66,8 +66,9 @@ def R2xT(
     return L
 
 
-def manhattan(
+def p_norm(
     G,
+    p=2,
     starting_layout=None,
     G_distances=None,
     d=2,
@@ -83,7 +84,7 @@ def manhattan(
     """
     L = Layout(G, d=d, center=center, scale=scale,
                rescale=rescale, rotate=rotate)
-    _ = L.manhattan(starting_layout, G_distances, **kwargs)
+    _ = L.p_norm(p, starting_layout, G_distances, **kwargs)
     return L
 
 
@@ -265,10 +266,10 @@ class Layout():
         self.layout = layout
         return layout
 
-    def manhattan(self, starting_layout=None, G_distances=None, **kwargs):
+    def p_norm(self, p=2, starting_layout=None, G_distances=None, **kwargs):
         """
-        Embeds a graph in a custom metric space and minimizes a Kamada-Kawai-esque objective function to achieve
-        an embedding with low distortion. This computes a layout where the graph distance and the l1-distance are 
+        Embeds a graph in R^d with the p-norm and minimizes a Kamada-Kawai-esque objective function to achieve
+        an embedding with low distortion. This computes a layout where the graph distance and the p-distance are 
         very close to each other.
 
         Parameters
@@ -278,6 +279,8 @@ class Layout():
         G_distances : dict or Numpy 2d array (default None)
             A dictionary of dictionaries representing distances from every vertex in G to every other vertex in G, or
             a matrix representing the same data. If None, it is computed.
+        p : int (default 2)
+            The order of the p-norm to use as a metric.
 
         Returns
         -------
@@ -286,12 +289,16 @@ class Layout():
         """
         # Pick a random layout in R^2
         if starting_layout is None:
-            starting_layout = nx.random_layout(self.G)
+            starting_layout = nx.spectral_layout(self.G, dim=self.d)
 
         # Make sure the layout is a vector
         if isinstance(starting_layout, dict):
             starting_layout = np.array(
                 [pos for pos in starting_layout.values()])
+
+        # Check the dimension of the layout
+        k = starting_layout.shape[1]
+        assert self.d == k, f"The starting layout has dimension {k}, but the object wants dimension {self.d}"
 
         # Save on distance calculations by passing them in
         if G_distances is None:
@@ -303,15 +310,12 @@ class Layout():
                 [[V[v] for v in self.G] for u, V in G_distances.items()]
             )
 
-        # Get the dimension of the layout
-        k = starting_layout.shape[1]
-
         # Solve the Kamada-Kawai-esque minimization function
         X = optimize.minimize(
-            layout_utils.manhattan,
+            layout_utils.p_norm,
             starting_layout.ravel(),
             method='L-BFGS-B',
-            args=(G_distances, k),
+            args=(G_distances, k, p),
             jac=True,
             **kwargs
         )
@@ -320,8 +324,8 @@ class Layout():
         layout = {v: pos for v, pos in zip(
             self.G, X.x.reshape(len(self.G), k))}
 
-        # Rotate the layout
-        if self.rotate and self.d == 2:
+        # Rotate the layout.
+        if self.d == 2 and self.rotate:
             layout = self.rotate_layout(layout)
         # Scale the layout
         if self.rescale:

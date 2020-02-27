@@ -269,20 +269,20 @@ def random_layout(G):
     )
 
 
-def manhattan(layout_vector, G_distances, k):
+def p_norm(layout_vector, G_distances, k, p):
     """
-    Compute the sum of differences squared between the l1-metric and the graph distance as well as the gradient.
+    Compute the sum of differences squared between the l-metric and the graph distance as well as the gradient.
 
     Parameters
     ----------
     layout : Numpy Array
         A vector indexed by vertices of G (ordered by iterating through G) whose values are points in some metric space.
-
     G_distances : Numpy 2d array
         An array indexed by vertices of G (ordered by iterating through G) whose i,j value is d_G(i,j).
-
     k : int
         The dimension of the metric space. This will reshape the flattened array passed in to the cost function.
+    p : int
+        The order of the p-norm to use.
 
     Returns
     -------
@@ -297,19 +297,40 @@ def manhattan(layout_vector, G_distances, k):
     diff = layout[:, np.newaxis, :] - layout[np.newaxis, :, :]
 
     # A 2d matrix of the distances between points
-    l1_dist = np.linalg.norm(diff, ord=1, axis=-1)
+    dist = np.linalg.norm(diff, ord=p, axis=-1)
 
     # A vectorized version of the gradient function
     with np.errstate(divide='ignore', invalid='ignore'):  # handle division by 0
-        grad = np.einsum(
-            'ijk,ij,ijk->ik',
-            2*diff,
-            l1_dist - G_distances,
-            np.nan_to_num(1/np.abs(diff))
-        )
+        if p == 1:
+            grad = np.einsum(
+                'ijk,ij,ijk->ik',
+                2*diff,
+                dist - G_distances,
+                np.nan_to_num(1/np.abs(diff))
+            )
+        elif p == float("inf"):
+            # Note: It may not be faster to do this outside of einsum
+            abs_diff = np.abs(diff)
+            x_bigger = abs_diff[:, :, 0] > abs_diff[:, :, 1]
+
+            grad = np.einsum(
+                'ijk,ij,ijk,ijk->ik',
+                2*diff,
+                dist - G_distances,
+                np.nan_to_num(1/abs_diff),
+                np.dstack((x_bigger, np.logical_not(x_bigger)))
+            )
+        else:
+            grad = np.einsum(
+                'ijk,ijk,ij,ij->ik',
+                2*diff,
+                np.abs(diff)**(p-2),
+                dist - G_distances,
+                np.nan_to_num((1/dist)**(p-1))
+            )
 
     # Return the cost and the gradient
-    return np.sum((G_distances - l1_dist)**2), grad.ravel()
+    return np.sum((G_distances - dist)**2), grad.ravel()
 
 
 def R2xT(layout_vector, G_distances):

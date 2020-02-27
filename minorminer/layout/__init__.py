@@ -2,7 +2,7 @@ import networkx as nx
 from minorminer.layout.construction import neighborhood, pass_along
 from minorminer.layout.hinting import initial, suspend
 from minorminer.layout.layout import (Layout, R2xT, dnx_layout, kamada_kawai,
-                                      manhattan, pca)
+                                      p_norm, pca)
 from minorminer.layout.placement import (binning, closest, crosses, injective,
                                          tees)
 
