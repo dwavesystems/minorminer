@@ -402,42 +402,10 @@ class Layout():
         self.layout = layout
         return layout
 
-    def integer_lattice_layout(self, lattice_points=3):
-        """
-        Map the vertices in a layout to their closest integer points in the scaled positive orthant; see
-        scale_to_positive_orthant().
-
-        Note: if the graph is Chimera or Pegasus, lattice points are inferred from the graph object and the layout is
-        ignored. If the user desires to have lattice points computed from a layout (e.g. kamada_kawai), make sure that
-        the graph object is created with the following flags: dnx.*_graph(coordinates=False, data=False).
-
-        Parameters
-        ----------
-        lattice_points : int or tuple (default 3)
-            The number of lattice points in each dimension. If it is an integer, there will be that many lattice points
-            in each dimension of the layout. If it is a tuple, each entry specifies how many lattice points are in each
-            dimension in the layout.
-
-        Returns
-        -------
-        layout : dict
-            A mapping from vertices of G (keys) to points in the scaled positive orthant (values).
-        """
-        # Look to see if you can get the lattice information from the graph object
-        coordinates = dnx_utils.lookup_dnx_coordinates(self.G)
-        if coordinates:
-            return {v: coord + (self.d-2)*(0,) for v, coord in coordinates.items()}
-
-        # Compute the lattice information by scaling and rounding
-        lattice_vector = layout_utils.to_vector(lattice_points, self.d)
-        scaled_layout = self.scale_to_positive_orthant(
-            lattice_vector+1, border=1, invert=True)
-        return {v: layout_utils.border_round(p, lattice_vector-1, self.d) for v, p in scaled_layout.items()}
-
     def integer_lattice_bins(self, lattice_points=3):
         """
-        Map the bins of an integer lattice to lists of closest vertices in the scaled positive orthant; see
-        scale_to_positive_orthant().
+        Map the points of an integer lattice to lists of closest vertices in the scaled positive orthant and vice-versa;
+        see scale_to_positive_orthant().
 
         Note: If the graph is Chimera or Pegasus, lattice points are inferred from the graph object using the first two
         coordinates of vertices of Chimera and Pegasus, i.e. the layout is ignored. If the user desires to have lattice
@@ -453,18 +421,25 @@ class Layout():
 
         Returns
         -------
-        layout : dict
+        integer_point_map : dict
             A mapping from points in the scaled positive orthant (keys) to lists of vertices of G (values).
+        layout : dict
+            A mapping from vertices of G (keys) to points in the scaled positive orthant (values).
         """
         integer_point_map = defaultdict(list)
+        layout = {}
 
         # Look to see if you can get the lattice information from the graph object.
         # If so, look them up and return.
         coordinates = dnx_utils.lookup_dnx_coordinates(self.G)
         if coordinates:
             for v, coord in coordinates.items():
-                integer_point_map[coord + (self.d-2)*(0,)].append(v)
-            return integer_point_map
+                # Extend to d-dimensions
+                ext_cord = coord + (self.d-2)*(0,)
+
+                integer_point_map[ext_cord].append(v)
+                layout[v] = ext_cord
+            return integer_point_map, layout
 
         # Compute the lattice information by scaling and rounding
         lattice_vector = layout_utils.to_vector(lattice_points, self.d)
@@ -472,11 +447,13 @@ class Layout():
             lattice_vector+1, border=1, invert=True)
 
         for v, p in scaled_layout.items():
-            integer_point_map[
-                layout_utils.border_round(p, lattice_vector-1, self.d)
-            ].append(v)
+            # Find the bin
+            rounded_p = layout_utils.border_round(p, lattice_vector-1, self.d)
 
-        return integer_point_map
+            integer_point_map[rounded_p].append(v)
+            layout[v] = rounded_p
+
+        return integer_point_map, layout
 
     def scale_to_positive_orthant(self, length=1, border=0., invert=False):
         """

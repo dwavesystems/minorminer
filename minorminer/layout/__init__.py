@@ -1,20 +1,20 @@
 import time
 
 import networkx as nx
-from minorminer.layout.construction import neighborhood, pass_along
+from minorminer.layout.construction import crosses, neighborhood, pass_along
 from minorminer.layout.hinting import initial, suspend
 from minorminer.layout.layout import (Layout, R2xT, dnx_layout, kamada_kawai,
                                       p_norm, pca)
-from minorminer.layout.placement import (binning, closest, crosses, injective,
-                                         row_col, tees)
+from minorminer.layout.placement import (binning, closest, injective,
+                                         intersection)
 
 
 def find_embedding(
     S,
     T,
-    layout=kamada_kawai,
-    placement=closest,
-    construction=pass_along,
+    layout=p_norm,
+    placement=intersection,
+    construction=crosses,
     hinting=initial,
     return_layout=False,
     **kwargs
@@ -65,7 +65,7 @@ def find_embedding(
         S_layout, T_layout, placement, placement_kwargs)
 
     # Create the chains
-    chains = construction(S_layout, T_layout, vertex_map,
+    chains = construction(vertex_map, S_layout=S_layout, T_layout=T_layout,
                           **construction_kwargs)
 
     end = time.process_time()

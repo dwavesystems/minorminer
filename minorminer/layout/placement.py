@@ -6,12 +6,13 @@ from itertools import cycle, product
 import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
-from minorminer.layout.layout import Layout
-from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
+from minorminer.layout import layout
+from minorminer.layout.utils import (dnx_utils, graph_utils, layout_utils,
+                                     placement_utils)
 from scipy.spatial import KDTree, distance
 
 
-def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
+def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1):
     """
     Maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. For each vertex u in
     S_layout and each vertex v in T_layout, map u to the v with minimum Euclidean distance (||u - v||_2).
@@ -20,8 +21,8 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
     ----------
     S_layout : dict or layout.Layout
         A layout for S; i.e. a map from S to R^d.
-    T_layout : dict or layout.Layout
-        A layout for T; i.e. a map from T to R^d.
+    T : dict or layout.Layout or dwave-networkx.Graph
+        A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
     max_subset_size : tuple (default (1, 1))
         A lower bound and an upper bound on the size of subets of T that will be considered when mapping vertices of S.
         If different from default, then T_layout must be a Layout object.
@@ -33,7 +34,8 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
     placement : dict
         A mapping from vertices of S (keys) to subsets of vertices of T (values).
     """
-    S_layout_dict = parse_layout(S_layout)
+    S_layout_dict = placement_utils.parse_layout(S_layout)
+    T_layout = placement_utils.parse_T(T)
 
     # Different things happen based on the datatype of T_layout
     T_layout_dict = None
@@ -41,7 +43,7 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
     # Get connected subgraphs to consider mapping to
     if max_subset_size != (1, 1):
         assert isinstance(
-            T_layout, Layout), "Pass in a Layout object so we can access the graph."
+            T_layout, layout.Layout), "Pass in a Layout object so we can access the graph."
 
         # Copy the dictionary layout for T so we can modify it.
         T_layout_dict = dict(T_layout.layout)
@@ -84,7 +86,7 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
     return placement
 
 
-def injective(S_layout, T_layout):
+def injective(S_layout, T):
     """
     Injectively maps vertices of S to the closest vertices of T as given by S_layout and T_layout. This is the
     assignment problem. To solve this it builds a complete bipartite graph between S and T with edge weights the
@@ -95,16 +97,18 @@ def injective(S_layout, T_layout):
     ----------
     S_layout : dict or layout.Layout
         A layout for S; i.e. a map from S to R^d.
-    T_layout : dict or layout.Layout
-        A layout for T; i.e. a map from T to R^d.
+    T : dict or layout.Layout or dwave-networkx.Graph
+        A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
 
     Returns
     -------
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
-    S_layout_dict = parse_layout(S_layout)
-    T_layout_dict = parse_layout(T_layout)
+    T_layout = placement_utils.parse_T(T)
+
+    S_layout_dict = placement_utils.parse_layout(S_layout)
+    T_layout_dict = placement_utils.parse_layout(T_layout)
 
     X = nx.Graph()
     # Relabel the vertices from S and T in case of name conflict; S --> 0 and T --> 1.
@@ -120,7 +124,7 @@ def injective(S_layout, T_layout):
     return {u: [M[(0, u)][1]] for u in S_layout_dict.keys()}
 
 
-def binning(S_layout, T_layout, bins=None, strategy="cycle"):
+def binning(S_layout, T, bins=None, strategy="cycle"):
     """
     Map the vertices of S to the vertices of T by first mapping both to an integer lattice.
 
@@ -128,8 +132,8 @@ def binning(S_layout, T_layout, bins=None, strategy="cycle"):
     ----------
     S_layout : layout.Layout
         A layout for S; i.e. a map from S to R^d.
-    T_layout : layout.Layout
-        A layout for T; i.e. a map from T to R^d.
+    T : layout.Layout or dwave-networkx.Graph
+        A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
     bins : tuple or int (default None)
         The number of bins to put along dimensions; see Layout.to_integer_lattice(). If None, check to see if T is a
         dnx.*_graph() object. If it is, compute bins to be the grid dimension of T.
@@ -142,7 +146,9 @@ def binning(S_layout, T_layout, bins=None, strategy="cycle"):
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
-    assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
+    T_layout = placement_utils.parse_T(T, disallow="dict")
+
+    assert isinstance(S_layout, layout.Layout) and isinstance(T_layout, layout.Layout), (
         "Layout class instances must be passed in.")
 
     if bins is None:
@@ -153,8 +159,8 @@ def binning(S_layout, T_layout, bins=None, strategy="cycle"):
         else:
             bins = 2
 
-    S_binned = S_layout.integer_lattice_bins(bins)
-    T_binned = T_layout.integer_lattice_bins(bins)
+    S_binned, _ = S_layout.integer_lattice_bins(bins)
+    T_binned, _ = T_layout.integer_lattice_bins(bins)
 
     placement = {}
     if strategy == "cycle":
@@ -170,7 +176,7 @@ def binning(S_layout, T_layout, bins=None, strategy="cycle"):
     return placement
 
 
-def row_col(S_layout, T_layout):
+def intersection(S_layout, T):
     """
     Map each vertex of S to its nearest row/column intersection qubit in T (T must be a D-Wave hardware graph). 
 
@@ -178,23 +184,21 @@ def row_col(S_layout, T_layout):
     ----------
     S_layout : layout.Layout
         A layout for S; i.e. a map from S to R^d.
-    T_layout : layout.Layout
-        A layout for T; i.e. a map from T to R^d.
+    T : layout.Layout or dwave-networkx.Graph
+        A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
 
     Returns
     -------
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
-    # Get those assertions out of the way
-    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
-    assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
+    T_layout = placement_utils.parse_T(T, disallow="dict")
+    assert isinstance(S_layout, layout.Layout) and isinstance(T_layout, layout.Layout), (
         "Layout class instances must be passed in.")
-    dims = dnx_utils.lookup_dnx_dims(T_layout.G)
-    assert dims is not None, "I need a D-Wave NetworkX graph."
+    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
 
     # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
-    n, m, t = dims
+    n, m, t = dnx_utils.lookup_dnx_dims(T_layout.G)
     columns, rows = n*t-1, m*t-1
     scaled_layout = S_layout.scale_to_positive_orthant(
         (columns, rows), invert=True)
@@ -205,80 +209,6 @@ def row_col(S_layout, T_layout):
         _, i, y_k = dnx_utils.get_row_or_column(pos[1], t)
 
         placement[v] = [(i, j, 0, x_k), (i, j, 1, y_k)]
-
-    # Return the right type of vertices
-    if T_layout.G.graph["labels"] == "coordinate":
-        return placement
-    else:
-        C = dnx.chimera_coordinates(m, n, t)
-        return {v: [C.chimera_to_linear(q) for q in Q] for v, Q in placement.items()}
-
-
-def crosses(S_layout, T_layout):
-    """
-    Map the vertices of S to rows and columns of qubits of T (T must be a D-Wave hardware graph). 
-
-    If you project the layout of S onto 1-dimensional subspaces, for each vertex u of S a chain is a minimal interval 
-    containing all neighbors of u. This amounts to a placement where each chain is a cross shaped chain where the middle 
-    of the cross is contained in a unit cell, and the legs of the cross extend horizontally and vertically as far as 
-    there are neighbors of u.
-
-    This guarantees in an overlap embedding of S in T.
-
-    Parameters
-    ----------
-    S_layout : layout.Layout
-        A layout for S; i.e. a map from S to R^d.
-    T_layout : layout.Layout
-        A layout for T; i.e. a map from T to R^d.
-
-    Returns
-    -------
-    placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
-    """
-    # Get those assertions out of the way
-    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
-    assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
-        "Layout class instances must be passed in.")
-    dims = dnx_utils.lookup_dnx_dims(T_layout.G)
-    assert dims is not None, "I need a D-Wave NetworkX graph."
-
-    # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
-    n, m, t = dims
-    columns, rows = n*t-1, m*t-1
-    scaled_layout = S_layout.scale_to_positive_orthant(
-        (columns, rows), invert=True)
-
-    placement = {}
-    for v, pos in scaled_layout.items():
-        r_x, j, x_k = dnx_utils.get_row_or_column(pos[0], t)
-        r_y, i, y_k = dnx_utils.get_row_or_column(pos[1], t)
-
-        min_x, max_x = r_x, r_x
-        min_y, max_y = r_y, r_y
-        # Extend the cross for as long as your neighbors
-        for u in S_layout.G[v]:
-            x, _, _ = dnx_utils.get_row_or_column(scaled_layout[u][0], t)
-            min_x = min(min_x, x)
-            max_x = max(max_x, x)
-
-            y, _, _ = dnx_utils.get_row_or_column(scaled_layout[u][1], t)
-            min_y = min(min_y, y)
-            max_y = max(max_y, y)
-
-        # Compute the qubits as you run along a row and column
-        row_qubits = set()
-        for p in range(min_x, max_x+1):
-            _, col, _ = dnx_utils.get_row_or_column(p, t)
-            row_qubits.add((i, col, 1, y_k))
-
-        column_qubits = set()
-        for p in range(min_y, max_y+1):
-            _, row, _ = dnx_utils.get_row_or_column(p, t)
-            column_qubits.add((row, j, 0, x_k))
-
-        placement[v] = row_qubits | column_qubits
 
     # Return the right type of vertices
     if T_layout.G.graph["labels"] == "coordinate":
@@ -370,13 +300,3 @@ def tees(S_layout, T_layout):
     else:
         C = dnx.chimera_coordinates(m, n, t)
         return {v: [C.chimera_to_linear(q) for q in Q] for v, Q in placement.items()}
-
-
-def parse_layout(layout):
-    """
-    Take in a layout class object or a dictionary and return the dictionary representation.
-    """
-    if isinstance(layout, Layout):
-        return layout.layout
-    else:
-        return layout
