@@ -64,17 +64,29 @@ def crosses(placement, S_layout, T, **kwargs):
     else:
         n, m, t = dnx_utils.lookup_dnx_dims(T_layout.G)
         C = dnx.chimera_coordinates(m, n, t)
-        chains = {v: [C.linear_to_chimera(
-            q) for q in Q] for v, Q in placement.items()}
+        chains = {
+            v: {C.linear_to_chimera(q) for q in Q} for v, Q in placement.items()
+        }
 
-    for v, Q in placement.items():
-        hor_v, ver_v = (Q[0], Q[1]) if Q[0][2] == 0 else (Q[1], Q[0])
+    for v in S_layout.G:
+        # Figure out which qubit is the the horizontal one and which is the vertical one
+        Q = chains[v]
+        for q in Q:
+            if q[2] == 0:
+                hor_v = q
+            else:
+                ver_v = q
 
         min_x, max_x = ver_v[1], ver_v[1]
         min_y, max_y = ver_v[0], ver_v[0]
         for u in S_layout.G[v]:
-            QQ = placement[u]
-            hor_u, ver_u = (QQ[0], QQ[1]) if QQ[0][2] == 0 else (QQ[1], QQ[0])
+            # Figure out which qubit is the the horizontal one and which is the vertical one
+            QQ = chains[u]
+            for q in QQ:
+                if q[2] == 0:
+                    hor_u = q
+                else:
+                    ver_u = q
 
             min_x = min(min_x, hor_u[1])
             max_x = max(max_x, hor_u[1])

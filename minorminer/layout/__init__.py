@@ -65,7 +65,7 @@ def find_embedding(
         S_layout, T_layout, placement, placement_kwargs)
 
     # Create the chains
-    chains = construction(vertex_map, S_layout=S_layout, T_layout=T_layout,
+    chains = construction(vertex_map, S_layout=S_layout, T=T_layout,
                           **construction_kwargs)
 
     end = time.process_time()

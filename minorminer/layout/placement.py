@@ -35,10 +35,17 @@ def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1):
         A mapping from vertices of S (keys) to subsets of vertices of T (values).
     """
     S_layout_dict = placement_utils.parse_layout(S_layout)
-    T_layout = placement_utils.parse_T(T)
 
-    # Different things happen based on the datatype of T_layout
-    T_layout_dict = None
+    # FIXME: This is real messy
+    T_layout = placement_utils.parse_T(T)  # Turns graph into layout
+
+    if isinstance(T_layout, layout.Layout):
+        # make a copy
+        T_layout_dict = dict(T_layout.layout)
+    elif isinstance(T_layout, dict):
+        T_layout_dict = dict(T_layout)
+
+    T_vertices = list(T_layout_dict.keys())
 
     # Get connected subgraphs to consider mapping to
     if max_subset_size != (1, 1):
@@ -57,17 +64,13 @@ def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1):
                 T_layout_dict[subgraph] = np.mean(
                     tuple(T_layout_dict[v] for v in subgraph), axis=0)
 
-    # Copy the dictionary layout for T so we can modify it.
-    if T_layout_dict is None:
-        T_layout_dict = dict(T_layout)
-
     # Determine if you need to add or delete subsets of size 1
     if max_subset_size[0] == 1:
-        for v in T_layout_dict:
+        for v in T_vertices:
             T_layout_dict[frozenset((v,))] = T_layout_dict[v]
             del T_layout_dict[v]
     else:
-        for v in T_layout_dict:
+        for v in T_vertices:
             del T_layout_dict[v]
 
     # Use scipy's KDTree to solve the nearest neighbor problem.
