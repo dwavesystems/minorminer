@@ -11,18 +11,30 @@ from scipy.spatial.distance import euclidean
 from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
 
 
-def kamada_kawai(G, d=2, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
+def p_norm(
+    G,
+    p=2,
+    starting_layout=None,
+    G_distances=None,
+    d=2,
+    center=None,
+    scale=None,
+    rescale=True,
+    rotate=False,
+    recenter=True,
+    **kwargs
+):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
     L = Layout(G, d=d, center=center, scale=scale,
-               seed=seed, rescale=rescale, rotate=rotate)
-    _ = L.kamada_kawai(**kwargs)
+               rescale=rescale, rotate=rotate, recenter=recenter)
+    _ = L.p_norm(p, starting_layout, G_distances, **kwargs)
     return L
 
 
-def dnx_layout(G, d=2, center=None, scale=1., rescale=True, rotate=True, **kwargs):
+def dnx_layout(G, d=2, center=None, scale=None, rescale=True, rotate=True, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
@@ -66,30 +78,31 @@ def R2xT(
     return L
 
 
-def p_norm(
-    G,
-    p=2,
-    starting_layout=None,
-    G_distances=None,
-    d=2,
-    center=None,
-    scale=1.,
-    rescale=True,
-    rotate=False,
-    **kwargs
-):
+def kamada_kawai(G, d=2, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
     L = Layout(G, d=d, center=center, scale=scale,
-               rescale=rescale, rotate=rotate)
-    _ = L.p_norm(p, starting_layout, G_distances, **kwargs)
+               seed=seed, rescale=rescale, rotate=rotate)
+    _ = L.kamada_kawai(**kwargs)
     return L
 
 
 class Layout():
-    def __init__(self, G, d=2, center=None, scale=1., layout=None, seed=None, rescale=True, rotate=True, **kwargs):
+    def __init__(
+        self,
+        G,
+        d=2,
+        center=None,
+        scale=1.,
+        layout=None,
+        seed=None,
+        rescale=True,
+        rotate=True,
+        recenter=True,
+        **kwargs
+    ):
         """
         Compute a layout for G, i.e., a map from G to [center - scale, center + scale]^d.
 
@@ -131,43 +144,85 @@ class Layout():
         self.layout = layout
         self.seed = seed
         self.rescale = rescale
+        self.recenter = recenter
         self.rotate = rotate
 
-    def kamada_kawai(self, **kwargs):
+    def p_norm(self, p=2, starting_layout=None, G_distances=None, **kwargs):
         """
-        The d-dimensional Kamada-Kawai spring layout.
+        Embeds a graph in R^d with the p-norm and minimizes a Kamada-Kawai-esque objective function to achieve
+        an embedding with low distortion. This computes a layout where the graph distance and the p-distance are 
+        very close to each other.
 
         Parameters
         ----------
-        kwargs : dict
-            Keyword arguments are passed to nx.kamada_kawai_layout().
+        starting_layout : dict or Numpy Array
+            A mapping from the vertices of G to points in the metric space.
+        G_distances : dict or Numpy 2d array (default None)
+            A dictionary of dictionaries representing distances from every vertex in G to every other vertex in G, or
+            a matrix representing the same data. If None, it is computed.
+        p : int (default 2)
+            The order of the p-norm to use as a metric.
 
         Returns
         -------
         layout : dict
             A mapping from vertices of G (keys) to points in R^d (values).
         """
-        # NetworkX has a bug #3658.
-        # Once fixed, these can collapse and `dim=n` can be part of `**kwargs`.
-        if self.d in (1, 2):
-            layout = nx.kamada_kawai_layout(
-                self.G, dim=self.d, center=self.center, scale=self.scale, **kwargs)
-        else:
-            # The random_layout is in [0, 1]^d
-            random_layout = nx.random_layout(
-                self.G, dim=self.d, seed=self.seed)
+        # Pick a random layout in R^2
+        if starting_layout is None:
+            starting_layout = nx.spectral_layout(self.G, dim=self.d)
 
-            # Convert it to [center - scale, center + scale]^d
-            transformed_random_layout = self.scale_and_center(
-                random_layout, center=self.d*(1/2,), scale=1/2)
+        # Make sure the layout is a vector
+        if isinstance(starting_layout, dict):
+            starting_layout = np.array(
+                [pos for pos in starting_layout.values()])
 
-            layout = nx.kamada_kawai_layout(
-                self.G, pos=transformed_random_layout, dim=self.d, center=self.center, scale=self.scale, **kwargs)
+        # Check the dimension of the layout
+        k = starting_layout.shape[1]
+        assert self.d == k, f"The starting layout has dimension {k}, but the object wants dimension {self.d}"
 
-        if self.rotate and self.d == 2:
-            layout = self.rotate_layout(layout, center=self.center)
+        # Save on distance calculations by passing them in
+        if G_distances is None:
+            G_distances = layout_utils.graph_distances(self.G)
+
+        # Make sure the distances are a matrix
+        if isinstance(G_distances, dict):
+            G_distances = np.array(
+                [[V[v] for v in self.G] for u, V in G_distances.items()]
+            )
+
+        # Solve the Kamada-Kawai-esque minimization function
+        X = optimize.minimize(
+            layout_utils.p_norm,
+            starting_layout.ravel(),
+            method='L-BFGS-B',
+            args=(G_distances, k, p),
+            jac=True,
+            **kwargs
+        )
+
+        # Read out the solution to the minimization problem
+        layout_array = X.x.reshape(len(self.G), k)
+
+        if self.scale is None:
+            self.scale = np.max(
+                np.linalg.norm(
+                    layout_array - self.center, float("inf"), axis=0
+                )
+            )
+
+        # Reshape the solution and convert to dictionary.
+        layout = {v: pos for v, pos in zip(self.G, layout_array)}
+
+        # Rotate the layout.
+        if self.d == 2 and self.rotate:
+            layout = self.rotate_layout(layout)
+        # Center the layout.
+        if self.recenter:
+            layout = self.center_layout(layout)
+        # Scale the layout
         if self.rescale:
-            layout = self.scale_and_center(layout, center=self.center)
+            layout = self.scale_layout(layout)
 
         self.layout = layout
         return layout
@@ -191,6 +246,11 @@ class Layout():
         if family not in ("chimera", "pegasus"):
             raise ValueError(
                 "Only dnx.chimera_graph() and dnx.pegasus_graph() are supported.")
+
+        # Default scale is dependent on the longest dimension of Chimera or Pegasus.
+        if self.scale is None:
+            n, m, _ = dnx_utils.lookup_dnx_dims(self.G)
+            self.scale = max(n, m)/2
 
         # If you are rescalling (recommended) add kwargs for dwave_networkx to consume.
         if self.rescale:
@@ -259,77 +319,12 @@ class Layout():
         # Rotate the layout
         if self.rotate and self.d == 2:
             layout = self.rotate_layout(layout)
+        # Center the layout.
+        if self.recenter:
+            layout = self.center_layout(layout)
         # Scale the layout
         if self.rescale:
-            layout = self.scale_and_center(layout)
-
-        self.layout = layout
-        return layout
-
-    def p_norm(self, p=2, starting_layout=None, G_distances=None, **kwargs):
-        """
-        Embeds a graph in R^d with the p-norm and minimizes a Kamada-Kawai-esque objective function to achieve
-        an embedding with low distortion. This computes a layout where the graph distance and the p-distance are 
-        very close to each other.
-
-        Parameters
-        ----------
-        starting_layout : dict or Numpy Array
-            A mapping from the vertices of G to points in the metric space.
-        G_distances : dict or Numpy 2d array (default None)
-            A dictionary of dictionaries representing distances from every vertex in G to every other vertex in G, or
-            a matrix representing the same data. If None, it is computed.
-        p : int (default 2)
-            The order of the p-norm to use as a metric.
-
-        Returns
-        -------
-        layout : dict
-            A mapping from vertices of G (keys) to points in R^d (values).
-        """
-        # Pick a random layout in R^2
-        if starting_layout is None:
-            starting_layout = nx.spectral_layout(self.G, dim=self.d)
-
-        # Make sure the layout is a vector
-        if isinstance(starting_layout, dict):
-            starting_layout = np.array(
-                [pos for pos in starting_layout.values()])
-
-        # Check the dimension of the layout
-        k = starting_layout.shape[1]
-        assert self.d == k, f"The starting layout has dimension {k}, but the object wants dimension {self.d}"
-
-        # Save on distance calculations by passing them in
-        if G_distances is None:
-            G_distances = layout_utils.graph_distances(self.G)
-
-        # Make sure the distances are a matrix
-        if isinstance(G_distances, dict):
-            G_distances = np.array(
-                [[V[v] for v in self.G] for u, V in G_distances.items()]
-            )
-
-        # Solve the Kamada-Kawai-esque minimization function
-        X = optimize.minimize(
-            layout_utils.p_norm,
-            starting_layout.ravel(),
-            method='L-BFGS-B',
-            args=(G_distances, k, p),
-            jac=True,
-            **kwargs
-        )
-
-        # Reshape the solution and convert to dictionary.
-        layout = {v: pos for v, pos in zip(
-            self.G, X.x.reshape(len(self.G), k))}
-
-        # Rotate the layout.
-        if self.d == 2 and self.rotate:
-            layout = self.rotate_layout(layout)
-        # Scale the layout
-        if self.rescale:
-            layout = self.scale_and_center(layout)
+            layout = self.scale_layout(layout)
 
         self.layout = layout
         return layout
@@ -402,6 +397,45 @@ class Layout():
         self.layout = layout
         return layout
 
+    def kamada_kawai(self, **kwargs):
+        """
+        The d-dimensional Kamada-Kawai spring layout.
+
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments are passed to nx.kamada_kawai_layout().
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in R^d (values).
+        """
+        # NetworkX has a bug #3658.
+        # Once fixed, these can collapse and `dim=n` can be part of `**kwargs`.
+        if self.d in (1, 2):
+            layout = nx.kamada_kawai_layout(
+                self.G, dim=self.d, center=self.center, scale=self.scale, **kwargs)
+        else:
+            # The random_layout is in [0, 1]^d
+            random_layout = nx.random_layout(
+                self.G, dim=self.d, seed=self.seed)
+
+            # Convert it to [center - scale, center + scale]^d
+            transformed_random_layout = self.scale_and_center(
+                random_layout, center=self.d*(1/2,), scale=1/2)
+
+            layout = nx.kamada_kawai_layout(
+                self.G, pos=transformed_random_layout, dim=self.d, center=self.center, scale=self.scale, **kwargs)
+
+        if self.rotate and self.d == 2:
+            layout = self.rotate_layout(layout, center=self.center)
+        if self.rescale:
+            layout = self.scale_and_center(layout, center=self.center)
+
+        self.layout = layout
+        return layout
+
     def integer_lattice_bins(self, lattice_points=3):
         """
         Map the points of an integer lattice to lists of closest vertices in the scaled positive orthant and vice-versa;
@@ -455,7 +489,7 @@ class Layout():
 
         return integer_point_map, layout
 
-    def scale_to_positive_orthant(self, length=1, border=0., invert=False):
+    def scale_to_positive_orthant(self, layout=None, length=1, border=0., invert=False):
         """
         This helper function transforms the layout [self.center - self.scale, self.center + self.scale]^d to the
         semi-positive orthant:
@@ -483,8 +517,11 @@ class Layout():
         # Temporary data structure to pull the information out of the matrix created below.
         V = [v for v in self.G]
 
+        if layout is None:
+            layout = self.layout
+
         # Make a matrix of the positions
-        L = np.array([self.layout[v] for v in V])
+        L = np.array([layout[v] for v in V])
         # Shift it from [center - scale, center + scale]^d to [0, 2*scale]^d
         if invert:
             assert self.d == 2, "Inversion is only supported in 2-dimensions."
@@ -523,10 +560,49 @@ class Layout():
 
         return top_left, new_scale
 
-    def scale_and_center(self, layout=None, center=None, scale=None):
+    def center_layout(self, layout=None, old_center=None, new_center=None):
         """
         This helper function transforms a layout from [center - scale, center + scale]^d to the user desired
-        [self.center - self.scale, self.center + self.scale]^d.
+        [self.center - scale, self.center + scale]^d.
+
+        Parameters
+        ----------
+        layout : dict or numpy array (default None)
+            A mapping from vertices of G (keys) to points in R^d (values). If None, self.layout is used.
+        center : tuple or numpy array (default None)
+            A point in R^d representing the center of the layout. If None, the approximate center of layout is computed 
+            by calculating the center of mass (or centroid).
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in [self.center - scale, self.center + scale]^d (values).
+        """
+        # If layout is empty, grab the object's
+        if layout is None:
+            layout = self.layout
+
+        # Support layouts of different datatypes. Convert to a matrix.
+        if isinstance(layout, (dict, defaultdict)):
+            L = np.array([layout[v] for v in self.G])
+        else:
+            L = layout
+
+        # If old_center is empty, compute it
+        if old_center is None:
+            old_center = np.mean(L, axis=0)
+        if new_center is None:
+            new_center = self.center
+
+        # Translate the layout so that we have the desired new_center
+        L = L - old_center + new_center
+
+        return {v: p for v, p in zip(list(self.G), L)}
+
+    def scale_layout(self, layout=None, center=None, old_scale=None, new_scale=None):
+        """
+        This helper function transforms a layout from [center - scale, center + scale]^d to the user desired
+        [center - self.scale, center + self.scale]^d.
 
         Parameters
         ----------
@@ -562,14 +638,16 @@ class Layout():
         L = L - center
 
         # Scale so that it expands to fill [-self.scale, self.scale]^d
-        if scale is None:
+        if old_scale is None:
             min_value, max_value = np.min(L), np.max(L)
-            scale = max(abs(min_value), abs(max_value))
+            old_scale = max(abs(min_value), abs(max_value))
+        if new_scale is None:
+            new_scale = self.scale
 
-        L = (self.scale/scale) * L
+        L = (new_scale/old_scale) * L
 
-        # Translate the layout to [self.center - self.scale, self.center + self.scale]^d
-        L = L + self.center
+        # Translate the layout back to where it was [center - self.scale, center + self.scale]^d
+        L = L + center
 
         return {v: p for v, p in zip(list(self.G), L)}
 

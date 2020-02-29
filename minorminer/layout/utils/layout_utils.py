@@ -155,8 +155,7 @@ def minimize_overlap(distances, v_indices, T_vertex_lookup, layout_points, overl
     """
     # KDTree.query either returns a single index or a list of indexes depending on how many neighbors are queried.
     if isinstance(v_indices, np.int64):
-        # To make the data types match, turn this singlton into a set.
-        return set((T_vertex_lookup[layout_points[v_indices]], ))
+        return T_vertex_lookup[layout_points[v_indices]]
 
     subsets = {}
     for i in v_indices:

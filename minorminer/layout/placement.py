@@ -38,10 +38,8 @@ def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1):
 
     # FIXME: This is real messy
     T_layout = placement_utils.parse_T(T)  # Turns graph into layout
-
     if isinstance(T_layout, layout.Layout):
-        # make a copy
-        T_layout_dict = dict(T_layout.layout)
+        T_layout_dict = dict(T_layout.layout)  # Make a copy
     elif isinstance(T_layout, dict):
         T_layout_dict = dict(T_layout)
 
@@ -201,101 +199,41 @@ def intersection(S_layout, T):
     assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
 
     # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
-    n, m, t = dnx_utils.lookup_dnx_dims(T_layout.G)
-    columns, rows = n*t-1, m*t-1
-    scaled_layout = S_layout.scale_to_positive_orthant(
-        (columns, rows), invert=True)
+    m, n, t = dnx_utils.lookup_dnx_dims(T_layout.G)
+
+    # Scale the layout to be dependant on the number of vertices and the size of T.
+    new_scale = min(np.sqrt(2*len(S_layout.G)/t)/2, T_layout.scale)
+
+    # # A scale based on the number of neighbors available for a 6-regular graph as you contract edges to form
+    # # chains. I.e. if average degree is 11, then on average each logical variable needs 3 qubits.
+    # avg_degree = np.mean([deg for _, deg in self.G.degree()])
+
+    # if avg_degree <= 6:
+    #     self.scale = max(1, layout_scale)
+    # for x, i in enumerate(range(6, 100, 4)):
+    #     if i < avg_degree and avg_degree <= i+4:
+    #         self.scale = max((x+2), layout_scale)
+    #         break
+
+    scaled_layout = S_layout.scale_layout(
+        S_layout.layout,
+        S_layout.center,
+        S_layout.scale,
+        new_scale*t
+    )
+
+    pos_orth_layout = S_layout.center_layout(
+        scaled_layout,
+        S_layout.center,
+        2*(t*T_layout.scale,)
+    )
 
     placement = {}
-    for v, pos in scaled_layout.items():
+    for v, pos in pos_orth_layout.items():
         _, j, x_k = dnx_utils.get_row_or_column(pos[0], t)
         _, i, y_k = dnx_utils.get_row_or_column(pos[1], t)
 
         placement[v] = [(i, j, 0, x_k), (i, j, 1, y_k)]
-
-    # Return the right type of vertices
-    if T_layout.G.graph["labels"] == "coordinate":
-        return placement
-    else:
-        C = dnx.chimera_coordinates(m, n, t)
-        return {v: [C.chimera_to_linear(q) for q in Q] for v, Q in placement.items()}
-
-
-def tees(S_layout, T_layout):
-    """
-    Map the vertices of S to rows and columns of qubits of T (T must be a D-Wave hardware graph). 
-
-    Order the vertices of S along the y-axis from bottom to top. For each vertex u of S, form a chain that is the 
-    minimal interval containing every neighbor "ahead" of u on the y-axis. For each v in N(u), form a chain that is the 
-    minimal interval containing v and the projection of u on the x-axis. This amounts to a placement where each chain 
-    has the shape a subset of a capital "T". For each vertex u of S, the intersection of the T (if it exists) is 
-    necessarily contained in unit cell given by the layout, and the legs of the T are as described above.
-
-    This guarantees in an overlap embedding of S in T.
-
-    Parameters
-    ----------
-    S_layout : layout.Layout
-        A layout for S; i.e. a map from S to R^d.
-    T_layout : layout.Layout
-        A layout for T; i.e. a map from T to R^d.
-
-    Returns
-    -------
-    placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
-    """
-    # Get those assertions out of the way
-    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
-    assert isinstance(S_layout, Layout) and isinstance(T_layout, Layout), (
-        "Layout class instances must be passed in.")
-    dims = dnx_utils.lookup_dnx_dims(T_layout.G)
-    assert dims is not None, "I need a D-Wave NetworkX graph."
-
-    # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
-    n, m, t = dims
-    columns, rows = n*t-1, m*t-1
-    scaled_layout = S_layout.scale_to_positive_orthant(
-        (columns, rows), invert=True)
-
-    # Keep track of vertices that are connected
-    routed_vertices = set()
-
-    # Sort the vertices in the layout from bottom to top
-    placement = defaultdict(set)
-    for v, pos in sorted(scaled_layout.items(), key=lambda x: x[1][1]):
-        r_x, j, x_k = dnx_utils.get_row_or_column(pos[0], t)  # Column
-        r_y, _, _ = dnx_utils.get_row_or_column(pos[1], t)  # Row
-
-        max_y = r_y
-        for u in S_layout.G[v]:
-            # Skip over previously routed vertices
-            if u in routed_vertices:
-                continue
-
-            # Figure out how far you need to extend the leg of the T above you
-            u_y, u_i, u_y_k = dnx_utils.get_row_or_column(
-                scaled_layout[u][1], t)
-            max_y = max(max_y, u_y)
-
-            # Have your neighbors run left or right into you
-            row_qubits = set()
-            u_x, _, _ = dnx_utils.get_row_or_column(scaled_layout[u][0], t)
-            for p in range(min(u_x, r_x), max(u_x, r_x)+1):
-                _, col, _ = dnx_utils.get_row_or_column(p, t)
-                row_qubits.add((u_i, col, 1, u_y_k))
-
-            placement[u] |= row_qubits
-
-        column_qubits = set()
-        for p in range(r_y, max_y+1):
-            _, row, _ = dnx_utils.get_row_or_column(p, t)
-            column_qubits.add((row, j, 0, x_k))
-
-        placement[v] |= column_qubits
-
-        # The vertex v is now totally connected to its neighbors
-        routed_vertices.add(v)
 
     # Return the right type of vertices
     if T_layout.G.graph["labels"] == "coordinate":
