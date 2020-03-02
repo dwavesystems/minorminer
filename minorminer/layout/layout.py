@@ -19,9 +19,9 @@ def p_norm(
     d=2,
     center=None,
     scale=None,
-    rescale=True,
-    rotate=False,
     recenter=True,
+    rescale=False,
+    rotate=False,
     **kwargs
 ):
     """
@@ -29,7 +29,7 @@ def p_norm(
     # FIXME: There's surely a better way of doing this.
     """
     L = Layout(G, d=d, center=center, scale=scale,
-               rescale=rescale, rotate=rotate, recenter=recenter)
+               recenter=recenter, rescale=rescale, rotate=rotate)
     _ = L.p_norm(p, starting_layout, G_distances, **kwargs)
     return L
 
@@ -45,7 +45,7 @@ def dnx_layout(G, d=2, center=None, scale=None, rescale=True, rotate=True, **kwa
     return L
 
 
-def pca(G, d=2, m=None, pca=True, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
+def pca(G, d=2, m=None, pca=True, center=None, scale=None, seed=None, rescale=False, rotate=False, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
@@ -78,29 +78,18 @@ def R2xT(
     return L
 
 
-def kamada_kawai(G, d=2, center=None, scale=1., seed=None, rescale=True, rotate=True, **kwargs):
-    """
-    Top level function for minorminer.layout.__init__() use as a parameter.
-    # FIXME: There's surely a better way of doing this.
-    """
-    L = Layout(G, d=d, center=center, scale=scale,
-               seed=seed, rescale=rescale, rotate=rotate)
-    _ = L.kamada_kawai(**kwargs)
-    return L
-
-
 class Layout():
     def __init__(
         self,
         G,
+        layout=None,
         d=2,
         center=None,
-        scale=1.,
-        layout=None,
-        seed=None,
-        rescale=True,
-        rotate=True,
+        scale=None,
         recenter=True,
+        rescale=False,
+        rotate=False,
+        seed=None,
         **kwargs
     ):
         """
@@ -110,41 +99,63 @@ class Layout():
         ----------
         G : NetworkX graph or NetworkX supported edges data structure (dict, list, ...)
             The graph you want to compute the layout for.
-        d : int (default 2)
-            The dimension of the layout, i.e., R^d.
-        center : tuple (default None)
-            The center point of the layout; if None it is computed to be the origin in R^d.
-        scale : float (default 1.)
-            The scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space.
         layout : dict (default None)
-            You can specify a pre-computed layout for G.
-        seed : int (default None)
-            When d > 2, kamada_kawai uses networkx.random_layout(). The seed is passed to this function.
-        rescale : bool (default True)
+            You can specify a pre-computed layout for G. If this is specified: d, center, scale are all calculated from
+            the layout passed in.
+        d : int (default 2)
+            The desired dimension of the layout, i.e., R^d.
+        center : tuple (default None)
+            The desired center point of the layout; if None it is computed to be the origin in R^d.
+        scale : float (default 1)
+            The desired scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space.
+        recentere : bool (default True)
+            If True, the layout is centerd to the user specified center. If False, the layout assumes the center of the 
+            layout algorithm used.
+        rescale : bool (default False)
             If True, the layout is scaled to the user specified [center - scale, center + scale]^d. If False, the layout
             assumes the dimensions of the layout algorithm used.
-        rotate : bool (default True)
+        rotate : bool (default False)
             If True, the minimum area bounding box for the layout is computed and rotated so that it aligned with the
             x and y axes. If False, the layout is not rotated.
+        seed : int (default None)
+            When d > 2, kamada_kawai uses networkx.random_layout(). The seed is passed to this function.
         kwargs : dict
             Keyword arguments are passed to one of the layout algorithms below.
         """
+        # if rescale and not scale:
+        #     raise ValueError("If rescale=True, then scale must be set.")
+
         # Ensure G is a graph object
         self.G = graph_utils.parse_graph(G)
 
-        # Construct the origin if need be
-        if center is None:
-            self.center = np.array(d*(0, ))
+        # If passed in, save the layout and the layout array data types
+        if layout:
+            if isinstance(layout, (dict, defaultdict)):
+                self.layout = layout
+                self.layout_array = np.array([layout[v] for v in self.G])
+            elif isinstance(layout, (np.array, list)):
+                self.layout = {v: p for v, p in zip(G, layout)}
+                self.layout_array = layout
+
+            # Set the layout's center, scale, and dim from calculating them based on the layout passed in by the user
+            self.d = self.layout_array.shape[1]
+            self.center = np.mean(self.layout_array, axis=0)
+            self.scale = np.max(
+                np.linalg.norm(
+                    self.layout_array - self.center, float("inf"), axis=0
+                )
+            )
         else:
-            self.center = np.array(center)
+            self.d = d
+            self.layout = layout
+            self.layout_array = layout
+            self.center = center or self.d*(0,)
+            self.scale = scale
 
         # Set remaining parameters
-        self.d = d
-        self.scale = scale
-        self.layout = layout
         self.seed = seed
-        self.rescale = rescale
         self.recenter = recenter
+        self.rescale = rescale
         self.rotate = rotate
 
     def p_norm(self, p=2, starting_layout=None, G_distances=None, **kwargs):
@@ -175,7 +186,8 @@ class Layout():
         # Make sure the layout is a vector
         if isinstance(starting_layout, dict):
             starting_layout = np.array(
-                [pos for pos in starting_layout.values()])
+                [starting_layout[v] for v in self.G]
+            )
 
         # Check the dimension of the layout
         k = starting_layout.shape[1]
@@ -201,31 +213,31 @@ class Layout():
             **kwargs
         )
 
-        # Read out the solution to the minimization problem
-        layout_array = X.x.reshape(len(self.G), k)
+        # Read out the solution to the minimization problem and save layouts
+        self.layout_array = X.x.reshape(len(self.G), k)
+        self.layout = {v: pos for v, pos in zip(self.G, self.layout_array)}
 
-        if self.scale is None:
-            self.scale = np.max(
-                np.linalg.norm(
-                    layout_array - self.center, float("inf"), axis=0
-                )
+        # Save copies of the desired center and scale.
+        desired_center = self.center
+        desired_scale = self.scale
+
+        # Calculate the scale and center based on the layout
+        self.scale = np.max(
+            np.linalg.norm(
+                self.layout_array - self.center, float("inf"), axis=0
             )
+        )
+        self.center = np.mean(self.layout_array, axis=0)
 
-        # Reshape the solution and convert to dictionary.
-        layout = {v: pos for v, pos in zip(self.G, layout_array)}
-
-        # Rotate the layout.
-        if self.d == 2 and self.rotate:
-            layout = self.rotate_layout(layout)
-        # Center the layout.
+        # Transform the layout
         if self.recenter:
-            layout = self.center_layout(layout)
-        # Scale the layout
+            self.center_layout(desired_center)
         if self.rescale:
-            layout = self.scale_layout(layout)
+            self.scale_layout(desired_scale)
+        if self.rotate:
+            self.rotate_layout()
 
-        self.layout = layout
-        return layout
+        return self.layout
 
     def dnx_layout(self, **kwargs):
         """
@@ -247,14 +259,16 @@ class Layout():
             raise ValueError(
                 "Only dnx.chimera_graph() and dnx.pegasus_graph() are supported.")
 
-        # Default scale is dependent on the longest dimension of Chimera or Pegasus.
-        if self.scale is None:
-            n, m, _ = dnx_utils.lookup_dnx_dims(self.G)
-            self.scale = max(n, m)/2
-
         # If you are rescalling (recommended) add kwargs for dwave_networkx to consume.
         if self.rescale:
-            top_left, new_scale = self.center_to_top_left()
+            # Default scale is dependent on the longest dimension of Chimera or Pegasus.
+            if self.scale is None:
+                n, m, _ = dnx_utils.lookup_dnx_dims(self.G)
+                self.scale = max(n, m)/2
+
+            top_left, new_scale = dnx_utils.nx_to_dnx_layout(
+                self.center, self.scale)
+
             kwargs["center"] = top_left
             kwargs["scale"] = new_scale
 
@@ -264,6 +278,8 @@ class Layout():
             layout = dnx.pegasus_layout(self.G, dim=self.d, **kwargs)
 
         self.layout = layout
+        self.layout_array = np.array([layout[v] for v in self.G])
+
         return layout
 
     def pca(self, m=None, pca=True):
@@ -290,7 +306,8 @@ class Layout():
         assert self.d <= n, f"You want me to find {self.d} eigenvectors in a graph with {n} vertices."
 
         # Pick the number of dimensions to initially embed into
-        m = n if n < 50 else 50
+        m = m or n if n < 50 else 50
+        assert m <= n, f"The number of vertices {n} bounds the dimension."
 
         starting_layout = layout_utils.build_starting_points(
             self.G, m, self.seed)
@@ -308,26 +325,37 @@ class Layout():
             _, eigenvectors = np.linalg.eigh(S)
 
             # Choose the eigenvectors that correspond to the largest k eigenvalues and project in those dimensions
-            Y = np.column_stack(
+            self.layout_array = np.column_stack(
                 [X_T @ u for u in list(reversed(eigenvectors))[:self.d]])
-
-            layout = {v: row for v, row in zip(list(self.G), Y)}
+            self.layout = {
+                v: row for v, row in zip(list(self.G), self.layout_array)
+            }
 
         else:
-            layout = starting_layout
+            self.layout = starting_layout
+            self.layout_array = np.array([self.layout[v] for v in self.G])
 
-        # Rotate the layout
-        if self.rotate and self.d == 2:
-            layout = self.rotate_layout(layout)
-        # Center the layout.
+        # Save copies of the desired center and scale.
+        desired_center = self.center
+        desired_scale = self.scale
+
+        # Calculate the scale and center based on the layout
+        self.scale = np.max(
+            np.linalg.norm(
+                self.layout_array - self.center, float("inf"), axis=0
+            )
+        )
+        self.center = np.mean(self.layout_array, axis=0)
+
+        # Transform the layout
         if self.recenter:
-            layout = self.center_layout(layout)
-        # Scale the layout
+            self.center_layout(desired_center)
         if self.rescale:
-            layout = self.scale_layout(layout)
+            self.scale_layout(desired_scale)
+        if self.rotate:
+            self.rotate_layout()
 
-        self.layout = layout
-        return layout
+        return self.layout
 
     def R2xT(self, starting_layout=None, G_distances=None, **kwargs):
         """
@@ -379,62 +407,119 @@ class Layout():
             **kwargs
         )
 
-        # Make sure that the angles in the layout are in [0, 2*pi]
-        layout_matrix = X.x.reshape(len(self.G), 4)
-        layout_matrix[:, 2:] = np.mod(layout_matrix[:, 2:], 2*np.pi)
+        # Read out the solution to the minimization problem and save layouts
+        self.layout_array = X.x.reshape(len(self.G), 4)
+        # Angles in the layout are in [0, 2*pi]
+        self.layout_array[:, 2:] = np.mod(self.layout_array[:, 2:], 2*np.pi)
+        self.layout = {v: pos for v, pos in zip(self.G, self.layout_array)}
 
-        # Reshape the solution and convert to dictionary.
-        layout = {v: pos for v, pos in zip(self.G, layout_matrix)}
+        # FIXME: This needs to only recenter, rescale, and rotate the R^2 projection of the layout.
+        # # Save copies of the desired center and scale.
+        # desired_center = self.center
+        # desired_scale = self.scale
 
-        # FIXME: This needs to only rotate and scale the R2 projection of the layout.
-        # # Rotate the layout
-        # if self.rotate and self.d == 2:
-        #     layout = self.rotate_layout(layout)
-        # # Scale the layout
+        # # Calculate the scale and center based on the layout
+        # self.scale = np.max(
+        #     np.linalg.norm(
+        #         self.layout_array - self.center, float("inf"), axis=0
+        #     )
+        # )
+        # self.center = np.mean(self.layout_array, axis=0)
+
+        # # Transform the layout
+        # if self.recenter:
+        #     self.center_layout(desired_center)
         # if self.rescale:
-        #     layout = self.scale_and_center(layout)
+        #     self.scale_layout(desired_scale)
+        # if self.rotate:
+        #     self.rotate_layout()
 
-        self.layout = layout
-        return layout
+        return self.layout
 
-    def kamada_kawai(self, **kwargs):
+    def center_layout(self, center):
         """
-        The d-dimensional Kamada-Kawai spring layout.
+        This helper function transforms a layout from [self.center - scale, self.center + scale]^d to
+        [center - scale, center + scale]^d.
 
         Parameters
         ----------
-        kwargs : dict
-            Keyword arguments are passed to nx.kamada_kawai_layout().
+        center : tuple or numpy array (default None)
+            A point in R^d representing the center of the layout.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in [self.center - scale, self.center + scale]^d (values).
+        """
+        centered_layout = center_layout(self.layout_array, center, self.center)
+
+        # Update the object
+        self.center = center
+        self.layout_array = centered_layout
+        self.layout = {v: p for v, p in zip(self.G, self.layout_array)}
+
+        return self.layout
+
+    def invert_layout(self):
+        """
+        This helper function transforms a (2-dimensional) layout by reflecting the layout across the x-axis.
 
         Returns
         -------
         layout : dict
             A mapping from vertices of G (keys) to points in R^d (values).
         """
-        # NetworkX has a bug #3658.
-        # Once fixed, these can collapse and `dim=n` can be part of `**kwargs`.
-        if self.d in (1, 2):
-            layout = nx.kamada_kawai_layout(
-                self.G, dim=self.d, center=self.center, scale=self.scale, **kwargs)
-        else:
-            # The random_layout is in [0, 1]^d
-            random_layout = nx.random_layout(
-                self.G, dim=self.d, seed=self.seed)
+        inverted_layout = invert_layout(self.layout_array, self.center)
 
-            # Convert it to [center - scale, center + scale]^d
-            transformed_random_layout = self.scale_and_center(
-                random_layout, center=self.d*(1/2,), scale=1/2)
+        # Update the object
+        self.layout_array = inverted_layout
+        self.layout = {v: p for v, p in zip(self.G, self.layout_array)}
 
-            layout = nx.kamada_kawai_layout(
-                self.G, pos=transformed_random_layout, dim=self.d, center=self.center, scale=self.scale, **kwargs)
+        return self.layout
 
-        if self.rotate and self.d == 2:
-            layout = self.rotate_layout(layout, center=self.center)
-        if self.rescale:
-            layout = self.scale_and_center(layout, center=self.center)
+    def scale_layout(self, scale):
+        """
+        This helper function transforms a layout from [center - self.scale, center + self.scale]^d to 
+        [center - scale, center + scale]^d.
 
-        self.layout = layout
-        return layout
+        Parameters
+        ----------
+        scale : float
+            The desired scale to transform the layout to.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in [center - scale, center + scale]^d (values).
+        """
+        assert self.scale is not None, "The object needs to have a previous scale set."
+
+        scaled_layout = scale_layout(
+            self.layout_array, scale, self.scale, self.center)
+
+        # Update the object
+        self.scale = scale
+        self.layout_array = scaled_layout
+        self.layout = {v: p for v, p in zip(self.G, self.layout_array)}
+
+        return self.layout
+
+    def rotate_layout(self):
+        """
+        Finds a minimum bounding box and rotates a (2-dimensional) layout so that it is aligned with the x and y axes.
+
+        Returns
+        -------
+        layout : dict
+            A mapping from vertices of G (keys) to points in R^d (values).
+        """
+        rotated_layout = rotate_layout(self.layout_array, self.center)
+
+        # Update the object
+        self.layout_array = rotated_layout
+        self.layout = {v: p for v, p in zip(self.G, self.layout_array)}
+
+        return self.layout
 
     def integer_lattice_bins(self, lattice_points=3):
         """
@@ -522,6 +607,7 @@ class Layout():
 
         # Make a matrix of the positions
         L = np.array([layout[v] for v in V])
+
         # Shift it from [center - scale, center + scale]^d to [0, 2*scale]^d
         if invert:
             assert self.d == 2, "Inversion is only supported in 2-dimensions."
@@ -541,172 +627,6 @@ class Layout():
         L = L - border
 
         return {v: p for v, p in zip(V, L)}
-
-    def center_to_top_left(self):
-        """
-        This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^d,
-        to the dwave_networkx convention, [center, center-scale] x [center, center+scale]^(d-1).
-
-        Returns
-        -------
-        top_left : float
-            The top left corner of a layout.
-        new_scale : float
-            This is twice the original scale.
-        """
-        top_left = (self.center[0] - self.scale, ) + \
-            tuple(x + self.scale for x in self.center[1:])
-        new_scale = 2*self.scale
-
-        return top_left, new_scale
-
-    def center_layout(self, layout=None, old_center=None, new_center=None):
-        """
-        This helper function transforms a layout from [center - scale, center + scale]^d to the user desired
-        [self.center - scale, self.center + scale]^d.
-
-        Parameters
-        ----------
-        layout : dict or numpy array (default None)
-            A mapping from vertices of G (keys) to points in R^d (values). If None, self.layout is used.
-        center : tuple or numpy array (default None)
-            A point in R^d representing the center of the layout. If None, the approximate center of layout is computed 
-            by calculating the center of mass (or centroid).
-
-        Returns
-        -------
-        layout : dict
-            A mapping from vertices of G (keys) to points in [self.center - scale, self.center + scale]^d (values).
-        """
-        # If layout is empty, grab the object's
-        if layout is None:
-            layout = self.layout
-
-        # Support layouts of different datatypes. Convert to a matrix.
-        if isinstance(layout, (dict, defaultdict)):
-            L = np.array([layout[v] for v in self.G])
-        else:
-            L = layout
-
-        # If old_center is empty, compute it
-        if old_center is None:
-            old_center = np.mean(L, axis=0)
-        if new_center is None:
-            new_center = self.center
-
-        # Translate the layout so that we have the desired new_center
-        L = L - old_center + new_center
-
-        return {v: p for v, p in zip(list(self.G), L)}
-
-    def scale_layout(self, layout=None, center=None, old_scale=None, new_scale=None):
-        """
-        This helper function transforms a layout from [center - scale, center + scale]^d to the user desired
-        [center - self.scale, center + self.scale]^d.
-
-        Parameters
-        ----------
-        layout : dict or numpy array (default None)
-            A mapping from vertices of G (keys) to points in R^d (values). If None, self.layout is used.
-        center : tuple or numpy array (default None)
-            A point in R^d representing the center of the layout. If None, the approximate center of layout is computed 
-            by calculating the center of mass (or centroid).
-        scale : float (default None)
-            The scale of the parameter layout. If None, the approximate scale of layout is computed by taking the 
-            maximum distance from the center.
-
-        Returns
-        -------
-        layout : dict
-            A mapping from vertices of G (keys) to points in [center - scale, center + scale]^d (values).
-        """
-        # If layout is empty, grab the object's
-        if layout is None:
-            layout = self.layout
-
-        # Support layouts of different datatypes. Convert to a matrix.
-        if isinstance(layout, (dict, defaultdict)):
-            L = np.array([layout[v] for v in self.G])
-        else:
-            L = layout
-
-        # If center and scale are empty, compute them
-        if center is None:
-            center = np.mean(L, axis=0)
-
-        # Translate the layout so that it's center is the origin
-        L = L - center
-
-        # Scale so that it expands to fill [-self.scale, self.scale]^d
-        if old_scale is None:
-            min_value, max_value = np.min(L), np.max(L)
-            old_scale = max(abs(min_value), abs(max_value))
-        if new_scale is None:
-            new_scale = self.scale
-
-        L = (new_scale/old_scale) * L
-
-        # Translate the layout back to where it was [center - self.scale, center + self.scale]^d
-        L = L + center
-
-        return {v: p for v, p in zip(list(self.G), L)}
-
-    def rotate_layout(self, layout=None, center=None):
-        """
-        Finds a minimum bounding box and rotates a (2-dimensional) layout so that it is aligned with the x and y axes.
-
-        Parameters
-        ----------
-        layout : dict or numpy array (default None)
-            A mapping from vertices of G (keys) to points in R^d (values). If None, self.layout is used.
-        center : tuple or numpy array (default None)
-            A point in R^d representing the center of the layout. If None, the approximate center of layout is computed 
-            by calculating the center of mass (or centroid).
-
-        Returns
-        -------
-        layout : dict
-            A mapping from vertices of G (keys) to points in R^d (values).
-        """
-        # If layout is empty, grab the object's
-        if layout is None:
-            layout = self.layout
-
-        # Support layouts of different datatypes. Convert to a matrix.
-        if isinstance(layout, (dict, defaultdict)):
-            L = np.array([layout[v] for v in self.G])
-        else:
-            L = layout
-
-        assert len(
-            L[0] == 2), "I only know how to rotate 2-dimensional layouts."
-
-        # If center is empty, use the object's
-        if center is None:
-            center = np.mean(L, axis=0)
-
-        # Translate the layout to the origin
-        L = L - center
-
-        # Compute the minimum area bounding box
-        bounding_box = layout_utils.minimum_bounding_rectangle(L)
-        bottom_right = bounding_box[0]
-        bottom_left = bounding_box[1]
-
-        # Find the angle to rotate and build a rotation matrix
-        delta_x = abs(bottom_right[0] - bottom_left[0])
-        delta_y = abs(bottom_right[1] - bottom_left[1])
-        theta = np.arctan2(delta_y, delta_x)
-        R = np.array([[np.cos(theta), -np.sin(theta)],
-                      [np.sin(theta), np.cos(theta)]])
-
-        # Rotate the thing
-        rotated_L = (R @ L.T).T
-
-        # Translate back to the center you started with
-        rotated_L = rotated_L + center
-
-        return {v: p for v, p in zip(list(self.G), rotated_L)}
 
 
 def scale_edge_length(layout, edge_length=1., to_scale="median"):
@@ -741,3 +661,152 @@ def scale_edge_length(layout, edge_length=1., to_scale="median"):
         raise ValueError(f"Parameter to_scale={to_scale} is not supported.")
 
     return {v: scale*p for v, p in layout.items()}
+
+
+def rotate_layout(layout, center=None):
+    """
+    Finds a minimum bounding box and rotates a (2-dimensional) layout so that it is aligned with the x and y axes.
+
+    Parameters
+    ----------
+    layout : numpy array
+        An array whose rows are points in R^2.
+    center : tuple or numpy array (default None)
+        A point in R^2 representing the center of the layout. If None, the approximate center of layout is computed 
+        by calculating the center of mass (or centroid).
+
+    Returns
+    -------
+    layout : numpy array
+        An axis aligned layout.
+    """
+    assert layout.shape[1] == 2, "I only know how to rotate 2-dimensional layouts."
+
+    # If center is empty, compute it
+    if center is None:
+        center = np.mean(layout, axis=0)
+
+    # Translate the layout to the origin
+    L = layout - center
+
+    # Compute the minimum area bounding box
+    bounding_box = layout_utils.minimum_bounding_rectangle(L)
+    bottom_right = bounding_box[0]
+    bottom_left = bounding_box[1]
+
+    # Find the angle to rotate and build a rotation matrix
+    delta_x = abs(bottom_right[0] - bottom_left[0])
+    delta_y = abs(bottom_right[1] - bottom_left[1])
+    theta = np.arctan2(delta_y, delta_x)
+    R = np.array([[np.cos(theta), -np.sin(theta)],
+                  [np.sin(theta), np.cos(theta)]])
+
+    # Rotate the thing
+    rotated_L = (R @ L.T).T
+
+    # Translate back to the center you started with
+    return rotated_L + center
+
+
+def scale_layout(layout, new_scale, old_scale=None, center=None):
+    """
+    This helper function transforms a layout from [center - old_scale, center + old_scale]^d to 
+    [center - new_scale, center + new_scale]^d.
+
+    Parameters
+    ----------
+    layout : numpy array (default None)
+        An array whose rows are points in R^d.
+    new_scale : float
+        The desired scale to transform the layout to.
+    old_scale : float (default None)
+        The scale of the layout. If None, the approximate scale of layout is computed by taking the maximum distance 
+        from the center.
+    center : tuple or numpy array (default None)
+        A point in R^d representing the center of the layout. If None, the approximate center of layout is computed by 
+        calculating the center of mass (or centroid).
+
+    Returns
+    -------
+    layout : numpy array
+        A layout that has been scaled to [center - new_scale, center + new_scale]^d.
+    """
+    # If center is empty, compute it
+    if center is None:
+        center = np.mean(layout, axis=0)
+
+    # Translate the layout so that it's center is the origin
+    L = layout - center
+
+    # Compute the scale of the passed-in layout
+    if old_scale is None:
+        old_scale = np.max(
+            np.linalg.norm(L, float("inf"), axis=0)
+        )
+
+    # Scale the thing
+    scaled_L = (new_scale/old_scale) * L
+
+    # Translate the layout back to where it was
+    return scaled_L + center
+
+
+def invert_layout(layout, center=None):
+    """
+    This helper function transforms a (2-dimensional) layout by reflecting the layout across the x-axis.
+
+    Parameters
+    ----------
+    layout : numpy array
+        An array whose rows are points in R^2.
+    center : tuple or numpy array (default None)
+        A point in R^2 representing the center of the layout. If None, the approximate center of layout is computed by 
+        calculating the center of mass (or centroid).
+
+    Returns
+    -------
+    layout : numpy array
+        A reflected layout.
+    """
+    assert layout.shape[1] == 2, "Inversion is only supported in 2-dimensions."
+
+    # If center and scale are empty, compute them
+    if center is None:
+        center = np.mean(layout, axis=0)
+
+    # Translate the layout so that it's center is the origin
+    L = layout - center
+
+    # Reflect about the x-axis
+    inverted_layout = L @ np.array([[1, 0], [0, -1]])
+
+    # Move it back to its center
+    return inverted_layout + center
+
+
+def center_layout(layout, new_center, old_center=None):
+    """
+    This helper function transforms a layout from [old_center - scale, old_center + scale]^d to
+    [new_center - scale, new_center + scale]^d.
+
+    Parameters
+    ----------
+    layout : dict or numpy array (default None)
+        A mapping from vertices of G (keys) to points in R^d (values). If None, self.layout is used.
+    new_center : tuple or numpy array
+        A point in R^d that is the desired center to move the layout to. 
+    old_center : tuple or numpy array (default None)
+        A point in R^d representing the center of the layout. If None, the approximate center of layout is computed 
+        by calculating the center of mass (or centroid).
+
+    Returns
+    -------
+    layout : dict
+        A mapping from vertices of G (keys) to points in [self.center - scale, self.center + scale]^d (values).
+    """
+    # If old_center is empty, compute it
+    if old_center is None:
+        old_center = np.mean(layout, axis=0)
+
+    # Translate the layout so that we have the desired new_center
+    return layout - old_center + new_center

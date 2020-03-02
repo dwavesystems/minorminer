@@ -54,3 +54,21 @@ def get_row_or_column(p, t):
 
     # Get the coordinate version of the qubit
     return r_p, cell_index, k
+
+
+def nx_to_dnx_layout(center, scale):
+    """
+    This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^d,
+    to the dwave_networkx convention, [center, center-scale] x [center, center+scale]^(d-1).
+
+    Returns
+    -------
+    top_left : float
+        The top left corner of a layout.
+    new_scale : float
+        This is twice the original scale.
+    """
+    top_left = (center[0] - scale, ) + tuple(x + scale for x in center[1:])
+    new_scale = 2*scale
+
+    return top_left, new_scale

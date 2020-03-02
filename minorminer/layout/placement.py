@@ -12,7 +12,7 @@ from minorminer.layout.utils import (dnx_utils, graph_utils, layout_utils,
 from scipy.spatial import KDTree, distance
 
 
-def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1):
+def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1, **kwargs):
     """
     Maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. For each vertex u in
     S_layout and each vertex v in T_layout, map u to the v with minimum Euclidean distance (||u - v||_2).
@@ -87,7 +87,7 @@ def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1):
     return placement
 
 
-def injective(S_layout, T):
+def injective(S_layout, T, **kwargs):
     """
     Injectively maps vertices of S to the closest vertices of T as given by S_layout and T_layout. This is the
     assignment problem. To solve this it builds a complete bipartite graph between S and T with edge weights the
@@ -125,7 +125,7 @@ def injective(S_layout, T):
     return {u: [M[(0, u)][1]] for u in S_layout_dict.keys()}
 
 
-def binning(S_layout, T, bins=None, strategy="cycle"):
+def binning(S_layout, T, bins=None, strategy="cycle", **kwargs):
     """
     Map the vertices of S to the vertices of T by first mapping both to an integer lattice.
 
@@ -177,7 +177,7 @@ def binning(S_layout, T, bins=None, strategy="cycle"):
     return placement
 
 
-def intersection(S_layout, T):
+def intersection(S_layout, T, full_fit=False, **kwargs):
     """
     Map each vertex of S to its nearest row/column intersection qubit in T (T must be a D-Wave hardware graph). 
 
@@ -187,6 +187,9 @@ def intersection(S_layout, T):
         A layout for S; i.e. a map from S to R^d.
     T : layout.Layout or dwave-networkx.Graph
         A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
+    full_fit : bool (default False)
+        If True, S_layout is scaled so that it maximizes the area of T. If False, the size of S_layout and T_layout are
+        comparably scaled.
 
     Returns
     -------
@@ -198,40 +201,45 @@ def intersection(S_layout, T):
         "Layout class instances must be passed in.")
     assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
 
+    # D-Wave counts the y direction like matrix rows, inversion makes pictures match
+    modified_layout = layout.invert_layout(
+        S_layout.layout_array, S_layout.center)
+
     # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
     m, n, t = dnx_utils.lookup_dnx_dims(T_layout.G)
 
-    # Scale the layout to be dependant on the number of vertices and the size of T.
-    new_scale = min(np.sqrt(2*len(S_layout.G)/t)/2, T_layout.scale)
+    if full_fit:  # Scale to fill the area
+        scale = t*max(n, m)/2
+    else:  # Scale by the number of shores
+        scale = t*S_layout.scale
 
-    # # A scale based on the number of neighbors available for a 6-regular graph as you contract edges to form
-    # # chains. I.e. if average degree is 11, then on average each logical variable needs 3 qubits.
-    # avg_degree = np.mean([deg for _, deg in self.G.degree()])
+    # Scale S to an appropriate size
+    modified_layout = layout.scale_layout(
+        modified_layout, scale, S_layout.scale, S_layout.center)
 
-    # if avg_degree <= 6:
-    #     self.scale = max(1, layout_scale)
-    # for x, i in enumerate(range(6, 100, 4)):
-    #     if i < avg_degree and avg_degree <= i+4:
-    #         self.scale = max((x+2), layout_scale)
-    #         break
+    # Center to the positive orthant
+    modified_layout = layout.center_layout(
+        modified_layout, 2*(t*T_layout.scale,), S_layout.center)
 
-    scaled_layout = S_layout.scale_layout(
-        S_layout.layout,
-        S_layout.center,
-        S_layout.scale,
-        new_scale*t
-    )
-
-    pos_orth_layout = S_layout.center_layout(
-        scaled_layout,
-        S_layout.center,
-        2*(t*T_layout.scale,)
-    )
+    # Turn it into a dictionary
+    modified_layout = {v: pos for v, pos in zip(S_layout.G, modified_layout)}
 
     placement = {}
-    for v, pos in pos_orth_layout.items():
+    for v, pos in modified_layout.items():
         _, j, x_k = dnx_utils.get_row_or_column(pos[0], t)
         _, i, y_k = dnx_utils.get_row_or_column(pos[1], t)
+
+        # FIXME: This can probably be handled better.
+        #   Examine either the scaling or get_row_or_column(), this really shouldn't be happening at all.
+        # Make sure you didn't run off the edge
+        if j < 0:
+            j = 0
+        elif j > n-1:
+            j = n-1
+        if i < 0:
+            i = 0
+        elif i > m-1:
+            i = m-1
 
         placement[v] = [(i, j, 0, x_k), (i, j, 1, y_k)]
 

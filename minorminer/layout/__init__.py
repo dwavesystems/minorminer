@@ -3,8 +3,7 @@ import time
 import networkx as nx
 from minorminer.layout.construction import crosses, neighborhood, pass_along
 from minorminer.layout.hinting import initial, suspend
-from minorminer.layout.layout import (Layout, R2xT, dnx_layout, kamada_kawai,
-                                      p_norm, pca)
+from minorminer.layout.layout import (Layout, R2xT, dnx_layout, p_norm, pca)
 from minorminer.layout.placement import (binning, closest, injective,
                                          intersection)
 
@@ -104,6 +103,8 @@ def parse_kwargs(kwargs):
         placement_kwargs["bins"] = kwargs.pop("bins")
     if "strategy" in kwargs:
         placement_kwargs["strategy"] = kwargs.pop("strategy")
+    if "num_neighbors" in kwargs:
+        placement_kwargs["num_neighbors"] = kwargs.pop("num_neighbors")
 
     construction_kwargs = {}
     if "second" in kwargs:
