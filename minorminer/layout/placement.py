@@ -177,7 +177,7 @@ def binning(S_layout, T, bins=None, strategy="cycle", **kwargs):
     return placement
 
 
-def intersection(S_layout, T, full_fit=False, **kwargs):
+def intersection(S_layout, T, full_fit=True, **kwargs):
     """
     Map each vertex of S to its nearest row/column intersection qubit in T (T must be a D-Wave hardware graph). 
 
@@ -187,7 +187,7 @@ def intersection(S_layout, T, full_fit=False, **kwargs):
         A layout for S; i.e. a map from S to R^d.
     T : layout.Layout or dwave-networkx.Graph
         A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
-    full_fit : bool (default False)
+    full_fit : bool (default True)
         If True, S_layout is scaled so that it maximizes the area of T. If False, the size of S_layout and T_layout are
         comparably scaled.
 
@@ -201,7 +201,7 @@ def intersection(S_layout, T, full_fit=False, **kwargs):
         "Layout class instances must be passed in.")
     assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
 
-    # D-Wave counts the y direction like matrix rows, inversion makes pictures match
+    # D-Wave counts the y direction like matrix rows; inversion makes pictures match
     modified_layout = layout.invert_layout(
         S_layout.layout_array, S_layout.center)
 

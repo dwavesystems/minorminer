@@ -1,32 +1,39 @@
 import unittest
 
-import minorminer.layout.placement as mml
-from data import precomputed_chimera, precomputed_random_cubic_layout, precomputed_closest, precomputed_injective
+import dwave_networkx as dnx
+import minorminer.layout as mml
+import networkx as nx
 
 
-class TestLayout(unittest.TestCase):
+class TestPlacement(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super(TestPlacement, self).__init__(*args, **kwargs)
+
+        self.S = nx.random_regular_graph(3, 50)
+        self.T = dnx.chimera_graph(4)
+        self.S_layout = mml.p_norm(self.S)
+        self.T_layout = mml.dnx_layout(self.T)
 
     def test_closest(self):
         """
         Tests that closest placement is correct for embedding a random cubic graph, S, in Chimera(4); i.e. that points 
         in the layout of S are greedily matched to their closest counter parts in the layout of Chimera(4).
         """
-        S_layout = precomputed_random_cubic_layout
-        T_layout = precomputed_chimera[2]
-
-        placement = mml.closest(S_layout, T_layout)
-        self.assertEqual(placement, precomputed_closest)
+        _ = mml.closest(self.S_layout, self.T_layout)
 
     def test_injective(self):
         """
         Tests that injective placement is correct for embedding random cubic graph, S, in Chimera(4); i.e. that points 
         in the layout of S are optimally injectively mapped to the closest points in the layout of Chimera(4).
         """
-        S_layout = precomputed_random_cubic_layout
-        T_layout = precomputed_chimera[2]
+        _ = mml.injective(self.S_layout, self.T_layout)
 
-        placement = mml.injective(S_layout, T_layout)
-        self.assertEqual(placement, precomputed_injective)
+    def test_intersection(self):
+        """
+        Tests that injective placement is correct for embedding random cubic graph, S, in Chimera(4); i.e. that points 
+        in the layout of S are optimally injectively mapped to the closest points in the layout of Chimera(4).
+        """
+        _ = mml.intersection(self.S_layout, self.T_layout)
 
 
 if __name__ == '__main__':

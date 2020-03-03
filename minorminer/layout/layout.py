@@ -122,9 +122,6 @@ class Layout():
         kwargs : dict
             Keyword arguments are passed to one of the layout algorithms below.
         """
-        # if rescale and not scale:
-        #     raise ValueError("If rescale=True, then scale must be set.")
-
         # Ensure G is a graph object
         self.G = graph_utils.parse_graph(G)
 
@@ -155,7 +152,7 @@ class Layout():
         # Set remaining parameters
         self.seed = seed
         self.recenter = recenter
-        self.rescale = rescale
+        self.rescale = True if scale else rescale
         self.rotate = rotate
 
     def p_norm(self, p=2, starting_layout=None, G_distances=None, **kwargs):
@@ -181,7 +178,10 @@ class Layout():
         """
         # Pick a random layout in R^2
         if starting_layout is None:
-            starting_layout = nx.spectral_layout(self.G, dim=self.d)
+            if self.d >= len(self.G):
+                starting_layout = nx.random_layout(self.G, dim=self.d)
+            else:
+                starting_layout = nx.spectral_layout(self.G, dim=self.d)
 
         # Make sure the layout is a vector
         if isinstance(starting_layout, dict):
@@ -222,12 +222,12 @@ class Layout():
         desired_scale = self.scale
 
         # Calculate the scale and center based on the layout
+        self.center = np.mean(self.layout_array, axis=0)
         self.scale = np.max(
             np.linalg.norm(
                 self.layout_array - self.center, float("inf"), axis=0
             )
         )
-        self.center = np.mean(self.layout_array, axis=0)
 
         # Transform the layout
         if self.recenter:
@@ -436,25 +436,26 @@ class Layout():
 
         return self.layout
 
-    def center_layout(self, center):
+    def center_layout(self, new_center):
         """
         This helper function transforms a layout from [self.center - scale, self.center + scale]^d to
-        [center - scale, center + scale]^d.
+        [new_center - scale, new_center + scale]^d.
 
         Parameters
         ----------
-        center : tuple or numpy array (default None)
-            A point in R^d representing the center of the layout.
+        new_center : tuple or numpy array (default None)
+            A point in R^d to make the new center of the layout.
 
         Returns
         -------
         layout : dict
-            A mapping from vertices of G (keys) to points in [self.center - scale, self.center + scale]^d (values).
+            A mapping from vertices of G (keys) to points in [new_center - scale, new_center + scale]^d (values).
         """
-        centered_layout = center_layout(self.layout_array, center, self.center)
+        centered_layout = center_layout(
+            self.layout_array, new_center, self.center)
 
         # Update the object
-        self.center = center
+        self.center = new_center
         self.layout_array = centered_layout
         self.layout = {v: p for v, p in zip(self.G, self.layout_array)}
 
@@ -477,28 +478,26 @@ class Layout():
 
         return self.layout
 
-    def scale_layout(self, scale):
+    def scale_layout(self, new_scale):
         """
         This helper function transforms a layout from [center - self.scale, center + self.scale]^d to 
-        [center - scale, center + scale]^d.
+        [center - new_scale, center + new_scale]^d.
 
         Parameters
         ----------
-        scale : float
+        new_scale : float
             The desired scale to transform the layout to.
 
         Returns
         -------
         layout : dict
-            A mapping from vertices of G (keys) to points in [center - scale, center + scale]^d (values).
+            A mapping from vertices of G (keys) to points in [center - new_scale, center + new_scale]^d (values).
         """
-        assert self.scale is not None, "The object needs to have a previous scale set."
-
         scaled_layout = scale_layout(
-            self.layout_array, scale, self.scale, self.center)
+            self.layout_array, new_scale, self.scale, self.center)
 
         # Update the object
-        self.scale = scale
+        self.scale = new_scale
         self.layout_array = scaled_layout
         self.layout = {v: p for v, p in zip(self.G, self.layout_array)}
 
@@ -735,7 +734,7 @@ def scale_layout(layout, new_scale, old_scale=None, center=None):
     if center is None:
         center = np.mean(layout, axis=0)
 
-    # Translate the layout so that it's center is the origin
+    # Translate the layout so that its center is the origin
     L = layout - center
 
     # Compute the scale of the passed-in layout
@@ -774,7 +773,7 @@ def invert_layout(layout, center=None):
     if center is None:
         center = np.mean(layout, axis=0)
 
-    # Translate the layout so that it's center is the origin
+    # Translate the layout so that its center is the origin
     L = layout - center
 
     # Reflect about the x-axis
