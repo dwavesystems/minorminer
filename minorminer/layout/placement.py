@@ -146,6 +146,7 @@ def binning(S_layout, T, bins=None, strategy="cycle", **kwargs):
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
+    # Standardize input
     T_layout = placement_utils.parse_T(T, disallow="dict")
 
     assert isinstance(S_layout, layout.Layout) and isinstance(T_layout, layout.Layout), (
@@ -195,10 +196,12 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
+    # Standardize input
     T_layout = placement_utils.parse_T(T, disallow="dict")
-    assert isinstance(S_layout, layout.Layout) and isinstance(T_layout, layout.Layout), (
-        "Layout class instances must be passed in.")
-    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
+
+    # Raise exceptions if you need to
+    placement_utils.check_requirements(
+        S_layout, T_layout, disallowed_graphs="pegasus")
 
     # D-Wave counts the y direction like matrix rows; inversion makes pictures match
     modified_layout = layout.invert_layout(
@@ -250,10 +253,12 @@ def injective_intersection(S_layout, T, **kwargs):
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
+    # Standardize input
     T_layout = placement_utils.parse_T(T, disallow="dict")
-    assert isinstance(S_layout, layout.Layout) and isinstance(T_layout, layout.Layout), (
-        "Layout class instances must be passed in.")
-    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
+
+    # Raise exceptions if you need to
+    placement_utils.check_requirements(
+        S_layout, T_layout, disallowed_graphs="pegasus")
 
     # D-Wave counts the y direction like matrix rows; inversion makes pictures match
     modified_layout = layout.invert_layout(

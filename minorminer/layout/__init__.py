@@ -2,7 +2,7 @@ import time
 
 import networkx as nx
 from minorminer.layout.construction import crosses, neighborhood, pass_along
-from minorminer.layout.hinting import initial, suspend
+from minorminer.layout.hinting import initial, random_remove, suspend
 from minorminer.layout.layout import Layout, R2xT, dnx_layout, p_norm, pca
 from minorminer.layout.placement import (binning, closest, injective,
                                          injective_intersection, intersection)
