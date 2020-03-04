@@ -1,5 +1,7 @@
 import math
 
+import dwave_networkx as dnx
+
 
 def lookup_dnx_coordinates(G):
     """
@@ -72,3 +74,12 @@ def nx_to_dnx_layout(center, scale):
     new_scale = 2*scale
 
     return top_left, new_scale
+
+
+def relabel_chains(G, chains):
+    if G.graph["labels"] == "coordinate":
+        return chains
+    else:
+        m, n, t = lookup_dnx_dims(G)
+        C = dnx.chimera_coordinates(m, n, t)
+        return {v: [C.chimera_to_linear(q) for q in Q] for v, Q in chains.items()}

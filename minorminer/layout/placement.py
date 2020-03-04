@@ -3,7 +3,6 @@ import warnings
 from collections import Counter, defaultdict
 from itertools import cycle, product
 
-import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
 from minorminer.layout import layout
@@ -207,10 +206,9 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
 
     # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
     m, n, t = dnx_utils.lookup_dnx_dims(T_layout.G)
-
     if full_fit:  # Scale to fill the area
-        scale = t*max(n, m)/2
-    else:  # Scale by the number of shores
+        scale = (t*max(n, m)-1)/2
+    else:  # Scale by the size of the shores
         scale = t*S_layout.scale
 
     # Scale S to an appropriate size
@@ -219,7 +217,7 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
 
     # Center to the positive orthant
     modified_layout = layout.center_layout(
-        modified_layout, 2*(t*T_layout.scale,), S_layout.center)
+        modified_layout, 2*(scale, ), S_layout.center)
 
     # Turn it into a dictionary
     modified_layout = {v: pos for v, pos in zip(S_layout.G, modified_layout)}
@@ -229,23 +227,115 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
         _, j, x_k = dnx_utils.get_row_or_column(pos[0], t)
         _, i, y_k = dnx_utils.get_row_or_column(pos[1], t)
 
-        # FIXME: This can probably be handled better.
-        #   Examine either the scaling or get_row_or_column(), this really shouldn't be happening at all.
-        # Make sure you didn't run off the edge
-        if j < 0:
-            j = 0
-        elif j > n-1:
-            j = n-1
-        if i < 0:
-            i = 0
-        elif i > m-1:
-            i = m-1
-
         placement[v] = [(i, j, 0, x_k), (i, j, 1, y_k)]
 
     # Return the right type of vertices
-    if T_layout.G.graph["labels"] == "coordinate":
-        return placement
-    else:
-        C = dnx.chimera_coordinates(m, n, t)
-        return {v: [C.chimera_to_linear(q) for q in Q] for v, Q in placement.items()}
+    return dnx_utils.relabel_chains(T_layout.G, placement)
+
+
+def injective_intersection(S_layout, T, **kwargs):
+    """
+    First map vertices of S to unit tiles of T, then topple to get at most 4 vertices of S per unit tile, then in each 
+    unit tile, assign the vertices of S to a transversal (T must be a D-Wave hardware graph). 
+
+    Parameters
+    ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T : layout.Layout or dwave-networkx.Graph
+        A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
+
+    Returns
+    -------
+    placement : dict
+        A mapping from vertices of S (keys) to vertices of T (values).
+    """
+    T_layout = placement_utils.parse_T(T, disallow="dict")
+    assert isinstance(S_layout, layout.Layout) and isinstance(T_layout, layout.Layout), (
+        "Layout class instances must be passed in.")
+    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
+
+    # D-Wave counts the y direction like matrix rows; inversion makes pictures match
+    modified_layout = layout.invert_layout(
+        S_layout.layout_array, S_layout.center)
+
+    # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
+    m, n, _ = dnx_utils.lookup_dnx_dims(T_layout.G)
+    scale = (max(n, m)-1)/2
+
+    # Scale S to fill T at the grid level
+    modified_layout = layout.scale_layout(
+        modified_layout, scale, S_layout.scale, S_layout.center)
+
+    # Center to the positive orthant
+    modified_layout = layout.center_layout(
+        modified_layout, 2*(scale,), S_layout.center)
+
+    # Turn it into a dictionary
+    modified_layout = {v: pos for v, pos in zip(S_layout.G, modified_layout)}
+
+    bins = defaultdict(list)
+    freeze = set()
+    for v, pos in modified_layout.items():
+        # Get the bin to go into
+        int_bin = tuple(np.round(pos))
+
+        # Put the thing in the bin
+        bins[int_bin].append(v)
+
+        # Check if you're full
+        while len(bins[int_bin]) > 4:
+            # Get the vertex to topple
+            v, offset = topple(int_bin, bins, modified_layout, freeze)
+
+            # Calculate which bin it topples into
+            topple_coordinate = np.argmax(np.abs(offset))
+            topple_direction = np.sign(offset[topple_coordinate])
+            if topple_coordinate == 0:
+                int_bin = tuple(int_bin + np.array((topple_direction, 0)))
+            else:
+                int_bin = tuple(int_bin + np.array((0, topple_direction)))
+
+            # Put it in there
+            bins[int_bin].append(v)
+
+    placement = defaultdict(set)
+    for int_bin, V in bins.items():
+        # Get the row and columns for Chimera
+        i, j = int(int_bin[1]), int(int_bin[0])
+
+        # Run through the sorted points and assign them to qubits--find a transveral in each unit cell.
+        for k in np.argsort([modified_layout[v] for v in V], 0):
+            k_x, k_y = k[0], k[1]  # The k-values for the qubits
+            u_x, u_y = V[k_x], V[k_y]  # The vertices of S at those indicies
+            placement[u_x].add((i, j, 0, k_x))
+            placement[u_y].add((i, j, 1, k_y))
+
+    # Return the right type of vertices
+    return dnx_utils.relabel_chains(T_layout.G, placement)
+
+
+def topple(int_bin, bins, layout, freeze):
+    vertices = bins[int_bin]
+
+    offset_max = 0
+    to_topple = None
+
+    for u in vertices:
+        if u in freeze:
+            continue
+        offset = layout[u] - int_bin
+        abs_offset = np.sum(np.abs(offset))
+        if abs_offset > offset_max:
+            to_topple = (u, offset)
+            offset_max = abs_offset
+
+    # If all vertices are frozen, pick one randomly to topple.
+    if to_topple is None:
+        u = random.choice(vertices)
+        offset = layout[u] - int_bin
+        to_topple = (u, offset)
+
+    bins[int_bin].remove(to_topple[0])
+    freeze.add(to_topple[0])
+    return to_topple
