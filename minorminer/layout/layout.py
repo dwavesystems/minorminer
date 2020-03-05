@@ -549,7 +549,7 @@ class Layout():
 
         # Look to see if you can get the lattice information from the graph object.
         # If so, look them up and return.
-        coordinates = dnx_utils.lookup_dnx_coordinates(self.G)
+        coordinates = dnx_utils.lookup_grid_coordinates(self.G)
         if coordinates:
             for v, coord in coordinates.items():
                 # Extend to d-dimensions

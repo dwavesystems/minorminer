@@ -23,22 +23,35 @@ def parse_T(T, disallow=None):
         raise TypeError("Why did you give me that?")
 
 
-def check_requirements(S_layout, T_layout, disallowed_graphs=None):
-    if disallowed_graphs is None:
-        disallowed_graphs = []
-    elif isinstance(disallowed_graphs, str):
-        disallowed_graphs = [disallowed_graphs]
-    elif isinstance(disallowed_graphs, (frozenset, list, set, tuple)):
+def check_requirements(S_layout, T_layout, allowed_graphs=None, allowed_dims=None):
+    # Datatype parsing
+    if allowed_graphs is None:
+        allowed_graphs = True
+    elif isinstance(allowed_graphs, str):
+        allowed_graphs = [allowed_graphs]
+    elif isinstance(allowed_graphs, (frozenset, list, set, tuple)):
         pass
     else:
-        raise TypeError("What did you give me for a disallowed graph?")
+        raise TypeError("What did you give me for an allowed graph?")
+
+    # Datatype parsing
+    if allowed_dims is None:
+        allowed_dims = True
+    elif isinstance(allowed_dims, int):
+        allowed_dims = [allowed_dims]
+    elif isinstance(allowed_dims, (frozenset, list, set, tuple)):
+        pass
+    else:
+        raise TypeError("What did you give me for an allowed dimension?")
 
     graph_type = T_layout.G.graph.get("family")
-    if graph_type in disallowed_graphs:
+    if allowed_graphs is True or graph_type not in allowed_graphs:
         raise NotImplementedError(
-            f"This placement strategy is currently not implemented for graphs of type {graph_type}.")
+            f"This strategy is currently only implemented for graphs of type {allowed_graphs}.")
+
     if (not isinstance(S_layout, Layout)) or (not isinstance(T_layout, Layout)):
-        raise TypeError("This placement strategy needs Layout class objects.")
-    if S_layout.d != 2 or T_layout.d != 2:
+        raise TypeError("This strategy needs Layout class objects.")
+
+    if allowed_dims is True or (S_layout.d not in allowed_dims or T_layout.d not in allowed_dims):
         raise NotImplementedError(
-            "This placement strategy is only implemented for 2-dimensional layouts.")
+            f"This strategy is only implemented for {allowed_dims}-dimensional layouts.")

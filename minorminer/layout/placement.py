@@ -201,13 +201,13 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
 
     # Raise exceptions if you need to
     placement_utils.check_requirements(
-        S_layout, T_layout, disallowed_graphs="pegasus")
+        S_layout, T_layout, allowed_graphs="chimera", allowed_dims=2)
 
     # D-Wave counts the y direction like matrix rows; inversion makes pictures match
     modified_layout = layout.invert_layout(
         S_layout.layout_array, S_layout.center)
 
-    # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
+    # Scale the layout so that for each vertical and horizontal qubit that cross each other, we have an integer point.
     m, n, t = dnx_utils.lookup_dnx_dims(T_layout.G)
     if full_fit:  # Scale to fill the area
         scale = (t*max(n, m)-1)/2
@@ -236,7 +236,7 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
     return dnx_utils.relabel_chains(T_layout.G, placement)
 
 
-def injective_intersection(S_layout, T, **kwargs):
+def injective_intersection(S_layout, T, unit_tile_capacity=4, **kwargs):
     """
     First map vertices of S to unit tiles of T, then topple to get at most 4 vertices of S per unit tile, then in each 
     unit tile, assign the vertices of S to a transversal (T must be a D-Wave hardware graph). 
@@ -247,6 +247,8 @@ def injective_intersection(S_layout, T, **kwargs):
         A layout for S; i.e. a map from S to R^d.
     T : layout.Layout or dwave-networkx.Graph
         A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
+    unit_tile_capacity : int (default 4)
+        The number of variables (vertices of S) that are allowed to map to unit tiles of T.
 
     Returns
     -------
@@ -258,17 +260,30 @@ def injective_intersection(S_layout, T, **kwargs):
 
     # Raise exceptions if you need to
     placement_utils.check_requirements(
-        S_layout, T_layout, disallowed_graphs="pegasus")
+        S_layout, T_layout, allowed_graphs=["chimera", "pegasus"], allowed_dims=2)
 
+    # Get the lattice point mapping for the dnx graph
+    lattice_mapping = dnx_utils.lookup_grid_coordinates(T_layout.G)
+    m, n = max(lattice_mapping.values())
+
+    # Make the grid "quotient" of the dnx_graph--the ~K_4,4 unit cells of the dnx_graph are quotiented to grid points
+    G = nx.grid_2d_graph(m, n)
+    for v, int_point in lattice_mapping.items():
+        if "qubits" in G.nodes[int_point]:
+            G.nodes[int_point]["qubits"].add(v)
+        else:
+            G.nodes[int_point]["qubits"] = {v}
+
+        # Also initialize space for S
+        G.nodes[int_point]["variables"] = set()
+
+    # Map the layout to the grid (R^2 --> Grid(Chimera))
     # D-Wave counts the y direction like matrix rows; inversion makes pictures match
     modified_layout = layout.invert_layout(
         S_layout.layout_array, S_layout.center)
 
-    # Scale the layout so that we have integer spots for each vertical and horizontal qubit.
-    m, n, _ = dnx_utils.lookup_dnx_dims(T_layout.G)
-    scale = (max(n, m)-1)/2
-
     # Scale S to fill T at the grid level
+    scale = (max(n, m)-1)/2
     modified_layout = layout.scale_layout(
         modified_layout, scale, S_layout.scale, S_layout.center)
 
@@ -279,68 +294,46 @@ def injective_intersection(S_layout, T, **kwargs):
     # Turn it into a dictionary
     modified_layout = {v: pos for v, pos in zip(S_layout.G, modified_layout)}
 
-    bins = defaultdict(list)
-    freeze = set()
+    # Put the "variables" (vertices from S) in the graph too
     for v, pos in modified_layout.items():
-        # Get the bin to go into
-        int_bin = tuple(np.round(pos))
+        grid_point = tuple(np.round(pos))
+        G.nodes[grid_point]["variables"].add(v)
 
-        # Put the thing in the bin
-        bins[int_bin].append(v)
+    # Check who needs to move (at most 4 vertices of S allowed per grid point)
+    topple = True  # This flag is set to true if a topple happened this round
+    while topple:
+        topple = False
+        for g, V in G.nodes(data="variables"):
+            num_vars = len(V)
 
-        # Check if you're full
-        while len(bins[int_bin]) > 4:
-            # Get the vertex to topple
-            v, offset = topple(int_bin, bins, modified_layout, freeze)
+            # If you're too full let's topple/chip fire/sand pile
+            if num_vars > unit_tile_capacity:
+                topple = True
+                neighbors_capacity = {
+                    v: len(G.nodes[v]["variables"]) for v in G[g]}
 
-            # Calculate which bin it topples into
-            topple_coordinate = np.argmax(np.abs(offset))
-            topple_direction = np.sign(offset[topple_coordinate])
-            if topple_coordinate == 0:
-                int_bin = tuple(int_bin + np.array((topple_direction, 0)))
-            else:
-                int_bin = tuple(int_bin + np.array((0, topple_direction)))
+                while num_vars > unit_tile_capacity:
+                    hungriest = min(neighbors_capacity,
+                                    key=neighbors_capacity.get)
 
-            # Put it in there
-            bins[int_bin].append(v)
+                    # FIXME: Something more intelligent than random can be done here
+                    v = random.sample(G.nodes[g]["variables"], 1).pop()
+                    G.nodes[g]["variables"].remove(v)
+                    G.nodes[hungriest]["variables"].add(v)
+
+                    neighbors_capacity[hungriest] += 1
+                    num_vars -= 1
 
     placement = defaultdict(set)
-    for int_bin, V in bins.items():
-        # Get the row and columns for Chimera
-        i, j = int(int_bin[1]), int(int_bin[0])
-
+    for g, V in G.nodes(data="variables"):
+        V = list(V)
         # Run through the sorted points and assign them to qubits--find a transveral in each unit cell.
         for k in np.argsort([modified_layout[v] for v in V], 0):
-            k_x, k_y = k[0], k[1]  # The k-values for the qubits
-            u_x, u_y = V[k_x], V[k_y]  # The vertices of S at those indicies
-            placement[u_x].add((i, j, 0, k_x))
-            placement[u_y].add((i, j, 1, k_y))
+            # The x and y order in the argsort (k_* in [0,1,2,3])
+            k_x, k_y = k[0], k[1]
+            # The vertices of S at those indicies
+            u_x, u_y = V[k_x], V[k_y]
+            placement[u_x].add((g[0], g[1], 0, k_x))
+            placement[u_y].add((g[0], g[1], 1, k_y))
 
-    # Return the right type of vertices
     return dnx_utils.relabel_chains(T_layout.G, placement)
-
-
-def topple(int_bin, bins, layout, freeze):
-    vertices = bins[int_bin]
-
-    offset_max = 0
-    to_topple = None
-
-    for u in vertices:
-        if u in freeze:
-            continue
-        offset = layout[u] - int_bin
-        abs_offset = np.sum(np.abs(offset))
-        if abs_offset > offset_max:
-            to_topple = (u, offset)
-            offset_max = abs_offset
-
-    # If all vertices are frozen, pick one randomly to topple.
-    if to_topple is None:
-        u = random.choice(vertices)
-        offset = layout[u] - int_bin
-        to_topple = (u, offset)
-
-    bins[int_bin].remove(to_topple[0])
-    freeze.add(to_topple[0])
-    return to_topple

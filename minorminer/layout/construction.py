@@ -53,10 +53,12 @@ def crosses(placement, S_layout, T, **kwargs):
     chains: dict
         A mapping from vertices of S (keys) to chains of T (values).
     """
+    # Standardize input
     T_layout = placement_utils.parse_T(T, disallow="dict")
-    assert isinstance(S_layout, layout.Layout) and isinstance(T_layout, layout.Layout), (
-        "Layout class instances must be passed in.")
-    assert S_layout.d == 2 and T_layout.d == 2, "This is only implemented for 2-dimensional layouts."
+
+    # Raise exceptions if you need to
+    placement_utils.check_requirements(
+        S_layout, T_layout, allowed_graphs="chimera", allowed_dims=2)
 
     # Grab the coordinate version of the labels
     if T_layout.G.graph["labels"] == "coordinate":

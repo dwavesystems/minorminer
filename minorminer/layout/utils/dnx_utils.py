@@ -1,9 +1,10 @@
 import math
 
 import dwave_networkx as dnx
+import networkx as nx
 
 
-def lookup_dnx_coordinates(G):
+def lookup_grid_coordinates(G):
     """
     Checks to see if G is a dnx.*_graph(). If it is, it checks to see if G has coordinate information. If it does it 
     returns a dictionary mapping the vertices of G to lattice points, i.e., the first 2 coordinates from each vertex 

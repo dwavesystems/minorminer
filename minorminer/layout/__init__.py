@@ -54,7 +54,8 @@ def find_embedding(
     start = time.process_time()
 
     # Parse kwargs
-    layout_kwargs, placement_kwargs, construction_kwargs = parse_kwargs(kwargs)
+    layout_kwargs, placement_kwargs, construction_kwargs, hinting_kwargs = parse_kwargs(
+        kwargs)
 
     # Parse layout parameter
     S_layout, T_layout = parse_layout_parameter(S, T, layout, layout_kwargs)
@@ -74,8 +75,8 @@ def find_embedding(
 
     # Run minerminor.find_embedding()
     if return_layout:
-        return hinting(S, T, chains, kwargs), (S_layout, T_layout)
-    return hinting(S, T, chains, kwargs)
+        return hinting(S, T, chains, kwargs, **hinting_kwargs), (S_layout, T_layout)
+    return hinting(S, T, chains, kwargs, **hinting_kwargs)
 
 
 def parse_kwargs(kwargs):
@@ -105,6 +106,9 @@ def parse_kwargs(kwargs):
         placement_kwargs["strategy"] = kwargs.pop("strategy")
     if "num_neighbors" in kwargs:
         placement_kwargs["num_neighbors"] = kwargs.pop("num_neighbors")
+    if "unit_tile_capacity" in kwargs:
+        placement_kwargs["unit_tile_capacity"] = kwargs.pop(
+            "unit_tile_capacity")
 
     construction_kwargs = {}
     if "second" in kwargs:
@@ -112,7 +116,11 @@ def parse_kwargs(kwargs):
     if "extend" in kwargs:
         construction_kwargs["extend"] = kwargs.pop("extend")
 
-    return layout_kwargs, placement_kwargs, construction_kwargs
+    hinting_kwargs = {}
+    if "percent" in kwargs:
+        hinting_kwargs["percent"] = kwargs.pop("percent")
+
+    return layout_kwargs, placement_kwargs, construction_kwargs, hinting_kwargs
 
 
 def parse_layout_parameter(S, T, layout, layout_kwargs):
