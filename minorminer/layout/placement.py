@@ -236,7 +236,7 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
     return dnx_utils.relabel_chains(T_layout.G, placement)
 
 
-def injective_intersection(S_layout, T, unit_tile_capacity=4, **kwargs):
+def injective_intersection(S_layout, T, unit_tile_capacity=4, fill_processor=False, **kwargs):
     """
     First map vertices of S to unit tiles of T, then topple to get at most 4 vertices of S per unit tile, then in each 
     unit tile, assign the vertices of S to a transversal (T must be a D-Wave hardware graph). 
@@ -249,6 +249,8 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, **kwargs):
         A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
     unit_tile_capacity : int (default 4)
         The number of variables (vertices of S) that are allowed to map to unit tiles of T.
+    fill_processor : bool (default False)
+        If True, S_layout is scaled so that it fills the processor. If False, the scale of S_layout is used.
 
     Returns
     -------
@@ -264,17 +266,20 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, **kwargs):
 
     # Get the lattice point mapping for the dnx graph
     lattice_mapping = dnx_utils.lookup_grid_coordinates(T_layout.G)
-    m, n = max(lattice_mapping.values())
+
+    # Extract the dimensions of the grid (the mapping is from [0, n-1] and [0, m-1])
+    m, n = np.max(list(lattice_mapping.values()), 0) + (1, 1)
 
     # Make the grid "quotient" of the dnx_graph--the ~K_4,4 unit cells of the dnx_graph are quotiented to grid points
     G = nx.grid_2d_graph(m, n)
     for v, int_point in lattice_mapping.items():
+        # Add qubits (vertices of T) to grid points
         if "qubits" in G.nodes[int_point]:
             G.nodes[int_point]["qubits"].add(v)
         else:
             G.nodes[int_point]["qubits"] = {v}
 
-        # Also initialize space for S
+        # Also initialize space for variables (vertices of S)
         G.nodes[int_point]["variables"] = set()
 
     # Map the layout to the grid (R^2 --> Grid(Chimera))
@@ -284,8 +289,9 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, **kwargs):
 
     # Scale S to fill T at the grid level
     scale = (max(n, m)-1)/2
-    modified_layout = layout.scale_layout(
-        modified_layout, scale, S_layout.scale, S_layout.center)
+    if fill_processor:
+        modified_layout = layout.scale_layout(
+            modified_layout, scale, S_layout.scale, S_layout.center)
 
     # Center to the positive orthant
     modified_layout = layout.center_layout(
@@ -300,8 +306,11 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, **kwargs):
         G.nodes[grid_point]["variables"].add(v)
 
     # Check who needs to move (at most 4 vertices of S allowed per grid point)
+    moves = {v: 0 for v in S_layout.G}
     topple = True  # This flag is set to true if a topple happened this round
+    stop = 0
     while topple:
+        stop += 1
         topple = False
         for g, V in G.nodes(data="variables"):
             num_vars = len(V)
@@ -309,20 +318,41 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, **kwargs):
             # If you're too full let's topple/chip fire/sand pile
             if num_vars > unit_tile_capacity:
                 topple = True
+
+                # Which neighbor do you send it to?
                 neighbors_capacity = {
                     v: len(G.nodes[v]["variables"]) for v in G[g]}
 
-                while num_vars > unit_tile_capacity:
-                    hungriest = min(neighbors_capacity,
-                                    key=neighbors_capacity.get)
+                # Who's closest?
+                positions = {v: modified_layout[v]
+                             for v in G.nodes[g]["variables"]}
 
-                    # FIXME: Something more intelligent than random can be done here
-                    v = random.sample(G.nodes[g]["variables"], 1).pop()
-                    G.nodes[g]["variables"].remove(v)
-                    G.nodes[hungriest]["variables"].add(v)
+                while num_vars > unit_tile_capacity:
+                    # The neighbor to send it to
+                    lowest_occupancy = min(neighbors_capacity.values())
+                    hungriest = random.choice(
+                        [v for v, cap in neighbors_capacity.items() if cap == lowest_occupancy])
+
+                    # Who to send
+                    min_score = float("inf")
+                    for v, pos in positions.items():
+                        dist = np.linalg.norm(np.array(hungriest) - pos)
+                        score = dist + moves[v]
+                        if score < min_score:
+                            min_score = min(score, min_score)
+                            moves[v] += 1
+                            food = v
+
+                    G.nodes[g]["variables"].remove(food)
+                    del positions[food]
+                    G.nodes[hungriest]["variables"].add(food)
 
                     neighbors_capacity[hungriest] += 1
                     num_vars -= 1
+
+        if stop == 1000:
+            raise RuntimeError(
+                "I couldn't topple, this may be an infinite loop.")
 
     placement = defaultdict(set)
     for g, V in G.nodes(data="variables"):
