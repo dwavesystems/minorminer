@@ -24,6 +24,9 @@ def parse_T(T, disallow=None):
 
 
 def check_requirements(S_layout, T_layout, allowed_graphs=None, allowed_dims=None):
+    if len(S_layout.G) > len(T_layout.G):
+        raise RuntimeError("S is larger than T. You cannot embed S in T.")
+
     # Datatype parsing
     if allowed_graphs is None:
         allowed_graphs = True

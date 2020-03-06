@@ -16,14 +16,15 @@ def lookup_grid_coordinates(G):
     family = graph_data.get("family")
     if family == "chimera":
         if graph_data["labels"] == "coordinate":
-            return {v: (v[0], v[1]) for v in G}
+            return {v: (v[1], v[0]) for v in G}
         if graph_data["data"]:
             return {
-                v: (G.nodes[v][f"{family}_index"][0],
-                    G.nodes[v][f"{family}_index"][1])
+                v: (G.nodes[v][f"{family}_index"][1],
+                    G.nodes[v][f"{family}_index"][0])
                 for v in G
             }
     elif family == "pegasus":
+        # FIXME: x and y might be switched here
         if graph_data["labels"] == "nice":
             # (t, y, x, u, k) |--> (3x + t, 3y + 2 - t)
             return {v: (3*v[2] + v[0], 3*v[1] + (2 - v[0])) for v in G}

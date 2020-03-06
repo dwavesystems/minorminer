@@ -264,6 +264,7 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, fill_processor=Fal
     placement_utils.check_requirements(
         S_layout, T_layout, allowed_graphs=["chimera", "pegasus"], allowed_dims=2)
 
+    # --- Map the T_layout to the grid
     # Get the lattice point mapping for the dnx graph
     lattice_mapping = dnx_utils.lookup_grid_coordinates(T_layout.G)
 
@@ -272,17 +273,17 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, fill_processor=Fal
 
     # Make the grid "quotient" of the dnx_graph--the ~K_4,4 unit cells of the dnx_graph are quotiented to grid points
     G = nx.grid_2d_graph(m, n)
+
+    # Less efficient, but more readable to initialize all at once
+    for v in G:
+        G.nodes[v]["qubits"] = set()
+        G.nodes[v]["variables"] = set()
+
+    # Add qubits (vertices of T) to grid points
     for v, int_point in lattice_mapping.items():
-        # Add qubits (vertices of T) to grid points
-        if "qubits" in G.nodes[int_point]:
-            G.nodes[int_point]["qubits"].add(v)
-        else:
-            G.nodes[int_point]["qubits"] = {v}
+        G.nodes[int_point]["qubits"].add(v)
 
-        # Also initialize space for variables (vertices of S)
-        G.nodes[int_point]["variables"] = set()
-
-    # Map the layout to the grid (R^2 --> Grid(Chimera))
+    # --- Map the S_layout to the grid
     # D-Wave counts the y direction like matrix rows; inversion makes pictures match
     modified_layout = layout.invert_layout(
         S_layout.layout_array, S_layout.center)
@@ -300,9 +301,12 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, fill_processor=Fal
     # Turn it into a dictionary
     modified_layout = {v: pos for v, pos in zip(S_layout.G, modified_layout)}
 
-    # Put the "variables" (vertices from S) in the graph too
+    # Add "variables" (vertices from S) to grid points too
     for v, pos in modified_layout.items():
-        grid_point = tuple(np.round(pos))
+        grid_point = tuple(int(x) for x in np.round(pos))
+        if grid_point > (m-1, n-1):
+            raise RuntimeError(
+                "The S_layout is too big for T. Try setting fill_processor=True")
         G.nodes[grid_point]["variables"].add(v)
 
     # Check who needs to move (at most 4 vertices of S allowed per grid point)
@@ -357,13 +361,19 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, fill_processor=Fal
     placement = defaultdict(set)
     for g, V in G.nodes(data="variables"):
         V = list(V)
+
+        x_indices, y_indices = list(range(4)), list(range(4))
+        for _ in range(4, len(V), -1):
+            x_indices.remove(random.choice(x_indices))
+            y_indices.remove(random.choice(y_indices))
+
         # Run through the sorted points and assign them to qubits--find a transveral in each unit cell.
         for k in np.argsort([modified_layout[v] for v in V], 0):
             # The x and y order in the argsort (k_* in [0,1,2,3])
             k_x, k_y = k[0], k[1]
             # The vertices of S at those indicies
             u_x, u_y = V[k_x], V[k_y]
-            placement[u_x].add((g[0], g[1], 0, k_x))
-            placement[u_y].add((g[0], g[1], 1, k_y))
+            placement[u_x].add((g[1], g[0], 0, x_indices[k_x]))
+            placement[u_y].add((g[1], g[0], 1, y_indices[k_y]))
 
     return dnx_utils.relabel_chains(T_layout.G, placement)
