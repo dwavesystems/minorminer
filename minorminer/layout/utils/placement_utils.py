@@ -1,5 +1,5 @@
 import networkx as nx
-from minorminer.layout.layout import Layout, dnx_layout
+from ..layout import Layout, dnx_layout
 
 
 def parse_layout(layout):

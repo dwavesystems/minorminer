@@ -16,7 +16,7 @@ def find_embedding(
     placement=intersection,
     construction=crosses,
     hinting=initial,
-    return_layout=False,
+    return_layouts=False,
     **kwargs
 ):
     """
@@ -41,7 +41,7 @@ def find_embedding(
         minorminer.find_embedding(). 
     hinting : function (default initial)
         The type of minorminer hinting to call.
-    return_layout : bool (default False)
+    return_layouts : bool (default False)
         Will return the layout objects of S and T.
     kwargs : dict 
         Keyword arguments are passed to various functions.
@@ -75,7 +75,7 @@ def find_embedding(
         kwargs["timeout"] = timeout - (end - start)
 
     # Run minerminor.find_embedding()
-    if return_layout:
+    if return_layouts:
         return hinting(S, T, chains, kwargs, **hinting_kwargs), (S_layout, T_layout)
     return hinting(S, T, chains, kwargs, **hinting_kwargs)
 
@@ -107,6 +107,8 @@ def parse_kwargs(kwargs):
         placement_kwargs["strategy"] = kwargs.pop("strategy")
     if "num_neighbors" in kwargs:
         placement_kwargs["num_neighbors"] = kwargs.pop("num_neighbors")
+    if "full_fit" in kwargs:
+        placement_kwargs["full_fit"] = kwargs.pop("full_fit")
     if "unit_tile_capacity" in kwargs:
         placement_kwargs["unit_tile_capacity"] = kwargs.pop(
             "unit_tile_capacity")

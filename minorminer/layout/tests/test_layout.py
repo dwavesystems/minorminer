@@ -5,7 +5,7 @@ from itertools import product
 import dwave_networkx as dnx
 import networkx as nx
 
-import minorminer.layout.layout as mml
+import minorminer.layout as mml
 from minorminer.layout.utils import layout_utils
 
 # Set a seed to standardize the randomness.
