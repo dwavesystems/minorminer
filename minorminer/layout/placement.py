@@ -124,59 +124,6 @@ def injective(S_layout, T, **kwargs):
     return {u: [M[(0, u)][1]] for u in S_layout_dict.keys()}
 
 
-def binning(S_layout, T, bins=None, strategy="cycle", **kwargs):
-    """
-    Map the vertices of S to the vertices of T by first mapping both to an integer lattice.
-
-    Parameters
-    ----------
-    S_layout : layout.Layout
-        A layout for S; i.e. a map from S to R^d.
-    T : layout.Layout or dwave-networkx.Graph
-        A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
-    bins : tuple or int (default None)
-        The number of bins to put along dimensions; see Layout.to_integer_lattice(). If None, check to see if T is a
-        dnx.*_graph() object. If it is, compute bins to be the grid dimension of T.
-    strategy : string (default "cycle")
-        cycle : Cycle through the qubits in the bin and assign vertices to them one at a time.
-        all : Map each vertex in a bin to all qubits in that bin.
-
-    Returns
-    -------
-    placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
-    """
-    # Standardize input
-    T_layout = placement_utils.parse_T(T, disallow="dict")
-
-    assert isinstance(S_layout, layout.Layout) and isinstance(T_layout, layout.Layout), (
-        "Layout class instances must be passed in.")
-
-    if bins is None:
-        dims = dnx_utils.lookup_dnx_dims(T_layout.G)
-        if dims:
-            n, m = dims[0], dims[1]
-            bins = (m, n) + (T_layout.d-2)*(0,)
-        else:
-            bins = 2
-
-    S_binned, _ = S_layout.integer_lattice_bins(bins)
-    T_binned, _ = T_layout.integer_lattice_bins(bins)
-
-    placement = {}
-    if strategy == "cycle":
-        for p, S in S_binned.items():
-            for v, q in zip(S, cycle(T_binned[p])):
-                placement[v] = [q]
-
-    elif strategy == "all":
-        for p, V in S_binned.items():
-            for v in V:
-                placement[v] = T_binned[p]
-
-    return placement
-
-
 def intersection(S_layout, T, full_fit=True, **kwargs):
     """
     Map each vertex of S to its nearest row/column intersection qubit in T (T must be a D-Wave hardware graph). 
@@ -236,10 +183,9 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
     return dnx_utils.relabel_chains(T_layout.G, placement)
 
 
-def injective_intersection(S_layout, T, unit_tile_capacity=4, fill_processor=False, **kwargs):
+def binning(S_layout, T, unit_tile_capacity=None, fill_processor=False, strategy="layout", **kwargs):
     """
-    First map vertices of S to unit tiles of T, then topple to get at most 4 vertices of S per unit tile, then in each 
-    unit tile, assign the vertices of S to a transversal (T must be a D-Wave hardware graph). 
+    Map the vertices of S to the vertices of T by first mapping both to an integer lattice (T must be a D-Wave hardware graph). 
 
     Parameters
     ----------
@@ -247,15 +193,143 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, fill_processor=Fal
         A layout for S; i.e. a map from S to R^d.
     T : layout.Layout or dwave-networkx.Graph
         A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
-    unit_tile_capacity : int (default 4)
-        The number of variables (vertices of S) that are allowed to map to unit tiles of T.
+    unit_tile_capacity : int (default None)
+        The number of variables (vertices of S) that are allowed to map to unit tiles of T. If set, a topple based algorithm is run
+        to ensure that not too many variables are contained in the same unit tile of T.
     fill_processor : bool (default False)
         If True, S_layout is scaled so that it fills the processor. If False, the scale of S_layout is used.
+    strategy : str (default "layout")
+        layout : Use S_layout to determine the mapping from variables to qubits.
+        cycle : Cycle through the variables and qubits in a unit cell and assign variables to qubits one at a time, repeating if necessary.
+        all : Map each variable to each qubit in a unit cell. Lots of overlap.
 
     Returns
     -------
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
+    """
+    # Standardize input
+    T_layout = placement_utils.parse_T(T, disallow="dict")
+
+    # Get the grid graph and the modified layout for S
+    G, modified_S_layout = _unit_cell_binning(S_layout, T_layout, fill_processor)
+
+    # Do we need to topple?
+    if unit_tile_capacity or strategy=="layout":
+        unit_tile_capacity = unit_tile_capacity or 4
+        _topple(G, modified_S_layout, unit_tile_capacity)
+
+    # Build the placement
+    placement = defaultdict(set)
+    if strategy == "layout":
+        for g, V in G.nodes(data="variables"):
+            V = list(V)
+
+            t = T_layout.G.graph["tile"]
+            x_indices, y_indices = list(range(t)), list(range(t))
+            for _ in range(t, len(V), -1):
+                x_indices.remove(random.choice(x_indices))
+                y_indices.remove(random.choice(y_indices))
+
+            # Run through the sorted points and assign them to qubits--find a transveral in each unit cell.
+            for k in np.argsort([modified_S_layout[v] for v in V], 0):
+                # The x and y order in the argsort (k_* in [0,1,2,3])
+                k_x, k_y = k[0], k[1]
+                # The vertices of S at those indicies
+                u_x, u_y = V[k_x], V[k_y]
+                placement[u_x].add((g[1], g[0], 0, x_indices[k_x]))
+                placement[u_y].add((g[1], g[0], 1, y_indices[k_y]))
+        placement = dnx_utils.relabel_chains(T_layout.G, placement)
+
+    if strategy == "cycle":
+        for _, data in G.nodes(data=True):
+            if data["variables"]:
+                for v, q in zip(data["variables"], cycle(data["qubits"])):
+                    placement[v].add(q)
+
+    elif strategy == "all":
+        for _, data in G.nodes(data=True):
+            if data["variables"]:
+                for v in data["variables"]:
+                    placement[v] |= data["qubits"]
+
+    return placement
+
+
+def _topple(G, modified_layout, unit_tile_capacity):
+    """
+    Modifies G by toppling.
+
+    topple : Topple grid points so that the number of variables at each point does not exceed specified unit_tile_capacity.
+            After toppling assign the vertices of S to a transversal of qubits at the grid point.
+    """
+    # Check who needs to move (at most unit_tile_capacity vertices of S allowed per grid point)
+    moves = {v: 0 for _, V in G.nodes(data="variables") for v in V}
+    topple = True  # This flag is set to true if a topple happened this round
+    stop = 0
+    while topple:
+        stop += 1
+        topple = False
+        for g, V in G.nodes(data="variables"):
+            num_vars = len(V)
+
+            # If you're too full let's topple/chip fire/sand pile
+            if num_vars > unit_tile_capacity:
+                topple = True
+
+                # Which neighbor do you send it to?
+                neighbors_capacity = {
+                    v: len(G.nodes[v]["variables"]) for v in G[g]}
+
+                # Who's closest?
+                positions = {v: modified_layout[v]
+                            for v in G.nodes[g]["variables"]}
+
+                while num_vars > unit_tile_capacity:
+                    # The neighbor to send it to
+                    lowest_occupancy = min(neighbors_capacity.values())
+                    hungriest = random.choice(
+                        [v for v, cap in neighbors_capacity.items() if cap == lowest_occupancy])
+
+                    # Who to send
+                    min_score = float("inf")
+                    for v, pos in positions.items():
+                        dist = np.linalg.norm(np.array(hungriest) - pos)
+                        score = dist + moves[v]
+                        if score < min_score:
+                            min_score = min(score, min_score)
+                            moves[v] += 1
+                            food = v
+
+                    G.nodes[g]["variables"].remove(food)
+                    del positions[food]
+                    G.nodes[hungriest]["variables"].add(food)
+
+                    neighbors_capacity[hungriest] += 1
+                    num_vars -= 1
+
+        if stop == 1000:
+            raise RuntimeError(
+                "I couldn't topple, this may be an infinite loop.")
+
+
+def _unit_cell_binning(S_layout, T, fill_processor=False):
+    """
+    Map the vertices of S to the unit cell quotient of T.
+
+    Parameters
+    ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T : layout.Layout or dwave-networkx.Graph
+        A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
+    fill_processor : bool (default False)
+        If True, S_layout is scaled so that it fills the processor. If False, the scale of S_layout is used.
+
+    Returns
+    -------
+    G : networkx.Graph
+        A 2d grid graph. Each vertex of G contains a set of qubits (vertices of T) and variables (vertices of S).
     """
     # Standardize input
     T_layout = placement_utils.parse_T(T, disallow="dict")
@@ -308,72 +382,5 @@ def injective_intersection(S_layout, T, unit_tile_capacity=4, fill_processor=Fal
             raise RuntimeError(
                 "The S_layout is too big for T. Try setting fill_processor=True")
         G.nodes[grid_point]["variables"].add(v)
-
-    # Check who needs to move (at most 4 vertices of S allowed per grid point)
-    moves = {v: 0 for v in S_layout.G}
-    topple = True  # This flag is set to true if a topple happened this round
-    stop = 0
-    while topple:
-        stop += 1
-        topple = False
-        for g, V in G.nodes(data="variables"):
-            num_vars = len(V)
-
-            # If you're too full let's topple/chip fire/sand pile
-            if num_vars > unit_tile_capacity:
-                topple = True
-
-                # Which neighbor do you send it to?
-                neighbors_capacity = {
-                    v: len(G.nodes[v]["variables"]) for v in G[g]}
-
-                # Who's closest?
-                positions = {v: modified_layout[v]
-                             for v in G.nodes[g]["variables"]}
-
-                while num_vars > unit_tile_capacity:
-                    # The neighbor to send it to
-                    lowest_occupancy = min(neighbors_capacity.values())
-                    hungriest = random.choice(
-                        [v for v, cap in neighbors_capacity.items() if cap == lowest_occupancy])
-
-                    # Who to send
-                    min_score = float("inf")
-                    for v, pos in positions.items():
-                        dist = np.linalg.norm(np.array(hungriest) - pos)
-                        score = dist + moves[v]
-                        if score < min_score:
-                            min_score = min(score, min_score)
-                            moves[v] += 1
-                            food = v
-
-                    G.nodes[g]["variables"].remove(food)
-                    del positions[food]
-                    G.nodes[hungriest]["variables"].add(food)
-
-                    neighbors_capacity[hungriest] += 1
-                    num_vars -= 1
-
-        if stop == 1000:
-            raise RuntimeError(
-                "I couldn't topple, this may be an infinite loop.")
-
-    placement = defaultdict(set)
-    for g, V in G.nodes(data="variables"):
-        V = list(V)
-
-        x_indices, y_indices = list(range(4)), list(range(4))
-        for _ in range(4, len(V), -1):
-            x_indices.remove(random.choice(x_indices))
-            y_indices.remove(random.choice(y_indices))
-
-        # Run through the sorted points and assign them to qubits--find a transveral in each unit cell.
-        for k in np.argsort([modified_layout[v] for v in V], 0):
-            # The x and y order in the argsort (k_* in [0,1,2,3])
-            k_x, k_y = k[0], k[1]
-            # The vertices of S at those indicies
-            u_x, u_y = V[k_x], V[k_y]
-            placement[u_x].add((g[1], g[0], 0, x_indices[k_x]))
-            placement[u_y].add((g[1], g[0], 1, y_indices[k_y]))
-
-    return dnx_utils.relabel_chains(T_layout.G, placement)
+    
+    return G, modified_layout

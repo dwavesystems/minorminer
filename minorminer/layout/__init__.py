@@ -5,8 +5,7 @@ import networkx as nx
 from .construction import crosses, neighborhood, pass_along
 from .hinting import initial, random_remove, suspend
 from .layout import Layout, R2xT, dnx_layout, p_norm, pca
-from .placement import (binning, closest, injective,
-                        injective_intersection, intersection)
+from .placement import binning, closest, injective, intersection
 
 
 def find_embedding(
