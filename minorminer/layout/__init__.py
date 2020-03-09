@@ -28,14 +28,14 @@ def find_embedding(
         The graph you are embedding (source) or a NetworkX supported data structure (see to_networkx_graph()).
     T : NetworkX graph or edges data structure (dict, list, ...)
         The graph you are embedding into (target) or a NetworkX supported data structure (see to_networkx_graph()).
-    layout : function or [function/dict/Layout, function/dict/Layout] (default kamada_kawai)
+    layout : function or [function/dict/Layout, function/dict/Layout] (default p_norm)
         Specifies either a single function to compute the layout for both S and T or a 2-tuple consisting of functions 
         or pre-computed layouts, the first applying to S and the second applying to T.
-    placement : function or dict (default closest)
+    placement : function or dict (default intersection)
         If a function, it is the placement algorithm to call; each algorithm uses the layouts of S and T to map the 
         vertices of S to subsets of vertices of T. If it is a dict, it should be a map from the vertices of S to subsets
         of vertices of T.
-    construction : function (default pass_along)
+    construction : function (default crosses)
         The chain construction algorithm to call; each algorithm uses the placement to build chains to hand to 
         minorminer.find_embedding(). 
     hinting : function (default initial)

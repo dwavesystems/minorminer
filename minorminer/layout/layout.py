@@ -191,7 +191,7 @@ class Layout():
 
         # Check the dimension of the layout
         k = starting_layout.shape[1]
-        assert self.d == k, f"The starting layout has dimension {k}, but the object wants dimension {self.d}"
+        assert self.d == k, "The starting layout has dimension {}, but the object wants dimension {}".format(k, self.d)
 
         # Save on distance calculations by passing them in
         if G_distances is None:
@@ -303,11 +303,11 @@ class Layout():
         """
         # The number of vertices bounds the dimension
         n = len(self.G)
-        assert self.d <= n, f"You want me to find {self.d} eigenvectors in a graph with {n} vertices."
+        assert self.d <= n, "You want me to find {} eigenvectors in a graph with {} vertices.".format(self.d, n)
 
         # Pick the number of dimensions to initially embed into
         m = m or n if n < 50 else 50
-        assert m <= n, f"The number of vertices {n} bounds the dimension."
+        assert m <= n, "The number of vertices {} bounds the dimension.".format(n)
 
         starting_layout = layout_utils.build_starting_points(
             self.G, m, self.seed)
@@ -340,12 +340,12 @@ class Layout():
         desired_scale = self.scale
 
         # Calculate the scale and center based on the layout
+        self.center = np.mean(self.layout_array, axis=0)
         self.scale = np.max(
             np.linalg.norm(
                 self.layout_array - self.center, float("inf"), axis=0
             )
         )
-        self.center = np.mean(self.layout_array, axis=0)
 
         # Transform the layout
         if self.recenter:
@@ -657,7 +657,7 @@ def scale_edge_length(layout, edge_length=1., to_scale="median"):
     elif to_scale == "max":
         scale = edge_length/max(distances.values())
     else:
-        raise ValueError(f"Parameter to_scale={to_scale} is not supported.")
+        raise ValueError("Parameter to_scale={} is not supported.".format(to_scale))
 
     return {v: scale*p for v, p in layout.items()}
 

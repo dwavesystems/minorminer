@@ -21,7 +21,7 @@ def to_vector(length, d):
 
     vector = np.array(length)
     assert vector.size == d, (
-        f"You inputed a vector of size {vector.size} for a {d}-dimensional space; these should match."
+        "You inputed a vector of size {} for a {}-dimensional space; these should match.".format(vector.size, d)
     )
     return vector
 

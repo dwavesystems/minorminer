@@ -19,8 +19,8 @@ def lookup_grid_coordinates(G):
             return {v: (v[1], v[0]) for v in G}
         if graph_data["data"]:
             return {
-                v: (G.nodes[v][f"{family}_index"][1],
-                    G.nodes[v][f"{family}_index"][0])
+                v: (G.nodes[v]["{}_index".format(family)][1],
+                    G.nodes[v]["{}_index".format(family)][0])
                 for v in G
             }
     elif family == "pegasus":

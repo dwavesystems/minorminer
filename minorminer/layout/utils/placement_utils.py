@@ -50,11 +50,11 @@ def check_requirements(S_layout, T_layout, allowed_graphs=None, allowed_dims=Non
     graph_type = T_layout.G.graph.get("family")
     if allowed_graphs is True or graph_type not in allowed_graphs:
         raise NotImplementedError(
-            f"This strategy is currently only implemented for graphs of type {allowed_graphs}.")
+            "This strategy is currently only implemented for graphs of type {}.".format(allowed_graphs))
 
     if (not isinstance(S_layout, Layout)) or (not isinstance(T_layout, Layout)):
         raise TypeError("This strategy needs Layout class objects.")
 
     if allowed_dims is True or (S_layout.d not in allowed_dims or T_layout.d not in allowed_dims):
         raise NotImplementedError(
-            f"This strategy is only implemented for {allowed_dims}-dimensional layouts.")
+            "This strategy is only implemented for {}-dimensional layouts.".format(allowed_dims))

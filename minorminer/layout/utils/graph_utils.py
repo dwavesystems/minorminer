@@ -77,7 +77,7 @@ def timing(f):
         start = time.process_time()
         result = f(*args, **kwargs)
         end = time.process_time()
-        print(f"{f.__name__} took: {round(end-start,2)} sec")
+        print("{} took: {} sec".format(f.__name__, round(end-start,2)))
         return result
 
     return wrap

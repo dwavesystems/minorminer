@@ -2,7 +2,6 @@ from collections import defaultdict
 
 import dwave_networkx as dnx
 import minorminer as mm
-from minorminer.layout import layout
 from minorminer.layout.utils import dnx_utils, layout_utils, placement_utils
 
 
