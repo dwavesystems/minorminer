@@ -1,11 +1,12 @@
 import time
 
 import networkx as nx
-from minorminer.layout.construction import crosses, neighborhood, pass_along
-from minorminer.layout.hinting import initial, random_remove, suspend
-from minorminer.layout.layout import Layout, R2xT, dnx_layout, p_norm, pca
-from minorminer.layout.placement import (binning, closest, injective,
-                                         injective_intersection, intersection)
+
+from .construction import crosses, neighborhood, pass_along
+from .hinting import initial, random_remove, suspend
+from .layout import Layout, R2xT, dnx_layout, p_norm, pca
+from .placement import (binning, closest, injective,
+                        injective_intersection, intersection)
 
 
 def find_embedding(

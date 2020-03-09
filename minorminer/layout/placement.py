@@ -5,9 +5,9 @@ from itertools import cycle, product
 
 import networkx as nx
 import numpy as np
-from minorminer.layout import layout
-from minorminer.layout.utils import (dnx_utils, graph_utils, layout_utils,
-                                     placement_utils)
+from . import layout
+from .utils import (dnx_utils, graph_utils, layout_utils,
+                    placement_utils)
 from scipy.spatial import KDTree, distance
 
 

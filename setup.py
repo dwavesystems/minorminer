@@ -98,7 +98,7 @@ setup(
     version=__version__,
     license="Apache 2.0",
     ext_modules=extensions,
-    packages=['minorminer', 'minorminer.layout'],
+    packages=['minorminer', 'minorminer.layout', 'minorminer.layout.utils'],
     classifiers=classifiers,
     python_requires=python_requires,
     install_requires=install_requires,
