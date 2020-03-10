@@ -22,6 +22,7 @@ def p_norm(
     recenter=True,
     rescale=False,
     rotate=False,
+    seed=None,
     **kwargs
 ):
     """
@@ -29,18 +30,17 @@ def p_norm(
     # FIXME: There's surely a better way of doing this.
     """
     L = Layout(G, d=d, center=center, scale=scale,
-               recenter=recenter, rescale=rescale, rotate=rotate)
+               recenter=recenter, rescale=rescale, rotate=rotate, seed=seed)
     _ = L.p_norm(p, starting_layout, G_distances, **kwargs)
     return L
 
 
-def dnx_layout(G, d=2, center=None, scale=None, rescale=True, rotate=True, **kwargs):
+def dnx_layout(G, d=2, center=None, scale=None, rescale=True, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d=d, center=center, scale=scale,
-               rescale=rescale, rotate=rotate)
+    L = Layout(G, d=d, center=center, scale=scale, rescale=rescale)
     _ = L.dnx_layout(**kwargs)
     return L
 
@@ -53,28 +53,6 @@ def pca(G, d=2, m=None, pca=True, center=None, scale=None, seed=None, rescale=Fa
     L = Layout(G, d=d, center=center, scale=scale,
                seed=seed, rescale=rescale, rotate=rotate)
     _ = L.pca(m, pca, **kwargs)
-    return L
-
-
-def R2xT(
-    G,
-    starting_layout=None,
-    G_distances=None,
-    d=4,
-    center=None,
-    scale=1.,
-    rescale=False,
-    rotate=False,
-    **kwargs
-):
-    """
-    Top level function for minorminer.layout.__init__() use as a parameter.
-    # FIXME: There's surely a better way of doing this.
-    """
-    L = Layout(G, d=d, center=center, scale=scale,
-               rescale=rescale, rotate=rotate)
-    _ = L.R2xT(
-        starting_layout, G_distances, **kwargs)
     return L
 
 
@@ -179,7 +157,7 @@ class Layout():
         # Pick a random layout in R^2
         if starting_layout is None:
             if self.d >= len(self.G):
-                starting_layout = nx.random_layout(self.G, dim=self.d)
+                starting_layout = nx.random_layout(self.G, dim=self.d, seed=self.seed)
             else:
                 starting_layout = nx.spectral_layout(self.G, dim=self.d)
 
@@ -272,6 +250,9 @@ class Layout():
 
             kwargs["center"] = top_left
             kwargs["scale"] = new_scale
+        else:
+            self.scale = 1/2
+            self.center = (1/2, -1/2) + (self.d-2)*(0,)
 
         if family == "chimera":
             layout = dnx.chimera_layout(self.G, dim=self.d, **kwargs)
@@ -306,11 +287,10 @@ class Layout():
         n = len(self.G)
         assert self.d <= n, "You want me to find {} eigenvectors in a graph with {} vertices.".format(
             self.d, n)
-
+        
         # Pick the number of dimensions to initially embed into
         m = m or n if n < 50 else 50
-        assert m <= n, "The number of vertices {} bounds the dimension.".format(
-            n)
+        assert self.d <= m and m <= n, "It must be the case that d <= m <= n, you gave me {} <= {} <= {}.".format(self.d, m, n)
 
         starting_layout = layout_utils.build_starting_points(
             self.G, m, self.seed)
@@ -331,7 +311,7 @@ class Layout():
             self.layout_array = np.column_stack(
                 [X_T @ u for u in list(reversed(eigenvectors))[:self.d]])
             self.layout = {
-                v: row for v, row in zip(list(self.G), self.layout_array)
+                v: row for v, row in zip(self.G, self.layout_array)
             }
 
         else:
@@ -357,85 +337,6 @@ class Layout():
             self.scale_layout(desired_scale)
         if self.rotate:
             self.rotate_layout()
-
-        return self.layout
-
-    def R2xT(self, starting_layout=None, G_distances=None, **kwargs):
-        """
-        Embeds a graph in a custom metric space and minimizes a Kamada-Kawai-esque objective function to achieve
-        an embedding with low distortion. This computes a layout where the graph distance and the distance in the plane
-        cross the torus are very close to each other.
-
-        Parameters
-        ----------
-        starting_layout : dict or Numpy Array
-            A mapping from the vertices of G to points in the metric space.
-        G_distances : dict or Numpy 2d array (default None)
-            A dictionary of dictionaries representing distances from every vertex in G to every other vertex in G, or
-            a matrix representing the same data. If None, it is computed.
-
-        Returns
-        -------
-        layout : dict
-            A mapping from vertices of G (keys) to points in R^2 x T (values).
-        """
-        # Pick a random R^2 x T layout
-        if starting_layout is None:
-            starting_layout = layout_utils.random_layout(self.G)
-
-        # Make sure the layout is a vector
-        if isinstance(starting_layout, dict):
-            starting_layout = np.array(
-                [pos for pos in starting_layout.values()])
-
-        assert starting_layout.shape[1] == 4, "This is a 4-dimensional layout."
-
-        # Save on distance calculations by passing them in
-        if G_distances is None:
-            G_distances = layout_utils.graph_distances(self.G)
-
-        # Make sure the distances are a matrix
-        if isinstance(G_distances, dict):
-            G_distances = np.array(
-                [[V[v] for v in self.G] for u, V in G_distances.items()]
-            )
-
-        # Solve the Kamada-Kawai-esque minimization function
-        X = optimize.minimize(
-            layout_utils.R2xT,
-            starting_layout.ravel(),
-            # method='L-BFGS-B',
-            args=(G_distances, ),
-            jac=True,
-            **kwargs
-        )
-
-        # Read out the solution to the minimization problem and save layouts
-        self.layout_array = X.x.reshape(len(self.G), 4)
-        # Angles in the layout are in [0, 2*pi]
-        self.layout_array[:, 2:] = np.mod(self.layout_array[:, 2:], 2*np.pi)
-        self.layout = {v: pos for v, pos in zip(self.G, self.layout_array)}
-
-        # FIXME: This needs to only recenter, rescale, and rotate the R^2 projection of the layout.
-        # # Save copies of the desired center and scale.
-        # desired_center = self.center
-        # desired_scale = self.scale
-
-        # # Calculate the scale and center based on the layout
-        # self.scale = np.max(
-        #     np.linalg.norm(
-        #         self.layout_array - self.center, float("inf"), axis=0
-        #     )
-        # )
-        # self.center = np.mean(self.layout_array, axis=0)
-
-        # # Transform the layout
-        # if self.recenter:
-        #     self.center_layout(desired_center)
-        # if self.rescale:
-        #     self.scale_layout(desired_scale)
-        # if self.rotate:
-        #     self.rotate_layout()
 
         return self.layout
 
@@ -522,41 +423,6 @@ class Layout():
         self.layout = {v: p for v, p in zip(self.G, self.layout_array)}
 
         return self.layout
-
-
-def scale_edge_length(layout, edge_length=1., to_scale="median"):
-    """
-    Scale a layout so that the specified to_scale type obtains the desired edge_length.
-
-    Parameters
-    ----------
-    layout : dict
-        A layout of a graph G; i.e. a map from G to the plane.
-    edge_length : float (default 1.)
-        The desired edge_length to achieve.
-    to_scale : string (default "median")
-        Different types of measures that will match the specified edge_length. E.g. if "median" the median of the edge
-        lengths in layout is guarenteed to become the desired edge_length.
-
-    Returns
-    -------
-    scaled_layout : dict
-        The input layout scaled so that the parameter to_scale is the parameter edge_length.
-    """
-    distances = {(u, v): euclidean(u_pos, v_pos)
-                 for (u, u_pos), (v, v_pos) in combinations(layout.items(), 2)}
-
-    if to_scale == "median":
-        scale = edge_length/statistics.median(distances.values())
-    elif to_scale == "min":
-        scale = edge_length/min(distances.values())
-    elif to_scale == "max":
-        scale = edge_length/max(distances.values())
-    else:
-        raise ValueError(
-            "Parameter to_scale={} is not supported.".format(to_scale))
-
-    return {v: scale*p for v, p in layout.items()}
 
 
 def rotate_layout(layout, center=None):
