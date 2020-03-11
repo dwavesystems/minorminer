@@ -21,7 +21,6 @@ def p_norm(
     scale=None,
     recenter=True,
     rescale=False,
-    rotate=False,
     seed=None,
     **kwargs
 ):
@@ -29,8 +28,7 @@ def p_norm(
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d=d, center=center, scale=scale,
-               recenter=recenter, rescale=rescale, rotate=rotate, seed=seed)
+    L = Layout(G, d=d, center=center, scale=scale, recenter=recenter, rescale=rescale, seed=seed)
     _ = L.p_norm(p, starting_layout, G_distances, **kwargs)
     return L
 
@@ -45,13 +43,12 @@ def dnx_layout(G, d=2, center=None, scale=None, rescale=True, **kwargs):
     return L
 
 
-def pca(G, d=2, m=None, pca=True, center=None, scale=None, seed=None, rescale=False, rotate=False, **kwargs):
+def pca(G, d=2, m=None, pca=True, center=None, scale=None, seed=None, rescale=False, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d=d, center=center, scale=scale,
-               seed=seed, rescale=rescale, rotate=rotate)
+    L = Layout(G, d=d, center=center, scale=scale, seed=seed, rescale=rescale)
     _ = L.pca(m, pca, **kwargs)
     return L
 
@@ -66,7 +63,6 @@ class Layout():
         scale=None,
         recenter=True,
         rescale=False,
-        rotate=False,
         seed=None,
         **kwargs
     ):
@@ -92,9 +88,6 @@ class Layout():
         rescale : bool (default False)
             If True, the layout is scaled to the user specified [center - scale, center + scale]^d. If False, the layout
             assumes the dimensions of the layout algorithm used.
-        rotate : bool (default False)
-            If True, the minimum area bounding box for the layout is computed and rotated so that it aligned with the
-            x and y axes. If False, the layout is not rotated.
         seed : int (default None)
             When d > 2, kamada_kawai uses networkx.random_layout(). The seed is passed to this function.
         kwargs : dict
@@ -104,11 +97,11 @@ class Layout():
         self.G = graph_utils.parse_graph(G)
 
         # If passed in, save the layout and the layout array data types
-        if layout:
+        if layout is not None:
             if isinstance(layout, (dict, defaultdict)):
                 self.layout = layout
                 self.layout_array = np.array([layout[v] for v in self.G])
-            elif isinstance(layout, (np.array, list)):
+            elif isinstance(layout, (np.ndarray, list)):
                 self.layout = {v: p for v, p in zip(G, layout)}
                 self.layout_array = layout
 
@@ -131,7 +124,6 @@ class Layout():
         self.seed = seed
         self.recenter = recenter
         self.rescale = True if scale else rescale
-        self.rotate = rotate
 
     def p_norm(self, p=2, starting_layout=None, G_distances=None, **kwargs):
         """
@@ -160,6 +152,9 @@ class Layout():
                 starting_layout = nx.random_layout(self.G, dim=self.d, seed=self.seed)
             else:
                 starting_layout = nx.spectral_layout(self.G, dim=self.d)
+        
+        if starting_layout == {}:
+            raise ValueError("The starting_layout is empty, did you pass in the empty graph?")
 
         # Make sure the layout is a vector
         if isinstance(starting_layout, dict):
@@ -213,8 +208,6 @@ class Layout():
             self.center_layout(desired_center)
         if self.rescale:
             self.scale_layout(desired_scale)
-        if self.rotate:
-            self.rotate_layout()
 
         return self.layout
 
@@ -335,8 +328,6 @@ class Layout():
             self.center_layout(desired_center)
         if self.rescale:
             self.scale_layout(desired_scale)
-        if self.rotate:
-            self.rotate_layout()
 
         return self.layout
 
@@ -406,68 +397,6 @@ class Layout():
         self.layout = {v: p for v, p in zip(self.G, self.layout_array)}
 
         return self.layout
-
-    def rotate_layout(self):
-        """
-        Finds a minimum bounding box and rotates a (2-dimensional) layout so that it is aligned with the x and y axes.
-
-        Returns
-        -------
-        layout : dict
-            A mapping from vertices of G (keys) to points in R^d (values).
-        """
-        rotated_layout = rotate_layout(self.layout_array, self.center)
-
-        # Update the object
-        self.layout_array = rotated_layout
-        self.layout = {v: p for v, p in zip(self.G, self.layout_array)}
-
-        return self.layout
-
-
-def rotate_layout(layout, center=None):
-    """
-    Finds a minimum bounding box and rotates a (2-dimensional) layout so that it is aligned with the x and y axes.
-
-    Parameters
-    ----------
-    layout : numpy array
-        An array whose rows are points in R^2.
-    center : tuple or numpy array (default None)
-        A point in R^2 representing the center of the layout. If None, the approximate center of layout is computed 
-        by calculating the center of mass (or centroid).
-
-    Returns
-    -------
-    layout : numpy array
-        An axis aligned layout.
-    """
-    assert layout.shape[1] == 2, "I only know how to rotate 2-dimensional layouts."
-
-    # If center is empty, compute it
-    if center is None:
-        center = np.mean(layout, axis=0)
-
-    # Translate the layout to the origin
-    L = layout - center
-
-    # Compute the minimum area bounding box
-    bounding_box = layout_utils.minimum_bounding_rectangle(L)
-    bottom_right = bounding_box[0]
-    bottom_left = bounding_box[1]
-
-    # Find the angle to rotate and build a rotation matrix
-    delta_x = abs(bottom_right[0] - bottom_left[0])
-    delta_y = abs(bottom_right[1] - bottom_left[1])
-    theta = np.arctan2(delta_y, delta_x)
-    R = np.array([[np.cos(theta), -np.sin(theta)],
-                  [np.sin(theta), np.cos(theta)]])
-
-    # Rotate the thing
-    rotated_L = (R @ L.T).T
-
-    # Translate back to the center you started with
-    return rotated_L + center
 
 
 def scale_layout(layout, new_scale, old_scale=None, center=None):

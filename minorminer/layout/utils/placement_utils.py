@@ -1,5 +1,17 @@
 import networkx as nx
+import numpy as np
+
 from ..layout import Layout, dnx_layout
+
+
+def convert_to_chains(placement):
+    """
+    Helper function to determine whether or not an input is in a chain-ready data structure.
+    """
+    for v in placement.values():
+        if isinstance(v, (list, frozenset, set)):
+            return False
+        return True
 
 
 def parse_layout(layout):
@@ -58,3 +70,22 @@ def check_requirements(S_layout, T_layout, allowed_graphs=None, allowed_dims=Non
     if allowed_dims is True or (S_layout.d not in allowed_dims or T_layout.d not in allowed_dims):
         raise NotImplementedError(
             "This strategy is only implemented for {}-dimensional layouts.".format(allowed_dims))
+
+
+def minimize_overlap(distances, v_indices, T_vertex_lookup, layout_points, overlap_counter):
+    """
+    A greedy penalty-type model for choosing overlapping chains.
+    """
+    # KDTree.query either returns a single index or a list of indexes depending on how many neighbors are queried.
+    if isinstance(v_indices, np.int64):
+        return T_vertex_lookup[layout_points[v_indices]]
+
+    subsets = {}
+    for i in v_indices:
+        subset = T_vertex_lookup[layout_points[i]]
+        subsets[subset] = sum(d + 10**overlap_counter[v]
+                              for d, v in zip(distances, subset))
+
+    cheapest_subset = min(subsets, key=subsets.get)
+    overlap_counter.update(cheapest_subset)
+    return cheapest_subset

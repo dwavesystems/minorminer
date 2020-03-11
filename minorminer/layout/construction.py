@@ -21,7 +21,7 @@ def pass_along(placement, **kwargs):
         A mapping from vertices of S (keys) to chains of T (values).
     """
     # Test if you need to turn singletons into lists or not
-    if layout_utils.convert_to_chains(placement):
+    if placement_utils.convert_to_chains(placement):
         chains = {u: [v] for u, v in placement.items()}
     else:
         chains = placement

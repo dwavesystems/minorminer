@@ -80,7 +80,7 @@ def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1, **kwargs):
     placement = {}
     for u, u_pos in S_layout_dict.items():
         distances, v_indices = tree.query(u_pos, num_neighbors)
-        placement[u] = layout_utils.minimize_overlap(
+        placement[u] = placement_utils.minimize_overlap(
             distances, v_indices, T_vertex_lookup, layout_points, overlap_counter)
 
     return placement
