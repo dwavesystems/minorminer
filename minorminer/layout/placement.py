@@ -105,7 +105,11 @@ def injective(S_layout, T, **kwargs):
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
     """
+    # Standardize input
     T_layout = placement_utils.parse_T(T)
+
+    # Raise exceptions if you need to
+    placement_utils.check_requirements(S_layout, T_layout)
 
     S_layout_dict = placement_utils.parse_layout(S_layout)
     T_layout_dict = placement_utils.parse_layout(T_layout)
@@ -148,7 +152,7 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
 
     # Raise exceptions if you need to
     placement_utils.check_requirements(
-        S_layout, T_layout, allowed_graphs="chimera", allowed_dims=2)
+        S_layout, T_layout, allowed_dnx_graphs="chimera", allowed_dims=2)
 
     # D-Wave counts the y direction like matrix rows; inversion makes pictures match
     modified_layout = layout.invert_layout(
@@ -211,11 +215,31 @@ def binning(S_layout, T, unit_tile_capacity=None, fill_processor=False, strategy
     # Standardize input
     T_layout = placement_utils.parse_T(T, disallow="dict")
 
+    # Raise exceptions if you need to
+    placement_utils.check_requirements(
+        S_layout, T_layout, allowed_dnx_graphs=["chimera", "pegasus"], allowed_dims=2)
+
+    # Get the lattice point mapping for the dnx graph
+    m, n, _ = dnx_utils.lookup_dnx_dims(T_layout.G)
+
+    # Make the grid "quotient" of the dnx_graph
+    # Quotient the ~K_4,4 unit cells of the dnx_graph to grid points
+    G = nx.grid_2d_graph(m, n)
+
+    # Determine the scale for putting things in the positive quadrant
+    scale = (max(n, m)-1)/2
+
+    # Check if the S_layout is too large for T.
+    # If it is, scale it so that it fills the processor.
+    fill_processor = fill_processor or np.any(
+        np.abs(S_layout.layout_array) > scale)
+
     # Get the grid graph and the modified layout for S
-    G, modified_S_layout = _unit_cell_binning(S_layout, T_layout, fill_processor)
+    modified_S_layout = _unit_cell_binning(
+        S_layout, T_layout, G, scale, fill_processor)
 
     # Do we need to topple?
-    if unit_tile_capacity or strategy=="layout":
+    if unit_tile_capacity or strategy == "layout":
         unit_tile_capacity = unit_tile_capacity or 4
         _topple(G, modified_S_layout, unit_tile_capacity)
 
@@ -283,7 +307,7 @@ def _topple(G, modified_layout, unit_tile_capacity):
 
                 # Who's closest?
                 positions = {v: modified_layout[v]
-                            for v in G.nodes[g]["variables"]}
+                             for v in G.nodes[g]["variables"]}
 
                 while num_vars > unit_tile_capacity:
                     # The neighbor to send it to
@@ -313,40 +337,31 @@ def _topple(G, modified_layout, unit_tile_capacity):
                 "I couldn't topple, this may be an infinite loop.")
 
 
-def _unit_cell_binning(S_layout, T, fill_processor=False):
+def _unit_cell_binning(S_layout, T_layout, G, scale, fill_processor):
     """
-    Map the vertices of S to the unit cell quotient of T.
+    Map the vertices of S to the unit cell quotient of T. This modifies the grid graph G by assigning vertices from S 
+    and T to vertices of G.
 
     Parameters
     ----------
     S_layout : layout.Layout
         A layout for S; i.e. a map from S to R^d.
-    T : layout.Layout or dwave-networkx.Graph
+    T_layout : layout.Layout
         A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
-    fill_processor : bool (default False)
+    G : networkx.Graph
+        A grid_2d_graph representing the lattice points in the positive quadrant.
+    scale : float
+        The scale necessary to translate (and/or resize) the layouts so that they occupy the positive quadrant.
+    fill_processor : bool
         If True, S_layout is scaled so that it fills the processor. If False, the scale of S_layout is used.
 
     Returns
     -------
-    G : networkx.Graph
-        A 2d grid graph. Each vertex of G contains a set of qubits (vertices of T) and variables (vertices of S).
+    modified_layout : dict
+        The layout of S after translating and scaling to the positive quadrant. 
     """
-    # Standardize input
-    T_layout = placement_utils.parse_T(T, disallow="dict")
-
-    # Raise exceptions if you need to
-    placement_utils.check_requirements(
-        S_layout, T_layout, allowed_graphs=["chimera", "pegasus"], allowed_dims=2)
-
-    # --- Map the T_layout to the grid
     # Get the lattice point mapping for the dnx graph
     lattice_mapping = dnx_utils.lookup_grid_coordinates(T_layout.G)
-
-    # Extract the dimensions of the grid (the mapping is from [0, n-1] and [0, m-1])
-    m, n = np.max(list(lattice_mapping.values()), 0) + (1, 1)
-
-    # Make the grid "quotient" of the dnx_graph--the ~K_4,4 unit cells of the dnx_graph are quotiented to grid points
-    G = nx.grid_2d_graph(m, n)
 
     # Less efficient, but more readable to initialize all at once
     for v in G:
@@ -363,7 +378,6 @@ def _unit_cell_binning(S_layout, T, fill_processor=False):
         S_layout.layout_array, S_layout.center)
 
     # Scale S to fill T at the grid level
-    scale = (max(n, m)-1)/2
     if fill_processor:
         modified_layout = layout.scale_layout(
             modified_layout, scale, S_layout.scale, S_layout.center)
@@ -378,9 +392,6 @@ def _unit_cell_binning(S_layout, T, fill_processor=False):
     # Add "variables" (vertices from S) to grid points too
     for v, pos in modified_layout.items():
         grid_point = tuple(int(x) for x in np.round(pos))
-        if grid_point > (m-1, n-1):
-            raise RuntimeError(
-                "The S_layout is too big for T. Try setting fill_processor=True")
         G.nodes[grid_point]["variables"].add(v)
-    
-    return G, modified_layout
+
+    return modified_layout

@@ -28,7 +28,8 @@ def p_norm(
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d=d, center=center, scale=scale, recenter=recenter, rescale=rescale, seed=seed)
+    L = Layout(G, d=d, center=center, scale=scale,
+               recenter=recenter, rescale=rescale, seed=seed)
     _ = L.p_norm(p, starting_layout, G_distances, **kwargs)
     return L
 
@@ -125,6 +126,12 @@ class Layout():
         self.recenter = recenter
         self.rescale = True if scale else rescale
 
+    def __len__(self):
+        """
+        The length of a layout is the number of vertices in the layout.
+        """
+        return len(self.G)
+
     def p_norm(self, p=2, starting_layout=None, G_distances=None, **kwargs):
         """
         Embeds a graph in R^d with the p-norm and minimizes a Kamada-Kawai-esque objective function to achieve
@@ -149,12 +156,14 @@ class Layout():
         # Pick a random layout in R^2
         if starting_layout is None:
             if self.d >= len(self.G):
-                starting_layout = nx.random_layout(self.G, dim=self.d, seed=self.seed)
+                starting_layout = nx.random_layout(
+                    self.G, dim=self.d, seed=self.seed)
             else:
                 starting_layout = nx.spectral_layout(self.G, dim=self.d)
-        
+
         if starting_layout == {}:
-            raise ValueError("The starting_layout is empty, did you pass in the empty graph?")
+            raise ValueError(
+                "The starting_layout is empty, did you pass in the empty graph?")
 
         # Make sure the layout is a vector
         if isinstance(starting_layout, dict):
@@ -280,10 +289,11 @@ class Layout():
         n = len(self.G)
         assert self.d <= n, "You want me to find {} eigenvectors in a graph with {} vertices.".format(
             self.d, n)
-        
+
         # Pick the number of dimensions to initially embed into
         m = m or n if n < 50 else 50
-        assert self.d <= m and m <= n, "It must be the case that d <= m <= n, you gave me {} <= {} <= {}.".format(self.d, m, n)
+        assert self.d <= m and m <= n, "It must be the case that d <= m <= n, you gave me {} <= {} <= {}.".format(
+            self.d, m, n)
 
         starting_layout = layout_utils.build_starting_points(
             self.G, m, self.seed)

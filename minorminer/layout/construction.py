@@ -2,7 +2,8 @@ from collections import defaultdict
 
 import dwave_networkx as dnx
 import minorminer as mm
-from .utils import dnx_utils, layout_utils, placement_utils
+
+from .utils import construction_utils, dnx_utils, layout_utils, placement_utils
 
 
 def pass_along(placement, **kwargs):
@@ -21,7 +22,7 @@ def pass_along(placement, **kwargs):
         A mapping from vertices of S (keys) to chains of T (values).
     """
     # Test if you need to turn singletons into lists or not
-    if placement_utils.convert_to_chains(placement):
+    if construction_utils.convert_to_chains(placement):
         chains = {u: [v] for u, v in placement.items()}
     else:
         chains = placement
@@ -57,7 +58,7 @@ def crosses(placement, S_layout, T, **kwargs):
 
     # Raise exceptions if you need to
     placement_utils.check_requirements(
-        S_layout, T_layout, allowed_graphs="chimera", allowed_dims=2)
+        S_layout, T_layout, allowed_dnx_graphs="chimera", allowed_dims=2)
 
     # Grab the coordinate version of the labels
     if T_layout.G.graph["labels"] == "coordinate":
@@ -105,10 +106,7 @@ def crosses(placement, S_layout, T, **kwargs):
         chains[v] = row_qubits | column_qubits
 
     # Return the right type of vertices
-    if T_layout.G.graph["labels"] == "coordinate":
-        return chains
-    else:
-        return {v: [C.chimera_to_linear(q) for q in Q] for v, Q in chains.items()}
+    return dnx_utils.relabel_chains(T_layout.G, chains)
 
 # FIXME: If want to implement (it's not currently a winning strategy) mimic crosses() above.
 # def tees(S_layout, T_layout):
