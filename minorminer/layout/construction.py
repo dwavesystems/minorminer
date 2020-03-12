@@ -1,4 +1,5 @@
 from collections import defaultdict
+import random
 
 import dwave_networkx as dnx
 import minorminer as mm
@@ -22,7 +23,7 @@ def pass_along(placement, **kwargs):
         A mapping from vertices of S (keys) to chains of T (values).
     """
     # Test if you need to turn singletons into lists or not
-    if construction_utils.convert_to_chains(placement):
+    if construction_utils.needs_chain_conversion(placement):
         chains = {u: [v] for u, v in placement.items()}
     else:
         chains = placement
@@ -71,29 +72,19 @@ def crosses(placement, S_layout, T, **kwargs):
         }
 
     for v in S_layout.G:
-        # Figure out which qubit is the the horizontal one and which is the vertical one
-        Q = chains[v]
-        for q in Q:
-            if q[2] == 0:
-                hor_v = q
-            else:
-                ver_v = q
+        hor_v, ver_v = _horizontal_and_vertical_qubits(chains[v])
 
-        min_x, max_x = ver_v[1], ver_v[1]
-        min_y, max_y = ver_v[0], ver_v[0]
+        min_x = min(hor_v[1], ver_v[1])
+        max_x = max(hor_v[1], ver_v[1])
+        min_y = min(hor_v[0], ver_v[0])
+        max_y = max(hor_v[0], ver_v[0])
         for u in S_layout.G[v]:
-            # Figure out which qubit is the the horizontal one and which is the vertical one
-            QQ = chains[u]
-            for q in QQ:
-                if q[2] == 0:
-                    hor_u = q
-                else:
-                    ver_u = q
+            hor_u, ver_u = _horizontal_and_vertical_qubits(chains[u])
 
-            min_x = min(min_x, hor_u[1])
-            max_x = max(max_x, hor_u[1])
-            min_y = min(min_y, ver_u[0])
-            max_y = max(max_y, ver_u[0])
+            min_x = min(min_x, min(hor_u[1], ver_u[1]))
+            max_x = max(max_x, max(hor_u[1], ver_u[1]))
+            min_y = min(min_y, min(hor_u[0], ver_u[0]))
+            max_y = max(max_y, max(hor_u[0], ver_u[0]))
 
             row_qubits = set()
             for j in range(min_x, max_x+1):
@@ -107,6 +98,31 @@ def crosses(placement, S_layout, T, **kwargs):
 
     # Return the right type of vertices
     return dnx_utils.relabel_chains(T_layout.G, chains)
+
+
+def _horizontal_and_vertical_qubits(chain):
+    """
+    Given a chain, select one horizontal and one vertical qubit. If one doen't exist, extend the chain to include one. 
+    """
+    # Split each chain into horizontal and vertical qubits
+    horizontal_qubits = [q for q in chain if q[2] == 0]
+    vertical_qubits = [q for q in chain if q[2] == 1]
+
+    # FIXME: Making a random choice here might not be the best. In the placement strategy that is currently
+    # winning, intersection, it doesn't actually matter because both lists above (*_qubits) have size 1.
+    hor_v, ver_v = None, None
+    if horizontal_qubits:
+        hor_v = random.choice(horizontal_qubits)
+    if vertical_qubits:
+        ver_v = random.choice(vertical_qubits)
+
+    if hor_v is None:
+        hor_v = (ver_v[0], ver_v[1], 0, random.randint(0, 3))
+    if ver_v is None:
+        ver_v = (hor_v[0], hor_v[1], 0, random.randint(0, 3))
+
+    return hor_v, ver_v
+
 
 # FIXME: If want to implement (it's not currently a winning strategy) mimic crosses() above.
 # def tees(S_layout, T_layout):

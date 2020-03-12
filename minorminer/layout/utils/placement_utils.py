@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 
-from ..layout import Layout, dnx_layout
+from ..layout import Layout, dnx_layout, p_norm
 
 
 def parse_layout(layout):
@@ -16,7 +16,10 @@ def parse_layout(layout):
 
 def parse_T(T, disallow=None):
     if isinstance(T, nx.Graph) and disallow != "graph":
-        return dnx_layout(T)
+        if T.graph.get("family") in ("chimera", "pegasus"):
+            return dnx_layout(T)
+        else:
+            return p_norm(T)
     elif isinstance(T, Layout) and disallow != "layout":
         return T
     elif isinstance(T, dict) and disallow != "dict":

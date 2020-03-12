@@ -79,6 +79,9 @@ def nx_to_dnx_layout(center, scale):
 
 
 def relabel_chains(G, chains):
+    """
+    Checks if the labeling of G matches the labeling of chains. If it does not, it returns chains that match.
+    """
     if G.graph["labels"] == "coordinate":
         return chains
     else:
