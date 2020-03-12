@@ -1,5 +1,5 @@
 import statistics
-from collections import defaultdict
+from collections import abc, defaultdict
 from itertools import combinations
 
 import dwave_networkx as dnx
@@ -54,7 +54,7 @@ def pca(G, d=2, m=None, pca=True, center=None, scale=None, seed=None, rescale=Fa
     return L
 
 
-class Layout():
+class Layout(abc.MutableMapping):
     def __init__(
         self,
         G,
@@ -116,8 +116,8 @@ class Layout():
             )
         else:
             self.d = d
-            self.layout = layout
-            self.layout_array = layout
+            self.layout = {}
+            self.layout_array = []
             self.center = center or self.d*(0,)
             self.scale = scale
 
@@ -126,11 +126,42 @@ class Layout():
         self.recenter = recenter
         self.rescale = True if scale else rescale
 
+    # The layout class should behave like a dictionary
+    def __iter__(self):
+        """
+        Iterate through the keys of the dictionary layout.
+        """
+        yield from self.layout
+
+    def __getitem__(self, key):
+        """
+        Get the layout value at the key vertex.
+        """
+        return self.layout[key]
+
+    def __setitem__(self, key, value):
+        """
+        Set the layout value at the key vertex.
+        """
+        self.layout[key] = value
+    
+    def __delitem__(self, key):
+        """
+        Delete the layout value at the key vertex.
+        """
+        del self.layout[key]
+
+    def __repr__(self):
+        """
+        Use the layout's dictionary representation.
+        """
+        return repr(self.layout)
+
     def __len__(self):
         """
-        The length of a layout is the number of vertices in the layout.
+        The length of a layout is the length of the layout dictionary.
         """
-        return len(self.G)
+        return len(self.layout)
 
     def p_norm(self, p=2, starting_layout=None, G_distances=None, **kwargs):
         """

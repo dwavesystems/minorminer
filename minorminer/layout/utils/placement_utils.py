@@ -4,16 +4,6 @@ import numpy as np
 from ..layout import Layout, dnx_layout, p_norm
 
 
-def parse_layout(layout):
-    """
-    Take in a layout class object or a dictionary and return the dictionary representation.
-    """
-    if isinstance(layout, Layout):
-        return layout.layout
-    else:
-        return layout
-
-
 def parse_T(T, disallow=None):
     if isinstance(T, nx.Graph) and disallow != "graph":
         if T.graph.get("family") in ("chimera", "pegasus"):

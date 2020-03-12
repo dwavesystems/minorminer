@@ -33,8 +33,6 @@ def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1, **kwargs):
     placement : dict
         A mapping from vertices of S (keys) to subsets of vertices of T (values).
     """
-    S_layout_dict = placement_utils.parse_layout(S_layout)
-
     # FIXME: This is real messy
     T_layout = placement_utils.parse_T(T)  # Turns graph into layout
     if isinstance(T_layout, layout.Layout):
@@ -78,7 +76,7 @@ def closest(S_layout, T, max_subset_size=(1, 1), num_neighbors=1, **kwargs):
     tree = KDTree(layout_points)
 
     placement = {}
-    for u, u_pos in S_layout_dict.items():
+    for u, u_pos in S_layout.items():
         distances, v_indices = tree.query(u_pos, num_neighbors)
         placement[u] = placement_utils.minimize_overlap(
             distances, v_indices, T_vertex_lookup, layout_points, overlap_counter)
@@ -111,21 +109,18 @@ def injective(S_layout, T, **kwargs):
     # Raise exceptions if you need to
     placement_utils.check_requirements(S_layout, T_layout)
 
-    S_layout_dict = placement_utils.parse_layout(S_layout)
-    T_layout_dict = placement_utils.parse_layout(T_layout)
-
-    X = nx.Graph()
     # Relabel the vertices from S and T in case of name conflict; S --> 0 and T --> 1.
+    X = nx.Graph()
     X.add_edges_from(
         (
             ((0, u), (1, v), dict(weight=distance.euclidean(u_pos, v_pos)))
-            for (u, u_pos), (v, v_pos) in product(S_layout_dict.items(), T_layout_dict.items())
+            for (u, u_pos), (v, v_pos) in product(S_layout.items(), T_layout.items())
         )
     )
     M = nx.bipartite.minimum_weight_full_matching(
-        X, ((0, u) for u in S_layout_dict))
+        X, ((0, u) for u in S_layout))
 
-    return {u: [M[(0, u)][1]] for u in S_layout_dict.keys()}
+    return {u: [M[(0, u)][1]] for u in S_layout.keys()}
 
 
 def intersection(S_layout, T, full_fit=True, **kwargs):
@@ -220,7 +215,7 @@ def binning(S_layout, T, unit_tile_capacity=None, fill_processor=False, strategy
         S_layout, T_layout, allowed_dnx_graphs=["chimera", "pegasus"], allowed_dims=2)
 
     # Get the lattice point mapping for the dnx graph
-    m, n, _ = dnx_utils.lookup_dnx_dims(T_layout.G)
+    m, n, t = dnx_utils.lookup_dnx_dims(T_layout.G)
 
     # Make the grid "quotient" of the dnx_graph
     # Quotient the ~K_4,4 unit cells of the dnx_graph to grid points
@@ -240,7 +235,10 @@ def binning(S_layout, T, unit_tile_capacity=None, fill_processor=False, strategy
 
     # Do we need to topple?
     if unit_tile_capacity or strategy == "layout":
-        unit_tile_capacity = unit_tile_capacity or 4
+        unit_tile_capacity = unit_tile_capacity or t
+        n, N = len(S_layout), m*n*unit_tile_capacity
+        if n > N:
+            raise RuntimeError("You're trying to fit {} vertices of S into {} spots of T.".format(n, N))
         _topple(G, modified_S_layout, unit_tile_capacity)
 
     # Build the placement
@@ -249,7 +247,6 @@ def binning(S_layout, T, unit_tile_capacity=None, fill_processor=False, strategy
         for g, V in G.nodes(data="variables"):
             V = list(V)
 
-            t = T_layout.G.graph["tile"]
             x_indices, y_indices = list(range(t)), list(range(t))
             for _ in range(t, len(V), -1):
                 x_indices.remove(random.choice(x_indices))
