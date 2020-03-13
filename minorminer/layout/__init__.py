@@ -3,7 +3,7 @@ import time
 import networkx as nx
 
 from .construction import crosses, neighborhood, pass_along
-from .hinting import initial, random_remove, suspend
+from .hinting import initial, suspend
 from .layout import Layout, dnx_layout, p_norm, pca
 from .placement import binning, closest, injective, intersection
 
@@ -115,12 +115,12 @@ def parse_kwargs(kwargs):
     construction_kwargs = {}
     if "second" in kwargs:
         construction_kwargs["second"] = kwargs.pop("second")
-    if "extend" in kwargs:
-        construction_kwargs["extend"] = kwargs.pop("extend")
 
     hinting_kwargs = {}
     if "percent" in kwargs:
         hinting_kwargs["percent"] = kwargs.pop("percent")
+    if "extend" in kwargs:
+        construction_kwargs["extend"] = kwargs.pop("extend")
 
     return layout_kwargs, placement_kwargs, construction_kwargs, hinting_kwargs
 
