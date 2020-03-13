@@ -34,7 +34,7 @@ def suspend(S, T, chains, percent=None, extend=False, mm_kwargs=None):
     return mm.find_embedding(S, T, suspend_chains={v: [C] for v, C in chains.items()}, **mm_kwargs)
 
 
-def _random_remove(chains, percent=2/3):
+def _random_remove(chains, percent):
     """
     Randomly remove percent of qubits from each chain
     """

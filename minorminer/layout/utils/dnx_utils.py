@@ -24,10 +24,19 @@ def lookup_grid_coordinates(G):
                 for v in G
             }
     elif family == "pegasus":
+        m = graph_data["rows"]
+        C = dnx.pegasus_coordinates(m)
+
+        if graph_data["labels"] == "int":
+            nice_coords = C.iter_linear_to_nice(G.nodes)
+        elif graph_data["labels"] == "coordinate":
+            nice_coords = C.iter_pegasus_to_nice(G.nodes)
+        elif graph_data["labels"] == "nice":
+            nice_coords = G.nodes
+
         # FIXME: x and y might be switched here
-        if graph_data["labels"] == "nice":
-            # (t, y, x, u, k) |--> (3x + t, 3y + 2 - t)
-            return {v: (3*v[2] + v[0], 3*v[1] + (2 - v[0])) for v in G}
+        # (t, y, x, u, k) |--> (3x + t, 3y + 2 - t)
+        return {v: (3*v[2] + v[0], 3*v[1] + (2 - v[0])) for v in nice_coords}
     return None
 
 

@@ -34,12 +34,12 @@ def p_norm(
     return L
 
 
-def dnx_layout(G, d=2, center=None, scale=None, rescale=True, **kwargs):
+def dnx_layout(G, d=2, center=None, scale=None, rescale=True, seed=None, **kwargs):
     """
     Top level function for minorminer.layout.__init__() use as a parameter.
     # FIXME: There's surely a better way of doing this.
     """
-    L = Layout(G, d=d, center=center, scale=scale, rescale=rescale)
+    L = Layout(G, d=d, center=center, scale=scale, rescale=rescale, seed=seed)
     _ = L.dnx_layout(**kwargs)
     return L
 
@@ -144,7 +144,7 @@ class Layout(abc.MutableMapping):
         Set the layout value at the key vertex.
         """
         self.layout[key] = value
-    
+
     def __delitem__(self, key):
         """
         Delete the layout value at the key vertex.

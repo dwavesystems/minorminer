@@ -2,7 +2,6 @@ import random
 from collections import defaultdict
 
 import dwave_networkx as dnx
-import minorminer as mm
 import networkx as nx
 
 from .utils import construction_utils, dnx_utils, layout_utils, placement_utils

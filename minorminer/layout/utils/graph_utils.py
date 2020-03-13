@@ -26,10 +26,7 @@ def get_connected_subgraphs(G, k_min, k_max, single_set=False):
         An upper bound of the size of connected subgraphs that you want to find.
     k_min : int
         A lower bound of the size of connected subgraphs that you want to find.
-    single_set : bool (optional, default False)
-        Condenses all subsets into a single set of subgraphs.
-    initial_emb : dict (optional, default None)
-        If present, only subgraphs pertaining to `inital_emb` are returned.
+
     Returns
     -------
     connected_subgraphs : dict
@@ -41,8 +38,6 @@ def get_connected_subgraphs(G, k_min, k_max, single_set=False):
             ...,
             k: { {v_1, v_2, ..., v_m}, ... }
         }
-    connected_subgraphs : set
-        If the flag `single_set` is selected, the union of the above sets is returned.
     """
     assert 1 <= k_min and k_min <= k_max and k_max <= len(G), (
         "Why you pick bad numbers?")
@@ -57,12 +52,6 @@ def get_connected_subgraphs(G, k_min, k_max, single_set=False):
             for v in X:
                 for u in G.neighbors(v):
                     connected_subgraphs[i + 1].add(X.union({u}))
-    if single_set:
-        all_subgraphs = set()
-        for i in range(k_min, k_max + 1):
-            all_subgraphs |= connected_subgraphs[i]
-
-        return all_subgraphs
 
     return connected_subgraphs
 
@@ -77,7 +66,7 @@ def timing(f):
         start = time.process_time()
         result = f(*args, **kwargs)
         end = time.process_time()
-        print("{} took: {} sec".format(f.__name__, round(end-start,2)))
+        print("{} took: {} sec".format(f.__name__, round(end-start, 2)))
         return result
 
     return wrap

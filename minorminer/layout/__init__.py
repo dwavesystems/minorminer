@@ -29,8 +29,12 @@ def find_embedding(
     T : NetworkX graph or edges data structure (dict, list, ...)
         The graph you are embedding into (target) or a NetworkX supported data structure (see to_networkx_graph()).
     layout : function or [function/dict/Layout, function/dict/Layout] (default p_norm)
-        Specifies either a single function to compute the layout for both S and T or a 2-tuple consisting of functions 
-        or pre-computed layouts, the first applying to S and the second applying to T.
+        Specifies either a single function to compute the layout for both S and T or a 2-tuple. The 2-tuple either 
+        consists of a pair of functions or pre-computed layouts, the first entry in the 2-tuple applies to S while
+        the second applies to T. 
+        Note: If layout is a single function and T is a dnx_graph, then the function passed in is only applied to S
+        and the dnx_layout is applied to T. To run a layout function explicitly on T, pass it in as a 2-tuple; i.e.
+        (p_norm, p_norm).
     placement : function or dict (default intersection)
         If a function, it is the placement algorithm to call; each algorithm uses the layouts of S and T to map the 
         vertices of S to subsets of vertices of T. If it is a dict, it should be a map from the vertices of S to subsets
@@ -94,14 +98,10 @@ def parse_kwargs(kwargs):
         layout_kwargs["scale"] = kwargs.pop("scale")
     if "rescale" in kwargs:
         layout_kwargs["rescale"] = kwargs.pop("rescale")
-    if "rotate" in kwargs:
-        layout_kwargs["rotate"] = kwargs.pop("rotate")
 
     placement_kwargs = {}
     if "max_subset_size" in kwargs:
         placement_kwargs["max_subset_size"] = kwargs.pop("max_subset_size")
-    if "bins" in kwargs:
-        placement_kwargs["bins"] = kwargs.pop("bins")
     if "strategy" in kwargs:
         placement_kwargs["strategy"] = kwargs.pop("strategy")
     if "num_neighbors" in kwargs:
@@ -154,7 +154,10 @@ def parse_layout_parameter(S, T, layout, layout_kwargs):
     # It's a function for both
     else:
         S_layout = layout(S, **layout_kwargs)
-        T_layout = layout(T, **layout_kwargs)
+        if T.graph.get("family") in ("chimera", "pegasus"):
+            T_layout = dnx_layout(T, **layout_kwargs)
+        else:
+            T_layout = layout(T, **layout_kwargs)
 
     return S_layout, T_layout
 

@@ -35,10 +35,10 @@ class TestLayout(unittest.TestCase):
         """
         # Randomly choose dimensions, p-norm, center, and scale
         p_1 = 1
-        p_rand = random.randint(2, 100)
+        p_rand = random.randint(2, 50)
         p_inf = float("inf")
         dim_spec = random.randint(1, len(self.S)-1)
-        dim_rand = random.randint(len(self.S), 100)
+        dim_rand = random.randint(len(self.S), 50)
         center_spec = tuple(random.random() * random.randint(-10, 10)
                             for _ in range(dim_spec))
         center_rand = tuple(random.random() * random.randint(-10, 10)
@@ -192,7 +192,7 @@ class TestLayout(unittest.TestCase):
         mml.p_norm(H)
         self.assertRaises(AssertionError, mml.pca, G)
         self.assertRaises(AssertionError, mml.pca, H)
-    
+
     def test_layout_as_dictionary(self):
         """
         Test the layout dictionary behavior.

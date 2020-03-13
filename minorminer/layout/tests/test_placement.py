@@ -14,6 +14,7 @@ class TestPlacement(unittest.TestCase):
         self.S = nx.random_regular_graph(3, 50)
         self.G = nx.random_regular_graph(3, 150)
         self.C = dnx.chimera_graph(4)
+        self.C_coord = dnx.chimera_graph(4, coordinates=True)
         self.P = dnx.pegasus_graph(4)
 
         # Layouts for testing
@@ -21,6 +22,7 @@ class TestPlacement(unittest.TestCase):
         self.S_layout_3 = mml.p_norm(self.S, d=3)
         self.G_layout = mml.p_norm(self.G)
         self.C_layout = mml.dnx_layout(self.C)
+        self.C_coord_layout = mml.dnx_layout(self.C_coord)
         self.P_layout = mml.dnx_layout(self.P)
 
     def test_closest(self):
@@ -98,6 +100,12 @@ class TestPlacement(unittest.TestCase):
             self.S_layout, self.C_layout, strategy="cycle")
         placement_2 = mml.binning(self.S_layout, self.C, strategy="cycle")
         self.assertDictEqual(placement_1, placement_2)
+
+        # Test a coordinate version of chimera
+        mml.binning(self.S_layout, self.C_coord_layout)
+
+        # # Test pegasus
+        # mml.binning(self.S_layout, self.P_layout)
 
         # Test bad inputs
         # Dictionary is not allowed for T
