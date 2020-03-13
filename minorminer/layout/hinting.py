@@ -4,39 +4,55 @@ from collections import defaultdict
 import minorminer as mm
 
 
-def initial(S, T, chains, mm_kwargs, **kwargs):
+def initial(S, T, chains, percent=None, extend=False, mm_kwargs=None):
     """
     Calls minorminer.find_embedding() using chains as initial_chains.
     """
+    if extend:
+        chains = _extend_chains(S, T, chains)
+    if percent:
+        chains = _random_remove(chains, percent)
+
+    if mm_kwargs is None:
+        mm_kwargs = {}
+
     return mm.find_embedding(S, T, initial_chains=chains, **mm_kwargs)
 
 
-def suspend(S, T, chains, mm_kwargs, **kwargs):
+def suspend(S, T, chains, percent=None, extend=False, mm_kwargs=None):
     """
     Calls minorminer.find_embedding() using chains as suspend_chains.
     """
+    if extend:
+        chains = _extend_chains(S, T, chains)
+    if percent:
+        chains = _random_remove(chains, percent)
+
+    if mm_kwargs is None:
+        mm_kwargs = {}
+
     return mm.find_embedding(S, T, suspend_chains={v: [C] for v, C in chains.items()}, **mm_kwargs)
 
 
-def random_remove(S, T, chains, mm_kwargs, percent=2/3, **kwargs):
+def _random_remove(chains, percent=2/3):
     """
-    Calls minorminer.find_embedding() using chains as initial_chains.
+    Randomly remove percent of qubits from each chain
     """
     for v, C in chains.items():
         chain_list = list(C)  # In case C is a set/frozenset or something
 
-        # Shuffle and remove some
-        random.shuffle(C)
+        # Shuffle and remove some qubits
+        random.shuffle(chain_list)
         for _ in range(int(len(C)*percent)):
             chain_list.pop()
 
         # Update the chains
         chains[v] = chain_list
 
-    return mm.find_embedding(S, T, initial_chains=chains, **mm_kwargs)
+    return chains
 
 
-def extend_chains(S, T, initial_chains):
+def _extend_chains(S, T, initial_chains):
     """
     Extend chains in T so that their structure matches that of S. That is, form an overlap embedding of S in T
     where the initial_chains are subsets of the overlap embedding chains. This is done via minorminer.

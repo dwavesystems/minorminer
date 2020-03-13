@@ -75,8 +75,8 @@ def find_embedding(
 
     # Run minerminor.find_embedding()
     if return_layouts:
-        return hinting(S, T, chains, kwargs, **hinting_kwargs), (S_layout, T_layout)
-    return hinting(S, T, chains, kwargs, **hinting_kwargs)
+        return hinting(S, T, chains, **hinting_kwargs, mm_kwargs=kwargs), (S_layout, T_layout)
+    return hinting(S, T, chains, **hinting_kwargs, mm_kwargs=kwargs)
 
 
 def parse_kwargs(kwargs):

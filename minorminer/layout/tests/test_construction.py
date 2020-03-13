@@ -6,9 +6,9 @@ import minorminer.layout as mml
 import networkx as nx
 
 
-class TestPlacement(unittest.TestCase):
+class TestConstruction(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(TestPlacement, self).__init__(*args, **kwargs)
+        super(TestConstruction, self).__init__(*args, **kwargs)
 
         # Graphs for testing
         self.S = nx.random_regular_graph(3, 50)
