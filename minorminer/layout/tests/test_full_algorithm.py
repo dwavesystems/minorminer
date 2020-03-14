@@ -30,7 +30,7 @@ class TestFull(unittest.TestCase):
         self.max_subset_size = (2, 2)
         self.strategy = "all"
         self.num_neighbors = 3
-        self.full_fit = False
+        self.fill_processor = False
         self.unit_tile_capacity = 3
 
         # Construction kwargs
@@ -80,7 +80,7 @@ class TestFull(unittest.TestCase):
             max_subset_size=self.max_subset_size,
             strategy=self.strategy,
             num_neighbors=self.num_neighbors,
-            full_fit=self.full_fit,
+            fill_processor=self.fill_processor,
             unit_tile_capacity=self.unit_tile_capacity,
             second=self.second,
             percent=self.percent,

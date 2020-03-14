@@ -106,8 +106,8 @@ def parse_kwargs(kwargs):
         placement_kwargs["strategy"] = kwargs.pop("strategy")
     if "num_neighbors" in kwargs:
         placement_kwargs["num_neighbors"] = kwargs.pop("num_neighbors")
-    if "full_fit" in kwargs:
-        placement_kwargs["full_fit"] = kwargs.pop("full_fit")
+    if "fill_processor" in kwargs:
+        placement_kwargs["fill_processor"] = kwargs.pop("fill_processor")
     if "unit_tile_capacity" in kwargs:
         placement_kwargs["unit_tile_capacity"] = kwargs.pop(
             "unit_tile_capacity")

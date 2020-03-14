@@ -123,7 +123,7 @@ def injective(S_layout, T, **kwargs):
     return {u: [M[(0, u)][1]] for u in S_layout.keys()}
 
 
-def intersection(S_layout, T, full_fit=True, **kwargs):
+def intersection(S_layout, T, fill_processor=True, **kwargs):
     """
     Map each vertex of S to its nearest row/column intersection qubit in T (T must be a D-Wave hardware graph). 
 
@@ -133,9 +133,8 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
         A layout for S; i.e. a map from S to R^d.
     T : layout.Layout or dwave-networkx.Graph
         A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
-    full_fit : bool (default True)
-        If True, S_layout is scaled so that it maximizes the area of T. If False, the size of S_layout and T_layout are
-        comparably scaled.
+    fill_processor : bool (default True)
+        If True, S_layout is scaled so that it fills the processor. If False, the scale of S_layout is used.
 
     Returns
     -------
@@ -149,37 +148,100 @@ def intersection(S_layout, T, full_fit=True, **kwargs):
     placement_utils.check_requirements(
         S_layout, T_layout, allowed_dnx_graphs="chimera", allowed_dims=2)
 
+    # Scale the layout so that for each vertical and horizontal qubit that cross each other, we have an integer point.
+    m, n, t = dnx_utils.lookup_dnx_dims(T_layout.G)
+
+    # Make the "intersection graph" of the dnx_graph
+    # Grid points correspond to intersection rows and columns of the dnx_graph
+    G = nx.grid_2d_graph(t*m, t*n)
+
+    # Determine the scale for putting things in the positive quadrant
+    scale = (t*max(n, m)-1)/2
+
+    # Get the grid graph and the modified layout for S
+    _intersection_binning(
+        S_layout, T_layout, G, scale, t, fill_processor)
+
+    placement = {}
+    for _, data in G.nodes(data=True):
+        for v in data["variables"]:
+            placement[v] = data["qubits"]
+
+    return placement
+
+
+def _intersection_binning(S_layout, T_layout, G, scale, t, fill_processor):
+    """
+    Map the vertices of S to the "intersection graph" of T. This modifies the grid graph G by assigning vertices from S 
+    and T to vertices of G.
+
+    Parameters
+    ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T_layout : layout.Layout
+        A layout for T; i.e. a map from T to R^d.
+    G : networkx.Graph
+        A grid_2d_graph representing the lattice points in the positive quadrant.
+    scale : float
+        The scale necessary to translate (and/or resize) the layouts so that they occupy the positive quadrant.
+    t : int
+        Number of shores in T.
+    fill_processor : bool
+        If True, S_layout is scaled so that it fills the processor. If False, the scale of S_layout is used.
+
+    Returns
+    -------
+    modified_layout : dict
+        The layout of S after translating and scaling to the positive quadrant. 
+    """
+    # Get the row, column mappings for the dnx graph
+    lattice_mapping = dnx_utils.lookup_intersection_coordinates(T_layout.G)
+
+    # Less efficient, but more readable to initialize all at once
+    for v in G:
+        G.nodes[v]["qubits"] = set()
+        G.nodes[v]["variables"] = set()
+
+    # Add qubits (vertices of T) to grid points
+    for int_point, Q in lattice_mapping.items():
+        G.nodes[int_point]["qubits"] |= Q
+
+    # --- Map the S_layout to the grid
     # D-Wave counts the y direction like matrix rows; inversion makes pictures match
     modified_layout = layout.invert_layout(
         S_layout.layout_array, S_layout.center)
 
-    # Scale the layout so that for each vertical and horizontal qubit that cross each other, we have an integer point.
-    m, n, t = dnx_utils.lookup_dnx_dims(T_layout.G)
-    if full_fit:  # Scale to fill the area
-        scale = (t*max(n, m)-1)/2
-    else:  # Scale by the size of the shores
-        scale = t*S_layout.scale
+    # "Zoom in" on layout_S so that the integer points are better represented
+    zoomed_layout = layout.scale_layout(
+        modified_layout, t*S_layout.scale, S_layout.scale, S_layout.center)
 
-    # Scale S to an appropriate size
-    modified_layout = layout.scale_layout(
-        modified_layout, scale, S_layout.scale, S_layout.center)
+    # Check if the zoomed S_layout is too large for T.
+    # If it is, scale it so that it fills the processor.
+    fill_processor = fill_processor or np.any(
+        np.abs(zoomed_layout) > scale)
+
+    # Scale S to fill T at the grid level
+    if fill_processor:
+        modified_layout = layout.scale_layout(
+            modified_layout, scale, S_layout.scale, S_layout.center)
+    else:
+        modified_layout = layout.scale_layout(
+            modified_layout, t*S_layout.scale, S_layout.scale, S_layout.center)
 
     # Center to the positive orthant
     modified_layout = layout.center_layout(
-        modified_layout, 2*(scale, ), S_layout.center)
+        modified_layout, 2*(scale,), S_layout.center)
 
     # Turn it into a dictionary
     modified_layout = {v: pos for v, pos in zip(S_layout.G, modified_layout)}
 
-    placement = {}
+    # Add "variables" (vertices from S) to grid points too
     for v, pos in modified_layout.items():
-        _, j, x_k = dnx_utils.get_row_or_column(pos[0], t)
-        _, i, y_k = dnx_utils.get_row_or_column(pos[1], t)
+        grid_point = tuple(int(x) for x in np.round(pos))
+        G.nodes[grid_point]["variables"].add(v)
 
-        placement[v] = [(i, j, 0, x_k), (i, j, 1, y_k)]
-
-    # Return the right type of vertices
-    return dnx_utils.relabel_chains(T_layout.G, placement)
+    return modified_layout
 
 
 def binning(S_layout, T, unit_tile_capacity=None, fill_processor=False, strategy="layout", **kwargs):
@@ -238,7 +300,8 @@ def binning(S_layout, T, unit_tile_capacity=None, fill_processor=False, strategy
         unit_tile_capacity = unit_tile_capacity or t
         n, N = len(S_layout), m*n*unit_tile_capacity
         if n > N:
-            raise RuntimeError("You're trying to fit {} vertices of S into {} spots of T.".format(n, N))
+            raise RuntimeError(
+                "You're trying to fit {} vertices of S into {} spots of T.".format(n, N))
         _topple(G, modified_S_layout, unit_tile_capacity)
 
     # Build the placement
@@ -344,7 +407,7 @@ def _unit_cell_binning(S_layout, T_layout, G, scale, fill_processor):
     S_layout : layout.Layout
         A layout for S; i.e. a map from S to R^d.
     T_layout : layout.Layout
-        A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
+        A layout for T; i.e. a map from T to R^d.
     G : networkx.Graph
         A grid_2d_graph representing the lattice points in the positive quadrant.
     scale : float

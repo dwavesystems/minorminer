@@ -89,7 +89,7 @@ class TestPlacement(unittest.TestCase):
                           self.S_layout_3, self.C)
 
         # Test the parameters
-        mml.intersection(self.S_layout, self.C_layout, full_fit=False)
+        mml.intersection(self.S_layout, self.C_layout, fill_processor=False)
 
     def test_binning(self):
         """
