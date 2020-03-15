@@ -1,11 +1,14 @@
 import time
 
+import minorminer as mm
 import networkx as nx
 
-from .construction import crosses, neighborhood, pass_along
-from .hinting import initial, suspend
+from .connection import crosses, shortest_paths
+from .contraction import random_remove
+from .expansion import neighborhood
 from .layout import Layout, dnx_layout, p_norm, pca
 from .placement import binning, closest, injective, intersection
+from .utils import placement_utils
 
 
 def find_embedding(
@@ -13,8 +16,10 @@ def find_embedding(
     T,
     layout=p_norm,
     placement=intersection,
-    construction=crosses,
-    hinting=initial,
+    connection=crosses,
+    expansion=None,
+    contraction=None,
+    mm_hint_type="initial_chains",
     return_layouts=False,
     **kwargs
 ):
@@ -39,11 +44,18 @@ def find_embedding(
         If a function, it is the placement algorithm to call; each algorithm uses the layouts of S and T to map the 
         vertices of S to subsets of vertices of T. If it is a dict, it should be a map from the vertices of S to subsets
         of vertices of T.
-    construction : function (default crosses)
-        The chain construction algorithm to call; each algorithm uses the placement to build chains to hand to 
-        minorminer.find_embedding(). 
-    hinting : function (default initial)
-        The type of minorminer hinting to call.
+    connection : function (default crosses)
+        This is optional. To skip a connection phase, pass in None. Each chain connection algorithm that is called 
+        takes the placement and produces an overlap embedding of S in T.
+    expansion : function (default None)
+        This is optional. To skip an expansion phase, pass in None. Each expansion algorithm takes the chains from
+        placement (and possibly connection) and expands them in some way.
+    contraction : function (default None)
+        This is optional. To skip a contraction phase, pass in None. Each contraction algorithm takes the chains from
+        placement (and possibly connection and/or expansion) and contracts them in some way.
+    mm_hint_type : str (default "initial_chains")
+        This is the hint type to tell minorminer.find_embedding(). Supported types are "initial_chains" and 
+        "suspend_chains". See minorminer.find_embedding() for more information.
     return_layouts : bool (default False)
         Will return the layout objects of S and T.
     kwargs : dict 
@@ -58,29 +70,47 @@ def find_embedding(
     start = time.process_time()
 
     # Parse kwargs
-    layout_kwargs, placement_kwargs, construction_kwargs, hinting_kwargs = parse_kwargs(
+    layout_kwargs, placement_kwargs, connection_kwargs, expansion_kwargs, contraction_kwargs = parse_kwargs(
         kwargs)
 
-    # Parse layout parameter
+    # Compute the layouts
     S_layout, T_layout = parse_layout_parameter(S, T, layout, layout_kwargs)
 
-    # Compute the placement
-    vertex_map = parse_placement_parameter(
+    # Compute the placement (i.e. chains)
+    chains = parse_placement_parameter(
         S_layout, T_layout, placement, placement_kwargs)
 
-    # Create the chains
-    chains = construction(vertex_map, S_layout=S_layout, T=T_layout,
-                          **construction_kwargs)
+    # Connect the chains
+    if connection:
+        chains = connection(S_layout, T_layout, chains, **connection_kwargs)
+
+    # Expand the chains
+    if expansion:
+        chains = expansion(S_layout, T_layout, chains, **expansion_kwargs)
+
+    # Contract the chains
+    if contraction:
+        chains = contraction(S_layout, T_layout, chains, **contraction_kwargs)
 
     end = time.process_time()
     timeout = kwargs.get("timeout")
     if timeout:
         kwargs["timeout"] = timeout - (end - start)
 
+    # Run minorminer
+    if mm_hint_type == "initial_chains":
+        output = mm.find_embedding(S, T, initial_chains=chains, **kwargs)
+    elif mm_hint_type == "suspend_chains":
+        output = mm.find_embedding(S, T, suspend_chains={
+            v: [C] for v, C in chains.items()}, **kwargs)
+    else:
+        raise ValueError(
+            "Only initial_chains and suspend_chains are supported minorminer hint types.")
+
     # Run minerminor.find_embedding()
     if return_layouts:
-        return hinting(S, T, chains, **hinting_kwargs, mm_kwargs=kwargs), (S_layout, T_layout)
-    return hinting(S, T, chains, **hinting_kwargs, mm_kwargs=kwargs)
+        return output, (S_layout, T_layout)
+    return output
 
 
 def parse_kwargs(kwargs):
@@ -112,17 +142,18 @@ def parse_kwargs(kwargs):
         placement_kwargs["unit_tile_capacity"] = kwargs.pop(
             "unit_tile_capacity")
 
-    construction_kwargs = {}
+    connection_kwargs = {}
+    # Pop connection kwargs here if you want to add some in the future
+
+    expansion_kwargs = {}
     if "second" in kwargs:
-        construction_kwargs["second"] = kwargs.pop("second")
+        expansion_kwargs["second"] = kwargs.pop("second")
 
-    hinting_kwargs = {}
+    contraction_kwargs = {}
     if "percent" in kwargs:
-        hinting_kwargs["percent"] = kwargs.pop("percent")
-    if "extend" in kwargs:
-        construction_kwargs["extend"] = kwargs.pop("extend")
+        contraction_kwargs["percent"] = kwargs.pop("percent")
 
-    return layout_kwargs, placement_kwargs, construction_kwargs, hinting_kwargs
+    return layout_kwargs, placement_kwargs, connection_kwargs, expansion_kwargs, contraction_kwargs
 
 
 def parse_layout_parameter(S, T, layout, layout_kwargs):
@@ -168,7 +199,7 @@ def parse_placement_parameter(S_layout, T_layout, placement, placement_kwargs):
     """
     # It's a preprocessed placement
     if isinstance(placement, dict):
-        return placement
+        return placement_utils.convert_to_chains(placement)
 
     # It's a function
     else:

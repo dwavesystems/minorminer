@@ -33,12 +33,11 @@ class TestFull(unittest.TestCase):
         self.fill_processor = False
         self.unit_tile_capacity = 3
 
-        # Construction kwargs
+        # Expansion kwargs
         self.second = True
 
-        # Hinting kwargs
+        # Contraction kwargs
         self.percent = 2/3
-        self.extend = True
 
         # A minorminer.find_embedding kwarg
         self.timeout = 2
@@ -60,8 +59,8 @@ class TestFull(unittest.TestCase):
                            v: random.choice(C_nodes) for v in self.S})
 
         # Test a non dnx_graph
-        mml.find_embedding(self.S, self.G, placement=mml.closest,
-                           construction=mml.pass_along)
+        mml.find_embedding(
+            self.S, self.G, placement=mml.closest, connection=None)
 
         # Test a non graph
         mml.find_embedding(self.S.edges, self.C)
@@ -70,8 +69,12 @@ class TestFull(unittest.TestCase):
         mml.find_embedding(
             self.S,
             self.C,
+            layout=mml.p_norm,
             placement=mml.closest,
-            construction=mml.pass_along,
+            connection=mml.shortest_paths,
+            expansion=mml.neighborhood,
+            contraction=mml.random_remove,
+            mm_hint_type="suspend_chains",
             d=self.d,
             seed=self.seed,
             center=self.center,
@@ -84,10 +87,13 @@ class TestFull(unittest.TestCase):
             unit_tile_capacity=self.unit_tile_capacity,
             second=self.second,
             percent=self.percent,
-            extend=self.extend,
             timeout=self.timeout,
             return_layouts=True
         )
+
+        # Testing failure conditions
+        self.assertRaises(ValueError, mml.find_embedding,
+                          self.S, self.C, mm_hint_type="hello")
 
 
 if __name__ == '__main__':

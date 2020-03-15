@@ -67,3 +67,13 @@ def minimize_overlap(distances, v_indices, T_vertex_lookup, layout_points, overl
     cheapest_subset = min(subsets, key=subsets.get)
     overlap_counter.update(cheapest_subset)
     return cheapest_subset
+
+
+def convert_to_chains(placement):
+    """
+    Helper function to convert a placement to a chain-ready data structure.
+    """
+    for v in placement.values():
+        if isinstance(v, (list, frozenset, set)):
+            return dict(placement)
+        return {v: [q] for v, q in placement.items()}

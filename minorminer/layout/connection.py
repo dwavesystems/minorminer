@@ -2,31 +2,13 @@ import random
 from collections import defaultdict
 
 import dwave_networkx as dnx
+import minorminer as mm
 import networkx as nx
 
-from .utils import construction_utils, dnx_utils, layout_utils, placement_utils
+from .utils import dnx_utils, layout_utils, placement_utils
 
 
-def pass_along(placement, **kwargs):
-    """
-    Given a placement (a map, phi, from vertices of S to vertices (or subsets of vertices) of T), form the chain 
-    [phi(u)] (or phi(u)) for each u in S.
-
-    Parameters
-    ----------
-    placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
-
-    Returns
-    -------
-    chains: dict
-        A mapping from vertices of S (keys) to chains of T (values).
-    """
-    # If needed turn singletons into lists
-    return construction_utils.convert_to_chains(placement)
-
-
-def crosses(placement, S_layout, T, **kwargs):
+def crosses(S_layout, T, placement):
     """
     Extend chains for vertices of S along rows and columns of qubits of T (T must be a D-Wave hardware graph). 
 
@@ -37,12 +19,12 @@ def crosses(placement, S_layout, T, **kwargs):
 
     Parameters
     ----------
-    placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
     S_layout : layout.Layout
         A layout for S; i.e. a map from S to R^d.
     T : layout.Layout or dwave-networkx.Graph
         A layout for T; i.e. a map from T to R^d. Or a D-Wave networkx graph to make a layout from.
+    placement : dict
+        A mapping from vertices of S (keys) to vertices of T (values).
 
     Returns
     -------
@@ -57,7 +39,7 @@ def crosses(placement, S_layout, T, **kwargs):
         S_layout, T_layout, allowed_dnx_graphs="chimera", allowed_dims=2)
 
     # If needed turn singletons into lists
-    chains = construction_utils.convert_to_chains(placement)
+    chains = placement_utils.convert_to_chains(placement)
 
     # Grab the coordinate version of the labels
     if T_layout.G.graph["labels"] == "coordinate":
@@ -122,58 +104,49 @@ def _horizontal_and_vertical_qubits(chain):
     return hor_v, ver_v
 
 
-def neighborhood(placement, S_layout, T, second=False):
+def shortest_paths(S_layout, T, placement):
     """
-    Given a placement (a map, phi, from vertices of S to vertices of T), form the chain N_T(phi(u)) (closed neighborhood 
-    of v in T) for each u in S.
+    Extend chains in T so that their structure matches that of S. That is, form an overlap embedding of S in T
+    where the initial_chains are subsets of the overlap embedding chains. This is done via minorminer.
 
     Parameters
     ----------
-    placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
     S_layout : layout.Layout
         A layout for S; i.e. a map from S to R^d.
     T : layout.Layout or networkx.Graph
         A layout for T; i.e. a map from T to R^d. Or a networkx graph to make a layout from.
-    second : bool (default False)
-        If True, gets the closed 2nd neighborhood of each vertex. If False, get the closed 1st neighborhood of each
-        vertex.
+    placement : dict
+        A mapping from vertices of S (keys) to vertices of T (values).
 
     Returns
     -------
-    chains: dict
+    extended_chains: dict
         A mapping from vertices of S (keys) to chains of T (values).
     """
     # Standardize input
     T_layout = placement_utils.parse_T(T, disallow="dict")
 
-    return {u: _closed_neighbors(T_layout.G, v, second=second)
-            for u, v in placement.items()}
+    # Grab the graphs of each object
+    S, T = S_layout.G, T_layout.G
 
+    # If needed turn singletons into lists
+    chains = placement_utils.convert_to_chains(placement)
 
-def _closed_neighbors(G, u, second=False):
-    """
-    Returns the closed neighborhood of u in G.
+    # Extend the chains to minimal overlapped embedding
+    miner = mm.miner(S, T, initial_chains=chains)
+    extended_chains = defaultdict(set)
+    for u in S:
+        # Revert to the initial_chains and compute the embedding where you tear-up u.
+        emb = miner.quickpass(
+            [u], clear_first=True, overlap_bound=S.number_of_nodes()
+        )
 
-    Parameters
-    ----------
-    G : NetworkX graph
-        The graph you are considering.
-    u : NetworkX node
-        The node you are computing the closed neighborhood of.
-    second : bool (default False)
-        If True, compute the closed 2nd neighborhood.
+        # Add the new chain for u and the singleton one too (in case it got moved in emb)
+        extended_chains[u].update(set(emb[u]).union(chains[u]))
 
-    Returns
-    -------
-    neighbors: set
-        A set of vertices of G.
-    """
-    if isinstance(u, (list, frozenset, set)):
-        closed_neighbors = nx.node_boundary(G, u) | set(u)
-    else:
-        closed_neighbors = set(G.neighbors(u)) | set((u, ))
+        # For each neighbor v of u, grow u to reach v
+        for v in S[u]:
+            extended_chains[u].update(
+                set(emb[v]).difference(chains[v]))
 
-    if second:
-        return nx.node_boundary(G, closed_neighbors) | closed_neighbors
-    return closed_neighbors
+    return extended_chains

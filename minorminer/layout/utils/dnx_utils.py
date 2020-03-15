@@ -97,8 +97,6 @@ def lookup_dnx_dims(G):
     if graph_data.get("family") in ("chimera", "pegasus"):
         return graph_data["rows"], graph_data["columns"], graph_data["tile"]
 
-    return None
-
 
 def nx_to_dnx_layout(center, scale):
     """

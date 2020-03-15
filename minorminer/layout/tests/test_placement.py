@@ -77,6 +77,9 @@ class TestPlacement(unittest.TestCase):
         placement_2 = mml.intersection(self.S_layout, self.C)
         self.assertDictEqual(placement_1, placement_2)
 
+        # Test a coordinate version of chimera
+        mml.intersection(self.S_layout, self.C_coord_layout)
+
         # Test bad inputs
         # Dictionary is not allowed for T
         self.assertRaises(TypeError, mml.intersection,
