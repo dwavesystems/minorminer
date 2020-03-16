@@ -621,10 +621,9 @@ class pathfinder_base : public pathfinder_public_interface {
                         break;
                 }
             }
-            if (trial_patience && (ep.embedded) && (improvement_patience == 0)) {
-                ep.initialized = 0;
-                ep.desperate = 1;
-                currEmbedding = bestEmbedding;
+            if (trial_patience && !ep.embedded && !improvement_patience) {
+                ep.initialized = ep.desperate = pushback = 0;
+                currEmbedding = initEmbedding;
                 int r = initialization_pass(currEmbedding);
                 switch (r) {
                     case -2:
@@ -634,11 +633,11 @@ class pathfinder_base : public pathfinder_public_interface {
                         currEmbedding = bestEmbedding;
                         break;
                     case 1:
+                        best_stats.clear();  // overwrite bestEmbedding for a real restart
                         check_improvement(currEmbedding);
                         break;
                 }
                 ep.initialized = 1;
-                ep.desperate = 0;
             }
         }
 
@@ -821,4 +820,4 @@ class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
         });
     }
 };
-}
+}  // namespace find_embedding
