@@ -168,8 +168,9 @@ def find_embedding(S, T, **params):
 
         fixed_chains: Fixed chains inserted into an embedding before the
             initialization pass. As the algorithm proceeds, these chains are not
-            allowed to change. Missing or empty entries are ignored. A
-            dictionary, where fixed_chains[i] is a list of qubit labels.
+            allowed to change, and the qubits used by these chains are not used by
+            other chains. Missing or empty entries are ignored. A dictionary, where
+            fixed_chains[i] is a list of qubit labels.
 
         restrict_chains: Throughout the algorithm, we maintain the condition
             that chain[i] is a subset of restrict_chains[i] for each i, except

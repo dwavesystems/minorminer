@@ -569,16 +569,18 @@ class pathfinder_base : public pathfinder_public_interface {
             if (initEmbedding.linked()) {
                 currEmbedding = initEmbedding;
             } else {
-                ep.error(
-                        "cannot bootstrap from initial embedding.  stopping.  disable skip_initialization or throw "
-                        "this embedding away\n");
-                return 0;
+                throw BadInitializationException(
+                        "cannot bootstrap from initial embedding.  "
+                        "disable skip_initialization or throw this embedding away");
             }
         } else {
             currEmbedding = initEmbedding;
             if (initialization_pass(currEmbedding) <= 0) {
-                ep.error("failed during initialization. embeddings may be invalid.\n");
-                return 0;
+                throw BadInitializationException(
+                        "Failed during initialization.  This typically "
+                        "occurs when the source graph is unreasonably large or when the embedding "
+                        "problem is over-constrained (via max_fill, initial_chains, fixed_chains, "
+                        "and/or restrict_chains).");
             }
         }
         ep.major_info("initialized\n");
