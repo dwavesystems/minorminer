@@ -224,19 +224,50 @@ jobs:
             python -m pip install virtualenv
             python -m virtualenv env
 
-      - run: *install-dependencies-template
+      - run:
+          name: install dependencies
+          command: |
+            eval "$(pyenv init -)"
+            python --version
+            pip install -r tests/requirements.txt
 
       - save_cache: *save-cache-template
 
-      - run: *build-ext-template
+      - run:
+          name: install package
+          command: |
+            eval "$(pyenv init -)"
+            python setup.py build_ext --inplace
         
-      - run: *run-tests-template
+      - run:
+          name: run unittests
+          command: |
+            eval "$(pyenv init -)"
+            python --version
+            python -m nose . --exe
+          environment:
+            CPPDEBUG: 1
 
-      - run: *sdist-build-template
+      - run:
+          name: build sdist
+          command: |
+            eval "$(pyenv init -)"
+            python setup.py sdist
 
-      - run: *sdist-install-template
 
-      - run: *sdist-cython-install-template
+      - run: 
+          name: install sdist without cython
+          command: |
+            eval "$(pyenv init -)"
+            pyenv local $PYTHON
+            pip install dist/minorminer-*.tar.gz
+
+      - run:
+          name: install sdist with cython
+          command: |
+            eval "$(pyenv init -)"
+            pip install cython
+            pip install dist/minorminer-*.tar.gz
 
   test-osx-3.7:
     <<: *osx-tests-template
