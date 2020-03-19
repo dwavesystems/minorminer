@@ -6,7 +6,8 @@ from minorminer.layout.placement import *
 
 def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=singleton, hinting=initial, **kwargs):
     """
-    Tries to embed S in T by computing layout aware initial_chains and passing them to minorminer.
+    Tries to embed S in T by computing layout aware initial_chains and passing them to minorminer, see 
+    minorminer.find_embedding for additional keyword arguments.
 
     Parameters
     ----------
@@ -27,18 +28,19 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
     Returns
     -------
     emb : dict
-        Output is dependant upon kwargs passed to minonminer, but more or less emb is a mapping from vertices of 
+        Output is dependant upon kwargs passed to minorminer, but more or less emb is a mapping from vertices of 
         S (keys) to chains in T (values).
     """
     # Parse kwargs
-    d, second, nhbd_ext = parse_kwargs(kwargs)
+    d, second, nhbd_ext = _parse_kwargs(kwargs)
 
     # Parse the layout parameter
     if isinstance(layout, tuple):
         S_layout = layout[0](S, d)
         T_layout = layout[1](T, d)
     else:
-        S_layout, T_layout = layout(S, d), layout(T, d)
+        S_layout = layout(S, d)
+        T_layout = layout(T, d)
 
     # Compute the placement
     vertex_map = placement(S_layout, T_layout)
@@ -54,7 +56,7 @@ def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=si
     return hinting(S, T, chains, kwargs)
 
 
-def parse_kwargs(kwargs):
+def _parse_kwargs(kwargs):
     d = kwargs.get("d", 2)
     try:
         del kwargs["d"]
