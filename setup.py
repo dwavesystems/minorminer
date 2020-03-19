@@ -86,6 +86,7 @@ classifiers = [
 ]
 
 python_requires = '>=3.5'
+install_requires = ["scipy", "networkx", "dwave-networkx", "numpy"]
 
 setup(
     name="minorminer",
@@ -100,5 +101,6 @@ setup(
     packages=['minorminer'],
     classifiers=classifiers,
     python_requires=python_requires,
+    install_requires=install_requires,
     cmdclass={'build_ext': build_ext_compiler_check}
 )
