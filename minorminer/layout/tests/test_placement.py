@@ -1,7 +1,7 @@
 import unittest
 
 import minorminer.layout.placement as mml
-from data import precomputed_chimera, precomputed_random_cubic_layout, precomputed_closest, precomputed_injective
+from .data import precomputed_chimera, precomputed_random_cubic_layout, precomputed_closest, precomputed_injective
 
 
 class TestLayout(unittest.TestCase):

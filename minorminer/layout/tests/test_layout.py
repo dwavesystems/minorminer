@@ -5,7 +5,7 @@ import dwave_networkx as dnx
 import networkx as nx
 
 import minorminer.layout.layout as mml
-from data import precomputed_chimera, precomputed_kamada_kawai
+from .data import precomputed_chimera, precomputed_kamada_kawai
 
 # Set a seed to standardize the randomness.
 n = 9999
@@ -29,7 +29,7 @@ class TestLayout(unittest.TestCase):
             for v, p in l.items():
                 for i, x in enumerate(p):
                     coordinate = layouts[d][v][i]
-                    self.assertAlmostEqual(coordinate, x)
+                    self.assertAlmostEqual(coordinate, x, 3)
                     self.assertGreaterEqual(coordinate, -1)
                     self.assertLessEqual(coordinate, 1)
 
@@ -46,7 +46,7 @@ class TestLayout(unittest.TestCase):
             for v, p in l.items():
                 for i, x in enumerate(p):
                     coordinate = layouts[d][v][i]
-                    self.assertAlmostEqual(coordinate, x)
+                    self.assertAlmostEqual(coordinate, x, 3)
                     self.assertGreaterEqual(coordinate, -1)
                     self.assertLessEqual(coordinate, 1)
 

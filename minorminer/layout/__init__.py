@@ -1,9 +1,9 @@
 import networkx as nx
 
-from minorminer.layout.construction import *
-from minorminer.layout.hinting import *
-from minorminer.layout.layout import *
-from minorminer.layout.placement import *
+from minorminer.layout.construction import singleton, neighborhood
+from minorminer.layout.hinting import initial, suspend
+from minorminer.layout.layout import chimera, kamada_kawai
+from minorminer.layout.placement import closest, injective
 
 
 def find_embedding(S, T, layout=kamada_kawai, placement=closest, construction=singleton, hinting=initial, **kwargs):
