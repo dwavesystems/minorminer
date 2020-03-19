@@ -764,8 +764,11 @@ def test_point_source():
 def test_point_target():
     # re: issue 64
     C = Clique(2)
-    _ = find_embedding(C, [(0, 0)], tries=1)
-    return True
+    try:
+        _ = find_embedding(C, [(0, 0)], tries=1)
+    except RuntimeError:
+        return True
+    return False
 
 
 @success_perfect(30)

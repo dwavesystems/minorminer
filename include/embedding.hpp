@@ -354,7 +354,7 @@ class embedding {
     }
 
     //! run a long diagnostic, and if debugging is enabled, record `current_state` so that the
-    //! error message has a little more context.  if an error is found, throw -1
+    //! error message has a little more context.  if an error is found, throw a CorruptEmbeddingException
     void long_diagnostic(char *current_state) {
         run_long_diagnostic(current_state);
 #ifdef CPPDEBUG
@@ -535,9 +535,8 @@ class embedding {
 #endif
             ep.error("errors found in data structure, current state is '%s'.  quitting\n", current_state);
             print();
-            std::flush(std::cout);
-            throw - 1;
+            throw CorruptEmbeddingException("Errors found in embedding data structure.  Cannot recover.");
         }
     }
 };
-}
+}  // namespace find_embedding

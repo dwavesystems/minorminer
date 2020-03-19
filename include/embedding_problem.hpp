@@ -279,9 +279,9 @@ class embedding_problem_base {
     unsigned int compute_margin() {
         if (num_q == 0) return 0;
         unsigned int max_degree =
-                std::max_element(begin(var_nbrs), end(var_nbrs), [](const vector<int> &a, const vector<int> &b) {
-                    return a.size() < b.size();
-                })->size();
+                std::max_element(begin(var_nbrs), end(var_nbrs),
+                                 [](const vector<int> &a, const vector<int> &b) { return a.size() < b.size(); })
+                        ->size();
         if (max_degree == 0)
             return num_q;
         else
@@ -395,7 +395,8 @@ class embedding_problem_base {
                                                           var_order_shuffle);
                             break;
                         default:
-                            throw - 1;
+                            // this should be unreachable...
+                            throw CorruptParametersException("unsupported variable ordering specified");
                     }
         }
         return var_order_space;
@@ -489,4 +490,4 @@ class embedding_problem : public embedding_problem_base,
               output_handler(p) {}
     virtual ~embedding_problem() {}
 };
-}
+}  // namespace find_embedding

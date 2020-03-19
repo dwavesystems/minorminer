@@ -358,7 +358,8 @@ class chain {
     iterator end() const { return iterator(data.end()); };
 
     //! run the diagnostic, and if it fails, report the failure to the user
-    //! and throw -1.  the `last_op` argument is used in the error message
+    //! and throw a CorruptEmbeddingException.  the `last_op` argument is
+    //! used in the error message
     inline void diagnostic(char *last_op) {
 #ifdef CPPDEBUG
         if (belay_diagnostic) return;
@@ -371,7 +372,7 @@ class chain {
             if (r & 2) std::cout << " (refcount)";
 
             std::cout << ".  last operation was " << last_op << std::endl;
-            throw - 1;
+            throw CorruptEmbeddingException("Errors found in chain diagnostics.  Cannot recover.");
         }
     }
 
@@ -405,4 +406,4 @@ class chain {
     //! non-const unsafe data accessor
     inline pair<int, int> &retrieve(int q) { return (*data.find(q)).second; }
 };
-}
+}  // namespace find_embedding

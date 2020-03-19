@@ -575,12 +575,15 @@ class pathfinder_base : public pathfinder_public_interface {
             }
         } else {
             currEmbedding = initEmbedding;
-            if (initialization_pass(currEmbedding) <= 0) {
-                throw BadInitializationException(
-                        "Failed during initialization.  This typically "
-                        "occurs when the source graph is unreasonably large or when the embedding "
-                        "problem is over-constrained (via max_fill, initial_chains, fixed_chains, "
-                        "and/or restrict_chains).");
+            switch (initialization_pass(currEmbedding)) {
+                case -2:
+                    return 0;
+                case -1:
+                    throw BadInitializationException(
+                            "Failed during initialization.  This typically "
+                            "occurs when the source graph is unreasonably large or when the embedding "
+                            "problem is over-constrained (via max_fill, initial_chains, fixed_chains, "
+                            "and/or restrict_chains).");
             }
         }
         ep.major_info("initialized\n");
