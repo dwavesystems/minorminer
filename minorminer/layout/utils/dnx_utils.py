@@ -13,8 +13,8 @@ def lookup_dnx_coordinates(G):
             return {v: (v[0], v[1]) for v in G}
         if graph_data["data"]:
             return {
-                v: (G.nodes[v][f"{family}_index"][0],
-                    G.nodes[v][f"{family}_index"][1])
+                v: (G.nodes[v]["chimera_index"][0],
+                    G.nodes[v]["chimera_index"][1])
                 for v in G
             }
     elif family == "pegasus":

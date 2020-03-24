@@ -149,7 +149,8 @@ class Layout():
         """
         # The number of vertices bounds the dimension
         n = len(self.G)
-        assert self.d <= n, f"You want me to find {self.d} eigenvectors in a graph with {n} vertices."
+        assert self.d <= n, "You want me to find {} eigenvectors in a graph with {} vertices.".format(
+            self.d, n)
 
         # Pick the number of dimensions to initially embed into
         m = n if n < 50 else 50

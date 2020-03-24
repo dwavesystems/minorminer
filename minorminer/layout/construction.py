@@ -51,25 +51,6 @@ def neighborhood(S, T, placement, second=False):
     return {u: _closed_neighbors(T, v, second=second) for u, v in placement.items()}
 
 
-def pass_along(S, T, placement):
-    """
-    Given a placement consisting of chains, for each u in S simply pass the chain phi(u) along.
-
-    Parameters
-    ----------
-    T : NetworkX graph
-        The graph you are embedding into (target).
-    placement : dict
-        A mapping from vertices of S (keys) to subsets of vertices of T (values).
-
-    Returns
-    -------
-    chains: dict
-        A mapping from vertices of S (keys) to chains of T (values).
-    """
-    return placement
-
-
 def _closed_neighbors(G, u, second=False):
     """
     Returns the closed neighborhood of u in G.
