@@ -90,8 +90,6 @@ def _parse_kwargs(kwargs):
     construction_kwargs = {}
     if "second" in kwargs:
         construction_kwargs["second"] = kwargs.pop("second")
-    if "extend" in kwargs:
-        construction_kwargs["extend"] = kwargs.pop("extend")
 
     return layout_kwargs, construction_kwargs
 
