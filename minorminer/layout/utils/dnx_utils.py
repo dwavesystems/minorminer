@@ -1,3 +1,6 @@
+import dwave_networkx as dnx
+
+
 def lookup_dnx_coordinates(G):
     """
     Checks to see if G is a dnx.*_graph(). If it is, it checks to see if G has coordinate information. If it does it 
@@ -18,9 +21,16 @@ def lookup_dnx_coordinates(G):
                 for v in G
             }
     elif family == "pegasus":
+        # Use the nice coordinates under this mapping (t, y, x, u, k) |--> (3x + t, 3y + 2 - t)
         if graph_data["labels"] == "nice":
-            # (t, y, x, u, k) |--> (3x + t, 3y + 2 - t)
             return {v: (3*v[2] + v[0], 3*v[1] + (2 - v[0])) for v in G}
+        else:
+            C = dnx.pegasus_coordinates(graph_data["rows"])
+
+            if graph_data["labels"] == "int":
+                return {v: (3*vv[2] + vv[0], 3*vv[1] + (2 - vv[0])) for v, vv in zip(G, C.iter_linear_to_nice(G))}
+            elif graph_data["labels"] == "coordinate":
+                return {v: (3*vv[2] + vv[0], 3*vv[1] + (2 - vv[0])) for v, vv in zip(G, C.iter_pegasus_to_nice(G))}
     return None
 
 

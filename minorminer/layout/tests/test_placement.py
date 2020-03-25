@@ -40,8 +40,17 @@ class TestLayout(unittest.TestCase):
         S_layout = mml.kamada_kawai(S)
         T = dnx.chimera_graph(4)
         T_layout = mml.dnx_layout(T)
+        P = dnx.pegasus_graph(4)
+        P_layout = mml.dnx_layout(P)
+        P_coord = dnx.pegasus_graph(4, coordinates=True)
+        P_coord_layout = mml.dnx_layout(P_coord)
+        P_nice = dnx.pegasus_graph(4, nice_coordinates=True)
+        P_nice_layout = mml.dnx_layout(P_nice)
 
         mml.binning(S_layout, T_layout)
+        mml.binning(S_layout, P_layout)
+        mml.binning(S_layout, P_coord_layout)
+        mml.binning(S_layout, P_nice_layout)
 
 
 if __name__ == '__main__':
