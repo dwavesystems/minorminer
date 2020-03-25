@@ -115,34 +115,34 @@ def _parse_kwargs(kwargs):
 
 def _parse_layout_parameter(S, T, layout, layout_kwargs):
     """
-    Determine what combination of tuple, dict, and function the layout parameter is.
+    Determine what combination of iterable, dict, and function the layout parameter is.
     """
-    # It's two things, one for S and one for T
-    if isinstance(layout, tuple):
-        # It's a dict layout for S
-        if isinstance(layout[0], dict):
-            S_layout = Layout(S, layout=layout[0], **layout_kwargs)
-        # It's a Layout object for S
-        elif isinstance(layout[0], Layout):
-            S_layout = layout[0]
-        # It's a function for S
-        else:
-            S_layout = layout[0](S, **layout_kwargs)
-
-        # It's a layout for T
-        if isinstance(layout[1], dict):
-            T_layout = Layout(T, layout=layout[1], **layout_kwargs)
-        # It's a Layout object for T
-        elif isinstance(layout[1], Layout):
-            T_layout = layout[1]
-        # It's a function for T
-        else:
-            T_layout = layout[1](T, **layout_kwargs)
-
-    # It's a function for both
+    if nx.utils.iterable(layout):
+        try:
+            s_layout, t_layout = layout
+        except ValueError:
+            raise ValueError(
+                "layout is expected to be a function or a length-2 iterable")
     else:
-        S_layout = layout(S, **layout_kwargs)
-        T_layout = layout(T, **layout_kwargs)
+        s_layout = t_layout = layout
+
+    # Get a Layout object for S
+    if isinstance(s_layout, Layout):
+        S_layout = s_layout
+    elif callable(s_layout):
+        S_layout = s_layout(S, **layout_kwargs)
+    else:
+        # assumes s_layout implements a mapping interface
+        S_layout = Layout(S, layout=s_layout, **layout_kwargs)
+
+    # Get the Layout object for T
+    if isinstance(t_layout, Layout):
+        T_layout = t_layout
+    elif callable(t_layout):
+        T_layout = t_layout(T, **layout_kwargs)
+    else:
+        # assumes t_layout implements a mapping interface
+        T_layout = Layout(T, layout=t_layout, **layout_kwargs)
 
     return S_layout, T_layout
 
