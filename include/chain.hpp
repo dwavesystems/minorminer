@@ -5,13 +5,13 @@
 namespace find_embedding {
 
 #ifdef CPPDEBUG
-#define DIAGNOSE2(other, X) \
-    diagnostic(X);          \
-    other.diagnostic(X);
-#define DIAGNOSE(X) diagnostic(X);
+#define DIAGNOSE_CHAINS(other) \
+    diagnostic();              \
+    other.diagnostic();
+#define DIAGNOSE_CHAIN() diagnostic();
 #else
-#define DIAGNOSE2(other, X)
-#define DIAGNOSE(X)
+#define DIAGNOSE_CHAINS(other)
+#define DIAGNOSE_CHAIN()
 #endif
 
 //! This class stores chains for embeddings, and performs qubit-use
@@ -81,7 +81,7 @@ class chain {
             minorminer_assert(0 <= q && q < qubit_weight.size());
             qubit_weight[q]++;
         }
-        DIAGNOSE("operator=vector");
+        DIAGNOSE_CHAIN();
         return *this;
     }
 
@@ -91,7 +91,7 @@ class chain {
         data = c.data;
         for (auto &q : c) qubit_weight[q]++;
         links = c.links;
-        DIAGNOSE("operator=chain");
+        DIAGNOSE_CHAIN();
         return *this;
     }
 
@@ -119,7 +119,7 @@ class chain {
         links[x] = q;
 
         retrieve(q).second++;
-        DIAGNOSE("set_link");
+        DIAGNOSE_CHAIN();
     }
 
     //! discard and return the linking qubit for `x`, or -1 if that link is not set
@@ -132,7 +132,7 @@ class chain {
             retrieve(q).second--;
             links.erase(z);
         }
-        DIAGNOSE("drop_link");
+        DIAGNOSE_CHAIN();
         return q;
     }
 
@@ -144,7 +144,7 @@ class chain {
         links.emplace(label, q);
         data.emplace(q, pair<int, int>(q, 2));
         qubit_weight[q]++;
-        DIAGNOSE("set_root");
+        DIAGNOSE_CHAIN();
     }
 
     //! empty this data structure
@@ -152,7 +152,7 @@ class chain {
         for (auto &q : *this) qubit_weight[q]--;
         data.clear();
         links.clear();
-        DIAGNOSE("clear");
+        DIAGNOSE_CHAIN();
     }
 
     //! add the qubit `q` as a leaf, with `parent` as its parent
@@ -162,7 +162,7 @@ class chain {
         data.emplace(q, pair<int, int>(parent, 0));
         qubit_weight[q]++;
         retrieve(parent).second++;
-        DIAGNOSE("add_leaf");
+        DIAGNOSE_CHAIN();
     }
 
     //! try to delete the qubit `q` from this chain, and keep
@@ -176,7 +176,7 @@ class chain {
             p = trim_leaf(q);
         }
         minorminer_assert(data.count(q) == 1);
-        DIAGNOSE("trim_branch");
+        DIAGNOSE_CHAIN();
         return q;
     }
 
@@ -192,7 +192,7 @@ class chain {
             data.erase(z);
             q = p.first;
         }
-        DIAGNOSE("trim_leaf");
+        DIAGNOSE_CHAIN();
         return q;
     }
 
@@ -216,7 +216,7 @@ class chain {
         Q.second--;
         P.second++;
         minorminer_assert(parent(q) == p);
-        DIAGNOSE("adopt");
+        DIAGNOSE_CHAIN();
     }
 
     //! return the number of references that `this` makes to the qubit
@@ -244,7 +244,7 @@ class chain {
         for (auto &q : *this) qubit_weight[q]--;
         keep.data.swap(data);
         minorminer_assert(size() == 0);
-        DIAGNOSE("freeze");
+        DIAGNOSE_CHAIN();
         return keep.data.size();
     }
 
@@ -264,7 +264,7 @@ class chain {
                 others[v].set_link(label, v_p.second);
             }
         }
-        DIAGNOSE("thaw");
+        DIAGNOSE_CHAIN();
     }
 
     //! assumes `this` and `other` have links for eachother's labels
@@ -307,7 +307,7 @@ class chain {
 
         set_link(other.label, q);
         other.set_link(label, p);
-        DIAGNOSE2(other, "steal");
+        DIAGNOSE_CHAINS(other);
     }
 
     //! link this chain to another, following the path
@@ -337,7 +337,7 @@ class chain {
         minorminer_assert(count(q) == 1);
         set_link(other.label, q);
         other.set_link(label, p);
-        DIAGNOSE2(other, "link_path");
+        DIAGNOSE_CHAINS(other);
     }
 
     class iterator {
@@ -360,19 +360,17 @@ class chain {
     //! run the diagnostic, and if it fails, report the failure to the user
     //! and throw a CorruptEmbeddingException.  the `last_op` argument is
     //! used in the error message
-    inline void diagnostic(char *last_op) {
+    inline void diagnostic() {
 #ifdef CPPDEBUG
         if (belay_diagnostic) return;
 #endif
-        int r = run_diagnostic();
-
-        if (r) {
-            std::cout << "chain diagnostic failures on var " << label << ":";
-            if (r & 1) std::cout << " (parent containment)";
-            if (r & 2) std::cout << " (refcount)";
-
-            std::cout << ".  last operation was " << last_op << std::endl;
-            throw CorruptEmbeddingException("Errors found in chain diagnostics.  Cannot recover.");
+        switch (run_diagnostic()) {
+            case 1:
+                throw CorruptEmbeddingException("Qubit containment errors found in chain diagnostics.");
+            case 2:
+                throw CorruptEmbeddingException("Parent errors found in chain diagnostics.");
+            case 3:
+                throw CorruptEmbeddingException("Multiple errors found in chain diagnostics.");
         }
     }
 

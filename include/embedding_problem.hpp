@@ -56,7 +56,7 @@ class domain_handler_masked {
   public:
     domain_handler_masked(optional_parameters &p, int n_v, int n_f, int n_q, int n_r)
             : params(p), masks(n_v + n_f, vector<int>()) {
-#ifndef NDEBUG
+#ifdef CPPDEBUG
         for (auto &vC : params.restrict_chains)
             for (auto &q : vC.second) minorminer_assert(0 <= q && q < n_q + n_r);
 #endif
@@ -140,11 +140,12 @@ class fixed_handler_hival {
 //! the errors-only handler and otherwise, the full handler
 
 //! Here's the full output handler
-class output_handler_full {
+template <bool verbose>
+class output_handler {
     optional_parameters &params;
 
   public:
-    output_handler_full(optional_parameters &p) : params(p) {}
+    output_handler(optional_parameters &p) : params(p) {}
 
     //! printf regardless of the verbosity level
     template <typename... Args>
@@ -155,56 +156,33 @@ class output_handler_full {
     //! printf at the major_info verbosity level
     template <typename... Args>
     void major_info(const char *format, Args... args) const {
-        params.major_info(format, args...);
+        if (verbose && params.verbose > 0) params.major_info(format, args...);
     }
 
     //! print at the minor_info verbosity level
     template <typename... Args>
     void minor_info(const char *format, Args... args) const {
-        params.minor_info(format, args...);
+        if (verbose && params.verbose > 1) params.minor_info(format, args...);
     }
 
     //! print at the extra_info verbosity level
     template <typename... Args>
     void extra_info(const char *format, Args... args) const {
-        params.extra_info(format, args...);
+        if (verbose && params.verbose > 2) params.extra_info(format, args...);
     }
 
     //! print at the debug verbosity level (only works when `CPPDEBUG` is set)
     template <typename... Args>
-    void debug(const char *ONDEBUG(format), Args... ONDEBUG(args)) const {
-        ONDEBUG(params.debug(format, args...));
+#ifdef CPPDEBUG
+    void debug(const char *format, Args... args) const {
+        if (verbose && params.verbose > 3) {
+            params.debug(format, args...);
+        }
     }
-};
-
-//! Here's the errors-only handler
-class output_handler_error {
-    optional_parameters &params;
-
-  public:
-    output_handler_error(optional_parameters &p) : params(p) {}
-
-    //! printf regardless of the verbosity level
-    template <typename... Args>
-    void error(const char *format, Args... args) const {
-        params.error(format, args...);
+#else
+    void debug(const char * /*format*/, Args... /*args*/) const {
     }
-
-    //! printf at the major_info verbosity level
-    template <typename... Args>
-    void major_info(Args...) const {}
-
-    //! print at the minor_info verbosity level
-    template <typename... Args>
-    void minor_info(Args...) const {}
-
-    //! print at the extra_info verbosity level
-    template <typename... Args>
-    void extra_info(Args...) const {}
-
-    //! print at the debug verbosity level (only works when `CPPDEBUG` is set)
-    template <typename... Args>
-    void debug(Args...) const {}
+#endif
 };
 
 struct shuffle_first {};

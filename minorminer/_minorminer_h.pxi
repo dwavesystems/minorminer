@@ -3,6 +3,7 @@ from libcpp.vector cimport vector
 from libcpp.map cimport map
 from libcpp.pair cimport pair
 from libc.stdint cimport uint8_t, uint64_t
+from libcpp.string cimport string
 
 ctypedef pair[int,int] intpair
 ctypedef pair[intpair, int] intpairint
@@ -51,6 +52,7 @@ cdef extern from "../include/util.hpp" namespace "find_embedding":
         double max_beta
         int tries
         int verbose
+        bint interactive
         int inner_rounds
         int max_fill
         int chainlength_patience
@@ -64,6 +66,11 @@ cdef extern from "../include/util.hpp" namespace "find_embedding":
 cdef extern from "src/pyutil.hpp" namespace "":
     cppclass LocalInteractionPython(LocalInteraction):
         LocalInteractionPython()
+
+    ctypedef void (*cython_callback)(void *, int, const string &)
+
+    cppclass LocalInteractionLogger(LocalInteraction):
+        LocalInteractionLogger(cython_callback, void *)
 
     void handle_exceptions()
 

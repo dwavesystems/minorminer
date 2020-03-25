@@ -43,7 +43,7 @@ This implementation adds several useful features:
 [1] https://arxiv.org/abs/1406.2741
 """
 include "_minorminer_h.pxi"
-import os
+import os as _os, logging as _logging
 
 def find_embedding(S, T, **params):
     """
@@ -157,6 +157,14 @@ def find_embedding(S, T, **params):
                 max chain length: largest number of qubits representing a single variable
                 num max chains: the number of variables that has max chain size
 
+        interactive: If `logging` is None or False, the verbose output will be printed
+            to stdout/stderr as appropriate, and keyboard interrupts will stop the embedding
+            process and the current state will be returned to the user.  Otherwise, output
+            will be directed to the logger `logging.getLogger(minorminer.__name__)` and
+            keyboard interrupts will be propagated back to the user.  Errors will use 
+            `logger.error()`, verbosity levels 1 through 3 will use `logger.info()` and level
+            4 will use `logger.debug()`.  bool, default False
+
         initial_chains: Initial chains inserted into an embedding before
             fixed_chains are placed, which occurs before the initialization
             pass. These can be used to restart the algorithm in a similar state
@@ -220,6 +228,14 @@ def find_embedding(S, T, **params):
 class EmptySourceGraphError(RuntimeError):
     pass
 
+cdef void wrap_logger(void *logger, int loglevel, const string &msg):
+    if loglevel == 0:
+        (<object>logger).error(msg.rstrip())
+    elif 1 <= loglevel < 4:
+        (<object>logger).info(msg.rstrip())
+    else:
+        (<object>logger).debug(msg.rstrip())
+
 cdef class _input_parser:
     cdef input_graph Sg, Tg
     cdef labeldict SL, TL
@@ -229,16 +245,24 @@ cdef class _input_parser:
         cdef uint64_t *seed
         cdef object z
 
-        self.opts.localInteractionPtr.reset(new LocalInteractionPython())
-
         names = {"max_no_improvement", "random_seed", "timeout", "tries", "verbose",
                  "fixed_chains", "initial_chains", "max_fill", "chainlength_patience",
                  "return_overlap", "skip_initialization", "inner_rounds", "threads",
-                 "restrict_chains", "suspend_chains", "max_beta"}
+                 "restrict_chains", "suspend_chains", "max_beta", "interactive"}
 
         for name in params:
             if name not in names:
                 raise ValueError("%s is not a valid parameter for find_embedding"%name)
+
+        z = params.get("interactive")
+        if z is None or not z:
+            self.opts.interactive = 0
+            z = _logging.getLogger(__name__)
+            self.opts.localInteractionPtr.reset(
+                new LocalInteractionLogger(wrap_logger, <void *>z))
+        else:
+            self.opts.interactive = 1
+            self.opts.localInteractionPtr.reset(new LocalInteractionPython())
 
         z = params.get("max_no_improvement")
         if z is not None:
@@ -256,7 +280,7 @@ cdef class _input_parser:
         if z is not None:
             self.opts.seed( long(z) )
         else:
-            seed_obj = os.urandom(sizeof(uint64_t))
+            seed_obj = _os.urandom(sizeof(uint64_t))
             seed = <uint64_t *>(<void *>(<uint8_t *>(seed_obj)))
             self.opts.seed(seed[0])
 

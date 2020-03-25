@@ -183,6 +183,26 @@ class pathfinder_base : public pathfinder_public_interface {
         }
     }
 
+    //! internal function to check if we're supposed to stop for an external reason -- namely
+    //! if we've timed out (which we catch immediately and return -2 to allow the heuristic to
+    //! terminate gracefully), or received a keyboard interrupt (which we allow to propagate
+    //! back to the user).  If neither stopping condition is encountered, return `return_value`.
+    inline int check_stops(const int &return_value) {
+        try {
+            params.localInteractionPtr->cancelled(stoptime);
+        } catch (const TimeoutException &e) {
+            ep.major_info("problem timed out");
+            return -2;
+        } catch (const ProblemCancelledException &e) {
+            ep.major_info("problem cancelled via keyboard interrupt");
+            if (params.interactive)
+                return -2;
+            else
+                throw;
+        }
+        return return_value;
+    }
+
     //! sweep over all variables, either keeping them if they are pre-initialized and connected,
     //! and otherwise finding new chains for them (each, in turn, seeking connection only with
     //! neighbors that already have chains)
@@ -195,10 +215,7 @@ class pathfinder_base : public pathfinder_public_interface {
                 if (!find_chain(emb, u)) return -1;
             }
         }
-        if (params.localInteractionPtr->cancelled(stoptime))
-            return -2;
-        else
-            return 1;
+        return check_stops(1);
     }
 
     //! tear up and replace each variable
@@ -211,11 +228,7 @@ class pathfinder_base : public pathfinder_public_interface {
             improved |= check_improvement(emb);
             if (ep.embedded) break;
         }
-        if (params.localInteractionPtr->cancelled(stoptime))
-            return -2;
-        else {
-            return improved;
-        }
+        return check_stops(improved);
     }
 
     //! tear up and replace each chain, strictly improving or maintaining the
@@ -251,12 +264,8 @@ class pathfinder_base : public pathfinder_public_interface {
             if (ep.embedded) break;
         }
         ep.weight_bound = oldbound;
-        if (params.localInteractionPtr->cancelled(stoptime))
-            return -2;
-        else {
-            if (!improved) pushback += (num_vars * 2) / params.inner_rounds;
-            return improved;
-        }
+        if (!improved) pushback += (num_vars * 2) / params.inner_rounds;
+        return check_stops(improved);
     }
 
     //! tear up and replace each chain, attempting to rebalance the chains and
@@ -271,11 +280,7 @@ class pathfinder_base : public pathfinder_public_interface {
 
             improved |= check_improvement(emb);
         }
-        if (params.localInteractionPtr->cancelled(stoptime))
-            return -2;
-        else {
-            return improved;
-        }
+        return check_stops(improved);
     }
 
     //! incorporate the qubit weights associated with the chain for `v` into
