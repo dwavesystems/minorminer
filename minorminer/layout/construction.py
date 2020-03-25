@@ -28,7 +28,7 @@ def pass_along(S, T, placement):
         return placement
 
 
-def neighborhood(S, T, placement, second=False):
+def neighborhood(S, T, placement, second_neighborhood=False):
     """
     Given a placement (a map, phi, from vertices of S to vertices of T), form the chain N_T(phi(u)) (closed neighborhood 
     of v in T) for each u in S.
@@ -39,7 +39,7 @@ def neighborhood(S, T, placement, second=False):
         The graph you are embedding into (target).
     placement : dict
         A mapping from vertices of S (keys) to vertices of T (values).
-    second : bool (default False)
+    second_neighborhood : bool (default False)
         If True, gets the closed 2nd neighborhood of each vertex. If False, get the closed 1st neighborhood of each
         vertex. 
 
@@ -48,10 +48,10 @@ def neighborhood(S, T, placement, second=False):
     chains: dict
         A mapping from vertices of S (keys) to chains of T (values).
     """
-    return {u: _closed_neighbors(T, v, second=second) for u, v in placement.items()}
+    return {u: _closed_neighbors(T, v, second_neighborhood=second_neighborhood) for u, v in placement.items()}
 
 
-def _closed_neighbors(G, u, second=False):
+def _closed_neighbors(G, u, second_neighborhood=False):
     """
     Returns the closed neighborhood of u in G.
 
@@ -61,7 +61,7 @@ def _closed_neighbors(G, u, second=False):
         The graph you are considering.
     u : NetworkX node
         The node you are computing the closed neighborhood of.
-    second : bool (default False)
+    second_neighborhood : bool (default False)
         If True, compute the closed 2nd neighborhood.
 
     Returns
@@ -70,6 +70,6 @@ def _closed_neighbors(G, u, second=False):
         A set of vertices of G.
     """
     neighbors = set(v for v in G.neighbors(u))
-    if second:
+    if second_neighborhood:
         return set((u,)) | neighbors | set(w for v in neighbors for w in G.neighbors(v))
     return set((u,)) | neighbors
