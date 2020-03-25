@@ -35,16 +35,6 @@ def lattice_points_to_length(lattice_points):
         return tuple(x-1 for x in lattice_points)
 
 
-def convert_to_chains(placement):
-    """
-    Helper function to determine whether or not an input is in a chain-ready data structure. 
-    """
-    for v in placement.values():
-        if isinstance(v, (list, frozenset, set)):
-            return False
-        return True
-
-
 def parse_layout(layout):
     """
     Take in a layout class object or a dictionary and return the dictionary representation.

@@ -21,11 +21,7 @@ def pass_along(S, T, placement):
     chains: dict
         A mapping from vertices of S (keys) to chains of T (values).
     """
-    # Test if you need to convert values or not
-    if layout_utils.convert_to_chains(placement):
-        return {u: [v] for u, v in placement.items()}
-    else:
-        return placement
+    return placement
 
 
 def neighborhood(S, T, placement, second_neighborhood=False):

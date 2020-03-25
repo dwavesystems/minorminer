@@ -11,7 +11,7 @@ from minorminer.layout.layout import Layout
 from minorminer.layout.utils import dnx_utils, graph_utils, layout_utils
 
 
-def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
+def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1):
     """
     Maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. For each vertex u in 
     S_layout and each vertex v in T_layout, map u to the v with minimum Euclidean distance (||u - v||_2).
@@ -22,7 +22,7 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
         A layout for S; i.e. a map from S to the plane.
     T_layout : dict or layout.Layout
         A layout for T; i.e. a map from T to the plane.
-    max_subset_size : tuple (default (1, 1))
+    subset_size : tuple (default (1, 1))
         A lower bound and an upper bound on the size of subets of T that will be considered when mapping vertices of S.
     num_neighbors: int (default 1)
         The number of closest neighbors to query from the KDTree--the neighbor with minimium overlap is chosen.
@@ -32,35 +32,28 @@ def closest(S_layout, T_layout, max_subset_size=(1, 1), num_neighbors=1):
     placement : dict
         A mapping from vertices of S (keys) to subsets of vertices of T (values).
     """
-    # Copy the dictionary layout for T so we can modify it.
-    layout = dict(T_layout.layout)
-    # Get the graph for layout T
-    T = T_layout.G
+    # A new layout for subsets of T.
+    T_subgraph_layout = {}
 
     # Get connected subgraphs to consider mapping to
-    if max_subset_size != (1, 1):
-        T_subgraphs = graph_utils.get_connected_subgraphs(
-            T, max_subset_size[0], max_subset_size[1])
+    T_subgraphs = graph_utils.get_connected_subgraphs(
+        T_layout.G, subset_size[0], subset_size[1])
 
-        # Calculate the barycenter (centroid) of each subset with size > 1
-        for k in range(max(2, max_subset_size[0]), max_subset_size[1]+1):
+    # Calculate the barycenter (centroid) of each subset
+    for k in range(subset_size[0], subset_size[1]+1):
+        if k == 1:
             for subgraph in T_subgraphs[k]:
-                layout[subgraph] = np.mean(
-                    tuple(layout[v] for v in subgraph), axis=0)
-
-        # Determine if you need to add or delete subsets of size 1
-        if max_subset_size[0] == 1:
-            for v in T:
-                layout[frozenset((v,))] = layout[v]
-                del layout[v]
+                v, = subgraph  # Iterable unpacking
+                T_subgraph_layout[subgraph] = T_layout.layout[v]
         else:
-            for v in T:
-                del layout[v]
+            for subgraph in T_subgraphs[k]:
+                T_subgraph_layout[subgraph] = np.mean(
+                    np.array([T_layout.layout[v] for v in subgraph]), axis=0)
 
     # Use scipy's KDTree to solve the nearest neighbor problem.
     # This requires a few lookup tables
-    T_vertex_lookup = {tuple(p): v for v, p in layout.items()}
-    layout_points = [tuple(p) for p in layout.values()]
+    T_vertex_lookup = {tuple(p): V for V, p in T_subgraph_layout.items()}
+    layout_points = [tuple(p) for p in T_subgraph_layout.values()]
     overlap_counter = Counter()
     tree = KDTree(layout_points)
 
