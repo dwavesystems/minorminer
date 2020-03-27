@@ -64,7 +64,11 @@ def find_embedding(
     end = time.process_time()
     timeout = kwargs.get("timeout")
     if timeout:
-        kwargs["timeout"] = timeout - (end - start)
+        time_remaining = timeout - (end - start)
+        if time_remaining <= 0:
+            raise TimeoutError(
+                "Layout and placement took {}s, you set timeout at {}.".format(end-start, timeout))
+        kwargs["timeout"] = time_remaining
 
     # Run minorminer.find_embedding
     if mm_hint_type == "initial_chains":
