@@ -2,8 +2,10 @@ import random
 import unittest
 
 import dwave_networkx as dnx
-import minorminer.layout as mml
 import networkx as nx
+
+import minorminer.layout as mml
+from minorminer.layout.placement import _parse_layout
 
 
 class TestPlacement(unittest.TestCase):
@@ -68,8 +70,8 @@ class TestPlacement(unittest.TestCase):
 
         # Layout input failure
         self.assertRaises(TypeError, mml.Placement,
-                          nx.spectral_layout(self.S), self.C_layout)
-        self.assertRaises(TypeError, mml.Placement, (), self.C_layout)
+                          "not a layout", self.C_layout)
+        self.assertRaises(TypeError, _parse_layout, "not a layout")
 
 
 def rando_placer(S_layout, T_layout):
