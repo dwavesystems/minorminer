@@ -129,6 +129,7 @@ class Placement(abc.MutableMapping):
         S_layout,
         T_layout,
         placement=None,
+        fill_T=False,
         **kwargs
     ):
         """
@@ -144,6 +145,8 @@ class Placement(abc.MutableMapping):
             If a dict, this specifies a pre-computed placement for S in T. If a function, the function is called on
             S_layout and T_layout `placement(S_layout, T_layout)` and should return a placement of S in T. If None, 
             a random placement of S in T is selected.
+        fill_T : bool (default False)
+            If True, S_layout is scaled to the scale of T_layout. If False, S_layout uses its scale.
         kwargs : dict
             Keyword arguments are given to placement if it is a function.
         """
@@ -156,6 +159,10 @@ class Placement(abc.MutableMapping):
                 "S_layout has dimension {} but T_layout has dimension {}. These must match.".format(
                     self.S_layout.d, self.T_layout.d)
             )
+
+        # Scale S if the user wants to, or if S_layout is bigger than T_layout
+        if fill_T or np.any(np.abs(self.S_layout.layout_array) > self.T_layout.scale):
+            self.S_layout.scale = self.T_layout.scale
 
         if placement is None:
             self.placement = closest(S_layout, T_layout)
