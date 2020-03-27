@@ -51,19 +51,20 @@ class TestPlacement(TestLayoutPlacement):
         placement = mml.Placement(self.S_layout, self.C_layout, rando_placer)
         self.assertIsPlacement(self.S, self.C, placement)
 
-    def test_fill_T(self):
+    def test_scale_ratio(self):
         """
         Make sure filling works correctly.
         """
         # Make C_layout bigger than S_layout
         S_layout = mml.Layout(self.S, scale=1)
-        C_layout = mml.Layout(self.C, scale=2)
+        C_layout = mml.Layout(self.C, scale=10)
 
-        # Have S_layout fill_T
-        placement = mml.Placement(S_layout, C_layout, fill_T=True)
+        # Have S_layout scale to various ratios
+        placement = mml.Placement(S_layout, C_layout, scale_ratio=1)
+        self.assertAlmostEqual(placement.S_layout.scale, 10)
 
-        # Check that the scale changed
-        self.assertAlmostEqual(placement.S_layout.scale, 2)
+        placement = mml.Placement(S_layout, C_layout, scale_ratio=.5)
+        self.assertAlmostEqual(placement.S_layout.scale, 5)
 
     def test_placement_class(self):
         """

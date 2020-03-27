@@ -16,10 +16,10 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
     Parameters
     ----------
     subset_size : tuple (default (1, 1))
-        A lower (subset_size[0]) and upper (subset_size[1]) bound on the size of subets of T that will be considered 
+        A lower (subset_size[0]) and upper (subset_size[1]) bound on the size of subets of T that will be considered
         when mapping vertices of S.
     num_neighbors : int (default 1)
-        The number of closest neighbors to query from the KDTree--the neighbor with minimium overlap is chosen. 
+        The number of closest neighbors to query from the KDTree--the neighbor with minimium overlap is chosen.
         Increasing this reduces overlap, but increases runtime.
 
     Returns
@@ -88,7 +88,7 @@ def _get_connected_subgraphs(G, k, single_set=False):
     Returns
     -------
     connected_subgraphs : dict
-        The dictionary is keyed by size of subgraph and each value is a set containing  
+        The dictionary is keyed by size of subgraph and each value is a set containing
         frozensets of vertices that comprise the connected subgraphs.
         {
             1: { {v_1}, {v_2}, ... },
@@ -131,7 +131,7 @@ class Placement(abc.MutableMapping):
         S_layout,
         T_layout,
         placement=None,
-        fill_T=False,
+        scale_ratio=None,
         **kwargs
     ):
         """
@@ -145,10 +145,10 @@ class Placement(abc.MutableMapping):
             A layout for T; i.e. a map from T to R^d.
         placement : dict or function (default None)
             If a dict, this specifies a pre-computed placement for S in T. If a function, the function is called on
-            S_layout and T_layout `placement(S_layout, T_layout)` and should return a placement of S in T. If None, 
+            S_layout and T_layout `placement(S_layout, T_layout)` and should return a placement of S in T. If None,
             a random placement of S in T is selected.
-        fill_T : bool (default False)
-            If True, S_layout is scaled to the scale of T_layout. If False, S_layout uses its scale.
+        scale_ratio : float (default None)
+            If None, S_layout is not scaled. Otherwise, S_layout is scaled to scale_ratio*T_layout.scale.
         kwargs : dict
             Keyword arguments are given to placement if it is a function.
         """
@@ -162,9 +162,12 @@ class Placement(abc.MutableMapping):
                     self.S_layout.d, self.T_layout.d)
             )
 
-        # Scale S if the user wants to, or if S_layout is bigger than T_layout
-        if fill_T or np.any(np.abs(self.S_layout.layout_array) > self.T_layout.scale):
+        # Scale S if S_layout is bigger than T_layout
+        if self.S_layout.scale > self.T_layout.scale:
             self.S_layout.scale = self.T_layout.scale
+        # Or scale S to the user specified scale
+        elif scale_ratio:
+            self.S_layout.scale = scale_ratio*self.T_layout.scale
 
         if placement is None:
             self.placement = closest(S_layout, T_layout)

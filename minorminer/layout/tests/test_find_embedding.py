@@ -85,11 +85,11 @@ class TestFindEmb(TestLayoutPlacement):
         Pass in placement kwargs.
         """
         # Pick some values to pass in
-        fill_T = True
+        scale_ratio = .8
         subset_size = (1, 2)
         num_neighbors = 5
 
-        mml.find_embedding(self.S, self.C, fill_T=fill_T,
+        mml.find_embedding(self.S, self.C, scale_ratio=scale_ratio,
                            subset_size=subset_size, num_neighbors=num_neighbors)
 
     def test_layout_parameter(self):

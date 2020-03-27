@@ -103,8 +103,8 @@ def _parse_kwargs(kwargs):
 
     placement_kwargs = {}
     # For the placement object
-    if "fill_T" in kwargs:
-        placement_kwargs["fill_T"] = kwargs.pop("fill_T")
+    if "scale_ratio" in kwargs:
+        placement_kwargs["scale_ratio"] = kwargs.pop("scale_ratio")
     # For closest strategy
     if "subset_size" in kwargs:
         placement_kwargs["subset_size"] = kwargs.pop("subset_size")
