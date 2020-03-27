@@ -1,10 +1,126 @@
 import random
-from collections import abc
+from collections import Counter, abc, defaultdict
 
 import networkx as nx
 import numpy as np
+from scipy import spatial
 
 from . import layout
+
+
+def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
+    """
+    Maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. For each vertex u in
+    S_layout and each vertex v in T_layout, map u to the v with minimum Euclidean distance (||u - v||_2).
+
+    Parameters
+    ----------
+    subset_size : tuple (default (1, 1))
+        A lower (subset_size[0]) and upper (subset_size[1]) bound on the size of subets of T that will be considered 
+        when mapping vertices of S.
+    num_neighbors : int (default 1)
+        The number of closest neighbors to query from the KDTree--the neighbor with minimium overlap is chosen. 
+        Increasing this reduces overlap, but increases runtime.
+
+    Returns
+    -------
+    placement : dict
+        A mapping from vertices of S (keys) to subsets of vertices of T (values).
+    """
+    # Extract the target graph
+    T = T_layout.G
+
+    # A new layout for subsets of T.
+    T_subgraph_layout = {}
+
+    # Get connected subgraphs to consider mapping to
+    T_subgraphs = _get_connected_subgraphs(T, subset_size[1])
+
+    # Calculate the barycenter (centroid) of each subset
+    for k in range(subset_size[0], subset_size[1]+1):
+        if k == 1:
+            for subgraph in T_subgraphs[k]:
+                v, = subgraph  # Unpack the subgraph of size 1
+                T_subgraph_layout[subgraph] = T_layout[v]
+        else:
+            for subgraph in T_subgraphs[k]:
+                T_subgraph_layout[subgraph] = np.mean(
+                    np.array([T_layout[v] for v in subgraph]), axis=0)
+
+    # Use scipy's KDTree to solve the nearest neighbor problem.
+    # This requires a few lookup tables
+    T_vertex_lookup = {tuple(p): V for V, p in T_subgraph_layout.items()}
+    layout_points = [tuple(p) for p in T_subgraph_layout.values()]
+    overlap_counter = Counter()
+
+    try:
+        tree = spatial.KDTree(layout_points)  # This fails for the empty graph
+    except ValueError:
+        pass
+
+    placement = {}
+    for u, u_pos in S_layout.items():
+        distances, v_indices = tree.query(u_pos, num_neighbors)
+        placement[u] = _minimize_overlap(
+            distances, v_indices, T_vertex_lookup, layout_points, overlap_counter)
+
+    return placement
+
+
+def _get_connected_subgraphs(G, k, single_set=False):
+    """
+    Finds all connectected subgraphs S of G within a given subset_size.
+
+    Parameters
+    ----------
+    G : networkx graph
+        The graph you want to find all connected subgraphs of.
+    k : int
+        An upper bound of the size of connected subgraphs to find.
+
+    Returns
+    -------
+    connected_subgraphs : dict
+        The dictionary is keyed by size of subgraph and each value is a set containing  
+        frozensets of vertices that comprise the connected subgraphs.
+        {
+            1: { {v_1}, {v_2}, ... },
+            2: { {v_1, v_2}, {v_1, v_3}, ... },
+            ...,
+            k: { {v_1, v_2, ..., v_m}, ... }
+        }
+    """
+    connected_subgraphs = defaultdict(set)
+    connected_subgraphs[1] = {frozenset((v,)) for v in G}
+
+    for i in range(1, min(k, len(G))):
+        # Iterate over the previous set of connected subgraphs.
+        for X in connected_subgraphs[i]:
+            # For each vertex in the set, iterate over its neighbors.
+            for v in X:
+                for u in G.neighbors(v):
+                    connected_subgraphs[i + 1].add(X.union({u}))
+
+    return connected_subgraphs
+
+
+def _minimize_overlap(distances, v_indices, T_vertex_lookup, layout_points, overlap_counter):
+    """
+    A greedy penalty-type model for choosing nonoverlapping chains.
+    """
+    # KDTree.query either returns a single index or a list of indexes depending on how many neighbors are queried.
+    if isinstance(v_indices, (np.int64, np.int32)):
+        return T_vertex_lookup[layout_points[v_indices]]
+
+    subsets = {}
+    for i in v_indices:
+        subset = T_vertex_lookup[layout_points[i]]
+        subsets[subset] = sum(d + 10**overlap_counter[v]
+                              for d, v in zip(distances, subset))
+
+    cheapest_subset = min(subsets, key=subsets.get)
+    overlap_counter.update(cheapest_subset)
+    return cheapest_subset
 
 
 class Placement(abc.MutableMapping):
@@ -17,6 +133,7 @@ class Placement(abc.MutableMapping):
     ):
         """
         Compute a placement of S in T, i.e., map V(S) to 2^{V(T)}.
+
         Parameters
         ----------
         S_layout : layout.Layout
@@ -40,13 +157,8 @@ class Placement(abc.MutableMapping):
                     self.S_layout.d, self.T_layout.d)
             )
 
-        # Extract the graphs
-        self.S = self.S_layout.G
-        self.T = self.T_layout.G
-
         if placement is None:
-            T_vertices = list(self.T)
-            self.placement = {v: [random.choice(T_vertices)] for v in self.S}
+            self.placement = closest(S_layout, T_layout)
         elif callable(placement):
             self.placement = placement(S_layout, T_layout, **kwargs)
         else:
