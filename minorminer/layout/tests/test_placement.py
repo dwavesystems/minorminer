@@ -6,30 +6,10 @@ import networkx as nx
 
 import minorminer.layout as mml
 from minorminer.layout.placement import _parse_layout
+from . import TestLayoutPlacement
 
 
-class TestPlacement(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestPlacement, self).__init__(*args, **kwargs)
-
-        # Graphs for testing
-        self.S = nx.random_regular_graph(3, 50)
-        self.G = nx.Graph()
-        self.C = dnx.chimera_graph(4)
-
-        # Layouts for testing
-        self.S_layout = mml.Layout(self.S, nx.spectral_layout)
-        self.G_layout = mml.Layout(self.G)
-        self.C_layout = mml.Layout(self.C, dnx.chimera_layout)
-        self.C_layout_3 = mml.Layout(self.C, dnx.chimera_layout, dim=3)
-
-    def assertIsPlacement(self, S, T, placement):
-        """
-        Tests that placement is a mapping from S to 2^T
-        """
-        for u in S:
-            self.assertTrue(set(placement[u]) <= set(T))
-
+class TestPlacement(TestLayoutPlacement):
     def test_closest(self):
         """
         Tests the closest placement strategy.
@@ -70,6 +50,20 @@ class TestPlacement(unittest.TestCase):
         """
         placement = mml.Placement(self.S_layout, self.C_layout, rando_placer)
         self.assertIsPlacement(self.S, self.C, placement)
+
+    def test_fill_T(self):
+        """
+        Make sure filling works correctly.
+        """
+        # Make C_layout bigger than S_layout
+        S_layout = mml.Layout(self.S, scale=1)
+        C_layout = mml.Layout(self.C, scale=2)
+
+        # Have S_layout fill_T
+        placement = mml.Placement(S_layout, C_layout, fill_T=True)
+
+        # Check that the scale changed
+        self.assertEqual(placement.S_layout.scale, 2)
 
     def test_placement_class(self):
         """
