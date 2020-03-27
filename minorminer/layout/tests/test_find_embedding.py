@@ -7,7 +7,7 @@ import numpy as np
 
 import minorminer.layout as mml
 
-from . import TestLayoutPlacement
+from .common import TestLayoutPlacement
 
 
 class TestFindEmb(TestLayoutPlacement):

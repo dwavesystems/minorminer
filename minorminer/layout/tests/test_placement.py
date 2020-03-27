@@ -6,7 +6,7 @@ import networkx as nx
 
 import minorminer.layout as mml
 from minorminer.layout.placement import _parse_layout
-from . import TestLayoutPlacement
+from .common import TestLayoutPlacement
 
 
 class TestPlacement(TestLayoutPlacement):
