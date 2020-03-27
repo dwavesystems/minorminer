@@ -97,9 +97,6 @@ def _parse_layout(G_layout):
     if isinstance(G_layout, layout.Layout):
         return layout.Layout(G_layout.G, G_layout.layout)
 
-    if isinstance(G_layout, dict):
+    else:
         raise TypeError(
             "If you want to pass in a precomputed layout mapping, please create a Layout object; Layout(G, layout).")
-
-    else:
-        raise TypeError("Please use a Layout object.")
