@@ -49,7 +49,7 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
 
     # Use scipy's KDTree to solve the nearest neighbor problem.
     # This requires a few lookup tables
-    T_vertex_lookup = {tuple(p): V for V, p in T_subgraph_layout.items()}
+    T_subset_lookup = {tuple(p): V for V, p in T_subgraph_layout.items()}
     layout_points = [tuple(p) for p in T_subgraph_layout.values()]
     overlap_counter = Counter()
 
@@ -60,9 +60,16 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
 
     placement = {}
     for u, u_pos in S_layout.items():
-        distances, v_indices = tree.query(u_pos, num_neighbors)
+        distances, v_indices = tree.query([u_pos], num_neighbors)
+
+        # KDTree.query either returns a (num_neighbors, ) shaped arrays if num_neighbors == 1
+        # or (1, num_neighbors) shaped arrays if num_neighbors != 1
+        if num_neighbors != 1:
+            v_indices = v_indices[0]
+            distances = distances[0]
+
         placement[u] = _minimize_overlap(
-            distances, v_indices, T_vertex_lookup, layout_points, overlap_counter)
+            distances, v_indices, T_subset_lookup, layout_points, overlap_counter)
 
     return placement
 
@@ -104,19 +111,14 @@ def _get_connected_subgraphs(G, k, single_set=False):
     return connected_subgraphs
 
 
-def _minimize_overlap(distances, v_indices, T_vertex_lookup, layout_points, overlap_counter):
+def _minimize_overlap(distances, v_indices, T_subset_lookup, layout_points, overlap_counter):
     """
     A greedy penalty-type model for choosing nonoverlapping chains.
     """
-    # KDTree.query either returns a single index or a list of indexes depending on how many neighbors are queried.
-    if isinstance(v_indices, (np.int64, np.int32)):
-        return T_vertex_lookup[layout_points[v_indices]]
-
     subsets = {}
-    for i in v_indices:
-        subset = T_vertex_lookup[layout_points[i]]
-        subsets[subset] = sum(d + 10**overlap_counter[v]
-                              for d, v in zip(distances, subset))
+    for i, d in zip(v_indices, distances):
+        subset = T_subset_lookup[layout_points[i]]
+        subsets[subset] = d + sum(10**overlap_counter[v] for v in subset)
 
     cheapest_subset = min(subsets, key=subsets.get)
     overlap_counter.update(cheapest_subset)
