@@ -65,7 +65,7 @@ def find_embedding(
 
     end = time.process_time()
     timeout = kwargs.get("timeout")
-    if timeout:
+    if timeout is not None:
         time_remaining = timeout - (end - start)
         if time_remaining <= 0:
             raise TimeoutError(
