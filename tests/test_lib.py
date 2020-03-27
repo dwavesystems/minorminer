@@ -812,15 +812,15 @@ def test_variable_components_many():
 
 def _long_running_successful_problem(interactive):
     # broke this out of run_interactive_interrupt because multiprocessing in py3.8 can't handle local functions :eyeroll:
-    C = Clique(20)
+    C = [(i, j) for i in range(20) for j in range(i)]
     t0 = time.perf_counter()
     try:
-        find_embedding(C, C, chainlength_patience=1 << 20,
-                       interactive=interactive, timeout=1)
+        find_embedding_orig(C, C, chainlength_patience=1 << 20,
+                            interactive=interactive, timeout=2)
     except KeyboardInterrupt:
         sys.exit(2)
-    if time.perf_counter() - t0 > .5:
-        # be a little generous here... but the caller should kill this in way less than .5s
+    if time.perf_counter() - t0 > 1:
+        # be a little generous here... but the caller should kill this in way less than 1s
         sys.exit(1)
 
 
@@ -833,7 +833,7 @@ def run_interactive_interrupt(interactive):
     p = multiprocessing.Process(
         target=_long_running_successful_problem, args=(interactive,))
     p.start()
-    time.sleep(.1)
+    time.sleep(.5)
     os.kill(p.pid, ctrl_c)
     p.join()
     # exitcode 0: terminated successfully (interactive mode catches the interrupt)
