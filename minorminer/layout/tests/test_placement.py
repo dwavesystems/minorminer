@@ -23,19 +23,53 @@ class TestPlacement(unittest.TestCase):
         self.C_layout = mml.Layout(self.C, dnx.chimera_layout)
         self.C_layout_3 = mml.Layout(self.C, dnx.chimera_layout, dim=3)
 
+    def assertIsPlacement(self, S, T, placement):
+        """
+        Tests that placement is a mapping from S to 2^T
+        """
+        for u in S:
+            self.assertTrue(set(placement[u]) <= set(T))
+
+    def test_closest(self):
+        """
+        Tests the closest placement strategy.
+        """
+        # Default behavior
+        placement = mml.closest(self.S_layout, self.C_layout)
+        self.assertIsPlacement(self.S, self.C, placement)
+
+        # Different subset sizes
+        placement = mml.closest(
+            self.S_layout, self.C_layout, subset_size=(1, 2))
+        self.assertIsPlacement(self.S, self.C, placement)
+
+        placement = mml.closest(
+            self.S_layout, self.C_layout, subset_size=(2, 2))
+        self.assertIsPlacement(self.S, self.C, placement)
+
+        # Different number of neighbors to query
+        placement = mml.closest(self.S_layout, self.C_layout, num_neighbors=5)
+        self.assertIsPlacement(self.S, self.C, placement)
+
+        # All parameters
+        placement = mml.closest(
+            self.S_layout, self.C_layout, subset_size=(2, 3), num_neighbors=10)
+        self.assertIsPlacement(self.S, self.C, placement)
+
     def test_precomputed_placement(self):
         """
         Tests passing in a placement as a dictionary
         """
-        placement = rando_placer(self.S_layout, self.C_layout)
-        mml.Placement(self.S_layout, self.C_layout, placement)
+        rando = rando_placer(self.S_layout, self.C_layout)
+        placement = mml.Placement(self.S_layout, self.C_layout, rando)
+        self.assertIsPlacement(self.S, self.C, placement)
 
     def test_placement_functions(self):
         """
         Functions can be passed in to Placement objects.
         """
-
-        mml.Placement(self.S_layout, self.C_layout, rando_placer)
+        placement = mml.Placement(self.S_layout, self.C_layout, rando_placer)
+        self.assertIsPlacement(self.S, self.C, placement)
 
     def test_placement_class(self):
         """
