@@ -63,7 +63,7 @@ class TestPlacement(TestLayoutPlacement):
         placement = mml.Placement(S_layout, C_layout, fill_T=True)
 
         # Check that the scale changed
-        self.assertEqual(placement.S_layout.scale, 2)
+        self.assertAlmostEqual(placement.S_layout.scale, 2)
 
     def test_placement_class(self):
         """

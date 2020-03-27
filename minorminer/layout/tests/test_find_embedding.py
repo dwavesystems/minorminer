@@ -74,11 +74,11 @@ class TestFindEmb(TestLayoutPlacement):
         # Test that S_layout matches
         self.assertEqual(S_layout.d, d)
         self.assertArrayEqual(S_layout.center, center)
-        self.assertEqual(S_layout.scale, scale)
+        self.assertAlmostEqual(S_layout.scale, scale)
         # Test that C_layout matches
         self.assertEqual(C_layout.d, d)
         self.assertArrayEqual(C_layout.center, center)
-        self.assertEqual(C_layout.scale, scale)
+        self.assertAlmostEqual(C_layout.scale, scale)
 
     def test_placement_kwargs(self):
         """
