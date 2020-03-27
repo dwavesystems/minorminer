@@ -9,23 +9,10 @@ import numpy as np
 import minorminer.layout as mml
 from minorminer.layout.layout import (_center_layout, _dimension_layout,
                                       _scale_layout)
+from . import TestLayoutPlacement
 
 
-class TestLayout(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestLayout, self).__init__(*args, **kwargs)
-
-        self.S = nx.random_regular_graph(3, 10)
-        self.G = nx.Graph()
-        self.H = nx.complete_graph(1)
-
-    def assertArrayEqual(self, a, b):
-        np.testing.assert_almost_equal(a, b)
-
-    def assertLayoutEqual(self, G, layout_1, layout_2):
-        for v in G:
-            self.assertArrayEqual(layout_1[v], layout_2[v])
-
+class TestLayout(TestLayoutPlacement):
     def test_precomputed_layout(self):
         """
         Pass in a precomputed layout to the Layout class.
@@ -37,6 +24,7 @@ class TestLayout(unittest.TestCase):
         layout_obj = mml.Layout(self.S, layout)
 
         self.assertLayoutEqual(self.S, layout, layout_obj)
+        self.assertIsLayout(self.S, layout_obj)
 
     def test_dimension(self):
         """
@@ -60,6 +48,7 @@ class TestLayout(unittest.TestCase):
 
         # The layouts should match each other
         self.assertLayoutEqual(self.S, layout_pre, layout_post)
+        self.assertIsLayout(self.S, layout_pre)
         self.assertArrayEqual(new_layout_array, layout_pre.layout_array)
 
         # Test dimension too small
@@ -87,6 +76,7 @@ class TestLayout(unittest.TestCase):
 
         # The layouts should match each other
         self.assertLayoutEqual(self.S, layout_pre, layout_post)
+        self.assertIsLayout(self.S, layout_pre)
         self.assertArrayEqual(new_layout_array, layout_pre.layout_array)
 
     def test_scale(self):
@@ -97,41 +87,53 @@ class TestLayout(unittest.TestCase):
 
         # Pass in scale as an argument
         layout_pre = mml.Layout(self.S, scale=scale)
-        self.assertEqual(layout_pre.scale, scale)
+        self.assertAlmostEqual(layout_pre.scale, scale)
 
         # Change the layout to have the scale
         layout_post = mml.Layout(self.S)
         layout_post.scale = scale
-        self.assertEqual(layout_post.scale, scale)
+        self.assertAlmostEqual(layout_post.scale, scale)
 
         # Change the scale without changing the object,
         layout = mml.Layout(self.S, scale=1)
         new_layout_array = _scale_layout(layout.layout_array, scale)
-        self.assertArrayEqual(layout.scale, 1)
+        self.assertAlmostEqual(layout.scale, 1)
 
         # The layouts should match each other
         self.assertLayoutEqual(self.S, layout_pre, layout_post)
+        self.assertIsLayout(self.S, layout_pre)
         self.assertArrayEqual(new_layout_array, layout_pre.layout_array)
 
     def test_layout_functions(self):
         """
         Functions can be passed in to Layout objects.
         """
-        mml.Layout(self.S, nx.circular_layout)
-        mml.Layout(self.S, nx.random_layout)
+        # Circular
+        layout = mml.Layout(self.S, nx.circular_layout)
+        self.assertIsLayout(self.S, layout)
+
+        # Random
+        layout = mml.Layout(self.S, nx.random_layout)
+        self.assertIsLayout(self.S, layout)
 
     def test_edge_input(self):
         """
         Layouts can be computed with edges instead of graph objects.
         """
-        mml.Layout(self.S.edges)
+        layout = mml.Layout(self.S.edges)
+        self.assertIsLayout(self.S, layout)
 
     def test_silly_graphs(self):
         """
         Make sure things don't break for trivial graphs.
         """
-        mml.Layout(self.G)
-        mml.Layout(self.H)
+        # Empty graph
+        layout = mml.Layout(self.G)
+        self.assertIsLayout(self.G, layout)
+
+        # Single vertex graph
+        layout = mml.Layout(self.H)
+        self.assertIsLayout(self.H, layout)
 
     def test_layout_class(self):
         """
