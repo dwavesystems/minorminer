@@ -31,7 +31,7 @@ class TestLayout(unittest.TestCase):
         Pass in a precomputed layout to the Layout class.
         """
         # Pick an arbitrary layout to precompute
-        layout = nx.kamada_kawai_layout(self.S)
+        layout = nx.random_layout(self.S)
 
         # Initialize the layout object
         layout_obj = mml.Layout(self.S, layout)
@@ -118,7 +118,6 @@ class TestLayout(unittest.TestCase):
         Functions can be passed in to Layout objects.
         """
         mml.Layout(self.S, nx.circular_layout)
-        mml.Layout(self.S, nx.kamada_kawai_layout)
         mml.Layout(self.S, nx.random_layout)
 
     def test_edge_input(self):
