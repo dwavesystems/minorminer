@@ -11,19 +11,6 @@ from .common import TestLayoutPlacement
 
 
 class TestFindEmb(TestLayoutPlacement):
-    def assertIsLayout(self, S, layout):
-        """
-        Tests that layout is a mapping from S to R^d
-        """
-        for u in S:
-            self.assertEqual(len(layout[u]), layout.d)
-
-    def assertArrayEqual(self, a, b):
-        """
-        Tests that two arrays are equal via numpy.
-        """
-        np.testing.assert_almost_equal(a, b)
-
     def test_default(self):
         """
         Minimal find_embedding call
@@ -65,18 +52,18 @@ class TestFindEmb(TestLayoutPlacement):
         Pass in layout kwargs.
         """
         # Pick some values to pass in
-        d = 3
+        dim = 3
         center = (0, 0, 0)
         scale = 2
 
         _, (S_layout, C_layout) = mml.find_embedding(self.S, self.C,
-                                                     d=d, center=center, scale=scale, return_layouts=True)
+                                                     dim=dim, center=center, scale=scale, return_layouts=True)
         # Test that S_layout matches
-        self.assertEqual(S_layout.d, d)
+        self.assertEqual(S_layout.dim, dim)
         self.assertArrayEqual(S_layout.center, center)
         self.assertAlmostEqual(S_layout.scale, scale)
         # Test that C_layout matches
-        self.assertEqual(C_layout.d, d)
+        self.assertEqual(C_layout.dim, dim)
         self.assertArrayEqual(C_layout.center, center)
         self.assertAlmostEqual(C_layout.scale, scale)
 
@@ -86,10 +73,18 @@ class TestFindEmb(TestLayoutPlacement):
         """
         # Pick some values to pass in
         scale_ratio = .8
+
+        mml.find_embedding(self.S, self.C, scale_ratio=scale_ratio)
+
+    def test_placement_closest(self):
+        """
+        Test the closest placement strategy
+        """
+        # Pick some values to pass in
         subset_size = (1, 2)
         num_neighbors = 5
 
-        mml.find_embedding(self.S, self.C, scale_ratio=scale_ratio,
+        mml.find_embedding(self.S, self.C, placement=mml.closest,
                            subset_size=subset_size, num_neighbors=num_neighbors)
 
     def test_layout_parameter(self):
@@ -117,7 +112,3 @@ class TestFindEmb(TestLayoutPlacement):
         # Too many things in layout
         self.assertRaises(ValueError, mml.find_embedding,
                           self.S, self.C, layout=(1, 2, 3))
-
-
-if __name__ == '__main__':
-    unittest.main()

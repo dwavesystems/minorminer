@@ -203,7 +203,3 @@ class TestLayout(TestLayoutPlacement):
 
         # Test __repr__
         self.assertEqual(repr(L), "{}")
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -15,6 +15,10 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
 
     Parameters
     ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T_layout : layout.Layout
+        A layout for T; i.e. a map from T to R^d.
     subset_size : tuple (default (1, 1))
         A lower (subset_size[0]) and upper (subset_size[1]) bound on the size of subets of T that will be considered
         when mapping vertices of S.
@@ -141,7 +145,7 @@ class Placement(abc.MutableMapping):
         ----------
         S_layout : layout.Layout
             A layout for S; i.e. a map from S to R^d.
-        T_layout : layout.Layout or networkx.Graph
+        T_layout : layout.Layout
             A layout for T; i.e. a map from T to R^d.
         placement : dict or function (default None)
             If a dict, this specifies a pre-computed placement for S in T. If a function, the function is called on
@@ -156,10 +160,10 @@ class Placement(abc.MutableMapping):
         self.T_layout = _parse_layout(T_layout)
 
         # Layout dimensions should match
-        if self.S_layout.d != self.T_layout.d:
+        if self.S_layout.dim != self.T_layout.dim:
             raise ValueError(
                 "S_layout has dimension {} but T_layout has dimension {}. These must match.".format(
-                    self.S_layout.d, self.T_layout.d)
+                    self.S_layout.dim, self.T_layout.dim)
             )
 
         # Scale S if S_layout is bigger than T_layout

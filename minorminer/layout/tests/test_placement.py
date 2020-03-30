@@ -106,7 +106,3 @@ class TestPlacement(TestLayoutPlacement):
 def rando_placer(S_layout, T_layout):
     T_vertices = list(T_layout)
     return {v: [random.choice(T_vertices)] for v in S_layout}
-
-
-if __name__ == '__main__':
-    unittest.main()
