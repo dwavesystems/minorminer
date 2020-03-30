@@ -14,7 +14,7 @@ struct embedding {
 
 class embedding_problem_t {
   public:
-    inline bool accepts_qubit(int v, int q) { return true; }
+    inline bool accepts_qubit(int /*v*/, int /*q*/) { return true; }
 };
 
 //

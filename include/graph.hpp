@@ -61,7 +61,7 @@ class input_graph {
     // In
     std::vector<int> edges_aside;
     std::vector<int> edges_bside;
-    int _num_nodes;
+    size_t _num_nodes;
 
     //! this method converts a std::vector of sets into a std::vector of sets, ensuring
     //! that element i is not contained in nbrs[i].  this method is called by
@@ -70,7 +70,7 @@ class input_graph {
     //! in a contiguous memory segment.
     std::vector<std::vector<int>> _to_vectorhoods(std::vector<std::set<int>>& _nbrs) const {
         std::vector<std::vector<int>> nbrs;
-        for (int i = 0; i < _num_nodes; i++) {
+        for (size_t i = 0; i < _num_nodes; i++) {
             std::set<int>& nbrset = _nbrs[i];
             nbrset.erase(i);
             nbrs.emplace_back(std::begin(nbrset), std::end(nbrset));
@@ -104,15 +104,15 @@ class input_graph {
     int b(const int i) const { return edges_bside[i]; }
 
     //! Return the size of the graph in nodes
-    int num_nodes() const { return _num_nodes; }
+    size_t num_nodes() const { return _num_nodes; }
     //! Return the size of the graph in edges
-    int num_edges() const { return edges_aside.size(); }
+    size_t num_edges() const { return edges_aside.size(); }
 
     //! Add an edge to the graph
     void push_back(int ai, int bi) {
         edges_aside.push_back(ai);
         edges_bside.push_back(bi);
-        _num_nodes = std::max(_num_nodes, std::max(ai, bi) + 1);
+        _num_nodes = std::max(_num_nodes, static_cast<size_t>(std::max(ai, bi) + 1));
     }
 
   private:
@@ -124,7 +124,7 @@ class input_graph {
     inline std::vector<std::vector<int>> __get_neighbors(const unaryint<T1>& sources, const unaryint<T2>& sinks,
                                                          const unaryint<T3>& relabel, const unaryint<T4>& mask) const {
         std::vector<std::set<int>> _nbrs(_num_nodes);
-        for (int i = num_edges(); i--;) {
+        for (size_t i = num_edges(); i--;) {
             int ai = a(i), bi = b(i);
             if (mask(ai)) {
                 int rai = relabel(ai), rbi = relabel(bi);
@@ -135,7 +135,7 @@ class input_graph {
         return _to_vectorhoods(_nbrs);
     }
 
-    //! smash the types throgh unaryint
+    //! smash the types through unaryint
     template <typename T1, typename T2, typename T3 = void*, typename T4 = bool>
     inline std::vector<std::vector<int>> _get_neighbors(const T1& sources, const T2& sinks, const T3& relabel = nullptr,
                                                         const T4& mask = true) const {
@@ -197,14 +197,14 @@ class components {
         to store the parent and rank data for union/find operations.
         */
         std::vector<int>& parent = index;
-        for (int x = g.num_nodes(); x--;) {
+        for (size_t x = g.num_nodes(); x--;) {
             parent[x] = x;
         }
-        for (int i = g.num_edges(); i--;) {
+        for (size_t i = g.num_edges(); i--;) {
             __init_union(g.a(i), g.b(i));
         }
 
-        for (int x = g.num_nodes(); x--;) component[__init_find(x)].push_back(x);
+        for (size_t x = g.num_nodes(); x--;) component[__init_find(x)].push_back(x);
 
         sort(std::begin(component), std::end(component),
              [](const std::vector<int>& a, const std::vector<int>& b) { return a.size() > b.size(); });
@@ -217,13 +217,13 @@ class components {
         The labels associated with component[c] are the numbers 0 through
         component[c].size()-1.
         */
-        for (int c = 0; c < g.num_nodes(); c++) {
+        for (size_t c = 0; c < g.num_nodes(); c++) {
             std::vector<int>& comp = component[c];
             auto back = std::end(comp);
             for (auto front = std::begin(comp); front < back; front++)
                 while (front < back && reserve(*front)) iter_swap(front, --back);
             if (comp.size()) {
-                for (int j = comp.size(); j--;) {
+                for (size_t j = comp.size(); j--;) {
                     label[comp[j]] = j;
                     index[comp[j]] = c;
                 }
@@ -234,7 +234,7 @@ class components {
                 break;
             }
         }
-        for (int i = g.num_edges(); i--;) {
+        for (size_t i = g.num_edges(); i--;) {
             int a = g.a(i);
             int b = g.b(i);
             component_g[index[a]].push_back(label[a], label[b]);
@@ -250,20 +250,20 @@ class components {
     const std::vector<int>& nodes(int c) const { return component[c]; }
 
     //! Get the number of connected components in the graph
-    int size() const { return component_g.size(); }
+    size_t size() const { return component_g.size(); }
 
     //! returns the number of reserved nodes in a component
-    int num_reserved(int c) const { return _num_reserved[c]; }
+    size_t num_reserved(int c) const { return _num_reserved[c]; }
 
     //! Get the size (in nodes) of a component
-    int size(int c) const { return component_g[c].num_nodes(); }
+    size_t size(int c) const { return component_g[c].num_nodes(); }
 
     //! Get a const reference to the graph object of a component
     const input_graph& component_graph(int c) const { return component_g[c]; }
 
     //! Construct a neighborhood list for component c, with reserved nodes as sources
     std::vector<std::vector<int>> component_neighbors(int c) const {
-        return component_g[c].get_neighbors_sources(size(c) - num_reserved(c));
+        return component_g[c].get_neighbors_sources(static_cast<int>(size(c)) - static_cast<int>(num_reserved(c)));
     }
 
     //! translate nodes from the input graph, to their labels in component c
@@ -321,4 +321,4 @@ class components {
     std::vector<std::vector<int>> component;
     std::vector<input_graph> component_g;
 };
-}
+}  // namespace graph

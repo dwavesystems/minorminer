@@ -80,7 +80,7 @@ class embedding {
             auto &c = var_embedding[v];
             int root = vC.second[0];
             c.set_link(v, root);
-            int hits = 0;
+            size_t hits = 0;
             stack.push_back(root);
             while (stack.size()) {
                 hits++;
@@ -368,7 +368,6 @@ class embedding {
         int err = 0;
         vector<int> tmp_weight(num_qubits + num_reserved, 0);
         int zeros = 0;
-        int bad_parents = false;
         for (int v = 0; v < num_vars + num_fixed; v++) {
             if (!ep.fixed(v)) {
                 for (auto &q : var_embedding.at(v)) {
@@ -417,7 +416,6 @@ class embedding {
             err = 1;
         }
         for (int v = num_vars + num_fixed; v--;) {
-            int n = chainsize(v);
             vector<int> good_links(num_vars + num_fixed, 0);
             if (chainsize(v)) {
                 for (auto &u : ep.var_neighbors(v)) {
