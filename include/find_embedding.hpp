@@ -121,7 +121,7 @@ class pathfinder_type {
     typedef typename std::conditional<fixed, fixed_handler_hival, fixed_handler_none>::type fixed_handler_t;
     typedef typename std::conditional<restricted, domain_handler_masked, domain_handler_universe>::type
             domain_handler_t;
-    typedef typename std::conditional<verbose, output_handler_full, output_handler_error>::type output_handler_t;
+    typedef output_handler<verbose> output_handler_t;
     typedef embedding_problem<fixed_handler_t, domain_handler_t, output_handler_t> embedding_problem_t;
     typedef typename std::conditional<parallel, pathfinder_parallel<embedding_problem_t>,
                                       pathfinder_serial<embedding_problem_t>>::type pathfinder_t;
@@ -168,10 +168,10 @@ class pathfinder_wrapper {
 
     template <bool parallel, bool fixed, bool restricted, typename... Args>
     inline std::unique_ptr<pathfinder_public_interface> _pf_parse3(Args &&... args) {
-        if (pp.params.verbose > 0)
-            return _pf_parse4<parallel, fixed, restricted, true>(std::forward<Args>(args)...);
-        else
+        if (pp.params.verbose <= 0)
             return _pf_parse4<parallel, fixed, restricted, false>(std::forward<Args>(args)...);
+        else
+            return _pf_parse4<parallel, fixed, restricted, true>(std::forward<Args>(args)...);
     }
 
     template <bool parallel, bool fixed, typename... Args>
@@ -231,4 +231,4 @@ int findEmbedding(graph::input_graph &var_g, graph::input_graph &qubit_g, option
 
     return success;
 }
-}
+}  // namespace find_embedding

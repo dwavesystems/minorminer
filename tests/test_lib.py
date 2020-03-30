@@ -11,6 +11,9 @@ from warnings import warn
 import os
 import sys
 import time
+import signal
+import multiprocessing
+from unittest import SkipTest
 
 # Given that this test is in the tests directory, the calibration data should be
 # in a sub directory. Use the path of this source file to find the calibration
@@ -326,6 +329,15 @@ def check_args(Q, A, initial_chains=None, fixed_chains=None, restrict_chains=Non
                 q)} | set(restrict_chains.get(v, fullset))
             assert set(restrict_chains.get(
                 u, fullset)) & edgelord, "%s and %s are connected as variables but not as domains" % (u, v)
+
+
+def skip_if(cond):
+    if cond:
+        def _skip():
+            raise SkipTest
+        return lambda f: _skip
+    else:
+        return lambda f: f
 
 
 @success_count(100, 5)
@@ -764,8 +776,11 @@ def test_point_source():
 def test_point_target():
     # re: issue 64
     C = Clique(2)
-    _ = find_embedding(C, [(0, 0)], tries=1)
-    return True
+    try:
+        _ = find_embedding(C, [(0, 0)], tries=1)
+    except RuntimeError:
+        return True
+    return False
 
 
 @success_perfect(30)
@@ -803,6 +818,70 @@ def test_variable_components_many():
     C = Chimera(8)
     K = [(randint(0, 128), randint(0, 128)) for _ in range(64)]
     return find_embedding(K, C, tries=1, chainlength_patience=0)
+
+
+def _long_running_successful_problem(interactive):
+    # broke this out of run_interactive_interrupt because multiprocessing in py3.8 can't handle local functions :eyeroll:
+    C = [(i, j) for i in range(20) for j in range(i)]
+    t0 = time.perf_counter()
+    try:
+        find_embedding_orig(C, C, chainlength_patience=1 << 20,
+                            interactive=interactive, timeout=1)
+    except KeyboardInterrupt:
+        sys.exit(2)
+    if time.perf_counter() - t0 > .5:
+        # be a little generous here... but the caller should kill this in way less than .5s
+        sys.exit(1)
+
+
+def run_interactive_interrupt(interactive):
+    try:
+        ctrl_c = signal.CTRL_C_EVENT
+    except AttributeError:
+        ctrl_c = signal.SIGINT
+
+    p = multiprocessing.Process(
+        target=_long_running_successful_problem, args=(interactive,))
+    p.start()
+    time.sleep(.1)
+    os.kill(p.pid, ctrl_c)
+    p.join()
+    # exitcode 0: terminated successfully (interactive mode catches the interrupt)
+    # exitcode 1: timed out (interactive mode did not catch the interrupt)
+    # exitcode 2: halted with error (headless mode propagates the interrupt)
+    return p.exitcode
+
+
+@skip_if(
+    # there appears to be a bug in the osx, py3.8 version of multiprocessing.
+    # this has turned into a yak-shaving exercise and I'm not doing any more here
+    # for the time being -- #TODO if anybody has a mac and they wanna dig in, please do
+    (sys.version_info[:2] == (3, 8) and sys.platform == 'darwin') or
+
+    # TODO this test seems to actually work on windows but it's doing something funky
+    # to our appveyor framework.  Giving up on yak-shaving 'cause we're going to retire
+    # appveyor soon
+    (sys.platform == 'win32')
+)
+@success_perfect(1)
+def test_interactive_interrupt():
+    return run_interactive_interrupt(True) == 0
+
+
+@skip_if(
+    # there appears to be a bug in the osx, py3.8 version of multiprocessing.
+    # this has turned into a yak-shaving exercise and I'm not doing any more here
+    # for the time being -- #TODO if anybody has a mac and they wanna dig in, please do
+    (sys.version_info[:2] == (3, 8) and sys.platform == 'darwin') or
+
+    # TODO this test seems to actually work on windows but it's doing something funky
+    # to our appveyor framework.  Giving up on yak-shaving 'cause we're going to retire
+    # appveyor soon
+    (sys.platform == 'win32')
+)
+@success_perfect(1)
+def test_headless_interrupt():
+    return run_interactive_interrupt(False) == 2
 
 
 def chainlength_diagnostic(n=100, old=False, chainlength_argument=0, verbose=0, m=8):

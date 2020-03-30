@@ -3,6 +3,7 @@ from libcpp.vector cimport vector
 from libcpp.map cimport map
 from libcpp.pair cimport pair
 from libc.stdint cimport uint8_t, uint64_t
+from libcpp.string cimport string
 
 ctypedef pair[int,int] intpair
 ctypedef pair[intpair, int] intpairint
@@ -33,6 +34,46 @@ cdef extern from "<random>" namespace "std":
     cdef cppclass default_random_engine:
         pass
 
+cdef extern from "../include/util.hpp" namespace "find_embedding":
+    cppclass LocalInteraction:
+        pass
+
+    ctypedef shared_ptr[LocalInteraction] LocalInteractionPtr
+
+
+    cppclass optional_parameters:
+        optional_parameters()
+        void seed(uint64_t)
+
+        LocalInteractionPtr localInteractionPtr
+        int max_no_improvement
+        default_random_engine rng
+        double timeout
+        double max_beta
+        int tries
+        int verbose
+        bint interactive
+        int inner_rounds
+        int max_fill
+        int chainlength_patience
+        bint return_overlap
+        bint skip_initialization
+        chainmap fixed_chains
+        chainmap initial_chains
+        chainmap restrict_chains
+        int threads
+
+cdef extern from "src/pyutil.hpp" namespace "":
+    cppclass LocalInteractionPython(LocalInteraction):
+        LocalInteractionPython()
+
+    ctypedef void (*cython_callback)(void *, int, const string &)
+
+    cppclass LocalInteractionLogger(LocalInteraction):
+        LocalInteractionLogger(cython_callback, void *)
+
+    void handle_exceptions()
+
 cdef extern from "../include/graph.hpp" namespace "graph":
     cppclass input_graph:
         input_graph()
@@ -61,16 +102,16 @@ cdef extern from "../include/embedding.hpp" namespace "find_embedding":
 
 cdef extern from "../include/chain.hpp" namespace "find_embedding":
     cppclass pathfinder_wrapper:
-        pathfinder_wrapper()
+        pathfinder_wrapper() except +handle_exceptions
         parameter_processor pp
         unique_ptr[pathfinder_public_interface] pf
         pathfinder_wrapper(input_graph &, input_graph &, optional_parameters &)
-        int heuristicEmbedding()
+        int heuristicEmbedding() except +handle_exceptions
         int num_vars()
         void get_chain(int, vector[int] &)
         void set_initial_chains(chainmap &)
-        void quickPass(const vector[int] &, int, int, bool, bool, double)
-        void quickPass(VARORDER, int, int, bool, bool, double)
+        void quickPass(const vector[int] &, int, int, bool, bool, double) except +handle_exceptions
+        void quickPass(VARORDER, int, int, bool, bool, double) except +handle_exceptions
 
     cppclass chain:
         chain(vector[int] &w, int l)
@@ -95,41 +136,7 @@ cdef class cppembedding:
     cdef vector[int] qubit_weights
     def __cinit__(self, int num_vars, int num_qubits):
         pass
-    
-
-cdef extern from "../include/util.hpp" namespace "find_embedding":
-    cppclass LocalInteraction:
-        pass
-
-    ctypedef shared_ptr[LocalInteraction] LocalInteractionPtr
-
-
-    cppclass optional_parameters:
-        optional_parameters()
-        void seed(uint64_t)
-
-        LocalInteractionPtr localInteractionPtr
-        int max_no_improvement
-        default_random_engine rng
-        double timeout
-        double max_beta
-        int tries
-        int verbose
-        int inner_rounds
-        int max_fill
-        int chainlength_patience
-        bint return_overlap
-        bint skip_initialization
-        chainmap fixed_chains
-        chainmap initial_chains
-        chainmap restrict_chains
-        int threads
-
 
 cdef extern from "../include/find_embedding.hpp" namespace "find_embedding":
-    int findEmbedding(input_graph, input_graph, optional_parameters, vector[vector[int]]&) except +
+    int findEmbedding(input_graph, input_graph, optional_parameters, vector[vector[int]]&) except +handle_exceptions
 
-
-cdef extern from "src/pyutil.hpp" namespace "":
-    cppclass LocalInteractionPython(LocalInteraction):
-        LocalInteractionPython()

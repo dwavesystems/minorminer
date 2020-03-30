@@ -15,9 +15,9 @@
 namespace find_embedding {
 
 #ifdef CPPDEBUG
-#define DIAGNOSE(X) long_diagnostic(X);
+#define DIAGNOSE_EMB(X) long_diagnostic(X);
 #else
-#define DIAGNOSE(X)
+#define DIAGNOSE_EMB(X)
 #endif
 
 //! This class is how we represent and manipulate embedding objects, using as
@@ -60,7 +60,7 @@ class embedding {
               var_embedding(),
               frozen() {
         for (int q = 0; q < num_vars + num_fixed; q++) var_embedding.emplace_back(qub_weight, q);
-        DIAGNOSE("post base_construct");
+        DIAGNOSE_EMB("post base_construct");
     }
 
     //! constructor for an initial embedding: accepts fixed and
@@ -96,13 +96,13 @@ class embedding {
             for (auto &u : ep.var_neighbors(v))
                 if (u > v) linkup(v, u);
         }
-        DIAGNOSE("post construct");
+        DIAGNOSE_EMB("post construct");
     }
 
     //! copy the data from `other.var_embedding` into `this.var_embedding`
     embedding<embedding_problem_t> &operator=(const embedding<embedding_problem_t> &other) {
         if (this != &other) var_embedding = other.var_embedding;
-        DIAGNOSE("operator=");
+        DIAGNOSE_EMB("operator=");
         return *this;
     }
 
@@ -132,7 +132,7 @@ class embedding {
     inline void set_chain(const int u, const vector<int> &incoming) {
         // remove the current chain and account for its qubits
         var_embedding[u] = incoming;
-        DIAGNOSE("set_chain");
+        DIAGNOSE_EMB("set_chain");
     }
 
     //! Permanently assign a chain for variable u.
@@ -147,7 +147,7 @@ class embedding {
         }
 #endif
         var_embedding[u] = incoming;
-        DIAGNOSE("fix_chain");
+        DIAGNOSE_EMB("fix_chain");
     }
 
     //! check if `this` and `other` have the same chains (up to qubit
@@ -170,7 +170,7 @@ class embedding {
         for (auto &v : ep.var_neighbors(u))
             if (chainsize(v)) var_embedding[u].link_path(var_embedding[v], q, parents[v]);
 
-        DIAGNOSE("construct_chain")
+        DIAGNOSE_EMB("construct_chain")
     }
 
     //! construct the chain for `u`, rooted at `q`.  for the first neighbor `v` of `u`,
@@ -200,7 +200,7 @@ class embedding {
                 var_embedding[u].link_path(var_embedding[v], qv, parents[v]);
             }
         }
-        DIAGNOSE("construct_chain_steiner")
+        DIAGNOSE_EMB("construct_chain_steiner")
     }
 
     //! distribute path segments to the neighboring chains -- path segments are the qubits
@@ -211,7 +211,7 @@ class embedding {
     void flip_back(int u, const int target_chainsize) {
         for (auto &v : ep.var_neighbors(u))
             if (chainsize(v) && !(ep.fixed(v))) var_embedding[v].steal(var_embedding[u], ep, target_chainsize);
-        DIAGNOSE("flip_back")
+        DIAGNOSE_EMB("flip_back")
     }
 
     //! short tearout procedure
@@ -219,7 +219,7 @@ class embedding {
     void tear_out(int u) {
         var_embedding[u].clear();
         for (auto &v : ep.var_neighbors(u)) var_embedding[v].drop_link(u);
-        DIAGNOSE("tear_out")
+        DIAGNOSE_EMB("tear_out")
     }
 
     //! undo-able tearout procedure.  similar to `tear_out(u)`, but can be undone with
@@ -230,7 +230,7 @@ class embedding {
     //! `freeze_out(u)`.  returns the size of the chain being frozen
     int freeze_out(int u) {
         int size = var_embedding[u].freeze(var_embedding, frozen);
-        DIAGNOSE("freeze_out")
+        DIAGNOSE_EMB("freeze_out")
         return size;
     }
 
@@ -241,7 +241,7 @@ class embedding {
     //! `freeze_out(u)`)
     void thaw_back(int u) {
         var_embedding[u].thaw(var_embedding, frozen);
-        DIAGNOSE("thaw_back")
+        DIAGNOSE_EMB("thaw_back")
     }
 
     //! grow the chain for `u`, stealing all available qubits from neighboring variables
@@ -252,7 +252,7 @@ class embedding {
             if (var_embedding[v].get_link(u) == -1) continue;
             var_embedding[u].steal(var_embedding[v], ep);
         }
-        DIAGNOSE("steal_all")
+        DIAGNOSE_EMB("steal_all")
     }
 
     //! compute statistics for this embedding and return `1` if no chains are overlapping
@@ -354,7 +354,7 @@ class embedding {
     }
 
     //! run a long diagnostic, and if debugging is enabled, record `current_state` so that the
-    //! error message has a little more context.  if an error is found, throw -1
+    //! error message has a little more context.  if an error is found, throw a CorruptEmbeddingException
     void long_diagnostic(char *current_state) {
         run_long_diagnostic(current_state);
 #ifdef CPPDEBUG
@@ -530,14 +530,13 @@ class embedding {
         }
 
         if (err) {
+            ep.error("errors found in data structure, current state is '%s'.  quitting\n", current_state);
 #ifdef CPPDEBUG
             if (last_diagnostic != nullptr) ep.debug("last state was %s\n", last_diagnostic);
 #endif
-            ep.error("errors found in data structure, current state is '%s'.  quitting\n", current_state);
             print();
-            std::flush(std::cout);
-            throw - 1;
+            throw CorruptEmbeddingException("Errors found in embedding data structure.  Cannot recover.");
         }
     }
 };
-}
+}  // namespace find_embedding

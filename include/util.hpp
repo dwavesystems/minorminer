@@ -15,18 +15,18 @@
 namespace find_embedding {
 // Import some things from the std library
 using std::default_random_engine;
-using std::vector;
-using std::string;
-using std::shared_ptr;
 using std::map;
-using std::unordered_map;
-using std::pair;
-using std::numeric_limits;
-using std::uniform_int_distribution;
-using std::min;
 using std::max;
-using std::thread;
+using std::min;
 using std::mutex;
+using std::numeric_limits;
+using std::pair;
+using std::shared_ptr;
+using std::string;
+using std::thread;
+using std::uniform_int_distribution;
+using std::unordered_map;
+using std::vector;
 using std::chrono::duration;
 using std::chrono::duration_cast;
 
@@ -41,41 +41,6 @@ template <typename P>
 using max_queue = std::priority_queue<priority_node<P, max_heap_tag>>;
 
 using distance_queue = pairing_queue<priority_node<distance_t, min_heap_tag>>;
-
-//! Interface for communication between the library and various bindings.
-//!
-//! Any bindings of this library need to provide a concrete subclass.
-class LocalInteraction {
-  public:
-    virtual ~LocalInteraction() {}
-    //! Print a message through the local output method
-    void displayOutput(const string& msg) const { displayOutputImpl(msg); }
-
-    //! Check if someone is trying to cancel the embedding process
-    bool cancelled(const clock::time_point stoptime) const {
-        if (cancelledImpl()) {
-            displayOutput("caught interrupt; embedding cancelled\n");
-            return true;
-        }
-        if (timedOutImpl(stoptime)) {
-            displayOutput("embedding timed out\n");
-            return true;
-        }
-        return false;
-    }
-
-  private:
-    //! Print the string to a binding specified sink
-    virtual void displayOutputImpl(const string&) const = 0;
-
-    //! Check if the embedding process has timed out.
-    virtual bool timedOutImpl(const clock::time_point stoptime) const { return clock::now() >= stoptime; }
-
-    //! Check if someone has tried to cancel the embedding process
-    virtual bool cancelledImpl() const = 0;
-};
-
-typedef shared_ptr<LocalInteraction> LocalInteractionPtr;
 
 class MinorMinerException : public std::runtime_error {
   public:
@@ -108,6 +73,41 @@ class CorruptEmbeddingException : public MinorMinerException {
     CorruptEmbeddingException(const string& m = "chains may be invalid") : MinorMinerException(m) {}
 };
 
+//! Interface for communication between the library and various bindings.
+//!
+//! Any bindings of this library need to provide a concrete subclass.
+class LocalInteraction {
+  public:
+    virtual ~LocalInteraction() {}
+    //! Print a message through the local output method
+    void displayOutput(int loglevel, const string& msg) const { displayOutputImpl(loglevel, msg); }
+
+    //! Print an error through the local output method
+    void displayError(int loglevel, const string& msg) const { displayErrorImpl(loglevel, msg); }
+
+    //! Check if someone is trying to cancel the embedding process
+    int cancelled(const clock::time_point stoptime) const {
+        if (cancelledImpl()) throw ProblemCancelledException();
+        if (timedOutImpl(stoptime)) throw TimeoutException();
+        return 0;
+    }
+
+  private:
+    //! Print the string to a binding specified sink
+    virtual void displayOutputImpl(int loglevel, const string&) const = 0;
+
+    //! Print the error to a binding specified sink
+    virtual void displayErrorImpl(int loglevel, const string&) const = 0;
+
+    //! Check if the embedding process has timed out.
+    virtual bool timedOutImpl(const clock::time_point stoptime) const { return clock::now() >= stoptime; }
+
+    //! Check if someone has tried to cancel the embedding process
+    virtual bool cancelledImpl() const = 0;
+};
+
+typedef shared_ptr<LocalInteraction> LocalInteractionPtr;
+
 //! Set of parameters used to control the embedding process.
 class optional_parameters {
   public:
@@ -120,6 +120,7 @@ class optional_parameters {
     double max_beta = numeric_limits<double>::max();
     int tries = 10;
     int verbose = 0;
+    bool interactive = false;
     int inner_rounds = numeric_limits<int>::max();
     int max_fill = numeric_limits<int>::max();
     bool return_overlap = false;
@@ -142,6 +143,7 @@ class optional_parameters {
               max_beta(p.max_beta),
               tries(p.tries),
               verbose(p.verbose),
+              interactive(p.interactive),
               inner_rounds(p.inner_rounds),
               max_fill(p.max_fill),
               return_overlap(p.return_overlap),
@@ -150,43 +152,60 @@ class optional_parameters {
               skip_initialization(p.skip_initialization),
               fixed_chains(fixed_chains),
               initial_chains(initial_chains),
-              restrict_chains(restrict_chains) {}
+              restrict_chains(restrict_chains) {
+#ifndef CPPDEBUG
+        if (verbose >= 4)
+            throw CorruptParametersException(
+                    "this build of minorminer only supports verbose=0, 1, 2 or 3.  "
+                    "build with CPPDEBUG=1 for debugging output");
+#endif
+    }
     //^^leave this constructor by the declarations
 
   public:
     template <typename... Args>
-    void printx(const char* format, Args... args) const {
+    void print_out(int loglevel, const char* format, Args... args) const {
         char buffer[1024];
         snprintf(buffer, 1024, format, args...);
-        localInteractionPtr->displayOutput(buffer);
+        localInteractionPtr->displayOutput(loglevel, buffer);
+    }
+
+    template <typename... Args>
+    void print_err(int loglevel, const char* format, Args... args) const {
+        char buffer[1024];
+        snprintf(buffer, 1024, format, args...);
+        localInteractionPtr->displayError(loglevel, buffer);
     }
 
     template <typename... Args>
     void error(const char* format, Args... args) const {
-        if (verbose >= 0) printx(format, args...);
+        print_err(0, format, args...);
     }
 
     template <typename... Args>
     void major_info(const char* format, Args... args) const {
-        if (verbose >= 1) printx(format, args...);
+        print_out(1, format, args...);
     }
 
     template <typename... Args>
     void minor_info(const char* format, Args... args) const {
-        if (verbose >= 2) printx(format, args...);
+        print_out(2, format, args...);
     }
 
     template <typename... Args>
     void extra_info(const char* format, Args... args) const {
-        if (verbose >= 3) printx(format, args...);
+        print_out(3, format, args...);
     }
 
+#ifdef CPPDEBUG
     template <typename... Args>
     void debug(const char* format, Args... args) const {
-#ifdef CPPDEBUG
-        if (verbose >= 4) printx(format, args...);
-#endif
+        print_out(4, format, args...);
     }
+#else
+    template <typename... Args>
+    void debug(const char* /*format*/, Args... /*args*/) const {}
+#endif
 
     optional_parameters() : localInteractionPtr(), rng() {}
     void seed(uint64_t randomSeed) { rng.seed(randomSeed); }
@@ -209,4 +228,4 @@ void collectMinima(const vector<T>& input, vector<int>& output) {
         index++;
     }
 }
-}
+}  // namespace find_embedding

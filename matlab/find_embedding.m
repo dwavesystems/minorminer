@@ -83,7 +83,7 @@
 %                        the return_overlap parameter enabled.
 %                        (must be a logical 0/1 integer, default = 0)
 %
-%         verbose: 0/1/2/3/(4).
+%   verbose: 0/1/2/3/(4).
 %                  (must be an integer [0, 1, 2, 3, (4)], default = 0)
 %                  when verbose is 1, the output information will look like:
 %
@@ -115,6 +115,10 @@
 %                    num maxfull: the number of qubits that has max overfill
 %                    max chain length: largest number of qubits representing a single variable
 %                    num max chains: the number of variables that has max chain size
+%
+%   interactive: If 1, catch keyboard interrupts in a graceful manner and return the best
+%                embedding found thus far.
+%                (must be a logical 0/1 integer, default = 0)
 %
 %   initial_chains: A 0-indexed cell array, where chain(i) a matrix whose entries are
 %                   the qubits representing variable i.  These chains are inserted

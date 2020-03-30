@@ -6,10 +6,10 @@ because, as you'll see, it's gotten to be a fairly tedious process.
   [ ] component constructor in the `optional_parameters` class
   [ ] optional -- create exceptions involving bad values etc.
 
-2) minorminer/minorminer_h.pyx:
+2) minorminer/_minorminer_h.pxi:
   [ ] member declaration of the `optional_parameters` class
 
-3) minorminer/minorminer_c.pyx:
+3) minorminer/_minorminer.pyx:
   [ ] document the parameter (with default) in the docstring of `find_embedding`
   [ ] add the parameter to the set `names`
   [ ] populate and cast the parameter found in `params`

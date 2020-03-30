@@ -93,6 +93,11 @@ class LocalInteractionMATLAB : public find_embedding::LocalInteraction {
         mexEvalString("drawnow;");
     }
 
+    virtual void displayErrorImpl(const std::string& msg) const {
+        mexPrintf("%s", msg.c_str());
+        mexEvalString("drawnow;");
+    }
+
     virtual bool cancelledImpl() const {
         if (utIsInterruptPending()) {
             utSetInterruptPending(false);
@@ -121,6 +126,7 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
     paramsNameSet.insert("timeout");
     paramsNameSet.insert("tries");
     paramsNameSet.insert("verbose");
+    paramsNameSet.insert("interactive");
     paramsNameSet.insert("inner_rounds");
     paramsNameSet.insert("max_fill");
     paramsNameSet.insert("return_overlap");
@@ -196,6 +202,11 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
     if (fieldValueArray)
         parseScalar(fieldValueArray, "verbose parameter must be an integer >= 0", findEmbeddingExternalParams.verbose);
 
+    fieldValueArray = mxGetField(paramsArray, 0, "interactive");
+    if (fieldValueArray)
+        parseBoolean(fieldValueArray, "verbose parameter must be a boolean value",
+                     findEmbeddingExternalParams.interactive);
+
     fieldValueArray = mxGetField(paramsArray, 0, "return_overlap");
     if (fieldValueArray)
         parseBoolean(fieldValueArray, "return_overlap parameter must be a boolean value",
@@ -216,7 +227,7 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
         parseChainArray(fieldValueArray, "restrict_chains parameter must be a cell array of matrices",
                         findEmbeddingExternalParams.restrict_chains);
 }
-}
+}  // namespace
 
 // problem, A, params
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
