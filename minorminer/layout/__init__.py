@@ -4,14 +4,14 @@ import minorminer as mm
 import networkx as nx
 
 from .layout import Layout
-from .placement import Placement
+from .placement import Placement, closest
 
 
 def find_embedding(
     S,
     T,
     layout=None,
-    placement=None,
+    placement=closest,
     mm_hint_type="initial_chains",
     return_layouts=False,
     **kwargs
@@ -19,6 +19,7 @@ def find_embedding(
     """
     Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding(). Chains are 
     passed as either initial_chains or suspend_chains (see documentation for minorminer.find_embedding to learn more).
+
     Parameters
     ----------
     S : NetworkX graph or edges data structure (dict, list, ...)
@@ -43,6 +44,7 @@ def find_embedding(
         Will return the layout objects of S and T.
     kwargs : dict 
         Keyword arguments are passed to various functions.
+
     Returns
     -------
     emb : dict
@@ -63,7 +65,7 @@ def find_embedding(
 
     end = time.process_time()
     timeout = kwargs.get("timeout")
-    if timeout:
+    if timeout is not None:
         time_remaining = timeout - (end - start)
         if time_remaining <= 0:
             raise TimeoutError(
@@ -101,8 +103,13 @@ def _parse_kwargs(kwargs):
 
     placement_kwargs = {}
     # For the placement object
-    if "fill_T" in kwargs:
-        placement_kwargs["fill_T"] = kwargs.pop("fill_T")
+    if "scale_ratio" in kwargs:
+        placement_kwargs["scale_ratio"] = kwargs.pop("scale_ratio")
+    # For closest strategy
+    if "subset_size" in kwargs:
+        placement_kwargs["subset_size"] = kwargs.pop("subset_size")
+    if "num_neighbors" in kwargs:
+        placement_kwargs["num_neighbors"] = kwargs.pop("num_neighbors")
 
     return layout_kwargs, placement_kwargs
 
