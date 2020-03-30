@@ -13,7 +13,7 @@ class LocalInteractionPython : public find_embedding::LocalInteraction {
     virtual void displayErrorImpl(int, const std::string &msg) const { PySys_WriteStderr("%s", msg.c_str()); }
 
     virtual bool cancelledImpl() const {
-        bool cancelled = PyErr_CheckSignals();
+        bool cancelled = static_cast<bool>(PyErr_CheckSignals());
         if (cancelled) PyErr_Clear();
         return cancelled;
     }
@@ -38,7 +38,7 @@ class LocalInteractionLogger : public find_embedding::LocalInteraction {
     }
 
     virtual bool cancelledImpl() const {
-        bool cancelled = PyErr_CheckSignals();
+        bool cancelled = static_cast<bool>(PyErr_CheckSignals());
         if (cancelled) PyErr_Clear();
         return cancelled;
     }

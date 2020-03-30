@@ -84,9 +84,9 @@ class parameter_processor {
     }
 
     vector<int> _inverse_permutation(vector<int> &f) {
-        int n = f.size();
+        size_t n = f.size();
         vector<int> r(n);
-        for (int i = n; i--;) {
+        for (size_t i = n; i--;) {
             r.at(f[i]) = i;
         }
         return r;
@@ -222,7 +222,7 @@ int findEmbedding(graph::input_graph &var_g, graph::input_graph &qubit_g, option
 
     if (params.return_overlap || success) {
         chains.resize(var_g.num_nodes());
-        for (int u = 0; u < var_g.num_nodes(); u++) {
+        for (size_t u = 0; u < var_g.num_nodes(); u++) {
             pf.get_chain(u, chains[u]);
         }
     } else {

@@ -242,7 +242,7 @@ class embedding_problem_base {
         if (ultramax_weight < 2) throw MinorMinerException("problem is too large to avoid overflow");
 
         if (ultramax_weight < params.max_fill)
-            weight_bound = std::floor(ultramax_weight);
+            weight_bound = static_cast<int>(std::floor(ultramax_weight));
         else
             weight_bound = params.max_fill;
 
@@ -254,9 +254,9 @@ class embedding_problem_base {
 
   private:
     //! computes an upper bound on the distances computed during tearout & replace
-    unsigned int compute_margin() {
+    size_t compute_margin() {
         if (num_q == 0) return 0;
-        unsigned int max_degree =
+        size_t max_degree =
                 std::max_element(begin(var_nbrs), end(var_nbrs),
                                  [](const vector<int> &a, const vector<int> &b) { return a.size() < b.size(); })
                         ->size();
@@ -275,7 +275,7 @@ class embedding_problem_base {
         double base = min(exp2(log2base), min(max_beta, round_beta));
         double power = 1;
         for (int i = 0; i <= max_weight; i++) {
-            weight_table[i] = power;
+            weight_table[i] = static_cast<distance_t>(power);
             power *= base;
         }
         for (int i = max_weight + 1; i < 64; i++) weight_table[i] = max_distance;
@@ -302,7 +302,7 @@ class embedding_problem_base {
     //! transposition before returning the reference
     const vector<int> &var_neighbors(int u, rndswap_first) {
         if (var_nbrs[u].size() > 2) {
-            int i = randint(0, var_nbrs[u].size() - 2);
+            size_t i = randint(0, var_nbrs[u].size() - 2);
             std::swap(var_nbrs[u][i], var_nbrs[u][i + 1]);
         } else if (var_nbrs[u].size() == 2) {
             if (randint(0, 1)) std::swap(var_nbrs[u][0], var_nbrs[u][1]);
@@ -387,7 +387,7 @@ class embedding_problem_base {
         visited[x] = 1;
         while (front < component.size()) {
             int x = component[front++];
-            unsigned int lastback = component.size();
+            size_t lastback = component.size();
             for (auto &y : neighbors[x]) {
                 if (!visited[y]) {
                     visited[y] = 1;

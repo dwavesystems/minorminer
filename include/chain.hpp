@@ -78,7 +78,7 @@ class chain {
         clear();
         for (auto &q : c) {
             data.emplace(q, pair<int, int>(q, 1));
-            minorminer_assert(0 <= q && q < qubit_weight.size());
+            minorminer_assert(0 <= q && q < static_cast<int>(qubit_weight.size()));
             qubit_weight[q]++;
         }
         DIAGNOSE_CHAIN();
@@ -96,10 +96,10 @@ class chain {
     }
 
     //! number of qubits in chain
-    inline int size() const { return data.size(); }
+    inline size_t size() const { return data.size(); }
 
     //! returns 0 if `q` is not contained in `this`, 1 otherwise
-    inline int count(const int q) const { return data.count(q); }
+    inline size_t count(const int q) const { return data.count(q); }
 
     //! get the qubit, in `this`, which links `this` to the chain of x
     //!(if x==label, interpret the linking qubit as the chain's root)
@@ -229,13 +229,13 @@ class chain {
 
     //! store this chain into a `frozen_chain`, unlink all chains from
     //! this, and clear()
-    inline int freeze(vector<chain> &others, frozen_chain &keep) {
+    inline size_t freeze(vector<chain> &others, frozen_chain &keep) {
         keep.clear();
         for (auto &v_p : links) {
             keep.links.emplace(v_p);
             int v = v_p.first;
             if (v != label) {
-                minorminer_assert(0 <= v && v < others.size());
+                minorminer_assert(0 <= v && v < static_cast<int>(others.size()));
                 int q = others[v].drop_link(label);
                 keep.links.emplace(-v - 1, q);
             }
@@ -260,7 +260,7 @@ class chain {
                 links.emplace(v_p);
             } else {
                 v = -v - 1;
-                minorminer_assert(0 <= v && v < others.size());
+                minorminer_assert(0 <= v && v < static_cast<int>(others.size()));
                 others[v].set_link(label, v_p.second);
             }
         }
@@ -279,7 +279,7 @@ class chain {
         minorminer_assert(q != -1);
         minorminer_assert(p != -1);
 
-        while ((chainsize == 0 || size() < chainsize) && ep.accepts_qubit(label, p)) {
+        while ((chainsize == 0 || static_cast<int>(size()) < chainsize) && ep.accepts_qubit(label, p)) {
             int r = other.trim_leaf(p);
             minorminer_assert(other.size() >= 1);
             if (r == p) break;
