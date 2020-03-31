@@ -52,7 +52,7 @@ def find_embedding(
         Output is dependent upon kwargs passed to minonminer, but more or less emb is a mapping from vertices of 
         S (keys) to chains in T (values).
     """
-    start = time.process_time()
+    start = time.perf_counter()
 
     # Parse kwargs
     layout_kwargs, placement_kwargs = _parse_kwargs(kwargs)
@@ -64,7 +64,7 @@ def find_embedding(
     S_T_placement = Placement(
         S_layout, T_layout, placement, **placement_kwargs)
 
-    end = time.process_time()
+    end = time.perf_counter()
     timeout = kwargs.get("timeout")
     if timeout is not None:
         time_remaining = timeout - (end - start)
