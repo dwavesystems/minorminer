@@ -38,7 +38,7 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
         else:
             starting_layout = nx.spectral_layout
     else:
-        starting_layout = nx. spectral_layout
+        starting_layout = nx.spectral_layout
 
     # Make a layout object
     layout = Layout(G, starting_layout, dim=dim,
@@ -121,6 +121,7 @@ def _p_norm_objective(layout_vector, G_distances, dim, p):
     # A 2d matrix of the distances between points
     dist = np.linalg.norm(diff, ord=p, axis=-1)
 
+    # TODO: Compare this division-by-zero strategy to adding epsilon.
     # A vectorized version of the gradient function
     with np.errstate(divide='ignore', invalid='ignore'):  # handle division by 0
         if p == 1:
