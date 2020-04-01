@@ -13,15 +13,17 @@ class TestLayoutPlacement(unittest.TestCase):
 
         # Graphs for testing
         self.S = nx.random_regular_graph(3, 50)
+        self.S_small = nx.random_regular_graph(3, 10)
         self.G = nx.Graph()
         self.H = nx.complete_graph(1)
         self.C = dnx.chimera_graph(4)
 
         # Compute some layouts
         self.S_layout = mml.Layout(self.S)
+        self.S_small_layout = mml.Layout(self.S_small)
         self.G_layout = mml.Layout(self.G)
         self.C_layout = mml.Layout(self.C)
-        self.C_layout_3 = mml.Layout(self.C, d=3)
+        self.C_layout_3 = mml.Layout(self.C, dim=3)
 
     def assertArrayEqual(self, a, b):
         """
@@ -41,7 +43,7 @@ class TestLayoutPlacement(unittest.TestCase):
         Tests that layout is a mapping from S to R^d
         """
         for u in S:
-            self.assertEqual(len(layout[u]), layout.d)
+            self.assertEqual(len(layout[u]), layout.dim)
 
     def assertIsPlacement(self, S, T, placement):
         """

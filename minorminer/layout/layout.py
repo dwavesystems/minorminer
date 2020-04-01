@@ -2,6 +2,158 @@ from collections import abc
 
 import networkx as nx
 import numpy as np
+from scipy import optimize
+
+
+def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None, scale=None, **kwargs):
+    """
+    Embeds a graph in R^d with the p-norm and minimizes a Kamada-Kawai-esque objective function to achieve
+    an embedding with low distortion. This computes a layout where the graph distance and the p-distance are 
+    very close to each other.
+
+    Parameters
+    ----------
+    G : NetworkX graph
+        The graph you want to compute the layout for.
+    p : int (default 2)
+        The order of the p-norm to use as a metric.
+    starting_layout : dict
+        A mapping from the vertices of G to points in R^d.
+    G_distances : dict (default None)
+        A dictionary of dictionaries representing distances from every vertex in G to every other vertex in G. If None,
+        it is computed.
+
+    Returns
+    -------
+    layout : dict
+        A mapping from vertices of G (keys) to points in R^d (values).
+    """
+    # Use the user provided starting_layout, or a spectral_layout if the dimension is low enough.
+    # If neither, use a random_layout.
+    if starting_layout:
+        pass
+    elif dim:
+        if dim >= len(G):
+            starting_layout = nx.random_layout
+        else:
+            starting_layout = nx.spectral_layout
+    else:
+        starting_layout = nx.spectral_layout
+
+    # Make a layout object
+    layout = Layout(G, starting_layout, dim=dim,
+                    center=center, scale=scale)
+
+    # Update dim to the starting layout's
+    dim = layout.dim
+
+    # Save on distance calculations by passing them in
+    G_distances = _graph_distance_matrix(G, G_distances)
+
+    # Solve the Kamada-Kawai-esque minimization function
+    X = optimize.minimize(
+        _p_norm_objective,
+        layout.layout_array.ravel(),
+        method='L-BFGS-B',
+        args=(G_distances, dim, p),
+        jac=True,
+    )
+
+    # Read out the solution to the minimization problem and save layouts
+    layout.layout_array = X.x.reshape(len(G), dim)
+
+    return layout.layout
+
+
+def _graph_distance_matrix(G, all_pairs_shortest_path_length=None):
+    """
+    Compute the distance matrix of G.
+
+    Parameters
+    ----------
+    G : NetworkX Graph
+        The graph to find the distance matrix of.
+    all_pairs_shortest_path_length : dict (default None)
+        If None, it is computed by calling nx.all_pairs_shortest_path_length.
+
+    Returns
+    -------
+    G_distances : Numpy 2d array
+        An array indexed by sorted vertices of G whose i,j value is d_G(i,j).
+    """
+    if all_pairs_shortest_path_length is None:
+        all_pairs_shortest_path_length = nx.all_pairs_shortest_path_length(G)
+
+    return np.array(
+        [
+            [V[v] for v in sorted(G)] for u, V in all_pairs_shortest_path_length
+        ]
+    )
+
+
+def _p_norm_objective(layout_vector, G_distances, dim, p):
+    """
+    Compute the sum of differences squared between the p-norm and the graph distance as well as the gradient.
+
+    Parameters
+    ----------
+    layout : Numpy Array
+        A vector indexed by sorted vertices of G whose values are points in some metric space.
+    G_distances : Numpy 2d array
+        An array indexed by sorted vertices of G whose i,j value is d_G(i,j).
+    dim : int
+        The dimension of the metric space. This will reshape the flattened array passed in to the cost function.
+    p : int
+        The order of the p-norm to use.
+
+    Returns
+    -------
+    cost : float
+        The sum of differences squared between the metric distance and the graph distance.
+    """
+    # Reconstitute the flattened array that scipy.optimize.minimize passed in
+    n = len(G_distances)
+    layout = layout_vector.reshape(n, dim)
+
+    # Difference between pairs of points in a 3d matrix
+    diff = layout[:, np.newaxis, :] - layout[np.newaxis, :, :]
+
+    # A 2d matrix of the distances between points
+    dist = np.linalg.norm(diff, ord=p, axis=-1)
+
+    # TODO: Compare this division-by-zero strategy to adding epsilon.
+    # A vectorized version of the gradient function
+    with np.errstate(divide='ignore', invalid='ignore'):  # handle division by 0
+        if p == 1:
+            grad = np.einsum(
+                'ijk,ij,ijk->ik',
+                2*diff,
+                dist - G_distances,
+                np.nan_to_num(1/np.abs(diff))
+            )
+        elif p == float("inf"):
+            # Note: It may not be faster to do this outside of einsum
+            abs_diff = np.abs(diff)
+            x_bigger = abs_diff[:, :, 0] > abs_diff[:, :, 1]
+
+            grad = np.einsum(
+                'ijk,ij,ijk,ijk->ik',
+                2*diff,
+                dist - G_distances,
+                np.nan_to_num(1/abs_diff),
+                np.dstack((x_bigger, np.logical_not(x_bigger)))
+            )
+        else:
+            grad = np.einsum(
+                'ijk,ijk,ij,ij->ik',
+                2*diff,
+                np.abs(diff)**(p-2),
+                dist - G_distances,
+                np.nan_to_num((1/dist)**(p-1))
+            )
+
+    # Return the cost and the gradient
+    return np.sum((G_distances - dist)**2), grad.ravel()
 
 
 class Layout(abc.MutableMapping):
@@ -9,13 +161,14 @@ class Layout(abc.MutableMapping):
         self,
         G,
         layout=None,
-        d=None,
+        dim=None,
         center=None,
         scale=None,
         **kwargs
     ):
         """
         Compute a layout for G, i.e., a map from G to R^d.
+
         Parameters
         ----------
         G : NetworkX graph or NetworkX supported edges data structure (dict, list, ...)
@@ -23,8 +176,8 @@ class Layout(abc.MutableMapping):
         layout : dict or function (default None)
             If a dict, this specifies a pre-computed layout for G. If a function, the function is called on G 
             `layout(G)` and should return a layout of G. If None, nx.spectral_layout is called.
-        d : int (default None)
-            The desired dimension of the layout, R^d. If None, set d to be the dimension of layout.
+        dim : int (default None)
+            The desired dimension of the layout, R^dim. If None, set dim to be the dimension of layout.
         center : tuple (default None)
             The desired center point of the layout. If None, set center to be the center of layout.
         scale : float (default None)
@@ -36,9 +189,17 @@ class Layout(abc.MutableMapping):
         # Ensure G is a graph object
         self.G = _parse_graph(G)
 
+        # Add dim, center, and scale to kwargs if not None
+        if dim is not None:
+            kwargs["dim"] = dim
+        if center is not None:
+            kwargs["center"] = center
+        if scale is not None:
+            kwargs["scale"] = scale
+
         # If passed in, save or compute the layout
         if layout is None:
-            self.layout = nx.spectral_layout(self.G)
+            self.layout = nx.spectral_layout(self.G, **kwargs)
         elif callable(layout):
             self.layout = layout(self.G, **kwargs)
         else:
@@ -46,7 +207,7 @@ class Layout(abc.MutableMapping):
             self.layout = layout
 
         # Set specs in the order of (user input, precomputed layout)
-        self.d = d or self._d
+        self.dim = dim or self._dim
         self.scale = scale or self._scale
         if center is not None:
             self.center = center
@@ -87,17 +248,17 @@ class Layout(abc.MutableMapping):
         self.layout = {v: p for v, p in zip(sorted(self.G), value)}
 
     @property
-    def d(self):
-        return self._d
+    def dim(self):
+        return self._dim
 
-    @d.setter
-    def d(self, value):
+    @dim.setter
+    def dim(self, value):
         """
         If the dimension is changed, change the dimension of the layout, if possible.
         """
         if value:
             self.layout_array = _dimension_layout(
-                self.layout_array, value, self._d)
+                self.layout_array, value, self._dim)
 
     @property
     def center(self):
@@ -170,11 +331,11 @@ class Layout(abc.MutableMapping):
         Set the dimension, center, and scale of the layout_array currently in the Layout object.
         """
         if self.layout_array.size == 0:
-            self._d = 0
+            self._dim = 0
             self._center = np.array([])
             self._scale = 0
         else:
-            self._d = self.layout_array.shape[1]
+            self._dim = self.layout_array.shape[1]
             self._center = np.mean(self.layout_array, axis=0)
             self._scale = np.max(
                 np.linalg.norm(
@@ -186,6 +347,7 @@ class Layout(abc.MutableMapping):
 def _dimension_layout(layout_array, new_d, old_d=None):
     """
     This helper function transforms a layout from R^old_d to R^new_d by padding extra dimensions with 0's.
+
     Parameters
     ----------
     layout_array : numpy array
@@ -194,6 +356,7 @@ def _dimension_layout(layout_array, new_d, old_d=None):
         The new dimension to convert the layout to, must be larger than old_dim.
     old_d : int (default None)
         The current dimension of the laoyut. If None, the dimension is looked up via layout_array.
+
     Returns
     -------
     layout_array : numpy array
@@ -221,6 +384,7 @@ def _center_layout(layout_array, new_center, old_center=None):
     """
     This helper function transforms a layout from [old_center - scale, old_center + scale]^d to
     [new_center - scale, new_center + scale]^d.
+
     Parameters
     ----------
     layout_array : numpy array
@@ -230,6 +394,7 @@ def _center_layout(layout_array, new_center, old_center=None):
     old_center : tuple or numpy array (default None)
         A point in R^d representing the center of the layout. If None, the approximate center of layout is computed 
         by calculating the center of mass (or centroid).
+
     Returns
     -------
     layout_array : numpy array
@@ -247,6 +412,7 @@ def _scale_layout(layout_array, new_scale, old_scale=None, center=None):
     """
     This helper function transforms a layout from [center - old_scale, center + old_scale]^d to 
     [center - new_scale, center + new_scale]^d.
+
     Parameters
     ----------
     layout_array : numpy array (default None)
@@ -259,6 +425,7 @@ def _scale_layout(layout_array, new_scale, old_scale=None, center=None):
     center : tuple or numpy array (default None)
         A point in R^d representing the center of the layout. If None, the approximate center of layout is computed by 
         calculating the center of mass (centroid).
+
     Returns
     -------
     layout_array : numpy array

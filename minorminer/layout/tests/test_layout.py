@@ -13,6 +13,50 @@ from .common import TestLayoutPlacement
 
 
 class TestLayout(TestLayoutPlacement):
+    def test_pnorm(self):
+        """
+        Test the p_norm layout strategy.
+        """
+        # Some specs to test with
+        low_dim = random.randint(3, 9)
+        high_dim = len(self.S_small)
+        center = (1, 1)
+        scale = random.random()*random.randint(1, 10)
+
+        # Default behavior
+        mml.p_norm(self.S_small)
+
+        # Using a starting_layout
+        mml.p_norm(self.S_small, starting_layout=nx.random_layout(self.S_small))
+
+        # Passing in G_distances
+        mml.p_norm(
+            self.S_small, G_distances=nx.all_pairs_shortest_path_length(self.S_small))
+
+        # Passing in dim
+        mml.p_norm(self.S_small, dim=low_dim)
+        mml.p_norm(self.S_small, dim=high_dim)
+
+        # Passing in center
+        mml.p_norm(self.S_small, center=center)
+
+        # Passing in scale
+        mml.p_norm(self.S_small, scale=scale)
+
+        # Different p-norms
+        mml.p_norm(self.S_small, p=1)
+        mml.p_norm(self.S_small, p=3)
+        mml.p_norm(self.S_small, p=float("inf"))
+
+        # # Playing with a starting_layout and a dimension
+        # starting_layout = nx.spectral_layout(self.S, dim=dim)
+        # layout_in = mml.Layout(
+        #     self.S, mml.p_norm, starting_layout=starting_layout)
+        # layout_out = mml.Layout(
+        #     self.S, mml.p_norm, starting_layout=nx.spectral_layout, dim=dim)
+        # self.assertLayoutEqual(self.S, layout_in, layout_out)
+        # self.assertIsLayout(self.S, layout_in)
+
     def test_precomputed_layout(self):
         """
         Pass in a precomputed layout to the Layout class.
@@ -30,29 +74,31 @@ class TestLayout(TestLayoutPlacement):
         """
         Change the dimension of a layout.
         """
-        d = random.randint(3, 10)
+        dim = random.randint(3, 10)
 
-        # Pass in d as an argument
-        layout_pre = mml.Layout(self.S, d=d)
-        self.assertEqual(layout_pre.d, d)
+        # Pass in dim as an argument
+        layout_pre = mml.Layout(self.S, dim=dim)
+        self.assertEqual(layout_pre.dim, dim)
+        self.assertIsLayout(self.S, layout_pre)
 
-        # Change the layout to have the d
+        # Change the layout to have the dim
         layout_post = mml.Layout(self.S)
-        layout_post.d = d
-        self.assertEqual(layout_post.d, d)
+        layout_post.dim = dim
+        self.assertEqual(layout_post.dim, dim)
+        self.assertIsLayout(self.S, layout_post)
 
         # Change the dimension without changing the object,
-        layout = mml.Layout(self.S, d=2)
-        new_layout_array = _dimension_layout(layout.layout_array, d)
-        self.assertEqual(layout.d, 2)
+        layout = mml.Layout(self.S, dim=2)
+        new_layout_array = _dimension_layout(layout.layout_array, dim)
+        self.assertEqual(layout.dim, 2)
 
-        # The layouts should match each other
-        self.assertLayoutEqual(self.S, layout_pre, layout_post)
-        self.assertIsLayout(self.S, layout_pre)
-        self.assertArrayEqual(new_layout_array, layout_pre.layout_array)
+        # The layout_arrays changed after the fact should match each other
+        self.assertArrayEqual(new_layout_array, layout_post.layout_array)
 
         # Test dimension too small
-        self.assertRaises(ValueError, mml.Layout, self.S, d=1)
+        layout = mml.Layout(self.S, dim=2)
+        self.assertRaises(ValueError, _dimension_layout,
+                          layout.layout_array, 1)
 
     def test_center(self):
         """
@@ -157,7 +203,3 @@ class TestLayout(TestLayoutPlacement):
 
         # Test __repr__
         self.assertEqual(repr(L), "{}")
-
-
-if __name__ == '__main__':
-    unittest.main()

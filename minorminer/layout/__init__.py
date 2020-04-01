@@ -1,16 +1,17 @@
 import time
 
-import minorminer as mm
 import networkx as nx
 
-from .layout import Layout
+import minorminer as mm
+
+from .layout import Layout, p_norm
 from .placement import Placement, closest
 
 
 def find_embedding(
     S,
     T,
-    layout=None,
+    layout=p_norm,
     placement=closest,
     mm_hint_type="initial_chains",
     return_layouts=False,
@@ -51,7 +52,7 @@ def find_embedding(
         Output is dependent upon kwargs passed to minonminer, but more or less emb is a mapping from vertices of 
         S (keys) to chains in T (values).
     """
-    start = time.process_time()
+    start = time.perf_counter()
 
     # Parse kwargs
     layout_kwargs, placement_kwargs = _parse_kwargs(kwargs)
@@ -63,7 +64,7 @@ def find_embedding(
     S_T_placement = Placement(
         S_layout, T_layout, placement, **placement_kwargs)
 
-    end = time.process_time()
+    end = time.perf_counter()
     timeout = kwargs.get("timeout")
     if timeout is not None:
         time_remaining = timeout - (end - start)
@@ -94,8 +95,8 @@ def _parse_kwargs(kwargs):
     """
     layout_kwargs = {}
     # For the layout object
-    if "d" in kwargs:
-        layout_kwargs["d"] = kwargs.pop("d")
+    if "dim" in kwargs:
+        layout_kwargs["dim"] = kwargs.pop("dim")
     if "center" in kwargs:
         layout_kwargs["center"] = kwargs.pop("center")
     if "scale" in kwargs:
