@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "pairing_queue.hpp"
 #include "util.hpp"
 
 namespace find_embedding {
@@ -26,6 +27,7 @@ enum VARORDER { VARORDER_SHUFFLE, VARORDER_DFS, VARORDER_BFS, VARORDER_PFS, VARO
 //   * checking if a particular qubit is available for a particular variable
 
 //! this is the trivial domain handler, where every variable is allowed to use every qubit
+template <typename debugging_t>
 class domain_handler_universe {
   public:
     domain_handler_universe(optional_parameters & /*p*/, int /*n_v*/, int /*n_f*/, int /*n_q*/, int /*n_r*/) {}
@@ -49,6 +51,7 @@ class domain_handler_universe {
 
 //! this domain handler stores masks for each variable so that prepare_visited and prepare_distances are barely more
 //! expensive than a memcopy
+template <typename debugging_t>
 class domain_handler_masked {
     optional_parameters &params;
     vector<vector<int>> masks;
@@ -56,10 +59,10 @@ class domain_handler_masked {
   public:
     domain_handler_masked(optional_parameters &p, int n_v, int n_f, int n_q, int n_r)
             : params(p), masks(n_v + n_f, vector<int>()) {
-#ifdef CPPDEBUG
-        for (auto &vC : params.restrict_chains)
-            for (auto &q : vC.second) minorminer_assert(0 <= q && q < n_q + n_r);
-#endif
+        if (std::is_same<debugging_t, enable_asserts>::value) {
+            for (auto &vC : params.restrict_chains)
+                for (auto &q : vC.second) debugging_t::assertion(0 <= q && q < n_q + n_r);
+        }
         auto nostrix = std::end(params.restrict_chains);
         for (int v = n_v + n_f; v--;) {
             auto chain = params.restrict_chains.find(v);
@@ -140,7 +143,7 @@ class fixed_handler_hival {
 //! the errors-only handler and otherwise, the full handler
 
 //! Here's the full output handler
-template <bool verbose>
+template <bool verbose, typename debugging_t>
 class output_handler {
     optional_parameters &params;
 
@@ -171,18 +174,12 @@ class output_handler {
         if (verbose && params.verbose > 2) params.extra_info(format, args...);
     }
 
-    //! print at the debug verbosity level (only works when `CPPDEBUG` is set)
+    //! print at the debug verbosity level (only works when debugging_t is enable_asserts)
     template <typename... Args>
-#ifdef CPPDEBUG
     void debug(const char *format, Args... args) const {
-        if (verbose && params.verbose > 3) {
-            params.debug(format, args...);
-        }
+        if (std::is_same<debugging_t, enable_asserts>::value)
+            if (verbose && params.verbose > 3) params.debug(format, args...);
     }
-#else
-    void debug(const char * /*format*/, Args... /*args*/) const {
-    }
-#endif
 };
 
 struct shuffle_first {};
@@ -191,6 +188,7 @@ struct rndswap_first {};
 //! Common form for all embedding problems.
 //!
 //! Needs to be extended with a fixed handler and domain handler to be complete.
+template <typename debugging_t>
 class embedding_problem_base {
   protected:
     int num_v, num_f, num_q, num_r;
@@ -344,7 +342,7 @@ class embedding_problem_base {
     //! compute a variable ordering according to the `order` strategy
     const vector<int> &var_order(VARORDER order = VARORDER_SHUFFLE) {
         if (order == VARORDER_KEEP) {
-            minorminer_assert(var_order_space.size() > 0);
+            debugging_t::assertion(var_order_space.size() > 0);
             return var_order_space;
         }
         var_order_space.clear();
@@ -448,13 +446,13 @@ class embedding_problem_base {
 
 //! A template to construct a complete embedding problem by combining
 //! `embedding_problem_base` with fixed/domain handlers.
-template <class fixed_handler, class domain_handler, class output_handler>
-class embedding_problem : public embedding_problem_base,
+template <class fixed_handler, class domain_handler, class output_handler, typename debugging_t>
+class embedding_problem : public embedding_problem_base<debugging_t>,
                           public fixed_handler,
                           public domain_handler,
                           public output_handler {
   private:
-    using ep_t = embedding_problem_base;
+    using ep_t = embedding_problem_base<debugging_t>;
     using fh_t = fixed_handler;
     using dh_t = domain_handler;
     using oh_t = output_handler;
@@ -462,7 +460,7 @@ class embedding_problem : public embedding_problem_base,
   public:
     embedding_problem(optional_parameters &p, int n_v, int n_f, int n_q, int n_r, vector<vector<int>> &v_n,
                       vector<vector<int>> &q_n)
-            : embedding_problem_base(p, n_v, n_f, n_q, n_r, v_n, q_n),
+            : embedding_problem_base<debugging_t>(p, n_v, n_f, n_q, n_r, v_n, q_n),
               fixed_handler(p, n_v, n_f, n_q, n_r),
               domain_handler(p, n_v, n_f, n_q, n_r),
               output_handler(p) {}

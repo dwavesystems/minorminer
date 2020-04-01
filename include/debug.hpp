@@ -1,16 +1,15 @@
 #pragma once
+#include "util.hpp"
+namespace find_embedding {
 
-#ifdef CPPDEBUG
-#ifdef NDBUG
-#undef NDBUG
-#endif
-#ifdef NDEBUG
-#undef NDEBUG
-#endif
-#include <assert.h>
-#define minorminer_assert(X) assert(X)
-#else
-#ifndef minorminer_assert
-#define minorminer_assert(X)
-#endif
-#endif
+struct disable_asserts {
+    static inline void assertion(bool /*statement*/) {}
+};
+
+struct enable_asserts {
+    static inline void assertion(bool statement) {
+        if (!statement) throw MinorMinerException();
+    }
+};
+
+}  // namespace find_embedding

@@ -57,6 +57,8 @@ void handle_exceptions() {
         PyErr_SetString(PyExc_RuntimeError, e.what());
     } catch (const find_embedding::CorruptEmbeddingException &e) {
         PyErr_SetString(PyExc_AssertionError, e.what());
+    } catch (const find_embedding::AssertionException &e) {
+        PyErr_SetString(PyExc_AssertionError, e.what());
     }
 }
 

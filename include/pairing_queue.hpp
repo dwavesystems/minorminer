@@ -1,5 +1,7 @@
 #pragma once
-#include <stdexcept>
+#include "debug.hpp"
+#include "util.hpp"
+
 namespace find_embedding {
 
 class min_heap_tag {};
@@ -21,20 +23,20 @@ class priority_node {
     }
 };
 
-template <typename N>
+template <typename N, typename debugging_t>
 class pairing_node : public N {
     pairing_node *next;
     pairing_node *desc;
 
   public:
-    pairing_node<N>() {}
+    pairing_node<N, debugging_t>() {}
 
     template <class... Args>
-    pairing_node<N>(Args... args) : N(args...), next(nullptr), desc(nullptr) {}
+    pairing_node<N, debugging_t>(Args... args) : N(args...), next(nullptr), desc(nullptr) {}
 
     //! the basic operation of the pairing queue -- put `this` and `other`
     //! into heap-order
-    inline pairing_node<N> *merge_roots(pairing_node<N> *other) {
+    inline pairing_node<N, debugging_t> *merge_roots(pairing_node<N, debugging_t> *other) {
         if (other == nullptr) return this;
 
         other = merge_roots_unsafe(other);
@@ -45,16 +47,16 @@ class pairing_node : public N {
 
     template <class... Args>
     void refresh(Args... args) {
-        this->~pairing_node<N>();
-        new (this) pairing_node<N>(args...);
+        this->~pairing_node<N, debugging_t>();
+        new (this) pairing_node<N, debugging_t>(args...);
     }
 
-    inline pairing_node<N> *next_root() { return desc; }
+    inline pairing_node<N, debugging_t> *next_root() { return desc; }
 
   private:
     //! the basic operation of the pairing queue -- put `this` and `other`
     //! into heap-order
-    inline pairing_node<N> *merge_roots_unsafe(pairing_node<N> *other) {
+    inline pairing_node<N, debugging_t> *merge_roots_unsafe(pairing_node<N, debugging_t> *other) {
         if (*other < *this)
             return merge_roots_unchecked(other);
         else
@@ -63,13 +65,13 @@ class pairing_node : public N {
 
     //! merge_roots, assuming `other` is not null and that `val` < `other->val`.
     //!  may invalidate the internal data structure (see source for details)
-    inline pairing_node<N> *merge_roots_unchecked(pairing_node *other) {
+    inline pairing_node<N, debugging_t> *merge_roots_unchecked(pairing_node *other) {
         // this very unsafe version of self.merge_roots which
         // * doesn't check for nullval
         // * doesn't ensure that the returned node has next = nullval
         // * doesn't check that this < other
-        minorminer_assert(other != nullptr);
-        minorminer_assert(*other < *this);
+        debugging_t::assertion(other != nullptr);
+        debugging_t::assertion(*other < *this);
 
         other->next = desc;
         desc = other;
@@ -77,24 +79,24 @@ class pairing_node : public N {
     }
 
   public:
-    inline pairing_node<N> *merge_pairs() {
-        pairing_node<N> *a = this;
-        pairing_node<N> *r = next;
+    inline pairing_node<N, debugging_t> *merge_pairs() {
+        pairing_node<N, debugging_t> *a = this;
+        pairing_node<N, debugging_t> *r = next;
         if (r == nullptr) {
             return a;
         } else {
-            pairing_node<N> *c = r->next;
+            pairing_node<N, debugging_t> *c = r->next;
             r->next = nullptr;
             r = a->merge_roots_unsafe(r);
             r->next = nullptr;
             a = c;
         }
         while (a != nullptr) {
-            pairing_node<N> *b = a->next;
+            pairing_node<N, debugging_t> *b = a->next;
             if (b == nullptr) {
                 return a->merge_roots_unsafe(r);
             } else {
-                pairing_node<N> *c = b->next;
+                pairing_node<N, debugging_t> *c = b->next;
                 b = a->merge_roots_unsafe(b);
                 b->next = nullptr;
                 r = b->merge_roots_unsafe(r);
@@ -105,15 +107,15 @@ class pairing_node : public N {
     }
 };
 
-template <typename N>
+template <typename N, typename debugging_t>
 class pairing_queue {
     int count;
     int size;
-    pairing_node<N> *root;
-    pairing_node<N> *mem;
+    pairing_node<N, debugging_t> *root;
+    pairing_node<N, debugging_t> *mem;
 
   public:
-    pairing_queue(int n) : count(0), size(n), root(nullptr), mem(new pairing_node<N>[n]) {}
+    pairing_queue(int n) : count(0), size(n), root(nullptr), mem(new pairing_node<N, debugging_t>[n]) {}
 
     pairing_queue(pairing_queue &&other) : count(other.count), size(other.size), root(other.root), mem(other.mem) {
         other.mem = nullptr;
@@ -132,7 +134,7 @@ class pairing_queue {
 
     template <class... Args>
     inline void emplace(Args... args) {
-        pairing_node<N> *x = mem + (count++);
+        pairing_node<N, debugging_t> *x = mem + (count++);
         x->refresh(args...);
         root = x->merge_roots(root);
     }
@@ -145,4 +147,9 @@ class pairing_queue {
         root = root->merge_pairs();
     }
 };
-}
+
+template <typename P>
+using min_queue = std::priority_queue<priority_node<P, min_heap_tag>>;
+template <typename P>
+using max_queue = std::priority_queue<priority_node<P, max_heap_tag>>;
+}  // namespace find_embedding

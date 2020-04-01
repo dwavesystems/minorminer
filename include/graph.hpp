@@ -4,9 +4,10 @@
 #include <random>
 #include <set>
 #include <vector>
+#include "debug.hpp"
 #include "util.hpp"
 
-namespace graph {
+namespace find_embedding {
 
 template <typename T>
 class unaryint {
@@ -88,7 +89,8 @@ class input_graph {
     //! @param bside List of nodes describing edges.
     input_graph(int n_v, const std::vector<int>& aside, const std::vector<int>& bside)
             : edges_aside(aside), edges_bside(bside), _num_nodes(n_v) {
-        minorminer_assert(aside.size() == bside.size());
+        if (aside.size() != bside.size())
+            throw CorruptParametersException("Graph constructor invalid: aside and bside must have same size");
     }
 
     //! Remove all edges and nodes from a graph.
@@ -289,6 +291,13 @@ class components {
         }
     }
 
+    //! translate nodes from labels in component c, back to their original input labels
+    //! this version is done inplace on the `nodes` vector
+    void from_component(const int c, std::vector<int>& nodes) const {
+        auto& comp = component[c];
+        for (size_t i = 0; i < nodes.size(); i++) nodes[i] = comp[nodes[i]];
+    }
+
   private:
     int __init_find(int x) {
         // NEVER CALL AFTER INITIALIZATION
@@ -321,4 +330,4 @@ class components {
     std::vector<std::vector<int>> component;
     std::vector<input_graph> component_g;
 };
-}  // namespace graph
+}  // namespace find_embedding

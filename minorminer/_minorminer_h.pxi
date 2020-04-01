@@ -74,7 +74,7 @@ cdef extern from "src/pyutil.hpp" namespace "":
 
     void handle_exceptions()
 
-cdef extern from "../include/graph.hpp" namespace "graph":
+cdef extern from "../include/graph.hpp" namespace "find_embedding":
     cppclass input_graph:
         input_graph()
         void push_back(int,int)
@@ -113,29 +113,22 @@ cdef extern from "../include/chain.hpp" namespace "find_embedding":
         void quickPass(const vector[int] &, int, int, bool, bool, double) except +handle_exceptions
         void quickPass(VARORDER, int, int, bool, bool, double) except +handle_exceptions
 
-    cppclass chain:
-        chain(vector[int] &w, int l)
-        inline int size() const 
-        inline int count(const int q) const
-        inline int get_link(const int x) const 
-        inline void set_link(const int x, const int q)
-        inline int drop_link(const int x)
-        inline void set_root(const int q)
-        inline void clear()
-        inline void add_leaf(const int q, const int parent)
-        inline int trim_branch(int q)
-        inline int trim_leaf(int q)
-        inline int parent(const int q) const
-        inline int refcount(const int q) const
-        void link_path(chain &other, int q, const vector [int] &parents)
-        inline void diagnostic(char *last_op)
-
-
-cdef class cppembedding:
-    cdef vector[chain] chains
-    cdef vector[int] qubit_weights
-    def __cinit__(self, int num_vars, int num_qubits):
-        pass
+#    cppclass chain[T]:
+#        chain(vector[int] &w, int l)
+#        inline int size() const 
+#        inline int count(const int q) const
+#        inline int get_link(const int x) const 
+#        inline void set_link(const int x, const int q)
+#        inline int drop_link(const int x)
+#        inline void set_root(const int q)
+#        inline void clear()
+#        inline void add_leaf(const int q, const int parent)
+#        inline int trim_branch(int q)
+#        inline int trim_leaf(int q)
+#        inline int parent(const int q) const
+#        inline int refcount(const int q) const
+#        void link_path(chain &other, int q, const vector [int] &parents)
+#        inline void diagnostic(char *last_op)
 
 cdef extern from "../include/find_embedding.hpp" namespace "find_embedding":
     int findEmbedding(input_graph, input_graph, optional_parameters, vector[vector[int]]&) except +handle_exceptions

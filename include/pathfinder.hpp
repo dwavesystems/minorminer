@@ -30,30 +30,30 @@ namespace find_embedding {
 // have a large number of neighbors.  The serial/parallel versions occur below.
 
 // look at me, forward-declaring liek an adult
-template <typename T>
+template <typename T, typename D>
 class pathfinder_base;
-template <typename T>
+template <typename T, typename D>
 class pathfinder_serial;
-template <typename T>
+template <typename T, typename D>
 class pathfinder_parallel;
 
 class pathfinder_public_interface {
   public:
     virtual int heuristicEmbedding() = 0;
-    virtual const chain &get_chain(int) const = 0;
+    virtual void get_chain(int, vector<int> &) const = 0;
     virtual ~pathfinder_public_interface(){};
     virtual void set_initial_chains(map<int, vector<int>>) = 0;
     virtual void quickPass(const vector<int> &, int, int, bool, bool, double) = 0;
     virtual void quickPass(VARORDER, int, int, bool, bool, double) = 0;
 };
 
-template <typename embedding_problem_t>
+template <typename embedding_problem_t, typename debugging_t>
 class pathfinder_base : public pathfinder_public_interface {
-    friend class pathfinder_serial<embedding_problem_t>;
-    friend class pathfinder_parallel<embedding_problem_t>;
+    friend class pathfinder_serial<embedding_problem_t, debugging_t>;
+    friend class pathfinder_parallel<embedding_problem_t, debugging_t>;
 
   public:
-    using embedding_t = embedding<embedding_problem_t>;
+    using embedding_t = embedding<embedding_problem_t, debugging_t>;
 
   protected:
     embedding_problem_t ep;
@@ -172,7 +172,9 @@ class pathfinder_base : public pathfinder_public_interface {
     }
 
     //! chain accessor
-    virtual const chain &get_chain(int u) const override { return bestEmbedding.get_chain(u); }
+    virtual void get_chain(int u, vector<int> &out_chain) const override {
+        for (auto &q : bestEmbedding.get_chain(u)) out_chain.push_back(q);
+    }
 
   protected:
     //! tear out and replace the chain in `emb` for variable `u`
@@ -370,7 +372,7 @@ class pathfinder_base : public pathfinder_public_interface {
 
         unsigned int stopcheck = static_cast<unsigned int>(max(last_size, target_chainsize));
 
-        vector<distance_queue> PQ;
+        vector<pairing_queue<priority_node<distance_t, min_heap_tag>, debugging_t>> PQ;
         PQ.reserve(ep.var_neighbors(u).size());
         for (auto &v : ep.var_neighbors(u, shuffle_first{})) {
             PQ.emplace_back(num_qubits);
@@ -472,7 +474,7 @@ class pathfinder_base : public pathfinder_public_interface {
     //! note: qubits are only visited if `visited[q] = 1`.  the value `-1` is used to prevent
     //! searching of overfull qubits
     void compute_distances_from_chain(const embedding_t &emb, const int &v, vector<int> &visited) {
-        distance_queue pq(num_qubits);
+        pairing_queue<priority_node<distance_t, min_heap_tag>, debugging_t> pq(num_qubits);
         auto &parent = parents[v];
         auto &permutation = qubit_permutations[v];
         auto &distance = distances[v];
@@ -559,7 +561,7 @@ class pathfinder_base : public pathfinder_public_interface {
             }
 
             if (got) {
-                if (bestEmbedding.chainsize(u) > chainlength_bound && chainlength_bound > 0) {
+                if (static_cast<int>(bestEmbedding.chainsize(u)) > chainlength_bound && chainlength_bound > 0) {
                     bestEmbedding.steal_all(u);
                     bestEmbedding.tear_out(u);
                 }
@@ -690,11 +692,11 @@ class pathfinder_base : public pathfinder_public_interface {
 };
 
 //! A pathfinder where the Dijkstra-from-neighboring-chain passes are done serially.
-template <typename embedding_problem_t>
-class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
+template <typename embedding_problem_t, typename debugging_t>
+class pathfinder_serial : public pathfinder_base<embedding_problem_t, debugging_t> {
   public:
-    using super = pathfinder_base<embedding_problem_t>;
-    using embedding_t = embedding<embedding_problem_t>;
+    using super = pathfinder_base<embedding_problem_t, debugging_t>;
+    using embedding_t = embedding<embedding_problem_t, debugging_t>;
 
   private:
   public:
@@ -724,11 +726,11 @@ class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
 };
 
 //! A pathfinder where the Dijkstra-from-neighboring-chain passes are done serially.
-template <typename embedding_problem_t>
-class pathfinder_parallel : public pathfinder_base<embedding_problem_t> {
+template <typename embedding_problem_t, typename debugging_t>
+class pathfinder_parallel : public pathfinder_base<embedding_problem_t, debugging_t> {
   public:
-    using super = pathfinder_base<embedding_problem_t>;
-    using embedding_t = embedding<embedding_problem_t>;
+    using super = pathfinder_base<embedding_problem_t, debugging_t>;
+    using embedding_t = embedding<embedding_problem_t, debugging_t>;
 
   private:
     int num_threads;

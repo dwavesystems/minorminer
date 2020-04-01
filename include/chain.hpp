@@ -4,16 +4,6 @@
 
 namespace find_embedding {
 
-#ifdef CPPDEBUG
-#define DIAGNOSE_CHAINS(other) \
-    diagnostic();              \
-    other.diagnostic();
-#define DIAGNOSE_CHAIN() diagnostic();
-#else
-#define DIAGNOSE_CHAINS(other)
-#define DIAGNOSE_CHAIN()
-#endif
-
 //! This class stores chains for embeddings, and performs qubit-use
 //! accounting.  The `label` is the index number for the variable
 //! represented by this chain.  The `links` member of a chain is an
@@ -52,33 +42,38 @@ struct frozen_chain {
     }
 };
 
+template <typename debugging_t>
 class chain {
   private:
     vector<int> &qubit_weight;
     unordered_map<int, pair<int, int>> data;
     unordered_map<int, int> links;
-#ifdef CPPDEBUG
-    bool belay_diagnostic;
-#endif
+
+    inline void DIAGNOSE_CHAIN() {
+        if (std::is_same<debugging_t, enable_asserts>::value) diagnostic();
+    }
+
+    inline void DIAGNOSE_CHAINS(const chain<debugging_t> &other) {
+        if (std::is_same<debugging_t, enable_asserts>::value) {
+            diagnostic();
+            other.diagnostic();
+        }
+    }
 
   public:
     const int label;
 
     //! construct this chain, linking it to the qubit_weight vector `w` (common to
     //! all chains in an embedding, typically) and setting its variable label `l`
-    chain(vector<int> &w, int l) : qubit_weight(w), data(), links(), label(l) {
-#ifdef CPPDEBUG
-        belay_diagnostic = false;
-#endif
-    }
+    chain(vector<int> &w, int l) : qubit_weight(w), data(), links(), label(l) {}
 
     //! assign this to a vector of ints.  each incoming qubit will
     //! have itself as a parent.
-    chain &operator=(const vector<int> &c) {
+    chain<debugging_t> &operator=(const vector<int> &c) {
         clear();
         for (auto &q : c) {
             data.emplace(q, pair<int, int>(q, 1));
-            minorminer_assert(0 <= q && q < static_cast<int>(qubit_weight.size()));
+            debugging_t::assertion(0 <= q && q < static_cast<int>(qubit_weight.size()));
             qubit_weight[q]++;
         }
         DIAGNOSE_CHAIN();
@@ -86,7 +81,7 @@ class chain {
     }
 
     //! assign this to another chain
-    chain &operator=(const chain &c) {
+    chain<debugging_t> &operator=(const chain<debugging_t> &c) {
         clear();
         data = c.data;
         for (auto &q : c) qubit_weight[q]++;
@@ -114,8 +109,8 @@ class chain {
     //! set the qubit, in `this`, which links `this` to the chain of x
     //!(if x==label, interpret the linking qubit as the chain's root)
     inline void set_link(const int x, const int q) {
-        minorminer_assert(get_link(x) == -1);
-        minorminer_assert(count(q) == 1);
+        debugging_t::assertion(get_link(x) == -1);
+        debugging_t::assertion(count(q) == 1);
         links[x] = q;
 
         retrieve(q).second++;
@@ -128,7 +123,7 @@ class chain {
         auto z = links.find(x);
         if (z != links.end()) {
             q = (*z).second;
-            minorminer_assert(count(q) == 1);
+            debugging_t::assertion(count(q) == 1);
             retrieve(q).second--;
             links.erase(z);
         }
@@ -139,8 +134,8 @@ class chain {
     //! insert the qubit `q` into `this`, and set `q` to be the root
     //!(represented as the linking qubit for `label`)
     inline void set_root(const int q) {
-        minorminer_assert(data.size() == 0);
-        minorminer_assert(links.size() == 0);
+        debugging_t::assertion(data.size() == 0);
+        debugging_t::assertion(links.size() == 0);
         links.emplace(label, q);
         data.emplace(q, pair<int, int>(q, 2));
         qubit_weight[q]++;
@@ -157,8 +152,8 @@ class chain {
 
     //! add the qubit `q` as a leaf, with `parent` as its parent
     inline void add_leaf(const int q, const int parent) {
-        minorminer_assert(data.count(q) == 0);
-        minorminer_assert(data.count(parent) == 1);
+        debugging_t::assertion(data.count(q) == 0);
+        debugging_t::assertion(data.count(parent) == 1);
         data.emplace(q, pair<int, int>(parent, 0));
         qubit_weight[q]++;
         retrieve(parent).second++;
@@ -168,22 +163,23 @@ class chain {
     //! try to delete the qubit `q` from this chain, and keep
     //! deleting until no more qubits are free to be deleted.
     //! return the first ancestor which cannot be deleted
+    template <bool run_diagnostic = false>
     inline int trim_branch(int q) {
-        minorminer_assert(data.count(q) == 1);
+        debugging_t::assertion(data.count(q) == 1);
         int p = trim_leaf(q);
         while (p != q) {
             q = p;
             p = trim_leaf(q);
         }
-        minorminer_assert(data.count(q) == 1);
-        DIAGNOSE_CHAIN();
+        debugging_t::assertion(data.count(q) == 1);
+        if (run_diagnostic) DIAGNOSE_CHAIN();
         return q;
     }
 
     //! try to delete the qubit `q` from this chain.  if `q`
     //! cannot be deleted, return it; otherwise return its parent
     inline int trim_leaf(int q) {
-        minorminer_assert(data.count(q) == 1);
+        debugging_t::assertion(data.count(q) == 1);
         auto z = data.find(q);
         auto p = (*z).second;
         if (p.second == 0) {
@@ -199,23 +195,23 @@ class chain {
     //! the parent of `q` in this chain -- which might be `q` but
     //! otherwise cycles should be impossible
     inline int parent(const int q) const {
-        minorminer_assert(data.count(q) == 1);
+        debugging_t::assertion(data.count(q) == 1);
         return fetch(q).first;
     }
 
     //! assign `p` to be the parent of `q`, on condition that both `p` and `q`
     //! are contained in `this`, `q` is its own parent, and `q` is not the root
     inline void adopt(const int p, const int q) {
-        minorminer_assert(data.count(q) == 1);
-        minorminer_assert(data.count(p) == 1);
+        debugging_t::assertion(data.count(q) == 1);
+        debugging_t::assertion(data.count(p) == 1);
         auto &P = retrieve(p);
         auto &Q = retrieve(q);
-        minorminer_assert(Q.first == q);
-        minorminer_assert(get_link(label) != q);
+        debugging_t::assertion(Q.first == q);
+        debugging_t::assertion(get_link(label) != q);
         Q.first = p;
         Q.second--;
         P.second++;
-        minorminer_assert(parent(q) == p);
+        debugging_t::assertion(parent(q) == p);
         DIAGNOSE_CHAIN();
     }
 
@@ -223,19 +219,19 @@ class chain {
     //!`q` -- where a "reference" is an occurrence of `q` as a parent
     //! or an occurrence of `q` as a linking qubit / root
     inline int refcount(const int q) const {
-        minorminer_assert(data.count(q) == 1);
+        debugging_t::assertion(data.count(q) == 1);
         return fetch(q).second;
     }
 
     //! store this chain into a `frozen_chain`, unlink all chains from
     //! this, and clear()
-    inline size_t freeze(vector<chain> &others, frozen_chain &keep) {
+    inline size_t freeze(vector<chain<debugging_t>> &others, frozen_chain &keep) {
         keep.clear();
         for (auto &v_p : links) {
             keep.links.emplace(v_p);
             int v = v_p.first;
             if (v != label) {
-                minorminer_assert(0 <= v && v < static_cast<int>(others.size()));
+                debugging_t::assertion(0 <= v && v < static_cast<int>(others.size()));
                 int q = others[v].drop_link(label);
                 keep.links.emplace(-v - 1, q);
             }
@@ -243,15 +239,15 @@ class chain {
         links.clear();
         for (auto &q : *this) qubit_weight[q]--;
         keep.data.swap(data);
-        minorminer_assert(size() == 0);
+        debugging_t::assertion(size() == 0);
         DIAGNOSE_CHAIN();
         return keep.data.size();
     }
 
     //! restore a `frozen_chain` into this, re-establishing links
     //! from other chains.  precondition: this is empty.
-    inline void thaw(vector<chain> &others, frozen_chain &keep) {
-        minorminer_assert(size() == 0);
+    inline void thaw(vector<chain<debugging_t>> &others, frozen_chain &keep) {
+        debugging_t::assertion(size() == 0);
         keep.data.swap(data);
         for (auto &q : *this) qubit_weight[q]++;
         for (auto &v_p : keep.links) {
@@ -260,7 +256,7 @@ class chain {
                 links.emplace(v_p);
             } else {
                 v = -v - 1;
-                minorminer_assert(0 <= v && v < static_cast<int>(others.size()));
+                debugging_t::assertion(0 <= v && v < static_cast<int>(others.size()));
                 others[v].set_link(label, v_p.second);
             }
         }
@@ -272,16 +268,16 @@ class chain {
     //! by `this`; starting with the qubit links and updating qubit
     //! links after all
     template <typename embedding_problem_t>
-    inline void steal(chain &other, embedding_problem_t &ep, int chainsize = 0) {
+    inline void steal(chain<debugging_t> &other, embedding_problem_t &ep, int chainsize = 0) {
         int q = drop_link(other.label);
         int p = other.drop_link(label);
 
-        minorminer_assert(q != -1);
-        minorminer_assert(p != -1);
+        debugging_t::assertion(q != -1);
+        debugging_t::assertion(p != -1);
 
         while ((chainsize == 0 || static_cast<int>(size()) < chainsize) && ep.accepts_qubit(label, p)) {
             int r = other.trim_leaf(p);
-            minorminer_assert(other.size() >= 1);
+            debugging_t::assertion(other.size() >= 1);
             if (r == p) break;
             auto z = data.find(p);
             if (z == data.end())
@@ -289,21 +285,15 @@ class chain {
             else if (p != q) {
                 auto &w = (*z).second;
                 w.second++;
-#ifdef CPPDEBUG
-                belay_diagnostic = true;
-#endif
-                trim_branch(q);
-#ifdef CPPDEBUG
-                belay_diagnostic = false;
-#endif
+                trim_branch<false>(q);
                 w.second--;
             }
             q = p;
             p = r;
         }
 
-        minorminer_assert(other.count(p) == 1);
-        minorminer_assert(count(q) == 1);
+        debugging_t::assertion(other.count(p) == 1);
+        debugging_t::assertion(count(q) == 1);
 
         set_link(other.label, q);
         other.set_link(label, p);
@@ -316,10 +306,10 @@ class chain {
     //! into `this` (preconditions: `this` and `other` are not linked,
     //! `q` is contained in `this`, and the parent-path is eventually
     //! contained in `other`)
-    void link_path(chain &other, int q, const vector<int> &parents) {
-        minorminer_assert(count(q) == 1);
-        minorminer_assert(links.count(other.label) == 0);
-        minorminer_assert(other.get_link(label) == -1);
+    void link_path(chain<debugging_t> &other, int q, const vector<int> &parents) {
+        debugging_t::assertion(count(q) == 1);
+        debugging_t::assertion(links.count(other.label) == 0);
+        debugging_t::assertion(other.get_link(label) == -1);
         int p = parents[q];
         if (p == -1) {
             p = q;
@@ -333,8 +323,8 @@ class chain {
                 p = parents[p];
             }
         }
-        minorminer_assert(other.count(p) == 1);
-        minorminer_assert(count(q) == 1);
+        debugging_t::assertion(other.count(p) == 1);
+        debugging_t::assertion(count(q) == 1);
         set_link(other.label, q);
         other.set_link(label, p);
         DIAGNOSE_CHAINS(other);
@@ -360,10 +350,7 @@ class chain {
     //! run the diagnostic, and if it fails, report the failure to the user
     //! and throw a CorruptEmbeddingException.  the `last_op` argument is
     //! used in the error message
-    inline void diagnostic() {
-#ifdef CPPDEBUG
-        if (belay_diagnostic) return;
-#endif
+    inline void diagnostic() const {
         switch (run_diagnostic()) {
             case 1:
                 throw CorruptEmbeddingException("Qubit containment errors found in chain diagnostics.");

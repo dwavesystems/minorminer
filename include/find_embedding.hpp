@@ -21,7 +21,7 @@ class parameter_processor {
     vector<int> var_fixed_unscrewed;
     int num_reserved;
 
-    graph::components qub_components;
+    components qub_components;
     int problem_qubits;
     int problem_reserved;
 
@@ -32,7 +32,7 @@ class parameter_processor {
     optional_parameters params;
     vector<vector<int>> var_nbrs;
     vector<vector<int>> qubit_nbrs;
-    parameter_processor(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_)
+    parameter_processor(input_graph &var_g, input_graph &qubit_g, optional_parameters &params_)
             : num_vars(var_g.num_nodes()),
               num_qubits(qubit_g.num_nodes()),
 
@@ -115,16 +115,16 @@ class parameter_processor {
     }
 };
 
-template <bool parallel, bool fixed, bool restricted, bool verbose>
+template <bool parallel, bool fixed, bool restricted, bool verbose, typename debugging_t>
 class pathfinder_type {
   public:
     typedef typename std::conditional<fixed, fixed_handler_hival, fixed_handler_none>::type fixed_handler_t;
-    typedef typename std::conditional<restricted, domain_handler_masked, domain_handler_universe>::type
-            domain_handler_t;
-    typedef output_handler<verbose> output_handler_t;
-    typedef embedding_problem<fixed_handler_t, domain_handler_t, output_handler_t> embedding_problem_t;
-    typedef typename std::conditional<parallel, pathfinder_parallel<embedding_problem_t>,
-                                      pathfinder_serial<embedding_problem_t>>::type pathfinder_t;
+    typedef typename std::conditional<restricted, domain_handler_masked<debugging_t>,
+                                      domain_handler_universe<debugging_t>>::type domain_handler_t;
+    typedef output_handler<verbose, debugging_t> output_handler_t;
+    typedef embedding_problem<fixed_handler_t, domain_handler_t, output_handler_t, debugging_t> embedding_problem_t;
+    typedef typename std::conditional<parallel, pathfinder_parallel<embedding_problem_t, debugging_t>,
+                                      pathfinder_serial<embedding_problem_t, debugging_t>>::type pathfinder_t;
 };
 
 class pathfinder_wrapper {
@@ -132,7 +132,7 @@ class pathfinder_wrapper {
     std::unique_ptr<pathfinder_public_interface> pf;
 
   public:
-    pathfinder_wrapper(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params_)
+    pathfinder_wrapper(input_graph &var_g, input_graph &qubit_g, optional_parameters &params_)
             : pp(var_g, qubit_g, params_),
               pf(_pf_parse(pp.params, pp.num_vars - pp.num_fixed, pp.num_fixed, pp.problem_qubits - pp.problem_reserved,
                            pp.problem_reserved, pp.var_nbrs, pp.qubit_nbrs)) {}
@@ -140,7 +140,8 @@ class pathfinder_wrapper {
     ~pathfinder_wrapper() {}
 
     void get_chain(int u, vector<int> &output) const {
-        pp.qub_components.from_component(0, pf->get_chain(pp.screw_vars[u]), output);
+        pf->get_chain(pp.screw_vars[u], output);
+        pp.qub_components.from_component(0, output);
     }
 
     int heuristicEmbedding() { return pf->heuristicEmbedding(); }
@@ -159,19 +160,21 @@ class pathfinder_wrapper {
     }
 
   private:
-    template <bool parallel, bool fixed, bool restricted, bool verbose, typename... Args>
+    template <bool parallel, bool fixed, bool restricted, bool verbose, typename debugging_t, typename... Args>
     inline std::unique_ptr<pathfinder_public_interface> _pf_parse4(Args &&... args) {
         return std::unique_ptr<pathfinder_public_interface>(static_cast<pathfinder_public_interface *>(
-                new (typename pathfinder_type<parallel, fixed, restricted, verbose>::pathfinder_t)(
+                new (typename pathfinder_type<parallel, fixed, restricted, verbose, debugging_t>::pathfinder_t)(
                         std::forward<Args>(args)...)));
     }
 
     template <bool parallel, bool fixed, bool restricted, typename... Args>
     inline std::unique_ptr<pathfinder_public_interface> _pf_parse3(Args &&... args) {
         if (pp.params.verbose <= 0)
-            return _pf_parse4<parallel, fixed, restricted, false>(std::forward<Args>(args)...);
+            return _pf_parse4<parallel, fixed, restricted, false, disable_asserts>(std::forward<Args>(args)...);
+        else if (pp.params.verbose < 4)
+            return _pf_parse4<parallel, fixed, restricted, true, disable_asserts>(std::forward<Args>(args)...);
         else
-            return _pf_parse4<parallel, fixed, restricted, true>(std::forward<Args>(args)...);
+            return _pf_parse4<parallel, fixed, restricted, true, enable_asserts>(std::forward<Args>(args)...);
     }
 
     template <bool parallel, bool fixed, typename... Args>
@@ -215,8 +218,7 @@ class pathfinder_wrapper {
 //! The optional parameters themselves can be found in util.hpp.  Respectively,
 //! the controlling options for the above are restrict_chains, fixed_chains,
 //! and threads.
-int findEmbedding(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params,
-                  vector<vector<int>> &chains) {
+int findEmbedding(input_graph &var_g, input_graph &qubit_g, optional_parameters &params, vector<vector<int>> &chains) {
     pathfinder_wrapper pf(var_g, qubit_g, params);
     int success = pf.heuristicEmbedding();
 

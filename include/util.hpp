@@ -8,9 +8,7 @@
 #include <random>
 #include <thread>
 #include <unordered_map>
-#include "debug.hpp"
 #include "fastrng.hpp"
-#include "pairing_queue.hpp"
 
 namespace find_embedding {
 // Import some things from the std library
@@ -35,12 +33,6 @@ using distance_t = long long int;
 constexpr distance_t max_distance = numeric_limits<distance_t>::max();
 using RANDOM = fastrng;
 using clock = std::chrono::high_resolution_clock;
-template <typename P>
-using min_queue = std::priority_queue<priority_node<P, min_heap_tag>>;
-template <typename P>
-using max_queue = std::priority_queue<priority_node<P, max_heap_tag>>;
-
-using distance_queue = pairing_queue<priority_node<distance_t, min_heap_tag>>;
 
 class MinorMinerException : public std::runtime_error {
   public:
@@ -71,6 +63,18 @@ class BadInitializationException : public MinorMinerException {
 class CorruptEmbeddingException : public MinorMinerException {
   public:
     CorruptEmbeddingException(const string& m = "chains may be invalid") : MinorMinerException(m) {}
+};
+
+class AssertionException : public MinorMinerException {
+  public:
+    AssertionException(const string& m = "assertion failed") : MinorMinerException(m) {}
+};
+
+struct deleted {
+    template <typename T>
+    deleted& operator=(const T&) {
+        return *this;
+    }
 };
 
 //! Interface for communication between the library and various bindings.
@@ -152,14 +156,7 @@ class optional_parameters {
               skip_initialization(p.skip_initialization),
               fixed_chains(fixed_chains),
               initial_chains(initial_chains),
-              restrict_chains(restrict_chains) {
-#ifndef CPPDEBUG
-        if (verbose >= 4)
-            throw CorruptParametersException(
-                    "this build of minorminer only supports verbose=0, 1, 2 or 3.  "
-                    "build with CPPDEBUG=1 for debugging output");
-#endif
-    }
+              restrict_chains(restrict_chains) {}
     //^^leave this constructor by the declarations
 
   public:
@@ -197,15 +194,10 @@ class optional_parameters {
         print_out(3, format, args...);
     }
 
-#ifdef CPPDEBUG
     template <typename... Args>
     void debug(const char* format, Args... args) const {
         print_out(4, format, args...);
     }
-#else
-    template <typename... Args>
-    void debug(const char* /*format*/, Args... /*args*/) const {}
-#endif
 
     optional_parameters() : localInteractionPtr(), rng() {}
     void seed(uint64_t randomSeed) { rng.seed(randomSeed); }
