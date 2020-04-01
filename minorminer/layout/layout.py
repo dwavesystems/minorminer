@@ -1,5 +1,6 @@
 from collections import abc
 
+import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
 from scipy import optimize
@@ -8,7 +9,7 @@ from scipy import optimize
 def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None, scale=None, **kwargs):
     """
     Embeds a graph in R^d with the p-norm and minimizes a Kamada-Kawai-esque objective function to achieve
-    an embedding with low distortion. This computes a layout where the graph distance and the p-distance are 
+    an embedding with low distortion. This computes a layout where the graph distance and the p-distance are
     very close to each other.
 
     Parameters
@@ -17,35 +18,39 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
         The graph you want to compute the layout for.
     p : int (default 2)
         The order of the p-norm to use as a metric.
-    starting_layout : dict
-        A mapping from the vertices of G to points in R^d.
+    starting_layout : dict (default None)
+        A mapping from the vertices of G to points in R^d. If None, nx.spectral_layout is used if possible, otherwise
+        nx.random_layout is used.
     G_distances : dict (default None)
         A dictionary of dictionaries representing distances from every vertex in G to every other vertex in G. If None,
         it is computed.
+    dim : int (default None)
+        The desired dimension of the layout, R^dim. If None, check the dimension of center, if center is None, set dim
+        to 2.
+    center : tuple (default None)
+        The desired center point of the layout. If None, it is set as the origin in R^dim space.
+    scale : float (default None)
+        The desired scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space. If None,
+        do not set a scale.
 
     Returns
     -------
     layout : dict
         A mapping from vertices of G (keys) to points in R^d (values).
     """
+    dim, center = _set_dim_and_center(dim, center)
+
     # Use the user provided starting_layout, or a spectral_layout if the dimension is low enough.
     # If neither, use a random_layout.
     if starting_layout:
         pass
-    elif dim:
-        if dim >= len(G):
-            starting_layout = nx.random_layout
-        else:
-            starting_layout = nx.spectral_layout
+    elif dim >= len(G):
+        starting_layout = nx.random_layout(G, dim=dim)
     else:
-        starting_layout = nx.spectral_layout
+        starting_layout = nx.spectral_layout(G, dim=dim)
 
     # Make a layout object
-    layout = Layout(G, starting_layout, dim=dim,
-                    center=center, scale=scale)
-
-    # Update dim to the starting layout's
-    dim = layout.dim
+    layout = Layout(G, starting_layout, dim=dim)
 
     # Save on distance calculations by passing them in
     G_distances = _graph_distance_matrix(G, G_distances)
@@ -61,6 +66,12 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
 
     # Read out the solution to the minimization problem and save layouts
     layout.layout_array = X.x.reshape(len(G), dim)
+
+    # Center and scale the layout
+    layout.center = center
+
+    if scale:
+        layout.scale = scale
 
     return layout.layout
 
@@ -156,6 +167,73 @@ def _p_norm_objective(layout_vector, G_distances, dim, p):
     return np.sum((G_distances - dist)**2), grad.ravel()
 
 
+def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
+    """
+    The Chimera or Pegasus layout from dwave_networkx centerd at the origin with scale a function of the number of rows
+    or columns. Note: As per the implementation of dnx.*_layout, if dim > 2, coordinates beyond the second are 0.
+
+    Parameters
+    ----------
+    G : NetworkX graph
+        The graph you want to compute the layout for.
+    dim : int (default None)
+        The desired dimension of the layout, R^dim. If None, check the dimension of center, if center is None, set dim
+        to 2.
+    center : tuple (default None)
+        The desired center point of the layout. If None, it is set as the origin in R^dim space.
+    scale : float (default None)
+        The desired scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space. If None,
+        it is set as max(n, m)/2, where n, m are the number of columns, rows respectively in G.
+
+    Returns
+    -------
+    layout : dict
+        A mapping from vertices of G (keys) to points in R^d (values).
+    """
+    graph_data = G.graph
+
+    family = graph_data.get("family")
+    if family not in ("chimera", "pegasus"):
+        raise ValueError(
+            "Only dnx.chimera_graph() and dnx.pegasus_graph() are supported.")
+
+    dim, center = _set_dim_and_center(dim, center)
+
+    if scale is None:
+        m, n = graph_data["rows"], graph_data["columns"]
+        scale = max(n, m)/2
+
+    dnx_center, dnx_scale = _nx_to_dnx_layout(center, scale)
+
+    if family == "chimera":
+        dnx_layout = dnx.chimera_layout(
+            G, dim=dim, center=dnx_center, scale=dnx_scale)
+    elif family == "pegasus":
+        dnx_layout = dnx.pegasus_layout(
+            G, dim=dim, center=dnx_center, scale=dnx_scale)
+
+    layout = Layout(G, dnx_layout)
+    return layout.layout
+
+
+def _nx_to_dnx_layout(center, scale):
+    """
+    This function translates a center and a scale from the networkx convention, [center - scale, center + scale]^dim,
+    to the dwave_networkx convention, [center, center-scale] x [center, center+scale]^(dim-1).
+
+    Returns
+    -------
+    dnx_center : float
+        The top left corner of a layout.
+    dnx_scale : float
+        This is twice the original scale.
+    """
+    dnx_center = (center[0] - scale, ) + tuple(x + scale for x in center[1:])
+    dnx_scale = 2*scale
+
+    return dnx_center, dnx_scale
+
+
 class Layout(abc.MutableMapping):
     def __init__(
         self,
@@ -174,14 +252,15 @@ class Layout(abc.MutableMapping):
         G : NetworkX graph or NetworkX supported edges data structure (dict, list, ...)
             The graph you want to compute the layout for.
         layout : dict or function (default None)
-            If a dict, this specifies a pre-computed layout for G. If a function, the function is called on G 
-            `layout(G)` and should return a layout of G. If None, nx.spectral_layout is called.
+            If a dict, this specifies a pre-computed layout for G. If a function, first add dim, center, and scale to
+            kwargs (if they are not None) and then call the function, `layout(G, **kwargs)`. This should return a layout
+            of G. If None, `nx.random_layout(G, **kwargs)` is called.
         dim : int (default None)
             The desired dimension of the layout, R^dim. If None, set dim to be the dimension of layout.
         center : tuple (default None)
             The desired center point of the layout. If None, set center to be the center of layout.
         scale : float (default None)
-            The desired scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space. If None, 
+            The desired scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space. If None,
             set scale to be the scale of layout.
         kwargs : dict
             Keyword arguments are given to layout if it is a function.
@@ -449,6 +528,29 @@ def _scale_layout(layout_array, new_scale, old_scale=None, center=None):
 
     # Translate the layout back to where it was
     return scaled_L + center
+
+
+def _set_dim_and_center(dim, center, default_dim=2):
+    """
+    A helper function to check that a user provided dim and center match, or if no user provided dim and center exist
+    sets default values: dim=2 and center=the origin in R^dim.
+    """
+    # Set the dimension
+    if dim is None:
+        if center is None:
+            dim = default_dim
+        else:
+            dim = len(center)
+
+    # Set the center
+    if center is None:
+        center = dim*(0, )
+
+    if len(center) != dim:
+        raise ValueError(
+            "Your dimension is {} but your center is {}.".format(dim, center))
+
+    return dim, center
 
 
 def _parse_graph(G):
