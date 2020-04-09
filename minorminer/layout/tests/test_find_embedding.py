@@ -15,7 +15,11 @@ class TestFindEmb(TestLayoutPlacement):
         """
         Minimal find_embedding call
         """
+        # Test a dnx_graph
         mml.find_embedding(self.S, self.C)
+
+        # Test a non-dnx_graph
+        mml.find_embedding(self.S_small, self.S)
 
     def test_timeout(self):
         """

@@ -15,12 +15,12 @@ from .common import TestLayoutPlacement
 class TestLayout(TestLayoutPlacement):
     def test_pnorm(self):
         """
-        Test the p_norm layout strategy.
+        Test the p_norm layout algorithm.
         """
         # Some specs to test with
         low_dim = random.randint(3, 9)
         high_dim = len(self.S_small)
-        center = (1, 1)
+        center = low_dim*(1, )
         scale = random.random()*random.randint(1, 10)
 
         # Default behavior
@@ -48,14 +48,48 @@ class TestLayout(TestLayoutPlacement):
         mml.p_norm(self.S_small, p=3)
         mml.p_norm(self.S_small, p=float("inf"))
 
-        # # Playing with a starting_layout and a dimension
-        # starting_layout = nx.spectral_layout(self.S, dim=dim)
-        # layout_in = mml.Layout(
-        #     self.S, mml.p_norm, starting_layout=starting_layout)
-        # layout_out = mml.Layout(
-        #     self.S, mml.p_norm, starting_layout=nx.spectral_layout, dim=dim)
-        # self.assertLayoutEqual(self.S, layout_in, layout_out)
-        # self.assertIsLayout(self.S, layout_in)
+        # Test through the Layout object
+        layout = mml.Layout(self.S_small, mml.p_norm, dim=low_dim,
+                            center=center, scale=scale)
+        self.assertArrayEqual(layout.center, center)
+        self.assertAlmostEqual(layout.scale, scale)
+
+    def test_dnx(self):
+        """
+        Test the dnx layout.
+        """
+        # Some specs to test with
+        dim = random.randint(3, 9)
+        center = dim*(1, )
+        scale = random.random()*random.randint(1, 10)
+
+        # Default behavior
+        # Chimera
+        mml.dnx_layout(self.C)
+        # Pegasus
+        mml.dnx_layout(self.P)
+
+        # Passing in dim
+        mml.dnx_layout(self.C, dim=dim)
+
+        # Passing in center
+        mml.dnx_layout(self.C, center=center)
+
+        # Passing in scale
+        mml.dnx_layout(self.C, scale=scale)
+
+        # Test through the Layout object
+        layout = mml.Layout(self.C, mml.dnx_layout, dim=dim,
+                            center=center, scale=scale)
+        self.assertArrayEqual(layout.center, center)
+        self.assertAlmostEqual(layout.scale, scale)
+
+        # Test non-dnx_graph
+        self.assertRaises(ValueError, mml.dnx_layout, self.S)
+
+        # Test dim and center mismatch
+        self.assertRaises(ValueError, mml.dnx_layout,
+                          self.C, dim=3, center=(0, 0))
 
     def test_precomputed_layout(self):
         """

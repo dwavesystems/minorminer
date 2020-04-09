@@ -17,6 +17,7 @@ class TestLayoutPlacement(unittest.TestCase):
         self.G = nx.Graph()
         self.H = nx.complete_graph(1)
         self.C = dnx.chimera_graph(4)
+        self.P = dnx.pegasus_graph(4)
 
         # Compute some layouts
         self.S_layout = mml.Layout(self.S)
