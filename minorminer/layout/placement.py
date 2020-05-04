@@ -90,7 +90,7 @@ def _intersection_binning(S_layout, T, scale_ratio):
     # --- Map the S_layout to the grid
     # "Zoom in" on layout_S so that the integer points are better represented
     if scale_ratio:
-        S_layout.scale = scale_ratio*scale
+        S_layout.scale = min(scale_ratio*scale, scale)
     else:
         S_layout.scale *= t
 
@@ -108,8 +108,8 @@ def _intersection_binning(S_layout, T, scale_ratio):
 def _lookup_intersection_coordinates(G):
     """
     For a dwave_networkx graph G, this returns a dictionary mapping the lattice points to sets of vertices of G. 
-    - Chimera: Each lattice point corresponds to the 2 qubits intersecting at that point.
-    - Pegasus: Not Implemented
+        - Chimera: Each lattice point corresponds to the 2 qubits intersecting at that point.
+        - Pegasus: Not Implemented
     """
     graph_data = G.graph
 
@@ -135,7 +135,6 @@ def _lookup_intersection_coordinates(G):
 
     elif family == "pegasus":
         raise NotImplementedError("Pegasus forthcoming.")
-    return None
 
 
 def _chimera_all_intersection_points(intersection_points, v, t, i, j, u, k):

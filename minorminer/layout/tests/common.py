@@ -17,6 +17,8 @@ class TestLayoutPlacement(unittest.TestCase):
         self.G = nx.Graph()
         self.H = nx.complete_graph(1)
         self.C = dnx.chimera_graph(4)
+        self.C_coord = dnx.chimera_graph(4, coordinates=True)
+        self.C_blank = dnx.chimera_graph(4, data=False)
         self.P = dnx.pegasus_graph(4)
 
         # Compute some layouts
@@ -24,7 +26,10 @@ class TestLayoutPlacement(unittest.TestCase):
         self.S_small_layout = mml.Layout(self.S_small)
         self.G_layout = mml.Layout(self.G)
         self.C_layout = mml.Layout(self.C)
+        self.C_coord_layout = mml.Layout(self.C_coord)
+        self.C_blank_layout = mml.Layout(self.C_blank)
         self.C_layout_3 = mml.Layout(self.C, dim=3)
+        self.P_layout = mml.Layout(self.P)
 
     def assertArrayEqual(self, a, b):
         """
