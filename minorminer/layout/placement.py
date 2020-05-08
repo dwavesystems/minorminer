@@ -8,9 +8,10 @@ from scipy import spatial
 from . import layout
 
 
-def intersection(S_layout, T_layout, scale_ratio=None, **kwargs):
+def intersection(S_layout, T_layout, **kwargs):
     """
     Map each vertex of S to its nearest row/column intersection qubit in T (T must be a D-Wave hardware graph).
+    Note: This will modifiy S_layout. 
 
     Parameters
     ----------
@@ -35,7 +36,7 @@ def intersection(S_layout, T_layout, scale_ratio=None, **kwargs):
             "This strategy is currently only implemented for Chimera.")
 
     # Bin vertices of S and T into a grid graph G
-    G = _intersection_binning(S_layout, T, scale_ratio)
+    G = _intersection_binning(S_layout, T)
 
     placement = {}
     for _, data in G.nodes(data=True):
@@ -45,7 +46,7 @@ def intersection(S_layout, T_layout, scale_ratio=None, **kwargs):
     return placement
 
 
-def _intersection_binning(S_layout, T, scale_ratio):
+def _intersection_binning(S_layout, T):
     """
     Map the vertices of S to the "intersection graph" of T. This modifies the grid graph G by assigning vertices 
     from S and T to vertices of G.
@@ -73,7 +74,7 @@ def _intersection_binning(S_layout, T, scale_ratio):
     G = nx.grid_2d_graph(t*n, t*m)
 
     # Determine the scale for putting things in the positive quadrant
-    scale = (t*min(n, m)-1)/2
+    scale = (t*min(n, m) - 1)/2
 
     # Get the row, column mappings for the dnx graph
     lattice_mapping = _lookup_intersection_coordinates(T)
@@ -89,10 +90,11 @@ def _intersection_binning(S_layout, T, scale_ratio):
 
     # --- Map the S_layout to the grid
     # "Zoom in" on layout_S so that the integer points are better represented
-    if scale_ratio:
-        S_layout.scale = min(scale_ratio*scale, scale)
+    zoom_scale = S_layout.scale*t
+    if zoom_scale < scale:
+        S_layout.scale = zoom_scale
     else:
-        S_layout.scale *= t
+        S_layout.scale = scale
 
     # Center to the positive orthant
     S_layout.center = 2*(scale, )
@@ -322,9 +324,9 @@ class Placement(abc.MutableMapping):
             self.S_layout.scale = scale_ratio*self.T_layout.scale
 
         if placement is None:
-            self.placement = closest(S_layout, T_layout)
+            self.placement = closest(self.S_layout, self.T_layout)
         elif callable(placement):
-            self.placement = placement(S_layout, T_layout, **kwargs)
+            self.placement = placement(self.S_layout, self.T_layout, **kwargs)
         else:
             self.placement = placement
 
