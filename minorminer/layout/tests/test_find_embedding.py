@@ -91,6 +91,12 @@ class TestFindEmb(TestLayoutPlacement):
         mml.find_embedding(self.S, self.C, placement=mml.closest,
                            subset_size=subset_size, num_neighbors=num_neighbors)
 
+    def test_placement_interesction(self):
+        """
+        Test the intersection placement strategy
+        """
+        mml.find_embedding(self.S, self.C, placement=mml.intersection)
+
     def test_layout_parameter(self):
         """
         It can be a function or a 2-tuple of various things.

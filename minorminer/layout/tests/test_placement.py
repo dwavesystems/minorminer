@@ -2,14 +2,54 @@ import random
 import unittest
 
 import dwave_networkx as dnx
-import networkx as nx
-
 import minorminer.layout as mml
-from minorminer.layout.placement import _parse_layout
+import networkx as nx
+from minorminer.layout.placement import (_lookup_intersection_coordinates,
+                                         _parse_layout)
+
 from .common import TestLayoutPlacement
 
 
 class TestPlacement(TestLayoutPlacement):
+    def test_intersection(self):
+        """
+        Tests the intersection placement strategy.
+        """
+        # Default behavior
+        S_layout = mml.Layout(self.S)
+        placement = mml.intersection(S_layout, self.C_layout)
+        self.assertIsPlacement(self.S, self.C, placement)
+
+        # Test different scale ratios
+        S_layout = mml.Layout(self.S)
+        placement_1 = mml.intersection(
+            S_layout, self.C_layout, scale_ratio=.5)
+        S_layout = mml.Layout(self.S)
+        placement_2 = mml.intersection(
+            S_layout, self.C_layout, scale_ratio=1)
+        S_layout = mml.Layout(self.S)
+        placement_3 = mml.intersection(
+            S_layout, self.C_layout, scale_ratio=1.5)
+        self.assertIsPlacement(self.S, self.C, placement_1)
+        self.assertIsPlacement(self.S, self.C, placement_2)
+        self.assertIsPlacement(self.S, self.C, placement_3)
+
+        # Test a coordinate version of chimera
+        S_layout = mml.Layout(self.S)
+        placement = mml.intersection(S_layout, self.C_coord_layout)
+        self.assertIsPlacement(self.S, self.C_coord, placement)
+
+        # Test bad inputs
+        # Pegasus is not allowed
+        self.assertRaises(NotImplementedError, mml.intersection,
+                          self.S_layout, self.P_layout)
+        # Chimera must have data or coordinates
+        self.assertRaises(NotImplementedError, mml.intersection,
+                          self.S_layout, self.C_blank_layout)
+        # Pegasus coordinates not implemented
+        self.assertRaises(NotImplementedError,
+                          _lookup_intersection_coordinates, self.P)
+
     def test_closest(self):
         """
         Tests the closest placement strategy.

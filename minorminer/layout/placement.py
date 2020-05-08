@@ -8,6 +8,156 @@ from scipy import spatial
 from . import layout
 
 
+def intersection(S_layout, T_layout, **kwargs):
+    """
+    Map each vertex of S to its nearest row/column intersection qubit in T (T must be a D-Wave hardware graph).
+    Note: This will modifiy S_layout. 
+
+    Parameters
+    ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T_layout : layout.Layout
+        A layout for T; i.e. a map from T to R^d.
+    scale_ratio : float (default None)
+        If None, S_layout is not scaled. Otherwise, S_layout is scaled to scale_ratio*T_layout.scale.
+
+    Returns
+    -------
+    placement : dict
+        A mapping from vertices of S (keys) to vertices of T (values).
+    """
+    # Extract the target graph
+    T = T_layout.G
+
+    # Currently only implemented for 2d chimera
+    if T.graph.get("family") != "chimera":
+        raise NotImplementedError(
+            "This strategy is currently only implemented for Chimera.")
+
+    # Bin vertices of S and T into a grid graph G
+    G = _intersection_binning(S_layout, T)
+
+    placement = {}
+    for _, data in G.nodes(data=True):
+        for v in data["variables"]:
+            placement[v] = data["qubits"]
+
+    return placement
+
+
+def _intersection_binning(S_layout, T):
+    """
+    Map the vertices of S to the "intersection graph" of T. This modifies the grid graph G by assigning vertices 
+    from S and T to vertices of G.
+
+    Parameters
+    ----------
+    S_layout : layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T : networkx.Graph
+        The target graph to embed S in.
+    scale_ratio : float (default None)
+        If None, S_layout is not scaled. Otherwise, S_layout is scaled to scale_ratio*T_layout.scale.
+
+    Returns
+    -------
+    G : networkx.Graph
+        A grid graph. Each vertex of G contains data attributes "variables" and "qubits", that is, respectively 
+        vertices of S and T assigned to that vertex.  
+    """
+    # Scale the layout so that for each unit-cell edge, we have an integer point.
+    m, n, t = T.graph["rows"], T.graph["columns"], T.graph["tile"]
+
+    # --- Make the "intersection graph" of the dnx_graph
+    # Grid points correspond to intersection rows and columns of the dnx_graph
+    G = nx.grid_2d_graph(t*n, t*m)
+
+    # Determine the scale for putting things in the positive quadrant
+    scale = (t*min(n, m) - 1)/2
+
+    # Get the row, column mappings for the dnx graph
+    lattice_mapping = _lookup_intersection_coordinates(T)
+
+    # Less efficient, but more readable to initialize all at once
+    for v in G:
+        G.nodes[v]["qubits"] = set()
+        G.nodes[v]["variables"] = set()
+
+    # Add qubits (vertices of T) to grid points
+    for int_point, Q in lattice_mapping.items():
+        G.nodes[int_point]["qubits"] |= Q
+
+    # --- Map the S_layout to the grid
+    # "Zoom in" on layout_S so that the integer points are better represented
+    zoom_scale = S_layout.scale*t
+    if zoom_scale < scale:
+        S_layout.scale = zoom_scale
+    else:
+        S_layout.scale = scale
+
+    # Center to the positive orthant
+    S_layout.center = 2*(scale, )
+
+    # Add "variables" (vertices from S) to grid points too
+    for v, pos in S_layout.items():
+        grid_point = tuple(int(x) for x in np.round(pos))
+        G.nodes[grid_point]["variables"].add(v)
+
+    return G
+
+
+def _lookup_intersection_coordinates(G):
+    """
+    For a dwave_networkx graph G, this returns a dictionary mapping the lattice points to sets of vertices of G. 
+        - Chimera: Each lattice point corresponds to the 2 qubits intersecting at that point.
+        - Pegasus: Not Implemented
+    """
+    graph_data = G.graph
+
+    family = graph_data.get("family")
+    t = graph_data.get("tile")
+
+    if family == "chimera":
+        intersection_points = defaultdict(set)
+        if graph_data["labels"] == "coordinate":
+            for v in G:
+                _chimera_all_intersection_points(intersection_points, v, t, *v)
+
+        elif graph_data["data"]:
+            for v in G:
+                _chimera_all_intersection_points(
+                    intersection_points, v, t, *G.nodes[v]["chimera_index"])
+
+        else:
+            raise NotImplementedError(
+                "Please pass in a coordinated Chimera, or one where data=True.")
+
+        return intersection_points
+
+    elif family == "pegasus":
+        raise NotImplementedError("Pegasus forthcoming.")
+
+
+def _chimera_all_intersection_points(intersection_points, v, t, i, j, u, k):
+    """
+    Given a coordinate vertex, v = (i, j, u, k), of a Chimera with tile, t, get all intersection points it is in.
+    """
+    # If you're a row vertex, you go in all grid points of your row intersecting columns in your unit tile
+    if u == 1:
+        row = i*t + k
+        for kk in range(t):
+            col = j*t + kk
+            intersection_points[(col, row)].add(v)
+
+    # Sameish for a column vertex.
+    elif u == 0:
+        col = j*t + k
+        for kk in range(t):
+            row = i*t + kk
+            intersection_points[(col, row)].add(v)
+
+
 def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
     """
     Maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. For each vertex u in
@@ -174,9 +324,9 @@ class Placement(abc.MutableMapping):
             self.S_layout.scale = scale_ratio*self.T_layout.scale
 
         if placement is None:
-            self.placement = closest(S_layout, T_layout)
+            self.placement = closest(self.S_layout, self.T_layout)
         elif callable(placement):
-            self.placement = placement(S_layout, T_layout, **kwargs)
+            self.placement = placement(self.S_layout, self.T_layout, **kwargs)
         else:
             self.placement = placement
 
