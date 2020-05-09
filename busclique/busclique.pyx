@@ -20,8 +20,9 @@ cdef extern from "../include/cell_cache.hpp" namespace "busclique":
     cdef cppclass cell_cache[T]:
         cell_cache(T, nodes_t, edges_t)
 
+
 cdef extern from "../include/find_clique.hpp" namespace "busclique":
-    int find_clique[T](T, nodes_t, edges_t, size_t, embedding_t &)
+    int find_clique_nice[T](T, nodes_t, edges_t, size_t, embedding_t &)
 
 def chimera_clique(g, size):
     cdef chimera_spec *chim = new chimera_spec(g.graph['rows'],
@@ -30,7 +31,7 @@ def chimera_clique(g, size):
     cdef nodes_t nodes = g.nodes()
     cdef edges_t edges = g.edges()
     cdef embedding_t emb
-    find_clique(chim[0], nodes, edges, size, emb);
+    find_clique_nice(chim[0], nodes, edges, size, emb);
     try:
         return emb
     finally:
@@ -43,8 +44,10 @@ def pegasus_clique(g, size):
     cdef nodes_t nodes = g.nodes()
     cdef edges_t edges = g.edges()
     cdef embedding_t emb
-    find_clique(peg[0], nodes, edges, size, emb);
+    find_clique_nice(peg[0], nodes, edges, size, emb);
     try:
         return emb
     finally:
         del peg
+
+

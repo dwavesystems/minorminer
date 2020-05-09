@@ -6,7 +6,7 @@ namespace busclique {
 
 template<typename topo_spec>
 class bundle_cache {
-    const cell_cache<topo_spec> &chim;
+    const cell_cache<topo_spec> &cells;
     const size_t dim[2];
     const size_t linestride[2];
     const size_t orthstride;
@@ -23,8 +23,8 @@ class bundle_cache {
         }
     }
     bundle_cache(const cell_cache<topo_spec> &c) :
-                 chim(c),
-                 dim{chim.dim[0], chim.dim[1]},
+                 cells(c),
+                 dim{cells.dim[0], cells.dim[1]},
                  linestride{(dim[0]*dim[0]+dim[0])/2, (dim[1]*dim[1]+dim[1])/2},
                  orthstride(dim[1]*linestride[0]),
                  line_mask(new uint8_t[orthstride + dim[0]*linestride[1]]{}) {
@@ -42,13 +42,16 @@ class bundle_cache {
         while (k0 && k1) {
             emb.emplace_back(0);
             vector<size_t> &chain = emb.back();
-            chim.construct_line(0, xc, y0, y1, first_bit[k0], chain);
-            chim.construct_line(1, yc, x0, x1, first_bit[k1], chain);
-            k0 ^= 1<<first_bit[k0];
-            k1 ^= 1<<first_bit[k1];
+            cells.construct_line(0, xc, y0, y1, first_bit[k0], chain);
+            cells.construct_line(1, yc, x0, x1, first_bit[k1], chain);
+            k0 ^= mask_bit[first_bit[k0]];
+            k1 ^= mask_bit[first_bit[k1]];
         }
     }
 
+    size_t length(size_t yc, size_t xc, size_t y0, size_t y1, size_t x0, size_t x1) const {
+        return cells.line_length(0, xc, y0, y1) + cells.line_length(1, yc, x0, x1);
+    }
 
   private:
     inline uint8_t get_line_score(size_t u, size_t w, size_t z0, size_t z1) const {
@@ -65,12 +68,12 @@ class bundle_cache {
 
     void compute_line_masks() {
         for(size_t u = 0; u < 2; u++) {
-            for (size_t w = 0; w < chim.dim[1-u]; w++) {
-                for (size_t z = 0; z < chim.dim[u]; z++) {
+            for (size_t w = 0; w < cells.dim[1-u]; w++) {
+                for (size_t z = 0; z < cells.dim[u]; z++) {
                     uint8_t *t = line_mask + u*orthstride + w*linestride[u] + (z*z+z)/2;
-                    uint8_t m = t[z] = chim.qmask(u, w, z);
+                    uint8_t m = t[z] = cells.qmask(u, w, z);
                     for(size_t z0 = z; z0--;)
-                        m = t[z0] = m & chim.emask(u, w, z0+1);
+                        m = t[z0] = m & cells.emask(u, w, z0+1);
                 }
             }
         }

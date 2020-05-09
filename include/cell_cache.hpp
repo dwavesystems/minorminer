@@ -8,7 +8,7 @@ template<typename T> class cell_cache;
 template<>
 class cell_cache<pegasus_spec> {
   public:
-    pegasus_spec pegasus;
+    const pegasus_spec pegasus;
     const size_t dim[2];
     const size_t shore;
   private:
@@ -24,8 +24,8 @@ class cell_cache<pegasus_spec> {
         if(edgemask != nullptr) { delete []edgemask; edgemask = nullptr; }
     }
 
-    cell_cache(pegasus_spec p, vector<size_t> nodes,
-                  vector<pair<size_t, size_t>> edges) :
+    cell_cache(const pegasus_spec p, const vector<size_t> &nodes,
+                  const vector<pair<size_t, size_t>> &edges) :
                   pegasus(p), dim{6*p.dim, 6*p.dim}, shore(2),
                   nodemask(new uint8_t[2*dim[0]*dim[1]]{}),
                   edgemask(new uint8_t[2*dim[0]*dim[1]]{}) {
@@ -40,8 +40,8 @@ class cell_cache<pegasus_spec> {
     void mark_fragments(size_t q) {
         size_t u, qw, qk, qz, w, z;
         pegasus_coordinates(pegasus.dim, q, u, qw, qk, qz);
-        z = qz*6 + pegasus.offsets[u][qk/2];
-        w = qw*6 + qk/2;
+        z = (qz*12 + 2*pegasus.offsets[u][qk/2])/2;
+        w = (qw*12 + qk)/2;
         nodemask[block_addr(dim[0], u, w, z)] |= mask_bit[qk&1];
         for(size_t i = 1; z++, i < 6; i++) {
             size_t curr = block_addr(dim[0], u, w, z);
@@ -56,8 +56,8 @@ class cell_cache<pegasus_spec> {
         else if (q != p+1) return;
         size_t u, qw, qk, qz, w, z;
         pegasus_coordinates(pegasus.dim, q, u, qw, qk, qz);
-        z = qz*6 + pegasus.offsets[u][qk/2];
-        w = qw*6 + qk/2;
+        z = (qz*12 + 2*pegasus.offsets[u][qk/2])/2;
+        w = (qw*12 + qk)/2;
         edgemask[block_addr(dim[0], u, w, z)] |= mask_bit[qk&1];
     }
 
@@ -71,24 +71,29 @@ class cell_cache<pegasus_spec> {
 
     void construct_line(size_t u, size_t w, size_t z0, size_t z1, size_t k,
                         vector<size_t> &chain) const {
-        size_t qw = w/6, qk = (2*w + k)%12;
-        size_t qz0 = (z0*2 - pegasus.offsets[u][w%6])/6;
-        size_t qz1 = (z1*2 - pegasus.offsets[u][w%6])/6;
+        size_t qk = (2*w + k)%12;
+        size_t qw = (2*w + k)/12;
+        size_t qz0 = (z0*2 - 2*pegasus.offsets[u][qk/2])/12;
+        size_t qz1 = (z1*2 - 2*pegasus.offsets[u][qk/2])/12;
         for(size_t qz = qz0; qz <= qz1; qz++)
             chain.push_back(pegasus_linear(pegasus.dim, u, qw, qk, qz));
     }
 
     size_t line_length(size_t u, size_t w, size_t z0, size_t z1) const {
-        size_t qz0 = (z0*2 - pegasus.offsets[u][w%6])/6;
-        size_t qz1 = (z1*2 - pegasus.offsets[u][w%6])/6;
+        size_t qk = (2*w)%12;
+        if(z0 < pegasus.offsets[u][w%6]) return std::numeric_limits<size_t>::max();
+        size_t qz0 = (z0 - pegasus.offsets[u][qk/2])/6;
+        size_t qz1 = (z1 - pegasus.offsets[u][qk/2])/6;
+        if(qz1 > pegasus.dim-1) return std::numeric_limits<size_t>::max();
         return qz1 - qz0 + 1;
     }
+
 };
 
 template<>
 class cell_cache<chimera_spec> {
   public:
-    chimera_spec chimera;
+    const chimera_spec chimera;
     const size_t dim[2];
     const size_t shore;
   private:
@@ -104,8 +109,8 @@ class cell_cache<chimera_spec> {
         if(edgemask != nullptr) { delete []edgemask; edgemask = nullptr; }
     }
 
-    cell_cache(chimera_spec c, vector<size_t> nodes,
-                  vector<pair<size_t, size_t>> edges) :
+    cell_cache(const chimera_spec c, const vector<size_t> &nodes,
+                  const vector<pair<size_t, size_t>> &edges) :
                   chimera(c), dim{c.dim[0], c.dim[1]}, shore(c.shore),
                   nodemask(new uint8_t[2*dim[0]*dim[1]]{}),
                   edgemask(new uint8_t[2*dim[0]*dim[1]]{}) {
@@ -131,12 +136,12 @@ class cell_cache<chimera_spec> {
         if(pu == qu) {
             if(qu) {
                 if(px == qx+1)
-                    edgemask[block_addr(dim[0], dim[1], 1, py, px)] |= mask_bit[qk];
+                    edgemask[block_addr(dim[0], dim[1], 1, py, px)] |= mask_bit[pk];
                 if(qx == px+1)
                     edgemask[block_addr(dim[0], dim[1], 1, qx, qy)] |= mask_bit[qk];
             } else {
                 if(py == qy+1)
-                    edgemask[block_addr(dim[0], dim[1], 0, px, py)] |= mask_bit[qk];
+                    edgemask[block_addr(dim[0], dim[1], 0, px, py)] |= mask_bit[pk];
                 if(qy == py+1)
                     edgemask[block_addr(dim[0], dim[1], 0, qy, qx)] |= mask_bit[qk];
             }

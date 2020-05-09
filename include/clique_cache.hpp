@@ -44,17 +44,17 @@ class clique_cache {
     clique_cache(clique_cache &&) = delete;
     
   private:
-    cell_cache<topo_spec> &chim;
+    cell_cache<topo_spec> &cells;
     bundle_cache<topo_spec> &bundles;
     const size_t dim[2];
     const size_t width;
     const size_t maxlength;
-  private:
+    size_t *mem;
+
     size_t memsize(size_t i) const {
         return (dim[0]-i)*(dim[1]-width+i+2);
     }
 
-    size_t *mem;
     size_t memsize() const {
         size_t size = 0;
         for(size_t i = 0; i < width-1; i++)
@@ -63,11 +63,10 @@ class clique_cache {
     }
 
   public:
-    template<typename ...Args>
-    clique_cache(cell_cache<topo_spec> &c, bundle_cache<topo_spec> &b, size_t w, size_t l) : 
-            chim(c),
+    clique_cache(cell_cache<topo_spec> &c, bundle_cache<topo_spec> &b, size_t w, size_t l=0) : 
+            cells(c),
             bundles(b),
-            dim{chim.dim[0], chim.dim[1]},
+            dim{cells.dim[0], cells.dim[1]},
             width(w),
             maxlength(l),
             mem(new size_t[memsize()]{}) {
@@ -102,7 +101,14 @@ class clique_cache {
             std::cout << std::endl;
         }
     }
-  private:       
+  private:
+    
+    inline bool check_length(size_t yc, size_t xc, size_t y0, size_t y1, size_t x0, size_t x1) const {
+        if(std::is_same<topo_spec, chimera_spec>::value) return true;
+        if(std::is_same<topo_spec, pegasus_spec>::value)
+            return bundles.length(yc,xc,y0,y1,x0,x1) <= maxlength;
+    }
+
     void compute_cache() {
         {
             maxcache next = get(0);
@@ -120,24 +126,24 @@ class clique_cache {
     }
 
     void init_cache_by_rectangle(maxcache &next, size_t y, size_t x0, size_t x1) {
-//        if(chim.checklength(y,x0,y,y,x0,x1, maxlength))
+        if(check_length(y,x0,y,y,x0,x1))
             next.setmax(y,x0+1, bundles.score(y,x0,y,y,x0,x1), SW);
-//        if(chim.checklength(y,x1,y,y,x0,x1, maxlength))
+        if(check_length(y,x1,y,y,x0,x1))
             next.setmax(y,x0,   bundles.score(y,x1,y,y,x0,x1), SE);
     }
 
     void extend_cache_by_rectangle(const maxcache &prev, maxcache &next,
                                    size_t y0, size_t y1, size_t x0, size_t x1) {
-//        if(chim.checklength(y0,x0,y0,y1,x0,x1, maxlength))
+        if(check_length(y0,x0,y0,y1,x0,x1))
             next.setmax(y0,x0+1, 
                         prev.score(y0+1,x0) + bundles.score(y0,x0,y0,y1,x0,x1), NW);
-//        if(chim.checklength(y1,x0,y0,y1,x1,x0, maxlength))
+        if(check_length(y1,x0,y0,y1,x0,x1))
             next.setmax(y0,x0+1,
                         prev.score(y0,  x0) + bundles.score(y1,x0,y0,y1,x0,x1), SW);
-//        if(chim.checklength(y0,x1,y0,y1,x0,x1, maxlength))
+        if(check_length(y0,x1,y0,y1,x0,x1))
             next.setmax(y0,x0,
                         prev.score(y0+1,x0) + bundles.score(y0,x1,y0,y1,x0,x1), NE);
-//        if(chim.checklength(y1,x1,y0,y1,x0,x1, maxlength))
+        if(check_length(y1,x1,y0,y1,x0,x1))
             next.setmax(y0,x0,
                         prev.score(y0,  x0) + bundles.score(y1,x1,y0,y1,x0,x1), SE);
     }
@@ -145,9 +151,9 @@ class clique_cache {
     template <typename F>
     void finish_cache_by_rectangle(maxcache &prev, F &setmax,
                                    size_t y0, size_t y1, size_t x) {
-//        if(chim.checklength(y0,x,y0,y1,x,x, maxlength))
+        if(check_length(y0,x,y0,y1,x,x))
             setmax(y0,x, prev.score(y0+1,x) + bundles.score(y0,x,y0,y1,x,x), NE);
-//        if(chim.checklength(y1,x,y0,y1,x,x, maxlength))
+        if(check_length(y1,x,y0,y1,x,x))
             setmax(y0,x, prev.score(y0,  x) + bundles.score(y1,x,y0,y1,x,x), SE);
     }
     void inflate_ell(vector<vector<size_t>> &emb,
@@ -169,7 +175,7 @@ class clique_cache {
 
 
   public:
-    void extract_solution(vector<vector<size_t>> &emb) {
+    bool extract_solution(vector<vector<size_t>> &emb) {
         size_t bx, by, score=0;
         corner bc;
         auto F = [&bx, &by, &bc, &score](size_t y, size_t x, size_t s, corner c) {
@@ -181,18 +187,19 @@ class clique_cache {
         for(size_t y = 0; y < dim[0]-width+1; y++)
             for(size_t x = 0; x < dim[1]; x++)
                 finish_cache_by_rectangle(prev, F, y, y+width-1, x);
-        if(score == 0) return;
+        if(score == 0) return false;
         for(size_t i = width-1; i-- > 0;) {
             inflate_first_ell(emb, by, bx, i+1, width-2-i, bc);
             bc = static_cast<corner>(get(i).corners(by, bx));
         }
         inflate_first_ell(emb, by, bx, 0, width-1, bc);
+        return true;
     }
 };
 
 template<typename topo_spec>
 class clique_iterator {
-    cell_cache<topo_spec> &chim;
+    cell_cache<topo_spec> &cells;
     clique_cache<topo_spec> &cliq;
     size_t dim[2];
     size_t width;
@@ -202,7 +209,7 @@ class clique_iterator {
     
   public:
     clique_iterator(cell_cache<topo_spec> &c, clique_cache<topo_spec> &q) :
-                    chim(c), cliq(q), dim{chim.dim[0], chim.dim[1]},
+                    cells(c), cliq(q), dim{cells.dim[0], cells.dim[1]},
                     width(cliq.width), basepoints(0), stack(0) {
 
         //to prepare the iterator, we first compute the list of optimal 
