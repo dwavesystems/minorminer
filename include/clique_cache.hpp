@@ -44,36 +44,44 @@ class clique_cache {
     clique_cache(clique_cache &&) = delete;
     
   private:
-    cell_cache<topo_spec> &cells;
-    bundle_cache<topo_spec> &bundles;
-    const size_t dim[2];
+    const cell_cache<topo_spec> &cells;
+    const bundle_cache<topo_spec> &bundles;
     const size_t width;
-    const size_t maxlength;
     size_t *mem;
 
+    size_t memrows(size_t i) const {
+        if (i < width) return cells.topo.dim[0]-i;
+        else if (i == width) return 1;
+        else throw "memrows";
+    }
+    size_t memcols(size_t i) const {
+        if (i < width-1) return cells.topo.dim[1]-width+i+2;
+        else if (i == width-1) return cells.topo.dim[1];
+        else throw "memcols";
+    }
+
     size_t memsize(size_t i) const {
-        return (dim[0]-i)*(dim[1]-width+i+2);
+        return memrows(i)*memcols(i);
     }
 
     size_t memsize() const {
         size_t size = 0;
-        for(size_t i = 0; i < width-1; i++)
-            size += memsize(i);
-        return size + width;
+        for(size_t i = 0; i < width; i++)
+            size += memsize(i) + 1;
+        return size;
     }
 
   public:
-    clique_cache(cell_cache<topo_spec> &c, bundle_cache<topo_spec> &b, size_t w, size_t l=0) : 
+    template<typename C>
+    clique_cache(const cell_cache<topo_spec> &c, const bundle_cache<topo_spec> &b, size_t w, C &check) : 
             cells(c),
             bundles(b),
-            dim{cells.dim[0], cells.dim[1]},
             width(w),
-            maxlength(l),
             mem(new size_t[memsize()]{}) {
         mem[0] = width;
-        for(size_t i = 1; i < width-1; i++)
+        for(size_t i = 1; i < width; i++)
             mem[i] = mem[i-1] + memsize(i-1);
-        compute_cache();
+        compute_cache(check);
     }
 
     ~clique_cache() {
@@ -83,9 +91,9 @@ class clique_cache {
         }
     }
 
-    maxcache get(size_t i) {
-        Assert(i < width-1);
-        return maxcache(dim[0]-i, dim[1]-width+i+2, mem + mem[i]);
+    maxcache get(size_t i) const {
+        Assert(i < width);
+        return maxcache(memrows(i), memcols(i), mem + mem[i]);
     }
 
     void print() {
@@ -103,61 +111,68 @@ class clique_cache {
     }
   private:
     
-    inline bool check_length(size_t yc, size_t xc, size_t y0, size_t y1, size_t x0, size_t x1) const {
-        if(std::is_same<topo_spec, chimera_spec>::value) return true;
-        if(std::is_same<topo_spec, pegasus_spec>::value)
-            return bundles.length(yc,xc,y0,y1,x0,x1) <= maxlength;
-    }
-
-    void compute_cache() {
+    template<typename C>
+    void compute_cache(C &check) {
         {
             maxcache next = get(0);
-            for(size_t y = 0; y < dim[0]; y++)
-                for(size_t x = 0; x < dim[1]-width+1; x++)
-                    init_cache_by_rectangle(next, y, x, x+width-1);
+            for(size_t y = 0; y < cells.topo.dim[0]; y++)
+                for(size_t x = 0; x < cells.topo.dim[1]-width+1; x++)
+                    init_cache_by_rectangle(next, y, x, x+width-1, check);
         }
         for(size_t i = 1; i < width-1; i++) {
             maxcache prev = get(i-1);
             maxcache next = get(i);
-            for(size_t y = 0; y < dim[0]-i; y++)
-                for(size_t x = 0; x < dim[1]-width+1+i; x++)
-                    extend_cache_by_rectangle(prev, next, y, y+i, x, x+width-1-i);
+            for(size_t y = 0; y < cells.topo.dim[0]-i; y++)
+                for(size_t x = 0; x < cells.topo.dim[1]-width+1+i; x++)
+                    extend_cache_by_rectangle(prev, next, y, y+i, x, x+width-1-i,
+                                              check);
+        }
+        {
+            maxcache prev = get(width-2);
+            maxcache next = get(width-1);
+            for(size_t y = 0; y < next.rows; y++)
+                for(size_t x = 0; x < next.cols; x++)
+                    finish_cache_by_rectangle(prev, next, y, y+width-1, x, check);
         }
     }
 
-    void init_cache_by_rectangle(maxcache &next, size_t y, size_t x0, size_t x1) {
-        if(check_length(y,x0,y,y,x0,x1))
+    template<typename C>
+    void init_cache_by_rectangle(maxcache &next, size_t y, size_t x0, size_t x1, 
+                                 C& check) {
+        if(check(y,x0,y,y,x0,x1))
             next.setmax(y,x0+1, bundles.score(y,x0,y,y,x0,x1), SW);
-        if(check_length(y,x1,y,y,x0,x1))
+        if(check(y,x1,y,y,x0,x1))
             next.setmax(y,x0,   bundles.score(y,x1,y,y,x0,x1), SE);
     }
 
+    template<typename C>
     void extend_cache_by_rectangle(const maxcache &prev, maxcache &next,
-                                   size_t y0, size_t y1, size_t x0, size_t x1) {
-        if(check_length(y0,x0,y0,y1,x0,x1))
+                                   size_t y0, size_t y1, size_t x0, size_t x1,
+                                   C& check) {
+        if(check(y0,x0,y0,y1,x0,x1))
             next.setmax(y0,x0+1, 
                         prev.score(y0+1,x0) + bundles.score(y0,x0,y0,y1,x0,x1), NW);
-        if(check_length(y1,x0,y0,y1,x0,x1))
+        if(check(y1,x0,y0,y1,x0,x1))
             next.setmax(y0,x0+1,
                         prev.score(y0,  x0) + bundles.score(y1,x0,y0,y1,x0,x1), SW);
-        if(check_length(y0,x1,y0,y1,x0,x1))
+        if(check(y0,x1,y0,y1,x0,x1))
             next.setmax(y0,x0,
                         prev.score(y0+1,x0) + bundles.score(y0,x1,y0,y1,x0,x1), NE);
-        if(check_length(y1,x1,y0,y1,x0,x1))
+        if(check(y1,x1,y0,y1,x0,x1))
             next.setmax(y0,x0,
                         prev.score(y0,  x0) + bundles.score(y1,x1,y0,y1,x0,x1), SE);
     }
 
-    template <typename F>
-    void finish_cache_by_rectangle(maxcache &prev, F &setmax,
-                                   size_t y0, size_t y1, size_t x) {
-        if(check_length(y0,x,y0,y1,x,x))
-            setmax(y0,x, prev.score(y0+1,x) + bundles.score(y0,x,y0,y1,x,x), NE);
-        if(check_length(y1,x,y0,y1,x,x))
-            setmax(y0,x, prev.score(y0,  x) + bundles.score(y1,x,y0,y1,x,x), SE);
+    template <typename C>
+    void finish_cache_by_rectangle(const maxcache &prev, maxcache &next,
+                                   size_t y0, size_t y1, size_t x, C& check) const {
+        if(check(y0,x,y0,y1,x,x))
+            next.setmax(y0,x, prev.score(y0+1,x) + bundles.score(y0,x,y0,y1,x,x), NE);
+        if(check(y1,x,y0,y1,x,x))
+            next.setmax(y0,x, prev.score(y0,  x) + bundles.score(y1,x,y0,y1,x,x), SE);
     }
     void inflate_ell(vector<vector<size_t>> &emb,
-                     size_t &y, size_t &x, size_t h, size_t w, corner c) {
+                     size_t &y, size_t &x, size_t h, size_t w, corner c) const {
         switch(c) {
             case NW: x--; bundles.inflate(y,  x,  y,y+h,x,x+w, emb); y++; break;
             case SW: x--; bundles.inflate(y+h,x,  y,y+h,x,x+w, emb);      break;
@@ -167,7 +182,7 @@ class clique_cache {
         }
     }
     corner inflate_first_ell(vector<vector<size_t>> &emb,
-                     size_t &y, size_t &x, size_t h, size_t w, corner c) {
+                     size_t &y, size_t &x, size_t h, size_t w, corner c) const {
         corner c0 = static_cast<corner>(1<<first_bit[c]);
         inflate_ell(emb, y, x, h, w, c0);
         return c0;
@@ -176,18 +191,17 @@ class clique_cache {
 
   public:
     bool extract_solution(vector<vector<size_t>> &emb) {
-        size_t bx, by, score=0;
-        corner bc;
-        auto F = [&bx, &by, &bc, &score](size_t y, size_t x, size_t s, corner c) {
-            if(s > score) {
-                bx = x; by = y; bc = c; score = s;
+        size_t bx, by, bscore=0;
+        maxcache scores = get(width-1);
+        for(size_t y = 0; y < cells.topo.dim[0]-width+1; y++)
+            for(size_t x = 0; x < cells.topo.dim[1]; x++) {
+                size_t s = scores.score(y, x);
+                if (bscore < s) { 
+                    bx = x; by = y; bscore = s;
+                }
             }
-        };
-        maxcache prev = get(width-2);
-        for(size_t y = 0; y < dim[0]-width+1; y++)
-            for(size_t x = 0; x < dim[1]; x++)
-                finish_cache_by_rectangle(prev, F, y, y+width-1, x);
-        if(score == 0) return false;
+        if(bscore == 0) return false;
+        corner bc = static_cast<corner>(scores.corners(by, bx));
         for(size_t i = width-1; i-- > 0;) {
             inflate_first_ell(emb, by, bx, i+1, width-2-i, bc);
             bc = static_cast<corner>(get(i).corners(by, bx));
@@ -199,33 +213,32 @@ class clique_cache {
 
 template<typename topo_spec>
 class clique_iterator {
-    cell_cache<topo_spec> &cells;
-    clique_cache<topo_spec> &cliq;
-    size_t dim[2];
+    const cell_cache<topo_spec> &cells;
+    const clique_cache<topo_spec> &cliq;
     size_t width;
     vector<std::tuple<size_t, size_t, corner>> basepoints;
     vector<std::tuple<size_t, size_t, size_t, corner>> stack;
     vector<vector<size_t>> emb;
     
   public:
-    clique_iterator(cell_cache<topo_spec> &c, clique_cache<topo_spec> &q) :
-                    cells(c), cliq(q), dim{cells.dim[0], cells.dim[1]},
+    clique_iterator(const cell_cache<topo_spec> &c,
+                    const clique_cache<topo_spec> &q) :
+                    cells(c), cliq(q),
                     width(cliq.width), basepoints(0), stack(0) {
 
         //to prepare the iterator, we first compute the list of optimal 
         //basepoints -- which consist of a (y, x) pair to denote the rectangle
         //location, and a corner c to denote the orientation of the ell.  
         size_t score = 0;
-        auto F = [=, &score](size_t y, size_t x, size_t s, corner c) {
-            if(s < score) return;
-            else if (s > score) basepoints.clear();
-            score = s;
-            basepoints.emplace_back(y, x, c);
-        };
-        maxcache prev = cliq.get(width-2);
-        for(size_t y = 0; y < dim[0]-width+1; y++)
-            for(size_t x = 0; x < dim[1]; x++)
-                cliq.finish_cache_by_rectangle(prev, F, y, y+width-1, x);
+        maxcache scores = cliq.get(width-1);
+        for(size_t y = 0; y < scores.rows; y++)
+            for(size_t x = 0; x < scores.cols; x++) {
+                size_t s = scores.score(y, x);
+                if(s < score) continue;
+                else if (s > score) basepoints.clear();
+                score = s;
+                basepoints.emplace_back(y, x, scores.corners(y, x));
+            }
     }
 
   private:

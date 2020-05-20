@@ -4,10 +4,11 @@
 
 namespace busclique {
 
+size_t n_segments(size_t x) { return (x*x+x)/2; }
+
 template<typename topo_spec>
 class bundle_cache {
     const cell_cache<topo_spec> &cells;
-    const size_t dim[2];
     const size_t linestride[2];
     const size_t orthstride;
     uint8_t *line_mask;
@@ -24,10 +25,9 @@ class bundle_cache {
     }
     bundle_cache(const cell_cache<topo_spec> &c) :
                  cells(c),
-                 dim{cells.dim[0], cells.dim[1]},
-                 linestride{(dim[0]*dim[0]+dim[0])/2, (dim[1]*dim[1]+dim[1])/2},
-                 orthstride(dim[1]*linestride[0]),
-                 line_mask(new uint8_t[orthstride + dim[0]*linestride[1]]{}) {
+                 linestride{n_segments(c.topo.dim[0]), n_segments(c.topo.dim[1])},
+                 orthstride(c.topo.dim[1]*linestride[0]),
+                 line_mask(new uint8_t[orthstride + c.topo.dim[0]*linestride[1]]{}) {
         compute_line_masks();
     }
 
@@ -60,16 +60,16 @@ class bundle_cache {
 
     inline uint8_t get_line_mask(size_t u, size_t w, size_t z0, size_t z1) const {
         Assert(u < 2);
-        Assert(w < dim[1-u]);
+        Assert(w < cells.topo.dim[1-u]);
         Assert(z0 <= z1);
-        Assert(z1 < dim[u]);
+        Assert(z1 < cells.topo.dim[u]);
         return line_mask[u*orthstride + w*linestride[u] + (z1*z1+z1)/2 + z0];
     }
 
     void compute_line_masks() {
         for(size_t u = 0; u < 2; u++) {
-            for (size_t w = 0; w < cells.dim[1-u]; w++) {
-                for (size_t z = 0; z < cells.dim[u]; z++) {
+            for (size_t w = 0; w < cells.topo.dim[1-u]; w++) {
+                for (size_t z = 0; z < cells.topo.dim[u]; z++) {
                     uint8_t *t = line_mask + u*orthstride + w*linestride[u] + (z*z+z)/2;
                     uint8_t m = t[z] = cells.qmask(u, w, z);
                     for(size_t z0 = z; z0--;)

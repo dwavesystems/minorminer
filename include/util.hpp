@@ -57,6 +57,7 @@ const uint8_t first_bit[256] = {0, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0};
 
 const uint8_t mask_bit[8] = {1, 2, 4, 8, 16, 32, 64, 128};
+const uint16_t mask_subsets[8] = {1, 2, 4, 8, 16, 32, 64, 128};
 
 inline void pegasus_coordinates(size_t dim, size_t q, 
                                 size_t &u, size_t &w, size_t &k, size_t &z) {
@@ -71,39 +72,209 @@ inline void chimera_coordinates(size_t xdim, size_t shore, size_t q,
     u = q % 2;      q /= 2;
     x = q % xdim;   y  = q/xdim;
 }
+
+inline void chimera_coordinates(size_t xdim, size_t shore, size_t q, size_t (&Q)[4]) {
+    chimera_coordinates(xdim, shore, q, Q[0], Q[1], Q[2], Q[3]);
+}
+
 inline size_t pegasus_linear(size_t dim, size_t u, size_t w, size_t k, size_t z) {
     return z + (dim-1)*(k + 12*(w + dim*u));
 }
 
-inline size_t chimera_to_linear(size_t xdim, size_t shore, size_t y, size_t x, size_t u, size_t k) {
-    return k + shore*(u + 2*(x + xdim*y));
-}
+class ignore_badmask {};
+class populate_badmask {};
+class topo_spec_base {
+  public:
+    const size_t dim[2];
+    const size_t shore;
+    topo_spec_base(size_t d0, size_t d1, size_t s) : dim{d0, d1}, shore(s) {}
+    template<typename T>
+    topo_spec_base(T d[2], size_t s) : topo_spec_base(d[0], d[1], s) {}
+    inline size_t cell_addr(size_t u, size_t y, size_t x) const {
+        return x + dim[1]*(y + dim[0]*u);
+    }
+    inline size_t num_cells() const {
+        return dim[0]*dim[1]*2;
+    }
 
-inline size_t block_addr(size_t ydim, size_t xdim, size_t u, size_t y, size_t x) {
-    return x + xdim*(y + ydim*u);
-}
+    inline void linemajor(size_t q, size_t &u, size_t &w, size_t &z, size_t &k) const {
+        size_t Q[4];
+        chimera_coordinates(dim[1], shore, q, Q);
+        u = Q[2]; z = Q[u];
+        k = Q[3]; w = Q[1-u];
+    }
+    inline void linemajor(size_t q, size_t &u, size_t &w, size_t &z) const {
+        size_t _;
+        return linemajor(q, u, w, z, _);
+    }
+    inline size_t chimera_linear(size_t y, size_t x, size_t u, size_t k) const {
+        return k + shore*(u + 2*(x + dim[1]*y));
+    }
 
-inline size_t block_addr(size_t dim, size_t u, size_t y, size_t x) {
-    return block_addr(dim, dim, u, y, x);
-}
+};
 
-struct pegasus_spec {
-    const size_t dim;
+class pegasus_spec_base : public topo_spec_base {
+    using super = topo_spec_base;
+  public:
+    const size_t pdim;
     const uint8_t offsets[2][6];
     template<typename T>
-    pegasus_spec(size_t d, T voff, T hoff) :
-        dim(d),
+    pegasus_spec_base(size_t d, T voff, T hoff) : super(6*d, 6*d, 2), pdim(d),
         offsets{{voff[0], voff[1], voff[2], voff[3], voff[4], voff[5]}, 
                 {hoff[0], hoff[1], hoff[2], hoff[3], hoff[4], hoff[5]}} {}
+  protected:
+    template<typename badmask_behavior>
+    inline void process_edges(uint8_t *edgemask, uint8_t *badmask, 
+                              const vector<pair<size_t, size_t>> &edges,
+                              badmask_behavior) const {
+        for(auto &e: edges) {
+            size_t p = e.first, q = e.second;
+            if(false) {
+                Assert(pdim > 2);
+                if(p == q+1) { std::swap(p, q); }
+                else if (q != p+1) continue;
+                size_t u, qw, qk, qz, w, z;
+                pegasus_coordinates(pdim, q, u, qw, qk, qz);
+                z = (qz*12 + 2*offsets[u][qk/2])/2;
+                w = (qw*12 + qk)/2;
+                edgemask[super::cell_addr(u, w, z)] |= mask_bit[qk&1];
+            } else {
+                //ensure some normalization: p < q
+                if(q < p) std::swap(p, q);
+                size_t qu, qw, qk, qz;
+                size_t pu, pw, pk, pz;
+                pegasus_coordinates(pdim, q, qu, qw, qk, qz);
+                pegasus_coordinates(pdim, p, pu, pw, pk, pz);
+                if(pu == qu) {
+                    if(pw == qw && pk == qk && qz == pz + 1) {
+                        //p < q; we place the edgemask on the larger qubit z
+                        //and don't futz with the "pz == qz + 1" case
+                        size_t z = (qz*12 + 2*offsets[qu][qk/2])/2;
+                        size_t w = (qw*12 + qk)/2;
+                        edgemask[super::cell_addr(pu, w, z)] |= mask_bit[qk&1];
+                    } else if (pw == qw && pk == (qk^1) && qz == pz) {
+                    } else { std::cout << "urp" << std::endl; throw 10; }
+                } else {
+                    if(std::is_same<badmask_behavior, populate_badmask>::value) {
+                        //p < q, so pu = 0 and qu = 1
+                        size_t y = (qw*12 + qk) / 2;
+                        size_t x = (pw*12 + pk) / 2;
+                        badmask[super::chimera_linear(y, x, 0, pk&1)] &= ~mask_bit[qk&1];
+                        badmask[super::chimera_linear(y, x, 1, qk&1)] &= ~mask_bit[pk&1];
+                    }   
+                }
+            }
+
+        }
+    }
+
+    template<typename badmask_behavior>
+    inline void process_nodes(uint8_t *nodemask, uint8_t *edgemask, uint8_t *badmask,
+                             const vector<size_t> &nodes, badmask_behavior) const {
+        for(auto &q: nodes) {
+            size_t u, qw, qk, qz, w, z;
+            pegasus_coordinates(pdim, q, u, qw, qk, qz);
+            z = (qz*12 + 2*offsets[u][qk/2])/2;
+            w = (qw*12 + qk)/2;
+            nodemask[super::cell_addr(u, w, z)] |= mask_bit[qk&1];
+            if(std::is_same<badmask_behavior, populate_badmask>::value) {
+                if(u) { badmask[super::chimera_linear(w, z, 1, qk&1)] = ~0; }
+                else  { badmask[super::chimera_linear(z, w, 0, qk&1)] = ~0; }
+            }
+            for(size_t i = 1; z++, i < 6; i++) {
+                size_t curr = super::cell_addr(u, w, z);
+                nodemask[curr] |= mask_bit[qk&1];
+                edgemask[curr] |= mask_bit[qk&1];
+                if(std::is_same<badmask_behavior, populate_badmask>::value) {
+                    if(u) { badmask[super::chimera_linear(w, z, 1, qk&1)] = ~0; }
+                    else  { badmask[super::chimera_linear(z, w, 0, qk&1)] = ~0; }
+                }
+            }
+        }
+    }
+
 };
 
-struct chimera_spec {
-    const size_t dim[2];
-    const uint8_t shore;
-    template<typename T>
-    chimera_spec(T d, uint8_t s) : dim{d[0], d[1]}, shore(s) {}
-    chimera_spec(size_t d0, size_t d1, uint8_t s) : dim{d0, d1}, shore(s) {}
+
+
+class chimera_spec_base : public topo_spec_base {
+    using super = topo_spec_base;
+  public:
+    template<typename ...Args>
+    chimera_spec_base(Args ...args) : super(args...) {}
+  protected:
+    template<typename badmask_behavior>
+    inline void process_edges(uint8_t *edgemask, uint8_t *badmask, 
+                              const vector<pair<size_t, size_t>> &edges,
+                              badmask_behavior) const {
+        for(auto &e: edges) {
+            size_t p = e.first, q = e.second;
+            size_t pu, pw, pz, pk;
+            size_t qu, qw, qz, qk;
+            super::linemajor(p, pu, pw, pz, pk);
+            super::linemajor(q, qu, qw, qz, qk);
+            if(pu == qu && pw == qw && pk == qk) {
+                if(pz == qz+1)
+                    edgemask[super::cell_addr(pu, pw, pz)] |= mask_bit[pk];
+                if(qz == pz+1)
+                    edgemask[super::cell_addr(qu, qw, qz)] |= mask_bit[qk];
+            } else if (std::is_same<badmask_behavior, populate_badmask>::value &&
+                       pu != qu && pw == qz && pz == qw) {
+                badmask[p] &= ~mask_bit[qk];
+                badmask[q] &= ~mask_bit[pk];
+            }
+        }
+    }
+    template<typename badmask_behavior>
+    inline void process_nodes(uint8_t *nodemask, uint8_t *, uint8_t *badmask,
+                             const vector<size_t> &nodes, badmask_behavior) const {
+        for(auto &q: nodes) {
+            //add the node q by updating nodemask on the k-th bit of q's line,
+            //and initializing badmask[k] to all-ones
+            size_t u, w, z, k;
+            super::linemajor(q, u, w, z, k);
+            if(std::is_same<badmask_behavior, populate_badmask>::value)
+                badmask[q] = ~0;
+            nodemask[super::cell_addr(u, w, z)] |= mask_bit[k];
+        }
+    }
 };
+
+template<typename topo_spec>
+class topo_spec_cellmask : public topo_spec {
+    using super = topo_spec;
+  public:
+    template<typename ...Args>
+    topo_spec_cellmask(Args ...args) : super(args...) {}
+    inline void process_edges(uint8_t *edgemask, 
+                              const vector<pair<size_t, size_t>> &edges) const {
+        super::process_edges(edgemask, nullptr, edges, ignore_badmask{});
+    }
+    inline void process_edges(uint8_t *edgemask, uint8_t *badmask,
+                              const vector<pair<size_t, size_t>> &edges) const {
+        super::process_edges(edgemask, badmask, edges, populate_badmask{});
+    }
+    inline void process_nodes(uint8_t *nodemask, uint8_t *edgemask, 
+                              const vector<size_t> &nodes) const {
+        super::process_nodes(nodemask, edgemask, nullptr, nodes, ignore_badmask{});
+    }
+    inline void process_nodes(uint8_t *nodemask, uint8_t *edgemask, uint8_t *badmask,
+                              const vector<size_t> &nodes) const {
+        super::process_nodes(nodemask, edgemask, badmask, nodes, populate_badmask{});
+    }
+    inline void finish_badmask(uint8_t *nodemask, uint8_t *badmask) const {
+        for(size_t y = 0, q = 0; y < super::dim[0]; y++)
+            for(size_t x = 0; x < super::dim[1]; x++) {
+                for(size_t k = 0; k < super::shore; k++, q++)
+                    badmask[q] &= nodemask[super::cell_addr(1, y, x)];
+                for(size_t k = 0; k < super::shore; k++, q++)
+                    badmask[q] &= nodemask[super::cell_addr(0, x, y)];
+            }
+    }
+};
+
+using chimera_spec = topo_spec_cellmask<chimera_spec_base>;
+using pegasus_spec = topo_spec_cellmask<pegasus_spec_base>;
 
 }
 
