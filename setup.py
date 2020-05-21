@@ -7,7 +7,8 @@ extensions = cythonize([extension.Extension(
     sources=["busclique/busclique.pyx"],
     include_dirs=['', './include/'],
     language='c++',
-    extra_compile_args = ['-std=c++11', '-DEBUG', '-g', '-O0']#, '-fno-rtti', '-Ofast']
+#    extra_compile_args = ['-std=c++11', '-fno-rtti', '-DEBUG', '-g', '-O0']
+    extra_compile_args = ['-std=c++11', '-fno-rtti', '-Ofast']
 )])
 
 setup(

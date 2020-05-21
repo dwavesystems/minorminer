@@ -70,8 +70,12 @@ class clique_cache {
             size += memsize(i) + 1;
         return size;
     }
+    static constexpr bool nocheck(size_t,size_t,size_t,size_t,size_t,size_t) {return true;}
 
   public:
+    clique_cache(const cell_cache<topo_spec> &c, const bundle_cache<topo_spec> &b, size_t w) :
+        clique_cache(c, b, w, nocheck) {}
+
     template<typename C>
     clique_cache(const cell_cache<topo_spec> &c, const bundle_cache<topo_spec> &b, size_t w, C &check) : 
             cells(c),
@@ -114,92 +118,89 @@ class clique_cache {
     template<typename C>
     void compute_cache(C &check) {
         {
+            auto zero = [](size_t, size_t) { return 0; };
             maxcache next = get(0);
             for(size_t y = 0; y < cells.topo.dim[0]; y++)
-                for(size_t x = 0; x < cells.topo.dim[1]-width+1; x++)
-                    init_cache_by_rectangle(next, y, x, x+width-1, check);
+                for(size_t x = 0; x < cells.topo.dim[1]-width+1; x++) {
+                    extend_by_ell(zero, next, y, y, x, x+width-1, check, SW);
+                    extend_by_ell(zero, next, y, y, x, x+width-1, check, SE);
+                }
         }
         for(size_t i = 1; i < width-1; i++) {
             maxcache prev = get(i-1);
             maxcache next = get(i);
+            auto prevscore = [&prev](size_t y, size_t x) { return prev.score(y, x); };
             for(size_t y = 0; y < cells.topo.dim[0]-i; y++)
-                for(size_t x = 0; x < cells.topo.dim[1]-width+1+i; x++)
-                    extend_cache_by_rectangle(prev, next, y, y+i, x, x+width-1-i,
-                                              check);
+                for(size_t x = 0; x < cells.topo.dim[1]-width+1+i; x++) {
+                    extend_by_ell(prevscore, next, y, y+i, x, x+width-1-i, check, NE);
+                    extend_by_ell(prevscore, next, y, y+i, x, x+width-1-i, check, NW);
+                    extend_by_ell(prevscore, next, y, y+i, x, x+width-1-i, check, SE);
+                    extend_by_ell(prevscore, next, y, y+i, x, x+width-1-i, check, SW);
+                }
         }
         {
             maxcache prev = get(width-2);
             maxcache next = get(width-1);
+            auto prevscore = [&prev](size_t y, size_t x) { return prev.score(y, x); };
             for(size_t y = 0; y < next.rows; y++)
-                for(size_t x = 0; x < next.cols; x++)
-                    finish_cache_by_rectangle(prev, next, y, y+width-1, x, check);
+                for(size_t x = 0; x < next.cols; x++) {
+                    extend_by_ell(prevscore, next, y, y+width-1, x, x, check, NE);
+                    extend_by_ell(prevscore, next, y, y+width-1, x, x, check, SE);
+                }
         }
     }
 
-    template<typename C>
-    void init_cache_by_rectangle(maxcache &next, size_t y, size_t x0, size_t x1, 
-                                 C& check) {
-        if(check(y,x0,y,y,x0,x1))
-            next.setmax(y,x0+1, bundles.score(y,x0,y,y,x0,x1), SW);
-        if(check(y,x1,y,y,x0,x1))
-            next.setmax(y,x0,   bundles.score(y,x1,y,y,x0,x1), SE);
-    }
-
-    template<typename C>
-    void extend_cache_by_rectangle(const maxcache &prev, maxcache &next,
-                                   size_t y0, size_t y1, size_t x0, size_t x1,
-                                   C& check) {
-        if(check(y0,x0,y0,y1,x0,x1))
-            next.setmax(y0,x0+1, 
-                        prev.score(y0+1,x0) + bundles.score(y0,x0,y0,y1,x0,x1), NW);
-        if(check(y1,x0,y0,y1,x0,x1))
-            next.setmax(y0,x0+1,
-                        prev.score(y0,  x0) + bundles.score(y1,x0,y0,y1,x0,x1), SW);
-        if(check(y0,x1,y0,y1,x0,x1))
-            next.setmax(y0,x0,
-                        prev.score(y0+1,x0) + bundles.score(y0,x1,y0,y1,x0,x1), NE);
-        if(check(y1,x1,y0,y1,x0,x1))
-            next.setmax(y0,x0,
-                        prev.score(y0,  x0) + bundles.score(y1,x1,y0,y1,x0,x1), SE);
-    }
-
-    template <typename C>
-    void finish_cache_by_rectangle(const maxcache &prev, maxcache &next,
-                                   size_t y0, size_t y1, size_t x, C& check) const {
-        if(check(y0,x,y0,y1,x,x))
-            next.setmax(y0,x, prev.score(y0+1,x) + bundles.score(y0,x,y0,y1,x,x), NE);
-        if(check(y1,x,y0,y1,x,x))
-            next.setmax(y0,x, prev.score(y0,  x) + bundles.score(y1,x,y0,y1,x,x), SE);
-    }
-    void inflate_ell(vector<vector<size_t>> &emb,
-                     size_t &y, size_t &x, size_t h, size_t w, corner c) const {
+    template<typename F, typename C>
+    void extend_by_ell(const F &prevscore, maxcache &next,
+                       size_t y0, size_t y1, size_t x0, size_t x1,
+                       C &check, corner c) {
+        size_t next_y, prev_y, yc; next_y = prev_y = yc = y0;
+        size_t next_x, prev_x, xc; next_x = prev_x = xc = x0;
+        corner skip_c;
         switch(c) {
+            case NW: next_x = x0+1; prev_y = y0+1; skip_c = NWskip; break;
+            case SW: next_x = x0+1; yc = y1;       skip_c = SWskip; break;
+            case NE: xc = x1;       prev_y = y0+1; skip_c = NEskip; break;
+            case SE: xc = x1;       yc = y1;       skip_c = SEskip; break;
+            default: throw std::exception();
+        }
+        size_t score = prevscore(prev_y, prev_x);
+        if(check(yc,xc,y0,y1,x0,x1))
+            score += bundles.score(yc,xc,y0,y1,x0,x1);
+        else
+            c = skip_c;
+        next.setmax(next_y, next_x, score, c);
+    }
+
+    corner inflate_first_ell(vector<vector<size_t>> &emb,
+                             size_t &y, size_t &x, size_t h, size_t w, corner c) const {
+        corner c0 = static_cast<corner>(1<< first_bit[c]);
+        switch(c0) {
             case NW: x--; bundles.inflate(y,  x,  y,y+h,x,x+w, emb); y++; break;
             case SW: x--; bundles.inflate(y+h,x,  y,y+h,x,x+w, emb);      break;
             case NE:      bundles.inflate(y,  x+w,y,y+h,x,x+w, emb); y++; break;
             case SE:      bundles.inflate(y+h,x+w,y,y+h,x,x+w, emb);      break;
+            case NWskip: x--; y++; break;
+            case SWskip: x--;      break;
+            case NEskip:      y++; break;
+            case SEskip:           break;
             default: throw std::exception();
         }
-    }
-    corner inflate_first_ell(vector<vector<size_t>> &emb,
-                     size_t &y, size_t &x, size_t h, size_t w, corner c) const {
-        corner c0 = static_cast<corner>(1<<first_bit[c]);
-        inflate_ell(emb, y, x, h, w, c0);
         return c0;
     }
-
 
   public:
     bool extract_solution(vector<vector<size_t>> &emb) {
         size_t bx, by, bscore=0;
         maxcache scores = get(width-1);
-        for(size_t y = 0; y < cells.topo.dim[0]-width+1; y++)
-            for(size_t x = 0; x < cells.topo.dim[1]; x++) {
+        for(size_t y = 0; y < scores.rows; y++) {
+            for(size_t x = 0; x < scores.cols; x++) {
                 size_t s = scores.score(y, x);
                 if (bscore < s) { 
                     bx = x; by = y; bscore = s;
                 }
             }
+        }
         if(bscore == 0) return false;
         corner bc = static_cast<corner>(scores.corners(by, bx));
         for(size_t i = width-1; i-- > 0;) {

@@ -42,15 +42,15 @@ class bundle_cache {
         while (k0 && k1) {
             emb.emplace_back(0);
             vector<size_t> &chain = emb.back();
-            cells.construct_line(0, xc, y0, y1, first_bit[k0], chain);
-            cells.construct_line(1, yc, x0, x1, first_bit[k1], chain);
+            cells.topo.construct_line(0, xc, y0, y1, first_bit[k0], chain);
+            cells.topo.construct_line(1, yc, x0, x1, first_bit[k1], chain);
             k0 ^= mask_bit[first_bit[k0]];
             k1 ^= mask_bit[first_bit[k1]];
         }
     }
 
     size_t length(size_t yc, size_t xc, size_t y0, size_t y1, size_t x0, size_t x1) const {
-        return cells.line_length(0, xc, y0, y1) + cells.line_length(1, yc, x0, x1);
+        return cells.topo.line_length(0, xc, y0, y1) + cells.topo.line_length(1, yc, x0, x1);
     }
 
   private:

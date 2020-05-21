@@ -29,28 +29,18 @@ bool find_clique_nice(const cell_cache<chimera_spec> &cells,
                       size_t &max_length) {
     bundle_cache<chimera_spec> bundles(cells);
     size_t shore = cells.topo.shore;
-    if(size <= shore) {
-        size_t by, bx, score=0;
+    if(size <= shore)
         for(size_t y = 0; y < cells.topo.dim[0]; y++)
-            for(size_t x = 0; x < cells.topo.dim[1]; x++) {
-                size_t s = bundles.score(y,x,y,y,x,x);
-                if (s > score) {
-                    score = s;
-                    by = y;
-                    bx = x;
+            for(size_t x = 0; x < cells.topo.dim[1]; x++)
+                if (bundles.score(y,x,y,y,x,x) >= size) {
+                    bundles.inflate(y,x,y,y,x,x,emb);
+                    return true;
                 }
-            }
-        if(score >= size) {
-            bundles.inflate(by,bx,by,by,bx,bx,emb);
-            return true;
-        }
-    }
     size_t minw = (size + shore - 1)/shore;
     size_t maxw = min(cells.topo.dim[0], cells.topo.dim[1]);
     if (max_length > 0) maxw = min(max_length - 1, maxw);
     for(size_t width = minw; width <= maxw; width++) {
-        auto nocheck = [](size_t,size_t,size_t,size_t,size_t,size_t) {return true;};
-        clique_cache<chimera_spec> rects(cells, bundles, width, nocheck);
+        clique_cache<chimera_spec> rects(cells, bundles, width);
         clique_iterator<chimera_spec> iter(cells, rects);
         if(iter.next(emb)) {
             if(emb.size() < size)
@@ -71,21 +61,34 @@ bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
                       size_t &max_length) {
     bundle_cache<pegasus_spec> bundles(cells);
     size_t minw = (size + 1)/2;
-    size_t maxw = min(cells.topo.dim[0], cells.topo.dim[1]);
-    if(max_length == 0)
-        max_length = maxw+12;
-    size_t runs = 0;
-    //this loop first looks for any embedding at all (maxw+12 is overkill)
+    size_t maxw = cells.topo.dim[0];
+    if(max_length == 0) {
+        //naive first-pass: search for the first embedding with any max chainlength
+        for(; minw <= maxw; minw++) {
+            vector<vector<size_t>> tmp;
+            clique_cache<pegasus_spec> rects(cells, bundles, minw);
+            if(rects.extract_solution(tmp))
+                //if we find an embedding, check that it's big enough
+                if(tmp.size() >= size) {
+                    emb = tmp;
+                    max_length = get_maxlen(tmp, size);
+                    maxw = min(maxw, minw + 6);
+                    break;
+                }
+        }
+        if(minw > maxw) return false;
+    } else {
+        maxw = (max_length)*6;
+    }
+    //we've already found an embedding; now try to find one with shorter chains
     for(size_t w = minw; w <= maxw; w++) {
-        vector<vector<size_t>> tmp;
-        //if we've already found an embedding, try to find one with shorter chains
         auto check_length = [&bundles, max_length](size_t yc, size_t xc,
                                                    size_t y0, size_t y1,
                                                    size_t x0, size_t x1){
-            return bundles.length(yc,xc,y0,y1,x0,x1) <= max_length; 
+            return bundles.length(yc,xc,y0,y1,x0,x1) < max_length; 
         };
         clique_cache<pegasus_spec> rects(cells, bundles, w, check_length);
-        runs++;
+        vector<vector<size_t>> tmp;
         if(rects.extract_solution(tmp)) {
             //if we find an embedding, check that it's big enough
             if(tmp.size() >= size) {
@@ -152,9 +155,10 @@ bool find_clique(const pegasus_spec &topo,
     vector<vector<size_t>> _emb;
     if (find_clique_nice(pegasus.cells, size, _emb, maxlen))
         emb = _emb;
-    while(pegasus.next())
+    while(pegasus.next()) {
         if (find_clique_nice(pegasus.cells, size, _emb, maxlen))
             emb = _emb;
+    }
     return emb.size() >= size;
 }
 
