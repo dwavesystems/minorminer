@@ -4,22 +4,25 @@ import dwave.embedding as dwe
 import matplotlib.pyplot as plt
 import random
 import time
+from itertools import chain
 from busclique import busclique
 N = 16
 
-for k in range(0, 15*12+12):
-    K = nx.complete_graph(k)
+p = dnx.pegasus_graph(4, fabric_only=False) 
+count = [0]*len(p)
+for w in range(2, 4*6-6):
+    c = pegasus_clique_residency(p, w)
+    for i, x in enumerate(c):
+        count[i] += x
+    plt.figure(figsize=(20,20))
+    dnx.draw_pegasus(p, node_size=200, node_color = [c[v] for v in p],
+                            cmap = plt.cm.plasma, crosses=True)
+    plt.savefig(f'heatmap_{w}.png')
+    plt.close()
 
-    p = dnx.pegasus_graph(N)
-    #p.remove_nodes_from(random.sample(list(p.nodes()), int(.02*len(p))))
-    #p.remove_edges_from(random.sample(list(p.edges()), int(.01*p.number_of_edges())))
+plt.figure(figsize=(20,20))
+dnx.draw_pegasus(p, node_size=200, node_color = [count[v] for v in p],
+                        cmap = plt.cm.plasma, crosses=True)
+plt.savefig('heatmap.png')
 
-    print(k, end=' ')
-    t0 = time.perf_counter()
-    emb = dict(zip(K, busclique.pegasus_clique(p, len(K))))
-    print(time.perf_counter()-t0, end=' ')
-    if k:
-        print(max(len(c) for c in emb.values()))
-    else:
-        print({})
-    
+

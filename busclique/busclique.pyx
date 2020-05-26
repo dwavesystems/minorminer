@@ -62,8 +62,8 @@ def pegasus_clique(g, size):
         return emb
     finally:
         del peg
-"""
-def pegasus_clique_iter(g, width, maxlen=0):
+
+def pegasus_clique_residency(g, width, maxlen=0):
     cdef pegasus_spec *peg = new pegasus_spec(g.graph['rows'],
                                    [o//2 for o in g.graph['vertical_offsets'][::2]],
                                    [o//2 for o in g.graph['horizontal_offsets'][::2]])
@@ -72,17 +72,24 @@ def pegasus_clique_iter(g, width, maxlen=0):
     cdef embedding_t emb
     cdef cell_cache[pegasus_spec] *cells = new cell_cache[pegasus_spec](peg[0], nodes, edges)
     cdef bundle_cache[pegasus_spec] *bundles = new bundle_cache[pegasus_spec](cells[0])
-    cdef clique_cache[pegasus_spec] *cliques = new clique_cache[pegasus_spec](cells[0], bundles[0], width, maxlen)
+    cdef clique_cache[pegasus_spec] *cliques = new clique_cache[pegasus_spec](cells[0], bundles[0], width)
     cdef clique_iterator[pegasus_spec] *clique_iter = new clique_iterator[pegasus_spec](cells[0], cliques[0])
 
+    cdef vector[size_t] count = [0]*(max(g)+1)
+    cdef size_t i = 0
     while clique_iter.next(emb):
-        yield emb
+        for chain in emb:
+            for q in chain:
+                count[q] += 1
+        if (i%1048576) == 0:
+            print(i)
+        i += 1
 
-    try: return
+    try:
+        return count
     finally:
         del clique_iter
         del cliques
         del bundles
         del cells
         del peg
-"""
