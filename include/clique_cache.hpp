@@ -55,8 +55,8 @@ class clique_cache {
         else throw "memrows";
     }
     size_t memcols(size_t i) const {
-        if (i < width-1) return cells.topo.dim[1]-width+i+2;
-        else if (i == width-1) return cells.topo.dim[1];
+        if (i + 1 < width) return cells.topo.dim[1]-width+i+2;
+        else if (i + 1 == width) return cells.topo.dim[1];
         else throw "memcols";
     }
 

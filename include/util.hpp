@@ -35,10 +35,12 @@ using corner::NE;
 using corner::SW;
 using corner::SE;
 
-
+//#define Assert(x) /*x*/
 void Assert(bool thing) {
     if(!thing) throw std::exception();
 }
+
+inline size_t binom(size_t x) { return (x*x+x)/2; }
 
 const uint8_t popcount[256] = {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 
 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3,
