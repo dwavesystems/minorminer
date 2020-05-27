@@ -33,6 +33,12 @@ class maxcache {
     }
 };
 
+class zerocache {
+  public:
+    inline constexpr size_t score(size_t, size_t) const { return 0; }
+};
+
+
 template<typename topo_spec> class clique_iterator;
 
 template<typename topo_spec>
@@ -118,40 +124,43 @@ class clique_cache {
     template<typename C>
     void compute_cache(C &check) {
         {
-            auto zero = [](size_t, size_t) { return 0; };
-            maxcache next = get(0);
-            for(size_t y = 0; y < cells.topo.dim[0]; y++)
-                for(size_t x = 0; x < cells.topo.dim[1]-width+1; x++) {
-                    extend_by_ell(zero, next, y, y, x, x+width-1, check, SW);
-                    extend_by_ell(zero, next, y, y, x, x+width-1, check, SE);
-                }
+            size_t h = 1;
+            size_t w = width;
+            auto zero = zerocache();
+            extend_cache(zero, h, w, check, SW, SE);
         }
         for(size_t i = 1; i < width-1; i++) {
-            maxcache prev = get(i-1);
-            maxcache next = get(i);
-            auto prevscore = [&prev](size_t y, size_t x) { return prev.score(y, x); };
-            for(size_t y = 0; y < cells.topo.dim[0]-i; y++)
-                for(size_t x = 0; x < cells.topo.dim[1]-width+1+i; x++) {
-                    extend_by_ell(prevscore, next, y, y+i, x, x+width-1-i, check, NE);
-                    extend_by_ell(prevscore, next, y, y+i, x, x+width-1-i, check, NW);
-                    extend_by_ell(prevscore, next, y, y+i, x, x+width-1-i, check, SE);
-                    extend_by_ell(prevscore, next, y, y+i, x, x+width-1-i, check, SW);
-                }
+            size_t h = i+1;
+            size_t w = width-i;
+            maxcache prev = get(h-2);
+            extend_cache(prev, h, w, check, NE, NW, SW, SE);
         }
         {
-            maxcache prev = get(width-2);
-            maxcache next = get(width-1);
-            auto prevscore = [&prev](size_t y, size_t x) { return prev.score(y, x); };
-            for(size_t y = 0; y < next.rows; y++)
-                for(size_t x = 0; x < next.cols; x++) {
-                    extend_by_ell(prevscore, next, y, y+width-1, x, x, check, NE);
-                    extend_by_ell(prevscore, next, y, y+width-1, x, x, check, SE);
-                }
+            size_t h = width;
+            size_t w = 1;
+            maxcache prev = get(h-2);
+            extend_cache(prev, h, w, check, NE, SE);
         }
     }
 
-    template<typename F, typename C>
-    void extend_by_ell(const F &prevscore, maxcache &next,
+    template<typename T, typename C, typename ... Corners>
+    inline void extend_cache(const T &prev, size_t h, size_t w, C &check, Corners ... corners) {
+        maxcache next = get(h-1);
+        for(size_t y = 0; y <= cells.topo.dim[0]-h; y++)
+            for(size_t x = 0; x <= cells.topo.dim[1]-w; x++)
+                extend_cache(prev, next, y, y+h-1, x, x+w-1, check, corners...);
+    }
+
+    template<typename T, typename C, typename ... Corners>
+    inline void extend_cache(const T &prev, maxcache &next,
+                       size_t y0, size_t y1, size_t x0, size_t x1,
+                       C &check, corner c, Corners ... corners) {
+        extend_cache(prev, next, y0, y1, x0, x1, check, c);
+        extend_cache(prev, next, y0, y1, x0, x1, check, corners...);
+    }
+
+    template<typename T, typename C>
+    inline void extend_cache(const T &prev, maxcache &next,
                        size_t y0, size_t y1, size_t x0, size_t x1,
                        C &check, corner c) {
         size_t next_y, prev_y, yc; next_y = prev_y = yc = y0;
@@ -164,7 +173,7 @@ class clique_cache {
             case SE: xc = x1;       yc = y1;       skip_c = SEskip; break;
             default: throw std::exception();
         }
-        size_t score = prevscore(prev_y, prev_x);
+        size_t score = prev.score(prev_y, prev_x);
         if(check(yc,xc,y0,y1,x0,x1))
             score += bundles.score(yc,xc,y0,y1,x0,x1);
         else
