@@ -324,4 +324,88 @@ class clique_iterator {
     }
 };
 
+const vector<vector<size_t>> empty_emb;
+
+class clique_yield_cache {
+  public:
+    //prevent double-frees by forbidding moving & copying
+    clique_yield_cache(const clique_yield_cache&) = delete; 
+    clique_yield_cache(clique_yield_cache &&) = delete;
+    
+  private:
+    const size_t length_bound;
+    vector<size_t> clique_yield;
+    vector<vector<vector<size_t>>> best_embeddings;
+
+  public:
+    clique_yield_cache(const cell_cache<pegasus_spec> &cells) :
+                       length_bound(4 + cells.topo.pdim),
+                       clique_yield(length_bound, 0), 
+                       best_embeddings(length_bound, empty_emb) {
+        bundle_cache<pegasus_spec> bundles(cells);
+        for(size_t w = 2; w <= cells.topo.dim[0]; w++) {
+            size_t min_length, max_length;
+            get_length_range(bundles, w, min_length, max_length);
+            for(size_t len = min_length; len < max_length; len++) {
+                auto check_length = [&bundles, len](size_t yc, size_t xc,
+                                                    size_t y0, size_t y1,
+                                                    size_t x0, size_t x1){
+                    return bundles.length(yc,xc,y0,y1,x0,x1) <= len; 
+                };
+                clique_cache<pegasus_spec> cliques(cells, bundles, w, check_length);
+                vector<vector<size_t>> emb;
+                if (cliques.extract_solution(emb)) {
+                    size_t real_len = 0;
+                    for(auto &chain: emb) real_len = max(real_len, chain.size());
+                    if(clique_yield[real_len] < emb.size()) {
+                        clique_yield[real_len] = emb.size();
+                        best_embeddings[real_len] = emb;
+                    }
+                }
+            }
+            {
+                clique_cache<pegasus_spec> cliques(cells, bundles, w);
+                vector<vector<size_t>> emb;
+                if (cliques.extract_solution(emb)) {
+                    size_t real_len = 0;
+                    for(auto &chain: emb) real_len = max(real_len, chain.size());
+                    if(clique_yield[real_len] < emb.size()) {
+                        clique_yield[real_len] = emb.size();
+                        best_embeddings[real_len] = emb;
+                    }
+                }
+            }
+        }
+    }
+
+    const vector<vector<vector<size_t>>> &embeddings() {
+        return best_embeddings;
+    }
+
+  private:
+    void get_length_range(const bundle_cache<pegasus_spec> &bundles, size_t width, size_t &min_length, size_t &max_length) {
+        max_length = 0;
+        min_length = ~max_length;
+        for(size_t w = 1, h = width; w <= width; w++, h--) {
+            for(size_t y = 6; y < 12; y++) {
+                for(size_t x = 6; x < 12; x++) {
+                    size_t length;
+                    length = bundles.length(y, x, y, y+h-1, x, x+w-1);
+                    max_length = max(max_length, length);
+                    min_length = min(min_length, length);
+                    length = bundles.length(y+h-1, x, y, y+h-1, x, x+w-1);
+                    max_length = max(max_length, length);
+                    min_length = min(min_length, length);
+                    length = bundles.length(y+h-1, x+w-1, y, y+h-1, x, x+w-1);
+                    max_length = max(max_length, length);
+                    min_length = min(min_length, length);
+                    length = bundles.length(y, x+w-1, y, y+h-1, x, x+w-1);
+                    max_length = max(max_length, length);
+                    min_length = min(min_length, length);
+                }
+            }
+        }
+    }
+};
+
 }

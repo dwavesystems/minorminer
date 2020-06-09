@@ -173,4 +173,40 @@ bool find_clique_nice(const topo_spec &topo,
     return find_clique_nice(cells, size, emb, _);
 }
 
+template<typename topo_spec>
+void best_cliques(const topo_spec &topo,
+                  const vector<size_t> &nodes,
+                  const vector<pair<size_t, size_t>> &edges,
+                  vector<vector<vector<size_t>>> &embs);
+
+template<>
+void best_cliques(const pegasus_spec &topo,
+                  const vector<size_t> &nodes,
+                  const vector<pair<size_t, size_t>> &edges,
+                  vector<vector<vector<size_t>>> &embs) {
+    vector<vector<size_t>> emb;
+    embs.clear();
+    embs.emplace_back(0);
+    if(find_generic_4(edges, emb))
+        embs.push_back(emb);
+    else if(find_generic_3(edges, emb))
+        embs.push_back(emb);
+    else if(find_generic_2(edges, emb))
+        embs.push_back(emb);
+    else if(find_generic_1(nodes, emb))
+        embs.push_back(emb);
+    topo_cache<pegasus_spec> pegasus(topo, nodes, edges);
+    do {
+        clique_yield_cache cliques(pegasus.cells);
+        size_t chainlength = 0;
+        for(auto &_emb: cliques.embeddings()) {
+            while(embs.size() <= chainlength)
+                embs.emplace_back(0);
+            if(_emb.size() > embs[chainlength].size())
+                embs[chainlength] = _emb;
+            chainlength++;
+        }
+    } while(pegasus.next());
+}
+
 }

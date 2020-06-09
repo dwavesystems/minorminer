@@ -36,9 +36,7 @@ using corner::SW;
 using corner::SE;
 
 //#define Assert(x) /*x*/
-void Assert(bool thing) {
-    if(!thing) throw std::exception();
-}
+void Assert(bool thing) { if(!thing) throw std::exception(); }
 
 inline size_t binom(size_t x) { return (x*x+x)/2; }
 
@@ -222,11 +220,21 @@ class pegasus_spec_base : public topo_spec_base {
 
     inline size_t line_length(size_t u, size_t w, size_t z0, size_t z1) const {
         size_t offset = offsets[u][w%6];
-        size_t qz0 = (z0 - offset)/6;
-        size_t qz1 = (z1 - offset)/6;
-        return qz1 - qz0 + 1;
+        size_t qz0 = (z0 + 6 - offset)/6;
+        size_t qz1 = (z1 + 12 - offset)/6;
+        return qz1 - qz0;
     }
 
+    inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
+        size_t length = 0;
+        size_t ym = std::min(y1, y0+5);
+        size_t xm = std::min(x1, x0+5);
+        for(size_t x = x0; x <= xm; x++)
+            length = max(line_length(0, x, y0, y1), length);
+        for(size_t y = y0; y <= ym; y++)
+            length = max(line_length(1, y, x0, x1), length);
+        return length;
+    }
 };
 
 
@@ -286,6 +294,11 @@ class chimera_spec_base : public topo_spec_base {
     inline size_t line_length(size_t u, size_t w, size_t z0, size_t z1) const {
         return z1 - z0 + 1;
     }
+
+    inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
+        return max(y1-y0, x1-x0) + 1;
+    }
+
 };
 
 template<typename topo_spec>

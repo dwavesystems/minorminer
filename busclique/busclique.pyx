@@ -4,9 +4,11 @@
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libc.stdint cimport uint8_t
+from libcpp.unordered_map cimport unordered_map
 ctypedef vector[size_t] nodes_t
 ctypedef vector[vector[size_t]] embedding_t
 ctypedef vector[pair[size_t,size_t]] edges_t
+
 
 cdef extern from "../include/util.hpp" namespace "busclique":
     cdef cppclass pegasus_spec:
@@ -35,7 +37,12 @@ cdef extern from "../include/clique_cache.hpp" namespace "busclique":
 
 cdef extern from "../include/find_clique.hpp" namespace "busclique":
     int find_clique[T](T, nodes_t, edges_t, size_t, embedding_t &)
+    int best_cliques[T](T, nodes_t, edges_t, vector[embedding_t] &)
     int find_clique_nice[T](T, nodes_t, edges_t, size_t, embedding_t &)
+
+cdef extern from "../include/find_biclique.hpp" namespace "busclique":
+    int best_bicliques[T](T, nodes_t, edges_t, 
+                          vector[pair[pair[size_t, size_t], embedding_t]] &)
 
 def chimera_clique(g, size):
     cdef chimera_spec *chim = new chimera_spec(g.graph['rows'],
@@ -62,6 +69,33 @@ def pegasus_clique(g, size):
         return emb
     finally:
         del peg
+
+def pegasus_cliques(g):
+    cdef pegasus_spec *peg = new pegasus_spec(g.graph['rows'],
+                                   [o//2 for o in g.graph['vertical_offsets'][::2]],
+                                   [o//2 for o in g.graph['horizontal_offsets'][::2]])
+    cdef nodes_t nodes = g.nodes()
+    cdef edges_t edges = g.edges()
+    cdef vector[embedding_t] embs
+    best_cliques(peg[0], nodes, edges, embs)
+    try:
+        return embs
+    finally:
+        del peg
+
+def pegasus_bicliques(g):
+    cdef pegasus_spec *peg = new pegasus_spec(g.graph['rows'],
+                                   [o//2 for o in g.graph['vertical_offsets'][::2]],
+                                   [o//2 for o in g.graph['horizontal_offsets'][::2]])
+    cdef nodes_t nodes = g.nodes()
+    cdef edges_t edges = g.edges()
+    cdef vector[pair[pair[size_t, size_t], embedding_t]] embs
+    best_bicliques(peg[0], nodes, edges, embs)
+    try:
+        return {(s0, s1) : emb for (s0, s1), emb in embs}
+    finally:
+        del peg
+
 
 def pegasus_clique_residency(g, width, maxlen=0):
     cdef pegasus_spec *peg = new pegasus_spec(g.graph['rows'],

@@ -11,7 +11,7 @@ class yieldcache {
     size_t *mem;
   public:
     yieldcache(size_t r, size_t c, size_t *m) : rows(r), cols(c), mem(m) {};
-    size_t get(size_t y, size_t x, size_t u) {
+    size_t get(size_t y, size_t x, size_t u) const {
         Assert(y < rows);
         Assert(x < cols);
         Assert(u < 2);
@@ -31,11 +31,10 @@ class biclique_cache {
   public:
     biclique_cache(const biclique_cache&) = delete; 
     biclique_cache(biclique_cache &&) = delete;
-  private:
     const cell_cache<topo_spec> &cells;
+  private:
     size_t *mem;
 
-    
     size_t memrows(size_t h) const {
         return cells.topo.dim[0] - h + 1;
     }
@@ -103,7 +102,7 @@ class biclique_cache {
                 }
             }
         }
-        for(size_t w = 1; w <= cells.topo.dim[0]; w++) {
+        for(size_t w = 1; w <= cells.topo.dim[1]; w++) {
             {
                 size_t h = 1;
                 yieldcache next = get(h, w);
@@ -150,5 +149,99 @@ class biclique_cache {
     }
 };
 
+template<typename topo_spec>
+class biclique_yield_cache {
+    using bound_t = std::tuple<size_t, size_t, size_t, size_t>;
+
+  public:
+    const cell_cache<topo_spec> &cells;
+    const bundle_cache<topo_spec> &bundles;
+
+  private:
+    const size_t rows, cols;
+    vector<vector<size_t>> chainlength;
+    vector<vector<bound_t>> biclique_bounds;
+
+  public:
+    biclique_yield_cache(const cell_cache<topo_spec> &c,
+                         const bundle_cache<topo_spec> &b, 
+                         const biclique_cache<topo_spec> &bicliques) :
+        cells(c),
+        bundles(b),
+        rows(cells.topo.dim[0]*cells.topo.shore),
+        cols(cells.topo.dim[1]*cells.topo.shore),
+        chainlength(rows, vector<size_t>(cols, 0)),
+        biclique_bounds(rows, vector<bound_t>(cols, bound_t(0,0,0,0))) {
+        compute_cache(bicliques);
+    }
+  private:
+    void compute_cache(const biclique_cache<topo_spec> &bicliques) {
+        for(size_t h = 1; h <= cells.topo.dim[0]; h++) {
+            for(size_t w = 1; w <= cells.topo.dim[1]; w++) {
+                auto cache = bicliques.get(h, w);
+                for(size_t y = 0; y < cache.rows; y++) {
+                    for(size_t x = 0; x < cache.cols; x++) {
+                        size_t s0 = cache.get(y, x, 0);
+                        size_t s1 = cache.get(y, x, 1);
+                        if (s0 == 0 || s1 == 0) continue;
+                        size_t maxlen = cells.topo.biclique_length(y, y+h-1, x, x+h-1);
+                        size_t prevlen = chainlength[s0][s1];
+                        if(prevlen == 0 || prevlen > maxlen) {
+                            chainlength[s0][s1] = maxlen;
+                            biclique_bounds[s0][s1] = bound_t(y, y+h-1, x, x+h-1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+  public:
+    class iterator {
+        char id;
+        size_t s0, s1;
+        const size_t &rows, &cols;
+        const vector<vector<size_t>> &chainlength;
+        const vector<vector<bound_t>> &bounds;
+        const bundle_cache<topo_spec> &bundles;
+        void adv() {
+            while(s0 < rows && chainlength[s0][s1] == 0) inc();
+        }
+        bool inc() {
+            if(s0 >= rows) return false;
+            s1++;
+            if(s1 == cols) { s1 = 0; s0++; }
+            return true;
+        }
+      public:
+        iterator(size_t _s0, size_t _s1, const size_t r, const size_t c, 
+                 const vector<vector<size_t>> &cl,
+                 const vector<vector<bound_t>> &_bounds,
+                 const bundle_cache<topo_spec> &_bundles, char i) : id(i),
+                 s0(_s0), s1(_s1), rows(r), cols(c), chainlength(cl),
+                 bounds(_bounds), bundles(_bundles) { adv(); }
+
+        iterator operator++() { iterator i = *this; if (inc()) adv(); return i; }
+        iterator operator++(int) { if(inc()) adv(); return *this; }
+        std::tuple<size_t, size_t, size_t, vector<vector<size_t>>> operator*() { 
+            bound_t z = bounds[s0][s1];
+            size_t cl = chainlength[s0][s1];
+            vector<vector<size_t>> emb;
+            if(cl)
+                bundles.inflate(std::get<0>(z), std::get<1>(z), 
+                                std::get<2>(z), std::get<3>(z), emb);
+            return std::make_tuple(s0, s1, cl, emb);
+        }
+        bool operator==(const iterator& rhs) { return s0 == rhs.s0 && s1 == rhs.s1; }
+        bool operator!=(const iterator& rhs) { return !operator==(rhs); }
+    };
+
+    iterator begin() const {
+        return iterator(0, 0, rows, cols, chainlength, biclique_bounds, bundles, 'b');
+    }
+    iterator end() const {
+        return iterator(rows, 0, rows, cols, chainlength, biclique_bounds, bundles, 'e');
+    }
+};
 }
 

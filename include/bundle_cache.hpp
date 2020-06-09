@@ -47,6 +47,31 @@ class bundle_cache {
         }
     }
 
+    void inflate(size_t y0, size_t y1, size_t x0, size_t x1,
+                 vector<vector<size_t>> &emb) const {
+        inflate(0, y0, y1, x0, x1, emb);
+        inflate(1, y0, y1, x0, x1, emb);
+    }
+
+    void inflate(size_t u, size_t y0, size_t y1, size_t x0, size_t x1,
+                 vector<vector<size_t>> &emb) const {
+        size_t w0, w1, z0, z1;
+        if(u) {
+            w0 = y0; w1 = y1; z0 = x0; z1 = x1;
+        } else {
+            w0 = x0; w1 = x1; z0 = y0; z1 = y1;
+        }
+        for(size_t w = w0; w <= w1; w++) {
+            uint8_t k = get_line_mask(u, w, z0, z1);
+            while(k) {
+                emb.emplace_back(0);
+                vector<size_t> &chain = emb.back();
+                cells.topo.construct_line(u, w, z0, z1, first_bit[k], chain);
+                k ^= mask_bit[first_bit[k]];
+            }
+        }
+    }
+
     size_t length(size_t yc, size_t xc, size_t y0, size_t y1, size_t x0, size_t x1) const {
         return cells.topo.line_length(0, xc, y0, y1) + cells.topo.line_length(1, yc, x0, x1);
     }
