@@ -198,7 +198,6 @@ class biclique_yield_cache {
 
   public:
     class iterator {
-        char id;
         size_t s0, s1;
         const size_t &rows, &cols;
         const vector<vector<size_t>> &chainlength;
@@ -217,7 +216,7 @@ class biclique_yield_cache {
         iterator(size_t _s0, size_t _s1, const size_t r, const size_t c, 
                  const vector<vector<size_t>> &cl,
                  const vector<vector<bound_t>> &_bounds,
-                 const bundle_cache<topo_spec> &_bundles, char i) : id(i),
+                 const bundle_cache<topo_spec> &_bundles) :
                  s0(_s0), s1(_s1), rows(r), cols(c), chainlength(cl),
                  bounds(_bounds), bundles(_bundles) { adv(); }
 
@@ -237,11 +236,12 @@ class biclique_yield_cache {
     };
 
     iterator begin() const {
-        return iterator(0, 0, rows, cols, chainlength, biclique_bounds, bundles, 'b');
+        return iterator(0, 0, rows, cols, chainlength, biclique_bounds, bundles);
     }
     iterator end() const {
-        return iterator(rows, 0, rows, cols, chainlength, biclique_bounds, bundles, 'e');
+        return iterator(rows, 0, rows, cols, chainlength, biclique_bounds, bundles);
     }
 };
+
 }
 

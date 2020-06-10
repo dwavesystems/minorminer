@@ -326,12 +326,8 @@ class clique_iterator {
 
 const vector<vector<size_t>> empty_emb;
 
-class clique_yield_cache {
-  public:
-    //prevent double-frees by forbidding moving & copying
-    clique_yield_cache(const clique_yield_cache&) = delete; 
-    clique_yield_cache(clique_yield_cache &&) = delete;
-    
+template<typename topo_spec>
+class clique_yield_cache {  
   private:
     const size_t length_bound;
     vector<size_t> clique_yield;
@@ -341,8 +337,16 @@ class clique_yield_cache {
     clique_yield_cache(const cell_cache<pegasus_spec> &cells) :
                        length_bound(4 + cells.topo.pdim),
                        clique_yield(length_bound, 0), 
-                       best_embeddings(length_bound, empty_emb) {
-        bundle_cache<pegasus_spec> bundles(cells);
+                       best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
+
+    clique_yield_cache(const cell_cache<chimera_spec> &cells) :
+                       length_bound(1+std::min(cells.topo.dim[0], cells.topo.dim[1])),
+                       clique_yield(length_bound, 0), 
+                       best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
+
+  private:
+    void compute_cache(const cell_cache<topo_spec> &cells) {
+        bundle_cache<topo_spec> bundles(cells);
         for(size_t w = 2; w <= cells.topo.dim[0]; w++) {
             size_t min_length, max_length;
             get_length_range(bundles, w, min_length, max_length);
@@ -352,7 +356,7 @@ class clique_yield_cache {
                                                     size_t x0, size_t x1){
                     return bundles.length(yc,xc,y0,y1,x0,x1) <= len; 
                 };
-                clique_cache<pegasus_spec> cliques(cells, bundles, w, check_length);
+                clique_cache<topo_spec> cliques(cells, bundles, w, check_length);
                 vector<vector<size_t>> emb;
                 if (cliques.extract_solution(emb)) {
                     size_t real_len = 0;
@@ -364,7 +368,7 @@ class clique_yield_cache {
                 }
             }
             {
-                clique_cache<pegasus_spec> cliques(cells, bundles, w);
+                clique_cache<topo_spec> cliques(cells, bundles, w);
                 vector<vector<size_t>> emb;
                 if (cliques.extract_solution(emb)) {
                     size_t real_len = 0;
@@ -377,7 +381,7 @@ class clique_yield_cache {
             }
         }
     }
-
+  public:
     const vector<vector<vector<size_t>>> &embeddings() {
         return best_embeddings;
     }
@@ -406,6 +410,11 @@ class clique_yield_cache {
             }
         }
     }
+
+    void get_length_range(const bundle_cache<chimera_spec> &bundles, size_t width, size_t &min_length, size_t &max_length) {
+        max_length = min_length = width+1;
+    }
 };
+
 
 }

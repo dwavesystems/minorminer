@@ -24,10 +24,17 @@ void best_bicliques(const topo_spec &topo,
                     const vector<size_t> &nodes,
                     const vector<pair<size_t, size_t>> &edges,
                     vector<pair<pair<size_t, size_t>, vector<vector<size_t>>>> &embs) {
+    topo_cache<topo_spec> topology(topo, nodes, edges);
+    best_bicliques(topology, embs);
+}
+
+template<typename topo_spec>
+void best_bicliques(topo_cache<topo_spec> &topology,
+                    vector<pair<pair<size_t, size_t>, vector<vector<size_t>>>> &embs) {
     embs.clear();
+    topology.reset();
     biclique_result_cache<size_t> chainlength;
     biclique_result_cache<vector<vector<size_t>>> emb_cache;
-    topo_cache<topo_spec> topology(topo, nodes, edges);
     do {
         bundle_cache<topo_spec> bundles(topology.cells);
         biclique_cache<topo_spec> bicliques(topology.cells, bundles);

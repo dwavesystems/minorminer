@@ -8,6 +8,8 @@
 //#include<assert.h>
 #include<iostream>
 #include<string.h>
+#include<set>
+#include<map>
 
 namespace busclique {
 using std::numeric_limits;
@@ -64,6 +66,8 @@ const uint8_t first_bit[256] = {0, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
 
 const uint8_t mask_bit[8] = {1, 2, 4, 8, 16, 32, 64, 128};
 const uint16_t mask_subsets[8] = {1, 2, 4, 8, 16, 32, 64, 128};
+
+const std::set<size_t> _emptyset;
 
 inline void pegasus_coordinates(size_t dim, size_t q, 
                                 size_t &u, size_t &w, size_t &k, size_t &z) {

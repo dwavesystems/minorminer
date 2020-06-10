@@ -61,6 +61,14 @@ class topo_cache {
                bad_edges(), mask_num(0), _init(_initialize(nodes, edges)),
                cells(t, child_nodemask, child_edgemask) {}
 
+    void reset() {
+        if(mask_num > 0) {
+            mask_num = 0;
+            next();
+        }
+    }
+
+  private:
     //this is a funny hack used to construct cells in-place:
     // _initializer_tag is an empty (size zero) struct, so this is "zero-cost"
     _initializer_tag _initialize(const vector<size_t> &nodes,
@@ -85,7 +93,6 @@ class topo_cache {
         return _initializer_tag {};
     }
 
-  private:
     void compute_bad_edges() {
         size_t q = 0;
         for(size_t y = 0, rowbase = 0; y < topo.dim[0]; y++, rowbase += topo.shore)
@@ -104,6 +111,7 @@ class topo_cache {
                 q += topo.shore;
             }
     }
+
   public:
     bool next() {
         if(bad_edges.size() == 0) {

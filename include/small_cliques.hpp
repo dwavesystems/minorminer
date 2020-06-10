@@ -1,10 +1,7 @@
 #pragma once
-#include<map>
-#include<set>
+#include "util.hpp"
 
 namespace busclique {
-
-const std::set<size_t> _emptyset;
 
 //find a 1-clique... uh... node... in a generic graph
 bool find_generic_1(const vector<size_t> &nodes,

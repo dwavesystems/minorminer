@@ -174,30 +174,27 @@ bool find_clique_nice(const topo_spec &topo,
 }
 
 template<typename topo_spec>
-void best_cliques(const topo_spec &topo,
+void short_clique(const topo_spec &,
                   const vector<size_t> &nodes,
                   const vector<pair<size_t, size_t>> &edges,
-                  vector<vector<vector<size_t>>> &embs);
+                  vector<vector<size_t>> &emb) {
+    constexpr bool pegasus = std::is_same<topo_spec, pegasus_spec>::value;
+    if(pegasus && find_generic_4(edges, emb))       return;
+    else if(pegasus && find_generic_3(edges, emb))  return;
+    else if(find_generic_2(edges, emb))             return;
+    else if(find_generic_1(nodes, emb))             return;
+}
 
-template<>
-void best_cliques(const pegasus_spec &topo,
-                  const vector<size_t> &nodes,
-                  const vector<pair<size_t, size_t>> &edges,
-                  vector<vector<vector<size_t>>> &embs) {
-    vector<vector<size_t>> emb;
+template<typename topo_spec>
+void best_cliques(topo_cache<topo_spec> &topology,
+                  vector<vector<vector<size_t>>> &embs,
+                  vector<vector<size_t>> &emb_1) {
     embs.clear();
-    embs.emplace_back(0);
-    if(find_generic_4(edges, emb))
-        embs.push_back(emb);
-    else if(find_generic_3(edges, emb))
-        embs.push_back(emb);
-    else if(find_generic_2(edges, emb))
-        embs.push_back(emb);
-    else if(find_generic_1(nodes, emb))
-        embs.push_back(emb);
-    topo_cache<pegasus_spec> pegasus(topo, nodes, edges);
+    embs.push_back(vector<vector<size_t>>{});
+    embs.push_back(emb_1);
+    topology.reset();
     do {
-        clique_yield_cache cliques(pegasus.cells);
+        clique_yield_cache<topo_spec> cliques(topology.cells);
         size_t chainlength = 0;
         for(auto &_emb: cliques.embeddings()) {
             while(embs.size() <= chainlength)
@@ -206,7 +203,7 @@ void best_cliques(const pegasus_spec &topo,
                 embs[chainlength] = _emb;
             chainlength++;
         }
-    } while(pegasus.next());
+    } while(topology.next());
 }
 
 }
