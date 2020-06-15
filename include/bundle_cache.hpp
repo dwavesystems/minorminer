@@ -6,7 +6,9 @@ namespace busclique {
 
 template<typename topo_spec>
 class bundle_cache {
+//  public:
     const cell_cache<topo_spec> &cells;
+//  private:
     const size_t linestride[2];
     const size_t orthstride;
     uint8_t *line_mask;

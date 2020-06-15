@@ -184,11 +184,11 @@ class biclique_yield_cache {
                         size_t s0 = cache.get(y, x, 0);
                         size_t s1 = cache.get(y, x, 1);
                         if (s0 == 0 || s1 == 0) continue;
-                        size_t maxlen = cells.topo.biclique_length(y, y+h-1, x, x+h-1);
-                        size_t prevlen = chainlength[s0][s1];
+                        size_t maxlen = cells.topo.biclique_length(y, y+h-1, x, x+w-1);
+                        size_t prevlen = chainlength[s0-1][s1-1];
                         if(prevlen == 0 || prevlen > maxlen) {
-                            chainlength[s0][s1] = maxlen;
-                            biclique_bounds[s0][s1] = bound_t(y, y+h-1, x, x+h-1);
+                            chainlength[s0-1][s1-1] = maxlen;
+                            biclique_bounds[s0-1][s1-1] = bound_t(y, y+h-1, x, x+w-1);
                         }
                     }
                 }
@@ -225,11 +225,11 @@ class biclique_yield_cache {
         std::tuple<size_t, size_t, size_t, vector<vector<size_t>>> operator*() { 
             bound_t z = bounds[s0][s1];
             size_t cl = chainlength[s0][s1];
+            Assert(cl > 0); 
             vector<vector<size_t>> emb;
-            if(cl)
-                bundles.inflate(std::get<0>(z), std::get<1>(z), 
-                                std::get<2>(z), std::get<3>(z), emb);
-            return std::make_tuple(s0, s1, cl, emb);
+            bundles.inflate(std::get<0>(z), std::get<1>(z), 
+                            std::get<2>(z), std::get<3>(z), emb);
+            return std::make_tuple(s0+1, s1+1, cl, emb);
         }
         bool operator==(const iterator& rhs) { return s0 == rhs.s0 && s1 == rhs.s1; }
         bool operator!=(const iterator& rhs) { return !operator==(rhs); }
