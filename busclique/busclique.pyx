@@ -2,20 +2,22 @@
 # cython: language_level=3
 include "busclique_h.pxi"
 
-import homebase, os, pathlib, fasteners
+import homebase, os, pathlib, fasteners, threading
 from pickle import dump, load
 import networkx as nx
 cdef int __cache_version__ = 1
 cdef int __lru_size__ = 100
 
 def chimera_clique(g, size, use_cache = True):
+    cdef size_t tile = g.graph['tile']
+    if tile > 8:
+        raise NotImplementedError(("this clique embedder only supports chimera "
+                                   "graphs with a tile size of 8 or less"))
     if use_cache:
         G = busgraph_cache(g)
         return G.get_clique(size)
 
-    cdef chimera_spec *chim = new chimera_spec(g.graph['rows'],
-                                               g.graph['columns'],
-                                               g.graph['tile'])
+    cdef chimera_spec *chim = new chimera_spec(g.graph['rows'], g.graph['columns'], tile)
     cdef nodes_t nodes = g.nodes()
     cdef edges_t edges = g.edges()
     cdef embedding_t emb
@@ -42,6 +44,7 @@ def pegasus_clique(g, size, use_cache = True):
     finally:
         del peg
 
+cdef dict __global_locks__ = {'clique': threading.Lock(), 'biclique': threading.Lock()}
 class busgraph_cache:
     def __init__(self, g):
         self._family = g.graph['family']
@@ -66,43 +69,54 @@ class busgraph_cache:
             self._bicliques = self._fetch_cache('biclique', self._graph.bicliques)
 
     def _fetch_cache(self, dirname, compute):
-        basedir = homebase.user_data_dir('busclique', 'dwave', __cache_version__,
-                                         dirname)
+        rootdir = homebase.user_data_dir('busclique', 'dwave', __cache_version__)
+        basedir = os.path.join(rootdir, dirname)
         pathlib.Path(basedir).mkdir(parents=True, exist_ok=True)
         lockfile = os.path.join(basedir, ".lock")
         lrufile = os.path.join(basedir, ".lru")
         identifier = self._graph.identifier
         shortcode = str(hash(identifier))
-        with fasteners.InterProcessLock(lockfile):
-            cachefile = os.path.join(basedir, str(shortcode))
-            if os.path.exists(cachefile):
-                with open(cachefile, 'rb') as filecache:
-                    currcache = load(filecache)
-            else:
-                currcache = {}
-            cache = currcache.get(identifier)
-            if cache is None:
-                cache = compute()
-                currcache[identifier] = cache
-                with open(cachefile, 'wb') as filecache:
-                    dump(currcache, filecache)
+        #this solves thread-safety?
+        with __global_locks__[dirname]:
+            #this solves inter-process safety?
+            with fasteners.InterProcessLock(lockfile):
+                cachefile = os.path.join(basedir, str(shortcode))
+                if os.path.exists(cachefile):
+                    with open(cachefile, 'rb') as filecache:
+                        currcache = load(filecache)
+                else:
+                    currcache = {}
+                cache = currcache.get(identifier)
+                if cache is None:
+                    cache = compute()
+                    currcache[identifier] = cache
+                    with open(cachefile, 'wb') as filecache:
+                        dump(currcache, filecache)
+
+                #now, update the LRU cache -- if this was being done in-memory,
+                #there are more efficient algorithms... but since we're doing 
+                #linear-time read&write, might as well do it the lazy way.
                 try:
-                    with open(lrufile, 'r') as lru:
-                        LRU = lru.readlines()
+                    with open(lrufile, 'rb') as lru:
+                        LRU = load(lru)
                 except FileNotFoundError:
                     LRU = []
-                LRU.append("{}\n".format(shortcode))
-                stalefiles = set(LRU[:-__lru_size__]) - set(LRU[-__lru_size__:])
-                for stalefile in stalefiles:
-                    os.remove(os.path.join(basedir, stalefile))
-                with open(lrufile, 'w') as lru:
-                    lru.writelines(LRU[-__lru_size__:])
+                newLRU = [shortcode]
+                for x in LRU:
+                    if x != shortcode:
+                        newLRU.append(x)
+                while len(newLRU) > __lru_size__:
+                    oldkey = newLRU.pop()
+                    os.remove(os.path.join(basedir, oldkey))
+                with open(lrufile, 'wb') as lru:
+                    dump(newLRU, lru)
         return cache
 
     def largest_clique(self):
         self._ensure_clique_cache()
-        embs = self._cliques['raw']        
-        return dict(enumerate(embs[-1]))
+        embs = self._cliques['raw']
+        keys = self._cliques['size']
+        return dict(enumerate(embs[keys[max(keys)]]))
 
     def largest_clique_by_chainlength(self, chainlength = None):
         self._ensure_clique_cache()
@@ -116,18 +130,18 @@ class busgraph_cache:
 
     def find_clique_embedding(self, nn):
         try:
-            N = list(range(nn))
-            n = nn
+            nodes = list(range(nn))
+            num = nn
         except TypeError:
-            N = tuple(nn)
-            n = len(N)
+            nodes = tuple(nn)
+            num = len(nodes)
         self._ensure_clique_cache()
-        num, nodes = nn
-        embs = self._cliques['size']
-        emb = embs.get(num)
-        if emb is None:
-            raise ValueError("no clique of that size found; "
-                             "maximum size is {}".format(max(embs)))
+        keys = self._cliques['size']
+        key = keys.get(num)
+        if key is None:
+            raise ValueError(("no clique of that size found; "
+                              "maximum size is {}").format(max(keys.values())))
+        emb = self._cliques['raw'][key]
         return dict(zip(nodes, emb))
 
     def largest_balanced_biclique(self):
@@ -160,6 +174,11 @@ class busgraph_cache:
             m = len(M)
         if(m < n):
             n, N, m, M = m, M, n, N
+        if m == 0:
+            emb = self._graph.independent_set(n)
+            if emb is None:
+                raise ValueError("no biclique of that size found")
+            return dict(zip(N, emb))
         nmax = biggest[None]
         for i in range(n, nmax + 1):
             mmax = biggest.get(i, 0)
@@ -188,12 +207,9 @@ cdef dict _make_clique_cache(vector[embedding_t] &embs):
     cdef dict by_size = {}
     cdef list raw = []
     for length, emb in enumerate(embs):
-        if maxsize >= emb.size():
-            continue
         raw.append(tuple(map(tuple, emb)))
         maxsize = max(emb.size(), maxsize)
-        maxlength = length
-        for i in range(length, -1, -1):
+        for i in range(maxsize, -1, -1):
             if by_size.setdefault(i, length) != length:
                 break
     return {'raw': raw, 'size': by_size}
@@ -233,6 +249,7 @@ cdef dict _make_biclique_cache(vector[pair[pair[size_t, size_t], embedding_t]] &
 
 cdef class pegasus_busgraph:
     cdef topo_cache[pegasus_spec] *topo
+    cdef nodes_t nodes
     cdef embedding_t emb_1
     cdef readonly object identifier
     def __cinit__(self, g):
@@ -240,13 +257,13 @@ cdef class pegasus_busgraph:
         voff = [o//2 for o in g.graph['vertical_offsets'][::2]]
         hoff = [o//2 for o in g.graph['horizontal_offsets'][::2]]
         cdef pegasus_spec *peg = new pegasus_spec(rows, voff, hoff)
-        cdef nodes_t nodes = g.nodes()
+        self.nodes = g.nodes()
         cdef edges_t edges = g.edges()
-        self.topo = new topo_cache[pegasus_spec](peg[0], nodes, edges)
-        short_clique(peg[0], nodes, edges, self.emb_1)
+        self.topo = new topo_cache[pegasus_spec](peg[0], self.nodes, edges)
+        short_clique(peg[0], self.nodes, edges, self.emb_1)
 
         #TODO replace this garbage with data from topo
-        self.identifier = (rows, tuple(voff), tuple(hoff), tuple(sorted(nodes)),
+        self.identifier = (rows, tuple(voff), tuple(hoff), tuple(sorted(self.nodes)),
                            tuple(sorted(map(tuple, map(sorted, edges)))))
         del peg
 
@@ -263,9 +280,16 @@ cdef class pegasus_busgraph:
         best_cliques[pegasus_spec](self.topo[0], embs, self.emb_1)
         return _make_clique_cache(embs)
 
+    def independent_set(self, size):
+        cdef int i
+        if size < self.nodes.size():
+            emb = [self.nodes[i] for i in range(size)]
+            return emb
+
 cdef class chimera_busgraph:
     cdef topo_cache[chimera_spec] *topo
     cdef embedding_t emb_1
+    cdef nodes_t nodes
     cdef readonly object identifier
     def __cinit__(self, g):
         rows = g.graph['rows']
@@ -276,13 +300,13 @@ cdef class chimera_busgraph:
                                        "graphs with a tile size of 8 or less"))
 
         cdef chimera_spec *chim = new chimera_spec(rows, cols, tile)
-        cdef nodes_t nodes = g.nodes()
+        self.nodes = g.nodes()
         cdef edges_t edges = g.edges()
-        self.topo = new topo_cache[chimera_spec](chim[0], nodes, edges)
-        short_clique(chim[0], nodes, edges, self.emb_1)
+        self.topo = new topo_cache[chimera_spec](chim[0], self.nodes, edges)
+        short_clique(chim[0], self.nodes, edges, self.emb_1)
 
         #TODO replace this garbage with data from topo
-        self.identifier = (rows, cols, tile, tuple(sorted(nodes)),
+        self.identifier = (rows, cols, tile, tuple(sorted(self.nodes)),
                            tuple(sorted(tuple(sorted(e)) for e in edges)))
 
         del chim
@@ -301,6 +325,8 @@ cdef class chimera_busgraph:
         best_cliques(self.topo[0], embs, self.emb_1)
         return _make_clique_cache(embs)
 
-
-
-
+    def independent_set(self, size):
+        cdef int i
+        if size < self.nodes.size():
+            emb = [self.nodes[i] for i in range(size)]
+            return emb

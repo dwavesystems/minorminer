@@ -20,12 +20,16 @@ template<typename topo_spec>
 bool find_clique_nice(const cell_cache<topo_spec> &,
                       size_t size,
                       vector<vector<size_t>> &emb,
+                      size_t &min_width,
+                      size_t &max_width,
                       size_t &max_length);
 
 template<>
 bool find_clique_nice(const cell_cache<chimera_spec> &cells,
                       size_t size,
                       vector<vector<size_t>> &emb,
+                      size_t &min_width,
+                      size_t &max_width,
                       size_t &max_length) {
     bundle_cache<chimera_spec> bundles(cells);
     size_t shore = cells.topo.shore;
@@ -58,6 +62,8 @@ template<>
 bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
                       size_t size,
                       vector<vector<size_t>> &emb,
+                      size_t &min_width,
+                      size_t &max_width,
                       size_t &max_length) {
     bundle_cache<pegasus_spec> bundles(cells);
     size_t minw = (size + 1)/2;
@@ -126,37 +132,43 @@ bool find_clique(const chimera_spec & topo,
       default: break;
     }
     topo_cache<chimera_spec> chimera(topo, nodes, edges);
-    size_t maxlen = 0;
+    size_t max_length = 0;
+    size_t min_width = 0;
+    size_t max_width = 0;
+
     vector<vector<size_t>> _emb;
-    if (find_clique_nice(chimera.cells, size, _emb, maxlen))
+    if (find_clique_nice(chimera.cells, size, _emb, max_length, min_width, max_width))
         emb = _emb;
     while(chimera.next())
-        if (find_clique_nice(chimera.cells, size, _emb, maxlen))
+        if (find_clique_nice(chimera.cells, size, _emb, max_length, min_width, max_width))
             emb = _emb;
     return emb.size() >= size;
 }
 
-template<>
-bool find_clique(const pegasus_spec &topo,
+template<typename topo_spec>
+bool find_clique(const topo_spec &topo,
                  const vector<size_t> &nodes,
                  const vector<pair<size_t, size_t>> &edges,
                  size_t size,
                  vector<vector<size_t>> &emb) {
+    constexpr bool pegasus = std::is_same<topo_spec, pegasus_spec>::value;
     switch(size) {
       case 0: return true;
       case 1: return find_generic_1(nodes, emb);
       case 2: return find_generic_2(edges, emb);
-      case 3: if(find_generic_3(edges, emb)) return true; else break;
-      case 4: if(find_generic_4(edges, emb)) return true; else break;
+      case 3: if(pegasus && find_generic_3(edges, emb)) return true; else break;
+      case 4: if(pegasus && find_generic_4(edges, emb)) return true; else break;
       default: break;
     }
-    topo_cache<pegasus_spec> pegasus(topo, nodes, edges);
-    size_t maxlen = 0;
+    topo_cache<topo_spec> topology(topo, nodes, edges);
+    size_t max_length = 0;
+    size_t min_width = 0;
+    size_t max_width = 0;
     vector<vector<size_t>> _emb;
-    if (find_clique_nice(pegasus.cells, size, _emb, maxlen))
+    if (find_clique_nice(topology.cells, size, _emb, max_length, min_width, max_width))
         emb = _emb;
-    while(pegasus.next()) {
-        if (find_clique_nice(pegasus.cells, size, _emb, maxlen))
+    while(topology.next()) {
+        if (find_clique_nice(topology.cells, size, _emb, max_length, min_width, max_width))
             emb = _emb;
     }
     return emb.size() >= size;
@@ -169,8 +181,8 @@ bool find_clique_nice(const topo_spec &topo,
                       size_t size,
                       vector<vector<size_t>> &emb) {
     const cell_cache<topo_spec> cells(topo, nodes, edges);
-    size_t _;
-    return find_clique_nice(cells, size, emb, _);
+    size_t _0, _1, _2;
+    return find_clique_nice(cells, size, emb, _0, _1, _2);
 }
 
 template<typename topo_spec>
