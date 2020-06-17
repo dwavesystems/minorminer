@@ -4,54 +4,66 @@ include "busclique_h.pxi"
 
 import homebase, os, pathlib, fasteners, threading
 from pickle import dump, load
-import networkx as nx
-cdef int __cache_version__ = 1
-cdef int __lru_size__ = 100
+import networkx as nx, dwave_networkx as dnx
+cdef int __cache_version = 1
+cdef int __lru_size = 100
+cdef dict __global_locks = {'clique': threading.Lock(),
+                            'biclique': threading.Lock()}
 
-def chimera_clique(g, size, use_cache = True):
-    cdef size_t tile = g.graph['tile']
-    if tile > 8:
-        raise NotImplementedError(("this clique embedder only supports chimera "
-                                   "graphs with a tile size of 8 or less"))
-    if use_cache:
-        G = busgraph_cache(g)
-        return G.get_clique(size)
-
-    cdef chimera_spec *chim = new chimera_spec(g.graph['rows'], g.graph['columns'], tile)
-    cdef nodes_t nodes = g.nodes()
-    cdef edges_t edges = g.edges()
-    cdef embedding_t emb
-    find_clique(chim[0], nodes, edges, size, emb)
+def _num_nodes(nn, offset = 0):
     try:
-        return emb
-    finally:
-        del chim
+        nodes = list(range(offset, offset + nn))
+        num = nn
+    except TypeError:
+        nodes = tuple(nn)
+        num = len(nodes)
+    return num, nodes
 
-def pegasus_clique(g, size, use_cache = True):
-    if use_cache:
-        G = busgraph_cache(g)
-        return G.get_clique(size)
+def find_clique_embedding(g, nodes, use_cache = True):
+    """
+    Finds a clique embedding in the graph g using a polynomial-time algorithm.
+    
+    Inputs:
+        g: either a dwave_networkx.chimera_graph or dwave_networkx.pegasus_graph
+        nodes: a number (indicating the size of the desired clique) or an 
+            iterable (specifying the node labels of the desired clique)
+        use_cache: bool, default True -- whether or not to compute / restore a
+            cache of clique embeddings for g.  Note that this function only uses
+            the filesystem cache, and does not maintain the cache in memory.  If
+            many (or even several) embeddings are desired in a single session,
+            it is recommended to use `busgraph_cache`
 
-    cdef pegasus_spec *peg = new pegasus_spec(g.graph['rows'],
-                                   [o//2 for o in g.graph['vertical_offsets'][::2]],
-                                   [o//2 for o in g.graph['horizontal_offsets'][::2]])
-    cdef nodes_t nodes = g.nodes()
-    cdef edges_t edges = g.edges()
-    cdef embedding_t emb
-    find_clique(peg[0], nodes, edges, size, emb)
+    Returns:
+        emb: dict mapping node labels (either nodes, or range(nodes)) to chains
+            of a clique embedding
+    """
     try:
-        return emb
-    finally:
-        del peg
+        graphdata = g.graph
+        family = graphdata['family']
+        busgraph = {'pegasus': _pegasus_busgraph,
+                    'chimera': _chimera_busgraph}[family]
+    except (AttributeError, KeyError):
+        raise ValueError("g must be either a dwave_networkx.chimera_graph or"
+                         "a dwave_networkx.pegasus_graph")
+    if use_cache:
+        return busgraph_cache(g).find_clique_embedding(nodes)
+    else:
+        return busgraph(g).find_clique_embedding(nodes)
 
-cdef dict __global_locks__ = {'clique': threading.Lock(), 'biclique': threading.Lock()}
 class busgraph_cache:
     def __init__(self, g):
+        """
+        A cache class for chimera / pegasus graphs, and their associated cliques
+        and bicliques.
+
+        Input:
+            g: a dwave_networkx.pegasus_graph or dwave_networkx.chimera_graph
+        """
         self._family = g.graph['family']
         if(self._family == 'chimera'):
-            self._graph = chimera_busgraph(g)
+            self._graph = _chimera_busgraph(g)
         elif(self._family == 'pegasus'):
-            self._graph = pegasus_busgraph(g)
+            self._graph = _pegasus_busgraph(g)
         else:
             raise ValueError(("input graph must either be a "
                               "dwave_networkx.pegasus_graph or a "
@@ -69,7 +81,7 @@ class busgraph_cache:
             self._bicliques = self._fetch_cache('biclique', self._graph.bicliques)
 
     def _fetch_cache(self, dirname, compute):
-        rootdir = homebase.user_data_dir('busclique', 'dwave', __cache_version__)
+        rootdir = homebase.user_data_dir('busclique', 'dwave', __cache_version)
         basedir = os.path.join(rootdir, dirname)
         pathlib.Path(basedir).mkdir(parents=True, exist_ok=True)
         lockfile = os.path.join(basedir, ".lock")
@@ -77,7 +89,7 @@ class busgraph_cache:
         identifier = self._graph.identifier
         shortcode = str(hash(identifier))
         #this solves thread-safety?
-        with __global_locks__[dirname]:
+        with __global_locks[dirname]:
             #this solves inter-process safety?
             with fasteners.InterProcessLock(lockfile):
                 cachefile = os.path.join(basedir, str(shortcode))
@@ -105,7 +117,7 @@ class busgraph_cache:
                 for x in LRU:
                     if x != shortcode:
                         newLRU.append(x)
-                while len(newLRU) > __lru_size__:
+                while len(newLRU) > __lru_size:
                     oldkey = newLRU.pop()
                     os.remove(os.path.join(basedir, oldkey))
                 with open(lrufile, 'wb') as lru:
@@ -113,38 +125,59 @@ class busgraph_cache:
         return cache
 
     def largest_clique(self):
+        """
+        Returns the largest-found clique in the clique cache.  Keys of the
+        embedding dict are from range(len(emb))
+        """
         self._ensure_clique_cache()
         embs = self._cliques['raw']
         keys = self._cliques['size']
-        return dict(enumerate(embs[keys[max(keys)]]))
+        return self._graph.relabel(dict(enumerate(embs[keys[max(keys)]])))
 
-    def largest_clique_by_chainlength(self, chainlength = None):
+    def largest_clique_by_chainlength(self, chainlength):
+        """
+        Returns the largest-found clique in the clique cache, with a specified
+        maximum chainlength.  Keys of the embedding dict are from range(len(emb)).
+        """
         self._ensure_clique_cache()
         embs = self._cliques['raw']
 
         if 0 <= chainlength < len(embs):
-            return dict(enumerate(embs[chainlength]))
+            return self._graph.relabel(dict(enumerate(embs[chainlength])))
         else:
             raise ValueError(("no clique of that chainlength found; "
                               "maximum chainlength is {}").format(len(embs)-1))
 
     def find_clique_embedding(self, nn):
-        try:
-            nodes = list(range(nn))
-            num = nn
-        except TypeError:
-            nodes = tuple(nn)
-            num = len(nodes)
+        """
+        Returns a clique embedding, minimizing the maximum chainlength given its
+        size.
+        
+        Inputs:
+            nn: a number (indicating the size of the desired clique) or an 
+                iterable (specifying the node labels of the desired clique)
+
+        Returns:
+            emb: dict mapping node labels (either nn, or range(nn)) to chains
+                of a clique embedding
+        """
+        num, nodes = _num_nodes(nn)
         self._ensure_clique_cache()
         keys = self._cliques['size']
         key = keys.get(num)
         if key is None:
             raise ValueError(("no clique of that size found; "
                               "maximum size is {}").format(max(keys.values())))
-        emb = self._cliques['raw'][key]
-        return dict(zip(nodes, emb))
+        emb = dict(zip(nodes, self._cliques['raw'][key]))
+        return self._graph.relabel(emb)
 
     def largest_balanced_biclique(self):
+        """
+        Returns the largest-size biclique where both sides have equal size.
+        Nodes of the embedding dict are from range(len(emb)), where the nodes
+        range(len(emb)//2) are completely connected to the nodes 
+        range(len(emb)//2, len(emb)).        
+        """
         self._ensure_biclique_cache()
         biggest = self._bicliques['max_side']
         embs = self._bicliques['raw']
@@ -155,23 +188,34 @@ class busgraph_cache:
         s_min = min(s0, s1)
         emb0 = raw_emb0[:s_min]
         emb1 = raw_emb1[:s_min]
-        return dict(enumerate(emb0 + emb1))
+        return self._graph.relabel(dict(enumerate(emb0 + emb1)))
 
     def find_biclique_embedding(self, nn, mm):
+        """
+        Returns a biclique embedding, minimizing the maximum chainlength given 
+        its size.
+        
+        Inputs:
+            nn: int (indicating the size of one side of the desired biclique) or
+                an iterable (specifying the node labels of one side the desired
+                buclique)
+            mm: int or iterable, as above.
+
+        In the case that nn is a number, the first side will have nodes labeled
+        from range(nn).  In the case that mm is a number, the second side will
+        have nodes labeled from range(n, n + mm); where n is either nn or
+        len(nn).        
+
+        Returns:
+            emb: dict mapping node labels (described above) to chains of a
+                biclique embedding
+        """
         self._ensure_biclique_cache()
         biggest = self._bicliques['max_side']
         by_size = self._bicliques['size']
         raw = self._bicliques['raw']
-        try:
-            N = list(range(nn))
-            M = list(range(nn, nn + mm))
-            n = nn
-            m = mm
-        except TypeError:
-            N = tuple(nn)
-            M = tuple(mm)
-            n = len(N)
-            m = len(M)
+        n, N = _num_nodes(nn)
+        m, M = _num_nodes(mm, offset = n)
         if(m < n):
             n, N, m, M = m, M, n, N
         if m == 0:
@@ -194,9 +238,10 @@ class busgraph_cache:
                 emb0 = emb[:s0]
                 emb1 = emb[s0:]
                 if s0 <= n and s1 <= m:
-                    return dict(zip(N + M, emb0[:n] + emb1))
+                    emb = dict(zip(N + M, emb0[:n] + emb1))
                 else:
-                    return dict(zip(N + M, emb1[:n] + emb0))
+                    emb = dict(zip(N + M, emb1[:n] + emb0))
+                return self._graph.relabel(emb)
         raise ValueError("no biclique of that size found")
 
 cdef dict _make_clique_cache(vector[embedding_t] &embs):
@@ -247,18 +292,42 @@ cdef dict _make_biclique_cache(vector[pair[pair[size_t, size_t], embedding_t]] &
         max_side[key] = max(val)
     return {'raw': raw, 'size': by_size, 'max_side': max_side}
 
-cdef class pegasus_busgraph:
+def _trivial_relabeler(emb):
+    return emb
+
+def _make_relabeler(f):
+    def _relabeler(emb):
+        return {v: list(f(chain)) for v, chain in emb.items()}
+    return _relabeler
+
+cdef class _pegasus_busgraph:
     cdef topo_cache[pegasus_spec] *topo
     cdef nodes_t nodes
     cdef embedding_t emb_1
+    cdef readonly object relabel
     cdef readonly object identifier
     def __cinit__(self, g):
         rows = g.graph['rows']
         voff = [o//2 for o in g.graph['vertical_offsets'][::2]]
         hoff = [o//2 for o in g.graph['horizontal_offsets'][::2]]
         cdef pegasus_spec *peg = new pegasus_spec(rows, voff, hoff)
-        self.nodes = g.nodes()
-        cdef edges_t edges = g.edges()
+        coordinates = dnx.pegasus_coordinates(rows)
+        cdef edges_t edges
+        if g.graph['labels'] == 'int':
+            self.nodes = g.nodes()
+            edges = g.edges()
+            self.relabel = _trivial_relabeler
+        elif g.graph['labels'] == 'coordinate':
+            self.nodes = coordinates.iter_pegasus_to_linear(g.nodes())
+            edges = coordinates.iter_pegasus_to_linear_pairs(g.edges())
+            self.relabel = _make_relabeler(coordinates.iter_linear_to_pegasus)
+        elif g.graph['labels'] == 'nice':
+            self.nodes = coordinates.iter_nice_to_linear(g.nodes())
+            edges = coordinates.iter_nice_to_linear_pairs(g.edges())
+            self.relabel = _make_relabeler(coordinates.iter_linear_to_nice)
+        else:
+            raise ValueError("unrecognized graph labeling")
+
         self.topo = new topo_cache[pegasus_spec](peg[0], self.nodes, edges)
         short_clique(peg[0], self.nodes, edges, self.emb_1)
 
@@ -286,10 +355,20 @@ cdef class pegasus_busgraph:
             emb = [self.nodes[i] for i in range(size)]
             return emb
 
-cdef class chimera_busgraph:
+    def find_clique_embedding(self, nn):
+        num, nodes = _num_nodes(nn)
+        cdef embedding_t emb
+        if num <= self._emb_1.size():
+            emb = self._emb_1
+        elif not find_clique(self.topo[0], num, emb):
+            raise RuntimeError("did not find a clique of size {}".format(num))
+        return self.relabel(dict(zip(nodes, emb)))
+
+cdef class _chimera_busgraph:
     cdef topo_cache[chimera_spec] *topo
     cdef embedding_t emb_1
     cdef nodes_t nodes
+    cdef readonly object relabel
     cdef readonly object identifier
     def __cinit__(self, g):
         rows = g.graph['rows']
@@ -298,10 +377,20 @@ cdef class chimera_busgraph:
         if tile > 8:
             raise NotImplementedError(("this clique embedder only supports chimera "
                                        "graphs with a tile size of 8 or less"))
-
         cdef chimera_spec *chim = new chimera_spec(rows, cols, tile)
-        self.nodes = g.nodes()
-        cdef edges_t edges = g.edges()
+        cdef edges_t edges
+        coordinates = dnx.chimera_coordinates(rows, cols, tile)
+        if g.graph['labels'] == 'int':
+            self.nodes = g.nodes()
+            edges = g.edges()
+            self.relabel = _trivial_relabeler
+        elif g.graph['labels'] == 'coordinate':
+            self.nodes = coordinates.iter_chimera_to_linear(g.nodes())
+            edges = coordinates.iter_chimera_to_linear_pairs(g.edges())
+            self.relabel = _make_relabeler(coordinates.iter_linear_to_chimera)
+        else:
+            raise ValueError("unrecognized graph labeling")
+
         self.topo = new topo_cache[chimera_spec](chim[0], self.nodes, edges)
         short_clique(chim[0], self.nodes, edges, self.emb_1)
 
@@ -330,3 +419,12 @@ cdef class chimera_busgraph:
         if size < self.nodes.size():
             emb = [self.nodes[i] for i in range(size)]
             return emb
+
+    def find_clique_embedding(self, nn):
+        num, nodes = _num_nodes(nn)
+        cdef embedding_t emb
+        if num <= self._emb_1.size():
+            emb = self._emb_1
+        elif not find_clique(self.topo[0], num, emb):
+            raise RuntimeError("did not find a clique of size {}".format(num))
+        return self.relabel(dict(zip(nodes, emb)))

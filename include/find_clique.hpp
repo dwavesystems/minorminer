@@ -111,7 +111,7 @@ bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
     }
     return emb.size() >= size;
 }
-
+/*
 template<typename topo_spec>
 bool find_clique(const topo_spec &,
                  const vector<size_t> &nodes,
@@ -143,7 +143,7 @@ bool find_clique(const chimera_spec & topo,
         if (find_clique_nice(chimera.cells, size, _emb, max_length, min_width, max_width))
             emb = _emb;
     return emb.size() >= size;
-}
+}*/
 
 template<typename topo_spec>
 bool find_clique(const topo_spec &topo,
@@ -161,6 +161,14 @@ bool find_clique(const topo_spec &topo,
       default: break;
     }
     topo_cache<topo_spec> topology(topo, nodes, edges);
+    return find_clique(topology, size, emb);
+}
+
+template<typename topo_spec>
+bool find_clique(topo_cache<topo_spec> &topology,
+                 size_t size,
+                 vector<vector<size_t>> &emb) {
+    topology.reset();
     size_t max_length = 0;
     size_t min_width = 0;
     size_t max_width = 0;
