@@ -11,8 +11,20 @@ cdef dict __global_locks = {'clique': threading.Lock(),
                             'biclique': threading.Lock()}
 
 def _num_nodes(nn, offset = 0):
+    """
+    Internal-use function to normalize inputs.
+
+    Inputs:
+        nn: int or iterable
+
+    Outputs:
+        (n, nodes)
+            n: nn if n is an int, otherwise len(nodes)
+            nodes: tuple(offset, offset + nn) if nn is an iterable, otherwise
+            tuple(range(offset, offset + n))
+    """
     try:
-        nodes = list(range(offset, offset + nn))
+        nodes = tuple(range(offset, offset + nn))
         num = nn
     except TypeError:
         nodes = tuple(nn)
@@ -72,15 +84,44 @@ class busgraph_cache:
         self._bicliques = None
 
     def _ensure_clique_cache(self):
+        """
+        Fetch / compute the clique cache, if it's not already in memory
+        """
         if self._cliques is None:
             self._cliques = self._fetch_cache('clique', self._graph.cliques)
 
 
     def _ensure_biclique_cache(self):
+        """
+        Fetch / compute the clique cache, if it's not already in memory
+        """
         if self._bicliques is None:
             self._bicliques = self._fetch_cache('biclique', self._graph.bicliques)
 
     def _fetch_cache(self, dirname, compute):
+        """
+        This is an ad-hoc implementation of a file-cache using a LRU strategy.
+        It's intended to be platform independent, thread- and multiprocess-safe,
+        and reasonably performant -- I couldn't find a ready-made solution that
+        satisfies those requirements, so I had to roll my own.  TODO: keep 
+        looking for something cleaner.
+
+        We use `homebase` to locate a viable directory to store our caches.
+        We create two subdirectories (for now): `cliques` and `bicliques`, and
+        store respective caches in each.
+
+        We derive a unique identifier from `self._graph`, and hash that
+        identifier to produce a `shortcode`.  The cache associated with
+        `self.graph` has the filename `str(shortcode)` -- this is preferable to
+        using a single file to store the entire cache.
+
+        Inside a cache directory, we have two special files and perhaps many
+        cache files.  The `.lock` file is used by `fasteners.InterProcessLock`
+        to provide process-level locking.  The `.lru` file is a list of up to
+        `__lru_size` different cache filenames, sorted descending in the
+        recentness of the last access of a given filename.  This enables us to
+        automatically clean up the cache before it gets too large.
+        """
         rootdir = homebase.user_data_dir('busclique', 'dwave', __cache_version)
         basedir = os.path.join(rootdir, dirname)
         pathlib.Path(basedir).mkdir(parents=True, exist_ok=True)
@@ -145,8 +186,7 @@ class busgraph_cache:
         if 0 <= chainlength < len(embs):
             return self._graph.relabel(dict(enumerate(embs[chainlength])))
         else:
-            raise ValueError(("no clique of that chainlength found; "
-                              "maximum chainlength is {}").format(len(embs)-1))
+            return {}
 
     def find_clique_embedding(self, nn):
         """
@@ -166,8 +206,7 @@ class busgraph_cache:
         keys = self._cliques['size']
         key = keys.get(num)
         if key is None:
-            raise ValueError(("no clique of that size found; "
-                              "maximum size is {}").format(max(keys.values())))
+            return {}
         emb = dict(zip(nodes, self._cliques['raw'][key]))
         return self._graph.relabel(emb)
 
@@ -221,7 +260,7 @@ class busgraph_cache:
         if m == 0:
             emb = self._graph.independent_set(n)
             if emb is None:
-                raise ValueError("no biclique of that size found")
+                return {}
             return dict(zip(N, emb))
         nmax = biggest[None]
         for i in range(n, nmax + 1):
@@ -242,9 +281,16 @@ class busgraph_cache:
                 else:
                     emb = dict(zip(N + M, emb1[:n] + emb0))
                 return self._graph.relabel(emb)
-        raise ValueError("no biclique of that size found")
+        return {}
 
 cdef dict _make_clique_cache(vector[embedding_t] &embs):
+    """
+    Process the raw clique cache produced by the c++ code.  Store both the raw
+    list of embeddings (a list `raw` with `raw[i]` being the maximum-size 
+    embedding with maximum chainlength `i`), and a size-indexed dictionary
+    `by_size` where `embs[by_size[j]]` is a clique embedding of size `j` whose
+    maximum chainlength is minimized.
+    """
     cdef embedding_t emb
     cdef size_t maxsize = 0
     cdef size_t maxlength = 0
@@ -260,6 +306,18 @@ cdef dict _make_clique_cache(vector[embedding_t] &embs):
     return {'raw': raw, 'size': by_size}
 
 cdef _keep_biclique_key(tuple key0, tuple key1, dict chainlength):
+    """
+    Helper function for `_make_biclique_cache`.  Each "key" is a pair of ints
+    (n, m) corresponding to a biclique K_{n, m}.  `chainlength` is a dictionary
+    mapping these keys to the lengths of the longest, and shortest, chains in
+    the known embedding of K_{n, m}.
+ 
+    We return True if the embedding associated with key0 is "equal or better"
+    than that of key1.  We say that one embedding is better than the other by
+    first prioritizing the smallest maximum chainlength, and then prioritizing
+    the largest minimum chainlength (e.g. embeddings with balanced chainlengths
+    are preferred).
+    """
     if key0 == key1:
         return True
     long0, short0 = chainlength[key0]
@@ -270,6 +328,16 @@ cdef _keep_biclique_key(tuple key0, tuple key1, dict chainlength):
         return False
 
 cdef dict _make_biclique_cache(vector[pair[pair[size_t, size_t], embedding_t]] &embs):
+    """
+    Process the raw biclique cache produced by the c++ code.  Store the raw dict
+    of embeddings (a dict `raw` with `raw[s0, s1]` being the minimum chainlength
+    embedding of K_{s0, s1} where the order of s0, s1 matters; a 2-dimensional
+    dict `size` where `size[s0][s1]` (given s0 >= s1) is a key into `raw` where         
+    `raw[size[s0][s1]]` is the minimum chainlength embedding of K_{s0, s1}; and
+    a dictionary `max_side` where `max_side[None]` gives the largest value of 
+    `x` such that K_{x, y} exists for any `y > 0`; and otherwise `max_side[x]`
+    gives the largest value y for which K_{x, y} exists.
+    """
     cdef embedding_t emb
     cdef dict raw = {(s0, s1): emb for (s0, s1), emb in embs if emb.size()}
     cdef dict chainlength = {key: (max(map(len, emb)), min(map(len, emb)))
@@ -293,9 +361,14 @@ cdef dict _make_biclique_cache(vector[pair[pair[size_t, size_t], embedding_t]] &
     return {'raw': raw, 'size': by_size, 'max_side': max_side}
 
 def _trivial_relabeler(emb):
+    """This doesn't relabel anything"""
     return emb
 
 def _make_relabeler(f):
+    """
+    This returns an embedding-relabeling function, which applies `f` to each
+    chain in the embedding.
+    """
     def _relabeler(emb):
         return {v: list(f(chain)) for v, chain in emb.items()}
     return _relabeler
@@ -307,6 +380,10 @@ cdef class _pegasus_busgraph:
     cdef readonly object relabel
     cdef readonly object identifier
     def __cinit__(self, g):
+        """
+        This is a class which manages a single pegasus graph, and dispatches various
+        structure-aware c++ embedding functions on it.
+        """
         rows = g.graph['rows']
         voff = [o//2 for o in g.graph['vertical_offsets'][::2]]
         hoff = [o//2 for o in g.graph['horizontal_offsets'][::2]]
@@ -340,31 +417,49 @@ cdef class _pegasus_busgraph:
         del self.topo
 
     def bicliques(self):
+        """
+        Returns a biclique cache -- see _make_biclique_cache for more info.
+        """
         cdef vector[pair[pair[size_t, size_t], embedding_t]] embs
         best_bicliques[pegasus_spec](self.topo[0], embs)
         return _make_biclique_cache(embs)
 
     def cliques(self):
+        """
+        Returns a clique cache -- see _make_clique_cache for more info.
+        """
         cdef vector[embedding_t] embs
         best_cliques[pegasus_spec](self.topo[0], embs, self.emb_1)
         return _make_clique_cache(embs)
 
     def independent_set(self, size):
+        """
+        This is extremely silly, but what else should we do when a user requests
+        a K_{0, n}?
+        """
         cdef int i
         if size < self.nodes.size():
             emb = [self.nodes[i] for i in range(size)]
             return emb
 
     def find_clique_embedding(self, nn):
+        """
+        Perfoms a "one-shot" embedding procedure to find K_n where n is either
+        int(nn) or len(tuple(nn)), without generating a cache.
+        """
         num, nodes = _num_nodes(nn)
         cdef embedding_t emb
         if num <= self._emb_1.size():
             emb = self._emb_1
         elif not find_clique(self.topo[0], num, emb):
-            raise RuntimeError("did not find a clique of size {}".format(num))
+            return {}
         return self.relabel(dict(zip(nodes, emb)))
 
 cdef class _chimera_busgraph:
+    """
+    This is a class which manages a single chimera graph, and dispatches various
+    structure-aware c++ embedding functions on it.
+    """
     cdef topo_cache[chimera_spec] *topo
     cdef embedding_t emb_1
     cdef nodes_t nodes
@@ -405,26 +500,40 @@ cdef class _chimera_busgraph:
         del self.topo
 
     def bicliques(self):
+        """
+        Returns a biclique cache -- see _make_biclique_cache for more info.
+        """
         cdef vector[pair[pair[size_t, size_t], embedding_t]] embs
         best_bicliques(self.topo[0], embs)
         return _make_biclique_cache(embs)
 
     def cliques(self):
+        """
+        Returns a clique cache -- see _make_clique_cache for more info.
+        """
         cdef vector[embedding_t] embs
         best_cliques(self.topo[0], embs, self.emb_1)
         return _make_clique_cache(embs)
 
     def independent_set(self, size):
+        """
+        This is extremely silly, but what else should we do when a user requests
+        a K_{0, n}?
+        """
         cdef int i
         if size < self.nodes.size():
             emb = [self.nodes[i] for i in range(size)]
             return emb
 
     def find_clique_embedding(self, nn):
+        """
+        Perfoms a "one-shot" embedding procedure to find K_n where n is either
+        int(nn) or len(tuple(nn)), without generating a cache.
+        """
         num, nodes = _num_nodes(nn)
         cdef embedding_t emb
         if num <= self._emb_1.size():
             emb = self._emb_1
         elif not find_clique(self.topo[0], num, emb):
-            raise RuntimeError("did not find a clique of size {}".format(num))
+            return {}
         return self.relabel(dict(zip(nodes, emb)))
