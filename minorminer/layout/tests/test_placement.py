@@ -39,16 +39,29 @@ class TestPlacement(TestLayoutPlacement):
         placement = mml.intersection(S_layout, self.C_coord_layout)
         self.assertIsPlacement(self.S, self.C_coord, placement)
 
-        # Test bad inputs
-        # Pegasus is not allowed
-        self.assertRaises(NotImplementedError, mml.intersection,
-                          self.S_layout, self.P_layout)
+        # Test coordinate variations of pegasus
+        S_layout = mml.Layout(self.S)
+        placement = mml.intersection(S_layout, self.P_coord_layout)
+        self.assertIsPlacement(self.S, self.P_coord, placement)
+
+        placement = mml.intersection(S_layout, self.P_layout)
+        self.assertIsPlacement(self.S, self.P, placement)
+
+        placement = mml.intersection(S_layout, self.P_nice_layout)
+        self.assertIsPlacement(self.S, self.P_nice, placement)
+
+        placement = mml.intersection(S_layout, self.P_nice_layout)
+        self.assertIsPlacement(self.S, self.P_nice, placement)
+
+
         # Chimera must have data or coordinates
         self.assertRaises(NotImplementedError, mml.intersection,
                           self.S_layout, self.C_blank_layout)
-        # Pegasus coordinates not implemented
-        self.assertRaises(NotImplementedError,
-                          _lookup_intersection_coordinates, self.P)
+
+        # Pegasus must have data or coordinates
+        self.assertRaises(NotImplementedError, mml.intersection,
+                          self.S_layout, self.P_blank_layout)
+
 
     def test_closest(self):
         """

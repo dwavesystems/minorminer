@@ -31,7 +31,7 @@ def intersection(S_layout, T_layout, **kwargs):
     T = T_layout.G
 
     # Currently only implemented for 2d chimera
-    if T.graph.get("family") != "chimera":
+    if T.graph.get("family") not in ("chimera", "pegasus"):
         raise NotImplementedError(
             "This strategy is currently only implemented for Chimera.")
 
@@ -114,29 +114,45 @@ def _lookup_intersection_coordinates(G):
         - Pegasus: Not Implemented
     """
     graph_data = G.graph
-
     family = graph_data.get("family")
-    t = graph_data.get("tile")
 
     if family == "chimera":
+        t = graph_data.get("tile")
         intersection_points = defaultdict(set)
         if graph_data["labels"] == "coordinate":
             for v in G:
                 _chimera_all_intersection_points(intersection_points, v, t, *v)
 
         elif graph_data["data"]:
-            for v in G:
+            for v, d in G.nodes(data=True):
                 _chimera_all_intersection_points(
-                    intersection_points, v, t, *G.nodes[v]["chimera_index"])
+                    intersection_points, v, t, *d["chimera_index"])
 
         else:
-            raise NotImplementedError(
-                "Please pass in a coordinated Chimera, or one where data=True.")
+            raise NotImplementedError("Please pass in a Chimera graph created"
+                " with an optional parameter 'data=True' or 'coordinates=True'")
 
         return intersection_points
 
     elif family == "pegasus":
-        raise NotImplementedError("Pegasus forthcoming.")
+        offsets = [graph_data['vertical_offsets'],
+                   graph_data['horizontal_offsets']]
+
+        intersection_points = defaultdict(set)
+        if graph_data["labels"] == "coordinate":
+            for v in G:
+                _pegasus_all_intersection_points(intersection_points, offsets,
+                                                 v, *v)
+        elif graph_data["data"]:
+            for v, d in G.nodes(data=True):
+                _pegasus_all_intersection_points(intersection_points, offsets,
+                                                 v, *d["pegasus_index"])
+        else:
+            raise NotImplementedError("Please pass in a Pegasus graph created"
+                " with an optional parameter 'data=True' or 'coordinates=True'")
+
+        return intersection_points
+
 
 
 def _chimera_all_intersection_points(intersection_points, v, t, i, j, u, k):
@@ -156,6 +172,25 @@ def _chimera_all_intersection_points(intersection_points, v, t, i, j, u, k):
         for kk in range(t):
             row = i*t + kk
             intersection_points[(col, row)].add(v)
+
+def _pegasus_all_intersection_points(intersection_points, offsets, v, u, w, k, z):
+    """
+    Given a coordinate vertex, v = (u, w, k, z), of a Pegasus graph with offsets
+    `offsets`, get all intersection points it is in.
+    """
+    # Each horizontal qubit spans twelve grid-points in the row 12w+k
+    if u == 1:
+        row = 12*w + k
+        col_0 = 12*z + offsets[u][k]
+        for kk in range(12):
+            intersection_points[(col_0 + kk, row)].add(v)
+
+    # Sameish for a column vertex.
+    elif u == 0:
+        col = 12*w + k
+        row_0 = 12*z + offsets[u][k]
+        for kk in range(12):
+            intersection_points[(col, row_0 + kk)].add(v)
 
 
 def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
