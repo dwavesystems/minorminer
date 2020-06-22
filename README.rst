@@ -1,11 +1,11 @@
 .. image:: https://img.shields.io/pypi/v/minorminer.svg
     :target: https://pypi.python.org/pypi/minorminer
 
-.. image:: https://ci.appveyor.com/api/projects/status/g4bj8w7mm1v95i6a/branch/master?svg=true
-    :target: https://ci.appveyor.com/project/dwave-adtt/minorminer/branch/master
+.. image:: https://ci.appveyor.com/api/projects/status/g4bj8w7mm1v95i6a/branch/main?svg=true
+    :target: https://ci.appveyor.com/project/dwave-adtt/minorminer/branch/main
 
-.. image:: https://coveralls.io/repos/github/dwavesystems/minorminer/badge.svg?branch=master
-    :target: https://coveralls.io/github/dwavesystems/minorminer?branch=master
+.. image:: https://coveralls.io/repos/github/dwavesystems/minorminer/badge.svg?branch=main
+    :target: https://coveralls.io/github/dwavesystems/minorminer?branch=main
 
 .. image:: https://readthedocs.com/projects/d-wave-systems-minorminer/badge/?version=latest
     :target: https://docs.ocean.dwavesys.com/projects/minorminer/en/latest/?badge=latest
