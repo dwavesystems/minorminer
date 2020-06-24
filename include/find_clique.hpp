@@ -111,39 +111,6 @@ bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
     }
     return emb.size() >= size;
 }
-/*
-template<typename topo_spec>
-bool find_clique(const topo_spec &,
-                 const vector<size_t> &nodes,
-                 const vector<pair<size_t, size_t>> &edges,
-                 size_t size,
-                 vector<vector<size_t>> &emb);
-
-template<>
-bool find_clique(const chimera_spec & topo,
-                 const vector<size_t> &nodes,
-                 const vector<pair<size_t, size_t>> &edges,
-                 size_t size,
-                 vector<vector<size_t>> &emb) {
-    switch(size) {
-      case 0: return true;
-      case 1: return find_generic_1(nodes, emb);
-      case 2: return find_generic_2(edges, emb);
-      default: break;
-    }
-    topo_cache<chimera_spec> chimera(topo, nodes, edges);
-    size_t max_length = 0;
-    size_t min_width = 0;
-    size_t max_width = 0;
-
-    vector<vector<size_t>> _emb;
-    if (find_clique_nice(chimera.cells, size, _emb, max_length, min_width, max_width))
-        emb = _emb;
-    while(chimera.next())
-        if (find_clique_nice(chimera.cells, size, _emb, max_length, min_width, max_width))
-            emb = _emb;
-    return emb.size() >= size;
-}*/
 
 template<typename topo_spec>
 bool find_clique(const topo_spec &topo,

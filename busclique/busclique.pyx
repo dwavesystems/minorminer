@@ -96,7 +96,8 @@ class busgraph_cache:
         Fetch / compute the clique cache, if it's not already in memory
         """
         if self._bicliques is None:
-            self._bicliques = self._fetch_cache('biclique', self._graph.bicliques)
+            self._bicliques = self._fetch_cache('biclique', 
+                                                self._graph.bicliques)
 
     def _fetch_cache(self, dirname, compute):
         """
@@ -113,7 +114,11 @@ class busgraph_cache:
         We derive a unique identifier from `self._graph`, and hash that
         identifier to produce a `shortcode`.  The cache associated with
         `self.graph` has the filename `str(shortcode)` -- this is preferable to
-        using a single file to store the entire cache.
+        using a single file to store the entire cache.  In the case of hash
+        collisions, the databases of multiple graphs will be stored in a single
+        cache file -- so that file contains a `pickle`'d dict mapping
+        indentifiers (not shortcodes) to the corresponding clique/biclique
+        caches.
 
         Inside a cache directory, we have two special files and perhaps many
         cache files.  The `.lock` file is used by `fasteners.InterProcessLock`
@@ -178,7 +183,8 @@ class busgraph_cache:
     def largest_clique_by_chainlength(self, chainlength):
         """
         Returns the largest-found clique in the clique cache, with a specified
-        maximum chainlength.  Keys of the embedding dict are from range(len(emb)).
+        maximum chainlength.  Keys of the embedding dict are from 
+        `range(len(emb))`.
         """
         self._ensure_clique_cache()
         embs = self._cliques['raw']
@@ -311,7 +317,7 @@ cdef _keep_biclique_key(tuple key0, tuple key1, dict chainlength):
     (n, m) corresponding to a biclique K_{n, m}.  `chainlength` is a dictionary
     mapping these keys to the lengths of the longest, and shortest, chains in
     the known embedding of K_{n, m}.
- 
+
     We return True if the embedding associated with key0 is "equal or better"
     than that of key1.  We say that one embedding is better than the other by
     first prioritizing the smallest maximum chainlength, and then prioritizing
@@ -327,14 +333,15 @@ cdef _keep_biclique_key(tuple key0, tuple key1, dict chainlength):
     else:
         return False
 
-cdef dict _make_biclique_cache(vector[pair[pair[size_t, size_t], embedding_t]] &embs):
+cdef dict _make_biclique_cache(vector[pair[pair[size_t, size_t],
+                               embedding_t]] &embs):
     """
     Process the raw biclique cache produced by the c++ code.  Store the raw dict
     of embeddings (a dict `raw` with `raw[s0, s1]` being the minimum chainlength
     embedding of K_{s0, s1} where the order of s0, s1 matters; a 2-dimensional
-    dict `size` where `size[s0][s1]` (given s0 >= s1) is a key into `raw` where         
+    dict `size` where `size[s0][s1]` (given s0 >= s1) is a key into `raw` where
     `raw[size[s0][s1]]` is the minimum chainlength embedding of K_{s0, s1}; and
-    a dictionary `max_side` where `max_side[None]` gives the largest value of 
+    a dictionary `max_side` where `max_side[None]` gives the largest value of
     `x` such that K_{x, y} exists for any `y > 0`; and otherwise `max_side[x]`
     gives the largest value y for which K_{x, y} exists.
     """
@@ -381,8 +388,8 @@ cdef class _pegasus_busgraph:
     cdef readonly object identifier
     def __cinit__(self, g):
         """
-        This is a class which manages a single pegasus graph, and dispatches various
-        structure-aware c++ embedding functions on it.
+        This is a class which manages a single pegasus graph, and dispatches 
+        various structure-aware c++ embedding functions on it.
         """
         rows = g.graph['rows']
         voff = [o//2 for o in g.graph['vertical_offsets'][::2]]
@@ -409,7 +416,8 @@ cdef class _pegasus_busgraph:
         short_clique(peg[0], self.nodes, edges, self.emb_1)
 
         #TODO replace this garbage with data from topo
-        self.identifier = (rows, tuple(voff), tuple(hoff), tuple(sorted(self.nodes)),
+        self.identifier = (rows, tuple(voff), tuple(hoff),
+                           tuple(sorted(self.nodes)),
                            tuple(sorted(map(tuple, map(sorted, edges)))))
         del peg
 
@@ -449,8 +457,8 @@ cdef class _pegasus_busgraph:
         """
         num, nodes = _num_nodes(nn)
         cdef embedding_t emb
-        if num <= self._emb_1.size():
-            emb = self._emb_1
+        if num <= self.emb_1.size():
+            emb = self.emb_1
         elif not find_clique(self.topo[0], num, emb):
             return {}
         return self.relabel(dict(zip(nodes, emb)))
@@ -470,7 +478,7 @@ cdef class _chimera_busgraph:
         cols = g.graph['columns']
         tile = g.graph['tile']
         if tile > 8:
-            raise NotImplementedError(("this clique embedder only supports chimera "
+            raise NotImplementedError(("this clique embedder supports chimera "
                                        "graphs with a tile size of 8 or less"))
         cdef chimera_spec *chim = new chimera_spec(rows, cols, tile)
         cdef edges_t edges
@@ -532,8 +540,8 @@ cdef class _chimera_busgraph:
         """
         num, nodes = _num_nodes(nn)
         cdef embedding_t emb
-        if num <= self._emb_1.size():
-            emb = self._emb_1
+        if num <= self.emb_1.size():
+            emb = self.emb_1
         elif not find_clique(self.topo[0], num, emb):
             return {}
         return self.relabel(dict(zip(nodes, emb)))
