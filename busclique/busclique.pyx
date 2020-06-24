@@ -5,7 +5,7 @@ include "busclique_h.pxi"
 import homebase, os, pathlib, fasteners, threading
 from pickle import dump, load
 import networkx as nx, dwave_networkx as dnx
-cdef int __cache_version = 1
+cdef int __cache_version = 2
 cdef int __lru_size = 100
 cdef dict __global_locks = {'clique': threading.Lock(),
                             'biclique': threading.Lock()}

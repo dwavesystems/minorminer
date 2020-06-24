@@ -335,12 +335,12 @@ class clique_yield_cache {
 
   public:
     clique_yield_cache(const cell_cache<pegasus_spec> &cells) :
-                       length_bound(4 + cells.topo.pdim),
+                       length_bound(5 + cells.topo.pdim),
                        clique_yield(length_bound, 0), 
                        best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
 
     clique_yield_cache(const cell_cache<chimera_spec> &cells) :
-                       length_bound(1+std::min(cells.topo.dim[0], cells.topo.dim[1])),
+                       length_bound(2+std::min(cells.topo.dim[0], cells.topo.dim[1])),
                        clique_yield(length_bound, 0), 
                        best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
 
