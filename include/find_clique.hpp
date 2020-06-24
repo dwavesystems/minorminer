@@ -180,7 +180,6 @@ void best_cliques(topo_cache<topo_spec> &topology,
     embs.push_back(vector<vector<size_t>>{});
     embs.push_back(emb_1);
     topology.reset();
-    //TODO we're missing embeddings of K_4 in chimera!
     do {
         clique_yield_cache<topo_spec> cliques(topology.cells);
         size_t chainlength = 0;

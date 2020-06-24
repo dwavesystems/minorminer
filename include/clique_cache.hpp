@@ -199,7 +199,7 @@ class clique_cache {
     }
 
   public:
-    bool extract_solution(vector<vector<size_t>> &emb) {
+    bool extract_solution(vector<vector<size_t>> &emb) const {
         size_t bx, by, bscore=0;
         maxcache scores = get(width-1);
         for(size_t y = 0; y < scores.rows; y++) {
@@ -345,8 +345,46 @@ class clique_yield_cache {
                        best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
 
   private:
+    size_t emb_max_length(const vector<vector<size_t>> &emb) const {
+        size_t maxlen = 0;
+        for(auto &chain: emb)
+            maxlen = max(maxlen, chain.size());
+        return maxlen;
+    }
+
+    void process_cliques(const clique_cache<topo_spec> &cliques) {
+        vector<vector<size_t>> emb;
+        if (cliques.extract_solution(emb)) {
+            size_t real_len = emb_max_length(emb);
+            if(clique_yield[real_len] < emb.size()) {
+                clique_yield[real_len] = emb.size();
+                best_embeddings[real_len] = emb;
+            }
+        }
+    }
+
     void compute_cache(const cell_cache<topo_spec> &cells) {
         bundle_cache<topo_spec> bundles(cells);
+        if(std::is_same<topo_spec, chimera_spec>::value) {
+            //this handles width 1 embeddings, which aren't properly handled
+            //in the code below.  This is strictly necessary for chimera, and
+            //silly for pegasus because the best possible outcome would be an
+            //embedding of K_2
+            for(size_t y = 0; y < cells.topo.dim[0]; y++)
+                for(size_t x = 0; x < cells.topo.dim[1]; x++) {
+                    size_t score = bundles.score(y,x,y,y,x,x);
+                    if(score > clique_yield[2]) {
+                        vector<vector<size_t>> emb;
+                        bundles.inflate(y,x,y,y,x,x, emb);
+                        clique_yield[2] = score;
+                        best_embeddings[2] = emb;
+                        Assert(emb.size() == score);
+                        Assert(emb_max_length(emb) == 2);
+                    }
+                    if(score == cells.topo.shore) goto stop_w1_scan;
+                }
+            stop_w1_scan:;
+        }
         for(size_t w = 2; w <= cells.topo.dim[0]; w++) {
             size_t min_length, max_length;
             get_length_range(bundles, w, min_length, max_length);
@@ -357,27 +395,11 @@ class clique_yield_cache {
                     return bundles.length(yc,xc,y0,y1,x0,x1) <= len; 
                 };
                 clique_cache<topo_spec> cliques(cells, bundles, w, check_length);
-                vector<vector<size_t>> emb;
-                if (cliques.extract_solution(emb)) {
-                    size_t real_len = 0;
-                    for(auto &chain: emb) real_len = max(real_len, chain.size());
-                    if(clique_yield[real_len] < emb.size()) {
-                        clique_yield[real_len] = emb.size();
-                        best_embeddings[real_len] = emb;
-                    }
-                }
+                process_cliques(cliques);
             }
             {
                 clique_cache<topo_spec> cliques(cells, bundles, w);
-                vector<vector<size_t>> emb;
-                if (cliques.extract_solution(emb)) {
-                    size_t real_len = 0;
-                    for(auto &chain: emb) real_len = max(real_len, chain.size());
-                    if(clique_yield[real_len] < emb.size()) {
-                        clique_yield[real_len] = emb.size();
-                        best_embeddings[real_len] = emb;
-                    }
-                }
+                process_cliques(cliques);
             }
         }
     }

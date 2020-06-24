@@ -14,7 +14,7 @@ class topo_cache {
     uint8_t *edgemask;
     uint8_t *badmask;
     vector<pair<size_t, size_t>> bad_edges;
-    uint8_t mask_num;
+    size_t mask_num;
 
     //this is a little hackish way to keep everything const & construct cells in-place
     class _initializer_tag {};
@@ -137,7 +137,8 @@ class topo_cache {
             }
         } else {
             //maaaaybe we want to hand control of this parameter to the user?
-            if(mask_num < 64) mask_num++;
+            //TODO turn this down before release
+            if(mask_num < 1024) mask_num++;
             else return false;
             //this is a somewhat ad-hoc, unoptimized implementation.  we should
             //take a proper seed from the user, etc.
