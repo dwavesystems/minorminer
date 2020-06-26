@@ -14,7 +14,7 @@ class topo_cache {
     uint8_t *edgemask;
     uint8_t *badmask;
     vector<pair<size_t, size_t>> bad_edges;
-    size_t mask_num;
+    uint8_t mask_num;
 
     //this is a little hackish way to keep everything const & construct cells in-place
     class _initializer_tag {};
@@ -137,8 +137,7 @@ class topo_cache {
             }
         } else {
             //maaaaybe we want to hand control of this parameter to the user?
-            //TODO turn this down before release
-            if(mask_num < 1024) mask_num++;
+            if(mask_num < 64) mask_num++;
             else return false;
             //this is a somewhat ad-hoc, unoptimized implementation.  we should
             //take a proper seed from the user, etc.
@@ -169,12 +168,12 @@ class topo_cache {
                 if (cover.count(e.first) + cover.count(e.second)) continue;
                 else if (degree(e.first) < degree(e.second)) x = e.second;
                 else if (degree(e.first) > degree(e.second)) x = e.first;
-                else if (rng()&1) { x = e.second; /*which = !which;*/ }
-                else            { x = e.first;  /*which = !which;*/ }
+                else if (rng()&1) { x = e.second; }
+                else              { x = e.first;  }
                 cover.insert(x);
-                adj[x].clear();
                 for(auto &y: adj[x])
                     adj[y].erase(x);
+                adj[x].clear();
             }
             for(auto &q: cover) bad_nodes.push_back(q);
         }

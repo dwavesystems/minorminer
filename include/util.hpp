@@ -69,28 +69,6 @@ const uint16_t mask_subsets[8] = {1, 2, 4, 8, 16, 32, 64, 128};
 
 const std::set<size_t> _emptyset;
 
-inline void pegasus_coordinates(size_t dim, size_t q, 
-                                size_t &u, size_t &w, size_t &k, size_t &z) {
-    z = q % (dim-1); q /= dim-1;
-    k = q % 12;      q /= 12;
-    w = q % dim;     u = q/dim;
-}
-
-inline void chimera_coordinates(size_t xdim, size_t shore, size_t q,
-                                size_t &y, size_t &x, size_t &u, size_t &k) {
-    k = q % shore;  q /= shore;
-    u = q % 2;      q /= 2;
-    x = q % xdim;   y  = q/xdim;
-}
-
-inline void chimera_coordinates(size_t xdim, size_t shore, size_t q, size_t (&Q)[4]) {
-    chimera_coordinates(xdim, shore, q, Q[0], Q[1], Q[2], Q[3]);
-}
-
-inline size_t pegasus_linear(size_t dim, size_t u, size_t w, size_t k, size_t z) {
-    return z + (dim-1)*(k + 12*(w + dim*u));
-}
-
 class ignore_badmask {};
 class populate_badmask {};
 class topo_spec_base {
@@ -108,19 +86,29 @@ class topo_spec_base {
     }
 
     inline void linemajor(size_t q, size_t &u, size_t &w, size_t &z, size_t &k) const {
-        size_t Q[4];
-        chimera_coordinates(dim[1], shore, q, Q);
-        u = Q[2]; z = Q[u];
-        k = Q[3]; w = Q[1-u];
+        k = q % shore;
+        linemajor(q, u, w, z);
     }
     inline void linemajor(size_t q, size_t &u, size_t &w, size_t &z) const {
-        size_t _;
-        return linemajor(q, u, w, z, _);
+        size_t p[2];
+                   q/= shore;
+        u = q % 2; q /= 2;
+        p[0] = q % dim[1];
+        p[1] = q / dim[1];
+        w = p[u];
+        z = p[1-u];
     }
+
     inline size_t chimera_linear(size_t y, size_t x, size_t u, size_t k) const {
         return k + shore*(u + 2*(x + dim[1]*y));
     }
 
+    inline void chimera_coordinates(size_t q,
+                                    size_t &y, size_t &x, size_t &u, size_t &k) const {
+        k = q % shore;  q /= shore;
+        u = q % 2;      q /= 2;
+        x = q % dim[1]; y  = q/dim[1];
+    }
 };
 
 class pegasus_spec_base : public topo_spec_base {
@@ -144,8 +132,8 @@ class pegasus_spec_base : public topo_spec_base {
             if(q < p) std::swap(p, q);
             size_t qu, qw, qk, qz;
             size_t pu, pw, pk, pz;
-            pegasus_coordinates(pdim, q, qu, qw, qk, qz);
-            pegasus_coordinates(pdim, p, pu, pw, pk, pz);
+            pegasus_coordinates(q, qu, qw, qk, qz);
+            pegasus_coordinates(p, pu, pw, pk, pz);
             if(pu == qu) {
                 if(pw == qw && pk == qk && qz == pz + 1) {
                     //p < q; we place the edgemask on the larger qubit z
@@ -169,7 +157,7 @@ class pegasus_spec_base : public topo_spec_base {
 
     inline void first_fragment(size_t q, size_t &u, size_t &w, size_t &k, size_t &z) const {
         size_t qw, qk, qz;
-        pegasus_coordinates(pdim, q, u, qw, qk, qz);
+        pegasus_coordinates(q, u, qw, qk, qz);
         z = (qz*12 + 2*offsets[u][qk/2])/2;
         w = (qw*12 + qk)/2;
         k = qk&1;
@@ -212,6 +200,18 @@ class pegasus_spec_base : public topo_spec_base {
     }
 
   public:
+    inline size_t pegasus_linear(size_t u, size_t w, size_t k, size_t z) const {
+        return z + (pdim-1)*(k + 12*(w + pdim*u));
+    }
+
+    inline void pegasus_coordinates(size_t q,
+                                    size_t &u, size_t &w, size_t &k, size_t &z) const {
+        z = q % (pdim-1); q /= pdim-1;
+        k = q % 12;       q /= 12;
+        w = q % pdim;     u = q/pdim;
+    }
+
+
     void construct_line(size_t u, size_t w, size_t z0, size_t z1, size_t k,
                         vector<size_t> &chain) const {
         size_t qk = (2*w + k)%12;
@@ -219,7 +219,7 @@ class pegasus_spec_base : public topo_spec_base {
         size_t qz0 = (z0*2 - 2*offsets[u][qk/2])/12;
         size_t qz1 = (z1*2 - 2*offsets[u][qk/2])/12;
         for(size_t qz = qz0; qz <= qz1; qz++)
-            chain.push_back(pegasus_linear(pdim, u, qw, qk, qz));
+            chain.push_back(pegasus_linear(u, qw, qk, qz));
     }
 
     inline size_t line_length(size_t u, size_t w, size_t z0, size_t z1) const {
