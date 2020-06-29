@@ -2,7 +2,7 @@
 #include <random>
 #include "debug.hpp"
 #include "gtest/gtest.h"
-#include "pairing_queue.hpp"
+#include "find_embedding/pairing_queue.hpp"
 
 using namespace find_embedding;
 using distance_queue = pairing_queue<priority_node<int, min_heap_tag>>;
