@@ -36,7 +36,7 @@ def _num_nodes(nn, offset = 0):
         num = len(nodes)
     return num, nodes
 
-def find_clique_embedding(g, nodes, use_cache = True):
+def find_clique_embedding(nodes, g, use_cache = True):
     """
     Finds a clique embedding in the graph g using a polynomial-time algorithm.
     
