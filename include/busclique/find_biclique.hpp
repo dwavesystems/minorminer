@@ -44,7 +44,7 @@ void best_bicliques(topo_cache<topo_spec> &topology,
             size_t s1 = std::get<1>(z);
             size_t cl = std::get<2>(z);
             auto w = chainlength.find(std::make_pair(s0, s1));
-            if(w == chainlength.end() or (*w).second > cl)
+            if(w == chainlength.end() || (*w).second > cl)
                 emb_cache[std::make_pair(s0, s1)] = std::get<3>(z);
         }
     } while(topology.next());

@@ -32,10 +32,6 @@ enum corner : size_t {
     mask = 255,
     none = 0
 };
-using corner::NW;
-using corner::NE;
-using corner::SW;
-using corner::SE;
 
 inline size_t binom(size_t x) { return (x*x+x)/2; }
 

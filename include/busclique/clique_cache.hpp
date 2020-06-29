@@ -43,7 +43,7 @@ template<typename topo_spec> class clique_iterator;
 
 template<typename topo_spec>
 class clique_cache {
-    friend class clique_iterator<topo_spec>;  
+    friend class clique_iterator<topo_spec>;
   public:
     //prevent double-frees by forbidding moving & copying
     clique_cache(const clique_cache&) = delete; 
@@ -127,19 +127,19 @@ class clique_cache {
             size_t h = 1;
             size_t w = width;
             auto zero = zerocache();
-            extend_cache(zero, h, w, check, SW, SE);
+            extend_cache(zero, h, w, check, corner::SW, corner::SE);
         }
         for(size_t i = 1; i < width-1; i++) {
             size_t h = i+1;
             size_t w = width-i;
             maxcache prev = get(h-2);
-            extend_cache(prev, h, w, check, NE, NW, SW, SE);
+            extend_cache(prev, h, w, check, corner::NE, corner::NW, corner::SW, corner::SE);
         }
         {
             size_t h = width;
             size_t w = 1;
             maxcache prev = get(h-2);
-            extend_cache(prev, h, w, check, NE, SE);
+            extend_cache(prev, h, w, check, corner::NE, corner::SE);
         }
     }
 
@@ -167,10 +167,10 @@ class clique_cache {
         size_t next_x, prev_x, xc; next_x = prev_x = xc = x0;
         corner skip_c;
         switch(c) {
-            case NW: next_x = x0+1; prev_y = y0+1; skip_c = NWskip; break;
-            case SW: next_x = x0+1; yc = y1;       skip_c = SWskip; break;
-            case NE: xc = x1;       prev_y = y0+1; skip_c = NEskip; break;
-            case SE: xc = x1;       yc = y1;       skip_c = SEskip; break;
+            case corner::NW: next_x = x0+1; prev_y = y0+1; skip_c = corner::NWskip; break;
+            case corner::SW: next_x = x0+1; yc = y1;       skip_c = corner::SWskip; break;
+            case corner::NE: xc = x1;       prev_y = y0+1; skip_c = corner::NEskip; break;
+            case corner::SE: xc = x1;       yc = y1;       skip_c = corner::SEskip; break;
             default: throw std::exception();
         }
         size_t score = prev.score(prev_y, prev_x);
@@ -185,14 +185,14 @@ class clique_cache {
                              size_t &y, size_t &x, size_t h, size_t w, corner c) const {
         corner c0 = static_cast<corner>(1<< first_bit[c]);
         switch(c0) {
-            case NW: x--; bundles.inflate(y,  x,  y,y+h,x,x+w, emb); y++; break;
-            case SW: x--; bundles.inflate(y+h,x,  y,y+h,x,x+w, emb);      break;
-            case NE:      bundles.inflate(y,  x+w,y,y+h,x,x+w, emb); y++; break;
-            case SE:      bundles.inflate(y+h,x+w,y,y+h,x,x+w, emb);      break;
-            case NWskip: x--; y++; break;
-            case SWskip: x--;      break;
-            case NEskip:      y++; break;
-            case SEskip:           break;
+            case corner::NW: x--; bundles.inflate(y,  x,  y,y+h,x,x+w, emb); y++; break;
+            case corner::SW: x--; bundles.inflate(y+h,x,  y,y+h,x,x+w, emb);      break;
+            case corner::NE:      bundles.inflate(y,  x+w,y,y+h,x,x+w, emb); y++; break;
+            case corner::SE:      bundles.inflate(y+h,x+w,y,y+h,x,x+w, emb);      break;
+            case corner::NWskip: x--; y++; break;
+            case corner::SWskip: x--;      break;
+            case corner::NEskip:      y++; break;
+            case corner::SEskip:           break;
             default: throw std::exception();
         }
         return c0;
