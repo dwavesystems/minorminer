@@ -1,7 +1,7 @@
 #include <vector>
-#include "chain.hpp"
+#include "find_embedding/chain.hpp"
 #include "gtest/gtest.h"
-#include "util.hpp"
+#include "find_embedding/util.hpp"
 using std::vector;
 
 struct embedding {

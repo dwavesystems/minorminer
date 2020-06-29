@@ -1,6 +1,6 @@
-#include "graph.hpp"
+#include "find_embedding/graph.hpp"
 #include "gtest/gtest.h"
-#include "util.hpp"
+#include "find_embedding/util.hpp"
 
 // Construct a graph, clear the graph
 TEST(input_graph, construction_empty) {

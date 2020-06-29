@@ -8,7 +8,7 @@
 #include <random>
 #include <thread>
 #include <unordered_map>
-#include "debug.hpp"
+#include "../debug.hpp"
 #include "fastrng.hpp"
 #include "pairing_queue.hpp"
 

@@ -100,6 +100,7 @@ wheels/
 .installed.cfg
 *.egg
 minorminer/_minorminer.cpp
+minorminer/busclique.cpp
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

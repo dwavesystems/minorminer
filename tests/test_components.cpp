@@ -1,4 +1,4 @@
-#include "graph.hpp"
+#include "find_embedding/graph.hpp"
 #include "gtest/gtest.h"
 
 template <class Type>
