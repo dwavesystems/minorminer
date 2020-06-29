@@ -12,15 +12,15 @@ class yieldcache {
   public:
     yieldcache(size_t r, size_t c, size_t *m) : rows(r), cols(c), mem(m) {};
     size_t get(size_t y, size_t x, size_t u) const {
-        Assert(y < rows);
-        Assert(x < cols);
-        Assert(u < 2);
+        minorminer_assert(y < rows);
+        minorminer_assert(x < cols);
+        minorminer_assert(u < 2);
         return mem[(y*cols + x)*2 + u];
     }
     void set(size_t y, size_t x, size_t u, size_t score) {
-        Assert(y < rows);
-        Assert(x < cols);
-        Assert(u < 2);
+        minorminer_assert(y < rows);
+        minorminer_assert(x < cols);
+        minorminer_assert(u < 2);
         mem[(y*cols + x)*2 + u] = score;
     }
     
@@ -70,10 +70,10 @@ class biclique_cache {
 
   public:
     yieldcache get(size_t h, size_t w) const {
-        Assert(1 <= h);
-        Assert(h <= cells.topo.dim[0]);
-        Assert(1 <= w);
-        Assert(w <= cells.topo.dim[1]);
+        minorminer_assert(1 <= h);
+        minorminer_assert(h <= cells.topo.dim[0]);
+        minorminer_assert(1 <= w);
+        minorminer_assert(w <= cells.topo.dim[1]);
         return yieldcache(memrows(h), memcols(w), mem + mem[mem_addr(h,w)]);
     }
 
@@ -138,10 +138,10 @@ class biclique_cache {
     }
 
     std::pair<size_t, size_t> score(size_t y0, size_t y1, size_t x0, size_t x1) const {
-        Assert(y0 <= y1);
-        Assert(x0 <= x1);
-        Assert(y1 < cells.topo.dim[0]);
-        Assert(x1 < cells.topo.dim[1]);
+        minorminer_assert(y0 <= y1);
+        minorminer_assert(x0 <= x1);
+        minorminer_assert(y1 < cells.topo.dim[0]);
+        minorminer_assert(x1 < cells.topo.dim[1]);
         size_t h = y1 - y0 + 1;
         size_t w = x1 - x0 + 1;
         yieldcache cache = get(h, w);
@@ -225,7 +225,7 @@ class biclique_yield_cache {
         std::tuple<size_t, size_t, size_t, vector<vector<size_t>>> operator*() { 
             bound_t z = bounds[s0][s1];
             size_t cl = chainlength[s0][s1];
-            Assert(cl > 0); 
+            minorminer_assert(cl > 0); 
             vector<vector<size_t>> emb;
             bundles.inflate(std::get<0>(z), std::get<1>(z), 
                             std::get<2>(z), std::get<3>(z), emb);

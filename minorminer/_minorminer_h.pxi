@@ -34,7 +34,7 @@ cdef extern from "<random>" namespace "std":
     cdef cppclass default_random_engine:
         pass
 
-cdef extern from "../include/util.hpp" namespace "find_embedding":
+cdef extern from "../include/find_embedding/util.hpp" namespace "find_embedding":
     cppclass LocalInteraction:
         pass
 
@@ -74,17 +74,17 @@ cdef extern from "src/pyutil.hpp" namespace "":
 
     void handle_exceptions()
 
-cdef extern from "../include/graph.hpp" namespace "graph":
+cdef extern from "../include/find_embedding/graph.hpp" namespace "graph":
     cppclass input_graph:
         input_graph()
         void push_back(int,int)
         int num_nodes()
         void clear()
 
-cdef extern from "../include/pathfinder.hpp" namespace "find_embedding":
+cdef extern from "../include/find_embedding/pathfinder.hpp" namespace "find_embedding":
     cppclass pathfinder_public_interface
 
-cdef extern from "../include/embedding_problem.hpp" namespace "find_embedding":
+cdef extern from "../include/find_embedding/embedding_problem.hpp" namespace "find_embedding":
     cpdef enum VARORDER:
         VARORDER_SHUFFLE = 0
         VARORDER_DFS = 1
@@ -97,10 +97,10 @@ cdef extern from "../include/embedding_problem.hpp" namespace "find_embedding":
         int num_vars
         optional_parameters params
 
-cdef extern from "../include/embedding.hpp" namespace "find_embedding":
+cdef extern from "../include/find_embedding/embedding.hpp" namespace "find_embedding":
     pass
 
-cdef extern from "../include/chain.hpp" namespace "find_embedding":
+cdef extern from "../include/find_embedding/chain.hpp" namespace "find_embedding":
     cppclass pathfinder_wrapper:
         pathfinder_wrapper() except +handle_exceptions
         parameter_processor pp
@@ -137,6 +137,6 @@ cdef class cppembedding:
     def __cinit__(self, int num_vars, int num_qubits):
         pass
 
-cdef extern from "../include/find_embedding.hpp" namespace "find_embedding":
+cdef extern from "../include/find_embedding/find_embedding.hpp" namespace "find_embedding":
     int findEmbedding(input_graph, input_graph, optional_parameters, vector[vector[int]]&) except +handle_exceptions
 

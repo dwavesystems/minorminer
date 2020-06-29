@@ -12,8 +12,8 @@ class maxcache {
   public:
     maxcache(size_t r, size_t c, size_t *m) : rows(r), cols(c), mem(m) {};
     void setmax(size_t y, size_t x, size_t s, corner c) { 
-        Assert(y < rows);
-        Assert(x < cols);
+        minorminer_assert(y < rows);
+        minorminer_assert(x < cols);
         size_t old_s = score(y, x);
         if(s == old_s) {
             mem[y*cols+x] |= c;
@@ -22,13 +22,13 @@ class maxcache {
         }
     }
     size_t score(size_t y, size_t x) const {
-        Assert(y < rows);
-        Assert(x < cols);
+        minorminer_assert(y < rows);
+        minorminer_assert(x < cols);
         return mem[y*cols + x] >> corner::shift;
     }
     corner corners(size_t y, size_t x) const {
-        Assert(y < rows);
-        Assert(x < cols);
+        minorminer_assert(y < rows);
+        minorminer_assert(x < cols);
         return static_cast<corner>(mem[y*cols + x] & corner::mask);
     }
 };
@@ -102,7 +102,7 @@ class clique_cache {
     }
 
     maxcache get(size_t i) const {
-        Assert(i < width);
+        minorminer_assert(i < width);
         return maxcache(memrows(i), memcols(i), mem + mem[i]);
     }
 
@@ -378,8 +378,8 @@ class clique_yield_cache {
                         bundles.inflate(y,x,y,y,x,x, emb);
                         clique_yield[2] = score;
                         best_embeddings[2] = emb;
-                        Assert(emb.size() == score);
-                        Assert(emb_max_length(emb) == 2);
+                        minorminer_assert(emb.size() == score);
+                        minorminer_assert(emb_max_length(emb) == 2);
                     }
                     if(score == cells.topo.shore) goto stop_w1_scan;
                 }
@@ -433,7 +433,7 @@ class clique_yield_cache {
         }
     }
 
-    void get_length_range(const bundle_cache<chimera_spec> &bundles, size_t width, size_t &min_length, size_t &max_length) {
+    void get_length_range(const bundle_cache<chimera_spec> &, size_t width, size_t &min_length, size_t &max_length) {
         max_length = min_length = width+1;
     }
 };

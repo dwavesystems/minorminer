@@ -84,10 +84,10 @@ class bundle_cache {
 
   private:
     inline uint8_t get_line_mask(size_t u, size_t w, size_t z0, size_t z1) const {
-        Assert(u < 2);
-        Assert(w < cells.topo.dim[1-u]);
-        Assert(z0 <= z1);
-        Assert(z1 < cells.topo.dim[u]);
+        minorminer_assert(u < 2);
+        minorminer_assert(w < cells.topo.dim[1-u]);
+        minorminer_assert(z0 <= z1);
+        minorminer_assert(z1 < cells.topo.dim[u]);
         return line_mask[u*orthstride + w*linestride[u] + binom(z1) + z0];
     }
 

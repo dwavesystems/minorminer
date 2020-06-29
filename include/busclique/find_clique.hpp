@@ -28,8 +28,8 @@ template<>
 bool find_clique_nice(const cell_cache<chimera_spec> &cells,
                       size_t size,
                       vector<vector<size_t>> &emb,
-                      size_t &min_width,
-                      size_t &max_width,
+                      size_t &,
+                      size_t &,
                       size_t &max_length) {
     bundle_cache<chimera_spec> bundles(cells);
     size_t shore = cells.topo.shore;
@@ -62,8 +62,8 @@ template<>
 bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
                       size_t size,
                       vector<vector<size_t>> &emb,
-                      size_t &min_width,
-                      size_t &max_width,
+                      size_t &,
+                      size_t &,
                       size_t &max_length) {
     bundle_cache<pegasus_spec> bundles(cells);
     size_t minw = (size + 1)/2;

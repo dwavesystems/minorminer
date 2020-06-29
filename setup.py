@@ -64,12 +64,20 @@ class Extension(extension.Extension, object):
 
 ext = '.pyx' if USE_CYTHON else '.cpp'
 
-extensions = [Extension(
-    name="minorminer._minorminer",
-    sources=["./minorminer/_minorminer" + ext],
-    include_dirs=['', './include/'],
-    language='c++',
-)]
+extensions = [
+    Extension(
+        name="minorminer._minorminer",
+        sources=["./minorminer/_minorminer" + ext],
+        include_dirs=['', './include/', './include/find_embedding'],
+        language='c++',
+    ),
+    Extension(
+        name="minorminer.busclique",
+        sources=["./minorminer/busclique" + ext],
+        include_dirs=['', './include/', '.include/busclique'],
+        language='c++',
+    ),
+]
 
 if USE_CYTHON:
     extensions = cythonize(extensions)
@@ -98,7 +106,7 @@ setup(
     version=__version__,
     license="Apache 2.0",
     ext_modules=extensions,
-    packages=['minorminer', 'minorminer.layout'],
+    packages=['minorminer', 'minorminer.layout', 'minorminer.busclique'],
     classifiers=classifiers,
     python_requires=python_requires,
     install_requires=install_requires,

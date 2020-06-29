@@ -5,11 +5,11 @@
 #include<vector>
 #include<cstdint>
 #include<algorithm>
-//#include<assert.h>
 #include<iostream>
 #include<string.h>
 #include<set>
 #include<map>
+#include "../debug.hpp"
 
 namespace busclique {
 using std::numeric_limits;
@@ -36,9 +36,6 @@ using corner::NW;
 using corner::NE;
 using corner::SW;
 using corner::SE;
-
-//#define Assert(x) /*x*/
-void Assert(bool thing) { if(!thing) throw std::exception(); }
 
 inline size_t binom(size_t x) { return (x*x+x)/2; }
 
@@ -295,7 +292,7 @@ class chimera_spec_base : public topo_spec_base {
             chain.push_back(super::chimera_linear(p[0], p[1], u, k));
     }
 
-    inline size_t line_length(size_t u, size_t w, size_t z0, size_t z1) const {
+    inline size_t line_length(size_t, size_t, size_t z0, size_t z1) const {
         return z1 - z0 + 1;
     }
 
