@@ -247,16 +247,17 @@ class pathfinder_base : public pathfinder_public_interface {
                 int maxfill = 0;
                 emb.steal_all(u);
                 for (auto &q : emb.get_chain(u)) maxfill = max(maxfill, emb.weight(q));
-
+                ep.debug("maxfill is %d\n", maxfill);
                 ep.weight_bound = max(0, maxfill);
                 emb.freeze_out(u);
-                ;
                 if (!find_chain(emb, u, 0)) {
+                    ep.debug("pushdown bounced!\n", u);
                     pushback += 3;
                     emb.thaw_back(u);
                     emb.flip_back(u, 0);
                 }
             } else {
+                ep.debug("finding a new chain for %d (pushdown bypass)\n", u);
                 ep.weight_bound = oldbound;
                 emb.steal_all(u);
                 emb.tear_out(u);
@@ -717,9 +718,15 @@ class pathfinder_serial : public pathfinder_base<embedding_problem_t> {
             super::accumulate_distance(emb, v, super::visited_list[v]);
         }
 
-        if (!neighbors_embedded)
+        if (!neighbors_embedded) {
             for (int q = super::num_qubits; q--;)
-                if (emb.weight(q) >= super::ep.weight_bound) super::total_distance[q] = max_distance;
+                if (emb.weight(q) >= super::ep.weight_bound) {
+                    super::total_distance[q] = max_distance;
+                } else {
+                    distance_t d = max(super::qubit_weight[q], super::total_distance[q]);
+                    super::total_distance[q] = d;
+                }
+        }
     }
 };
 
