@@ -625,10 +625,20 @@ cdef int _get_chainmap(C, chainmap &CMap, SL, TL, parameter) except -1:
 
 cdef _read_graph(input_graph &g, E):
     cdef labeldict L = labeldict()
+    cdef bool nodescan = False
+    cdef int i, last
     if hasattr(E, 'edges'):
+        G = E
         E = E.edges()
-    for a,b in E:
+        nodescan = True
+    for a, b in E:
         g.push_back(L[a],L[b])
+    if nodescan:
+        last = len(L)
+        for a in G.nodes():
+            L[a]
+        for i in range(last, len(L)):
+            g.push_back(i, i)
     return L
 
 __all__ = ["find_embedding", "VARORDER", "miner"]
