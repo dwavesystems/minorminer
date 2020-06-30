@@ -789,6 +789,12 @@ def test_fixed_chain_issue91():
     K3 = Clique(3)
     return find_embedding(K2, K3, fixed_chains={0: [0, 1]})
 
+@success_perfect(10)
+def test_isolated_nodes_networkx():
+    E10 = nx.Graph()
+    E10.add_nodes_from(range(10))
+    K10 = nx.complete_graph(10)
+    return find_embedding(E10, K10)
 
 @success_count(30)
 def test_qubit_components():
