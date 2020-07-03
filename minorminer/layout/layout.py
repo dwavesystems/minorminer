@@ -17,8 +17,9 @@ from collections import abc
 import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
-from scipy import optimize
-
+from scipy import optimize, spatial
+from math import ceil
+import rpack
 
 def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None, scale=None, **kwargs):
     """
@@ -256,6 +257,7 @@ class Layout(abc.MutableMapping):
         dim=None,
         center=None,
         scale=None,
+        pack_components = True,
         **kwargs
     ):
         """
@@ -276,6 +278,9 @@ class Layout(abc.MutableMapping):
         scale : float (default None)
             The desired scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space. If None,
             set scale to be the scale of layout.
+        pack_components : bool (default True)
+            If the graph contains multiple components and dim is None or 2, the components will be laid out
+            individually and packed into a rectangle
         kwargs : dict
             Keyword arguments are given to layout if it is a function.
         """
@@ -290,14 +295,25 @@ class Layout(abc.MutableMapping):
         if scale is not None:
             kwargs["scale"] = scale
 
+        _call_layout = False
         # If passed in, save or compute the layout
         if layout is None:
-            self.layout = nx.spectral_layout(self.G, **kwargs)
+            if self.G.graph.get('family') in ('pegasus', 'chimera'):
+                self.layout = dnx_layout(self.G, **kwargs)
+            else:
+                _call_layout = True
+                layout = p_norm
         elif callable(layout):
-            self.layout = layout(self.G, **kwargs)
+            _call_layout = True
         else:
             # Assumes layout implements a mapping interface
             self.layout = layout
+
+        if _call_layout:
+            if pack_components:
+                self.layout = _pack_components(self.G, layout, **kwargs)
+            else:
+                self.layout = layout(self.G, **kwargs)
 
         # Set specs in the order of (user input, precomputed layout)
         self.dim = dim or self._dim
@@ -429,7 +445,7 @@ class Layout(abc.MutableMapping):
             self._scale = 0
         else:
             self._dim = self.layout_array.shape[1]
-            self._center = np.mean(self.layout_array, axis=0)
+            self._center = _get_center(self.layout_array)
             self._scale = np.max(
                 np.linalg.norm(
                     self.layout_array - self._center, float("inf"), axis=0
@@ -495,7 +511,7 @@ def _center_layout(layout_array, new_center, old_center=None):
     """
     # If old_center is empty, compute it
     if old_center is None:
-        old_center = np.mean(layout_array, axis=0)
+        old_center = _get_center(layout_array)
 
     # Translate the layout so that we have the desired new_center
     return layout_array - old_center + new_center
@@ -526,16 +542,14 @@ def _scale_layout(layout_array, new_scale, old_scale=None, center=None):
     """
     # If center is empty, compute it
     if center is None:
-        center = np.mean(layout_array, axis=0)
+        center = _get_center(layout_array)
 
     # Translate the layout so that its center is the origin
     L = layout_array - center
 
     # Compute the scale of the passed-in layout
     if old_scale is None:
-        old_scale = np.max(
-            np.linalg.norm(L, float("inf"), axis=0)
-        )
+        old_scale = np.max(np.abs(L))
 
     # Scale the thing
     scaled_L = (new_scale/old_scale) * L
@@ -567,6 +581,118 @@ def _set_dim_and_center(dim, center, default_dim=2):
     return dim, center
 
 
+def _rotate_to_minimize_area(points):
+    """
+    Uses the rotating calipers algorithm to rotate points (a numpy array)
+    into a minimum-area bounding box
+    """
+    # Compute the convex hull
+    hull = spatial.ConvexHull(points, qhull_options = 'QJ')
+
+    # Look up the points that constitute the convex hull
+    hull_points = points[hull.vertices]
+
+    pi2 = np.pi/2
+
+    # calculate edge angles
+    edges = np.zeros((len(hull_points)-1, 2))
+    edges = hull_points[1:] - hull_points[:-1]
+
+    angles = np.zeros((len(edges)))
+    angles = np.arctan2(edges[:, 1], edges[:, 0])
+
+    angles = np.abs(np.mod(angles, pi2))
+    angles = np.unique(angles)
+
+    # find rotation matrices
+    rotations = np.vstack([
+        np.cos(angles),
+        -np.sin(angles),
+        np.sin(angles),
+        np.cos(angles)]).T
+    rotations = rotations.reshape((-1, 2, 2))
+
+    # apply rotations to the hull
+    rot_points = np.dot(rotations, hull_points.T)
+
+    # find the bounding points
+    min_x = np.nanmin(rot_points[:, 0], axis=1)
+    max_x = np.nanmax(rot_points[:, 0], axis=1)
+    min_y = np.nanmin(rot_points[:, 1], axis=1)
+    max_y = np.nanmax(rot_points[:, 1], axis=1)
+
+    # find the box with the best area
+    widths = (max_x - min_x)
+    heights = (max_y - min_y)
+    areas =  widths * heights
+    best_idx = np.argmin(areas)
+
+    # return the best rotation and its dimensions
+    points = np.dot(points, rotations[best_idx])
+    min_y = np.nanmin(points[:, 0])
+    max_y = np.nanmax(points[:, 0])
+    min_x = np.nanmin(points[:, 1])
+    max_x = np.nanmax(points[:, 1])
+    center = np.array(((max_y + min_y), (max_x + min_x)))/2
+    dims = np.array(((max_y - min_y), (max_x - min_x)))
+    return points - center, dims
+
+def _pack_components(G, layout, **kwargs):
+    """
+    Attempts to pack components using `layout` to compute component layouts,
+    rotates those component layouts to minimum-area bounding rectangles,
+    and then uses a rectangle packing algorithm to minimize the area of the
+    overall layout.
+
+    If `scale` is an argument, we rescale the layout after the above.
+
+    If `dim` is an argument and not equal to 2, we don't have an
+    implementation, so we pass the graph directly into `layout` and bypass
+    the packing procedure
+    """
+    if kwargs.get('dim', 2) != 2:
+        return layout(G, **kwargs)
+
+    layouts = []
+    rectangles = []
+    if 'scale' in kwargs:
+        subkwargs = dict(kwargs)
+        scale = subkwargs['scale']
+        del subkwargs['scale']
+    else:
+        subkwargs = kwargs
+        scale = None
+
+    for i, c in enumerate(nx.connected_components(G)):
+        if len(c) > 2:
+            cpos = layout(G.subgraph(c),
+                          scale = len(c)**.5,
+                          **subkwargs)
+            apos = np.array(list(cpos.values()))
+            rpos, dims = _rotate_to_minimize_area(apos)
+            cpos = dict(zip(cpos, rpos))
+            dims = [int(ceil(z)+.001) for z in dims]
+        elif len(c) == 2:
+            cpos = dict(zip(c, [(-.5, 0), (.5, 0)]))
+            dims = [2, 1]
+        else:
+            cpos = dict(zip(c, [(0, 0)]))
+            dims = [1, 1]
+        layouts.append(cpos)
+        rectangles.append(dims)
+
+    positions = rpack.pack(rectangles)
+    layout = {
+        v: (vx + rx + w/2, vy + ry + h/2)
+        for (rx, ry), (w, h), cpos in zip(positions, rectangles, layouts)
+        for v, (vx, vy) in cpos.items()
+    }
+    if scale is not None:
+        layout_array = np.array(list(layout[v] for v in G))
+        return dict(zip(G, _scale_layout(layout_array, scale)))
+    else:
+        return layout
+
 def _parse_graph(G):
     """
     Checks that G is a nx.Graph object or tries to make one.
@@ -574,3 +700,11 @@ def _parse_graph(G):
     if hasattr(G, "edges"):
         return G
     return nx.Graph(G)
+
+def _get_center(layout_array):
+    """
+    Compute the center of `layout_array`
+    """
+    mins = np.min(layout_array, axis=0)
+    maxs = np.max(layout_array, axis=0)
+    return (mins + maxs)/2

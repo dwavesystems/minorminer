@@ -25,14 +25,14 @@ from .placement import Placement, closest, intersection
 def find_embedding(
     S,
     T,
-    layout=p_norm,
+    layout=(p_norm, None),
     placement=closest,
     mm_hint_type="initial_chains",
     return_layouts=False,
     **kwargs
 ):
     """
-    Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding(). Chains are 
+    Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding(). Chains are
     passed as either initial_chains or suspend_chains (see documentation for minorminer.find_embedding to learn more).
 
     Parameters
@@ -63,7 +63,7 @@ def find_embedding(
     Returns
     -------
     emb : dict
-        Output is dependent upon kwargs passed to minonminer, but more or less emb is a mapping from vertices of 
+        Output is dependent upon kwargs passed to minorminer, but more or less emb is a mapping from vertices of
         S (keys) to chains in T (values).
     """
     start = time.perf_counter()

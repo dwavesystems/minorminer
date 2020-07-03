@@ -94,7 +94,9 @@ classifiers = [
 ]
 
 python_requires = '>=3.5'
-install_requires = ["scipy", "networkx", "dwave-networkx", "numpy"]
+install_requires = [
+    "scipy", "networkx", "dwave-networkx", "numpy", "rectangle-packer"
+]
 
 setup(
     name="minorminer",

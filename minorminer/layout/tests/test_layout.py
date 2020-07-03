@@ -65,7 +65,16 @@ class TestLayout(TestLayoutPlacement):
         # Test through the Layout object
         layout = mml.Layout(self.S_small, mml.p_norm, dim=low_dim,
                             center=center, scale=scale)
+
         self.assertArrayEqual(layout.center, center)
+        self.assertAlmostEqual(layout.scale, scale)
+
+        # Ensure that the rectangle packer works
+        # TODO fix p_norm's issues with disconnected graphs
+        layout = mml.Layout(self.S_components, mml.p_norm, dim=2,
+                            center=[12, 20], scale=scale)
+
+        self.assertArrayEqual(layout.center, [12, 20])
         self.assertAlmostEqual(layout.scale, scale)
 
     def test_dnx(self):
@@ -180,16 +189,16 @@ class TestLayout(TestLayoutPlacement):
         scale = random.random()*random.randint(1, 10)
 
         # Pass in scale as an argument
-        layout_pre = mml.Layout(self.S, scale=scale)
+        layout_pre = mml.Layout(self.S, scale=scale, layout = self.S_layout)
         self.assertAlmostEqual(layout_pre.scale, scale)
 
         # Change the layout to have the scale
-        layout_post = mml.Layout(self.S)
+        layout_post = mml.Layout(self.S, layout = self.S_layout)
         layout_post.scale = scale
         self.assertAlmostEqual(layout_post.scale, scale)
 
         # Change the scale without changing the object,
-        layout = mml.Layout(self.S, scale=1)
+        layout = mml.Layout(self.S, scale=1, layout = self.S_layout)
         new_layout_array = _scale_layout(layout.layout_array, scale)
         self.assertAlmostEqual(layout.scale, 1)
 
@@ -206,8 +215,9 @@ class TestLayout(TestLayoutPlacement):
         layout = mml.Layout(self.S, nx.circular_layout)
         self.assertIsLayout(self.S, layout)
 
-        # Random
-        layout = mml.Layout(self.S, nx.random_layout)
+        # Random -- nx.random_layout doesn't accept a "scale" parameter, so we
+        # need to disable component packing
+        layout = mml.Layout(self.S, nx.random_layout, pack_components = False)
         self.assertIsLayout(self.S, layout)
 
     def test_edge_input(self):
