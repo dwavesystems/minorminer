@@ -1,1 +1,2 @@
 global-include *.hpp
+include rectangle-packer/*/*
