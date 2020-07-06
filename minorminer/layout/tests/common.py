@@ -28,6 +28,7 @@ class TestLayoutPlacement(unittest.TestCase):
         # Graphs for testing
         self.S = nx.random_regular_graph(3, 50)
         self.S_small = nx.random_regular_graph(3, 10)
+        self.S_components = nx.Graph([(2*i, 2*i+1) for i in range(10)])
         self.G = nx.Graph()
         self.H = nx.complete_graph(1)
         self.C = dnx.chimera_graph(4)
@@ -41,6 +42,7 @@ class TestLayoutPlacement(unittest.TestCase):
         # Compute some layouts
         self.S_layout = mml.Layout(self.S)
         self.S_small_layout = mml.Layout(self.S_small)
+        self.S_components_layout = mml.Layout(self.S_small)
         self.G_layout = mml.Layout(self.G)
         self.C_layout = mml.Layout(self.C)
         self.C_coord_layout = mml.Layout(self.C_coord)
