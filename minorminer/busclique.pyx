@@ -67,6 +67,12 @@ def find_clique_embedding(nodes, g, use_cache = True):
     Returns:
         emb: dict mapping node labels (either nodes, or range(nodes)) to chains
             of a clique embedding
+
+    Note: when the cache is used, clique embeddings of all sizes are computed
+    and cached.  This takes somewhat longer than a single embedding, but tends
+    to pay off after a fairly small number of calls.  An exceptional use case is
+    when there are a large number of missing internal couplers, where the result
+    is nondeterministic -- avoiding the cache in this case may be preferable.
     """
     try:
         graphdata = g.graph
@@ -118,6 +124,33 @@ class busgraph_cache:
             self._bicliques = self._fetch_cache('biclique', 
                                                 self._graph.bicliques)
 
+    @staticmethod
+    def cache_rootdir(version = __cache_version):
+        """
+        Returns the directory corresponding to the provided cache version
+        (default is the current cache version).
+        """
+        return homebase.user_data_dir('busclique', 'dwave', version)
+
+    @staticmethod
+    def clear_all_caches():
+        """
+        Removes all caches created by this class, up to and including the
+        current version.
+        """
+        dirstack = []
+        for i in range(__cache_version + 1):
+            rootdir = pathlib.Path(busgraph_cache.cache_rootdir(i))
+            if rootdir.exists():
+                dirstack.append(rootdir)
+        while dirstack:
+            top = dirstack.pop()
+            for item in top.iterdir():
+                if item.is_dir():
+                    dirstack.append(item)
+                else:
+                    item.unlink()
+
     def _fetch_cache(self, dirname, compute):
         """
         This is an ad-hoc implementation of a file-cache using a LRU strategy.
@@ -146,7 +179,7 @@ class busgraph_cache:
         recentness of the last access of a given filename.  This enables us to
         automatically clean up the cache before it gets too large.
         """
-        rootdir = homebase.user_data_dir('busclique', 'dwave', __cache_version)
+        rootdir = busgraph_cache.cache_rootdir()
         basedir = os.path.join(rootdir, dirname)
         pathlib.Path(basedir).mkdir(parents=True, exist_ok=True)
         lockfile = os.path.join(basedir, ".lock")
@@ -192,7 +225,8 @@ class busgraph_cache:
     def largest_clique(self):
         """
         Returns the largest-found clique in the clique cache.  Keys of the
-        embedding dict are from range(len(emb))
+        embedding dict are from range(len(emb)).  This will compute the entire
+        clique cache if it is missing from the filesystem.
         """
         self._ensure_clique_cache()
         embs = self._cliques['raw']
@@ -203,7 +237,8 @@ class busgraph_cache:
         """
         Returns the largest-found clique in the clique cache, with a specified
         maximum chainlength.  Keys of the embedding dict are from 
-        `range(len(emb))`.
+        `range(len(emb))`.  This will compute the entire clique cache if it is
+        missing from the filesystem.
         """
         self._ensure_clique_cache()
         embs = self._cliques['raw']
@@ -216,7 +251,8 @@ class busgraph_cache:
     def find_clique_embedding(self, nn):
         """
         Returns a clique embedding, minimizing the maximum chainlength given its
-        size.
+        size.  This will compute the entire clique cache if it is missing from
+        the filesystem.
         
         Inputs:
             nn: a number (indicating the size of the desired clique) or an 
@@ -240,7 +276,9 @@ class busgraph_cache:
         Returns the largest-size biclique where both sides have equal size.
         Nodes of the embedding dict are from range(len(emb)), where the nodes
         range(len(emb)//2) are completely connected to the nodes 
-        range(len(emb)//2, len(emb)).        
+        range(len(emb)//2, len(emb)).
+        This will compute the entire biclique cache if it is missing from the
+        filesystem.
         """
         self._ensure_biclique_cache()
         biggest = self._bicliques['max_side']
@@ -257,7 +295,9 @@ class busgraph_cache:
     def find_biclique_embedding(self, nn, mm):
         """
         Returns a biclique embedding, minimizing the maximum chainlength given 
-        its size.
+        its size.  This will compute the entire biclique cache if it is missing 
+        from the filesystem.
+
         
         Inputs:
             nn: int (indicating the size of one side of the desired biclique) or
