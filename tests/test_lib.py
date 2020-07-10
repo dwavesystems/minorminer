@@ -770,12 +770,13 @@ def test_empty_source():
 
 @success_perfect(1)
 def test_empty_target():
+    from minorminer._minorminer import EmptyTargetGraphError
     # re: issue 64
     C = Clique(2)
     try:
         _ = find_embedding(C, [], tries=1)
         return False
-    except ValueError:
+    except EmptyTargetGraphError:
         return True
 
 

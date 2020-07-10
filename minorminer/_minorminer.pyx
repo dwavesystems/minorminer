@@ -250,7 +250,6 @@ class EmptySourceGraphError(RuntimeError):
 
 class EmptyTargetGraphError(RuntimeError):
     pass        
-        
 
 cdef void wrap_logger(void *logger, int loglevel, const string &msg):
     if loglevel == 0:
