@@ -68,6 +68,13 @@ def find_clique_embedding(nodes, g, use_cache = True):
         emb: dict mapping node labels (either nodes, or range(nodes)) to chains
             of a clique embedding
 
+    Note: due to internal optimizations, not all chimera graphs are supported by
+    this code.  Specifically, the graphs 
+        dwave_networkx.chimera_graph(m, n, t)
+    are only supported for t <= 8.  Thus, we support current D-Wave products
+    (which have t = 4) but not all graphs.  For graphs with t > 8, use the
+    legacy chimera-embedding package.
+
     Note: when the cache is used, clique embeddings of all sizes are computed
     and cached.  This takes somewhat longer than a single embedding, but tends
     to pay off after a fairly small number of calls.  An exceptional use case is
@@ -95,6 +102,13 @@ class busgraph_cache:
 
         Input:
             g: a dwave_networkx.pegasus_graph or dwave_networkx.chimera_graph
+
+        Note: due to internal optimizations, not all chimera graphs are
+        supported by this code.  Specifically, the graphs 
+            dwave_networkx.chimera_graph(m, n, t)
+        are only supported for t <= 8.  Thus, we support current D-Wave products
+        (which have t = 4) but not all graphs.  For graphs with t > 8, use the
+        legacy chimera-embedding package.
         """
         self._family = g.graph['family']
         if(self._family == 'chimera'):
@@ -526,6 +540,13 @@ cdef class _chimera_busgraph:
     """
     This is a class which manages a single chimera graph, and dispatches various
     structure-aware c++ embedding functions on it.
+
+    Note: due to internal optimizations, not all chimera graphs are supported by
+    this code.  Specifically, the graphs 
+        dwave_networkx.chimera_graph(m, n, t)
+    are only supported for t <= 8.  Thus, we support current D-Wave products
+    (which have t = 4) but not all graphs.  For graphs with t > 8, use the
+    legacy chimera-embedding package.
     """
     cdef topo_cache[chimera_spec] *topo
     cdef embedding_t emb_1
