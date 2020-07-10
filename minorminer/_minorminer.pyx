@@ -57,7 +57,10 @@ This implementation adds several useful features:
 [1] https://arxiv.org/abs/1406.2741
 """
 include "_minorminer_h.pxi"
-import os as _os, logging as _logging
+import os as _os, logging as _logging, networkx as _nx
+import minorminer.busclique as _busclique
+import minorminer.layout as _mml
+
 
 def find_embedding(S, T, **params):
     """
@@ -222,6 +225,9 @@ def find_embedding(S, T, **params):
     except EmptySourceGraphError:
         return {}
 
+    return _find_embedding(_in)
+
+cdef _find_embedding(_input_parser _in):
     cdef vector[int] chain
     cdef vector[vector[int]] chains
     cdef int success = findEmbedding(_in.Sg, _in.Tg, _in.opts, chains)
@@ -242,6 +248,10 @@ def find_embedding(S, T, **params):
 class EmptySourceGraphError(RuntimeError):
     pass
 
+class EmptyTargetGraphError(RuntimeError):
+    pass        
+        
+
 cdef void wrap_logger(void *logger, int loglevel, const string &msg):
     if loglevel == 0:
         (<object>logger).error(msg.rstrip())
@@ -250,12 +260,113 @@ cdef void wrap_logger(void *logger, int loglevel, const string &msg):
     else:
         (<object>logger).debug(msg.rstrip())
 
+cdef _bipartition(S):
+    cdef tuple stack = ()
+    cdef tuple X = (set(), set())
+    cdef int side
+    for x in S:
+        if x in X[0] or x in X[1]:
+            continue
+        side = len(X[0]) > len(X[1])
+        stack = (x, list(S[x]), side, ())
+        X[side].add(x)
+        while stack:
+            x, nx, side, stack = stack
+            y = nx.pop()
+            if y in X[side]:
+                return # found an odd cycle
+            if nx:
+                stack = x, nx, side, stack
+            if y not in X[1-side]:
+                X[1-side].add(y)
+                stack = y, list(S[y]), 1-side, stack
+
+    return X
+
+def _clique_density_thresholds(T):
+    #TODO tune the heck out of this
+    return .7, .8
+
+def _biclique_density_thresholds(T):
+    #TODO tune the heck out of this
+    return .7, .8
+
+def minor_embed(S, T, verbose = 0, interactive = False, effort = 1):
+    cdef _input_parser _in = _input_parser(None, None)
+
+    if effort != 1:
+        raise NotImplementedError("Only effort level 1 is implemented currently")
+
+    if ((not hasattr(T, 'graph')) or
+            (T.graph.get('family') not in ('pegasus', 'chimera'))):
+        raise ValueError("target graph must be constructed by either"
+            " dwave_networkx.chimera_graph or dwave_networkx.pegasus_graph")
+
+    family = T.graph['family']
+
+    if not hasattr(S, 'edges'):
+        #TODO: creating an auxilliary networkx graph is slower than necessary
+        S = _nx.Graph(S)
+
+    try:
+        _in.set_source(S)
+    except EmptySourceGraphError:
+        return {}
+
+    params = {'verbose': verbose, 'interactive': interactive}
+
+    bip = _bipartition(S)
+    if bip is None:
+        n = len(S)
+        layout_t, clique_t = _clique_density_thresholds(T)
+        density = 2*S.number_of_edges() / (n*n - n)
+        if density < layout_t:
+            return _mml.find_embedding(S, T, **params)
+        elif density < clique_t:
+            _in.set_target(T)
+            _in.parse_params(params)
+            return _find_embedding(_in)
+        else:
+            return _busclique.find_clique_embedding(S, T)
+    else:
+        A, B = bip
+        density = S.number_of_edges() / (len(A)*len(B))
+        layout_t, biclique_t = _biclique_density_thresholds(T)
+        if density < layout_t:
+            return _mml.find_embedding(S, T, **params)
+        elif density < biclique_t:
+            _in.set_target(T)
+            _in.parse_params(params)
+            return _find_embedding(_in)
+        else:
+            return _busclique.find_clique_embedding(S, T)
+
+
 cdef class _input_parser:
     cdef input_graph Sg, Tg
     cdef labeldict SL, TL
     cdef optional_parameters opts
     cdef int pincount
-    def __init__(self, S, T, params):
+    def __init__(self, S = None, T = None, params = None):
+        if S is not None:
+            self.set_source(S)
+        if T is not None:
+            self.set_target(T)
+        if params is not None:
+            self.parse_params(params)
+
+    def set_source(self, S):
+        self.SL = _read_graph(self.Sg, S)
+        if not self.SL:
+            raise EmptySourceGraphError
+
+    def set_target(self, T):
+        self.TL = _read_graph(self.Tg, T)
+        if not self.TL:
+            raise EmptyTargetGraphError("Cannot embed a non-empty source graph"
+                                        " into an empty target graph.")
+
+    def parse_params(self, params):
         cdef uint64_t *seed
         cdef object z
 
@@ -330,13 +441,6 @@ cdef class _input_parser:
         if z is not None:
             self.opts.threads = int(z)
 
-        self.SL = _read_graph(self.Sg, S)
-        if not self.SL:
-            raise EmptySourceGraphError
-
-        self.TL = _read_graph(self.Tg, T)
-        if not self.TL:
-            raise ValueError("Cannot embed a non-empty source graph into an empty target graph.")
 
         _get_chainmap(params.get("fixed_chains", ()), self.opts.fixed_chains, self.SL, self.TL, "fixed_chains")
         _get_chainmap(params.get("initial_chains", ()), self.opts.initial_chains, self.SL, self.TL, "initial_chains")
@@ -655,4 +759,4 @@ cdef _read_graph(input_graph &g, E):
             g.push_back(i, i)
     return L
 
-__all__ = ["find_embedding", "VARORDER", "miner"]
+__all__ = ["find_embedding", "VARORDER", "miner", "minor_embed"]
