@@ -1,5 +1,7 @@
-cython
-dwave_networkx>=0.6.2
-networkx>=2.0
-nose>=1.3
-scipy
+Cython==0.29.21
+dwave-networkx==0.8.6
+fasteners==0.15
+homebase==1.0.1
+networkx==2.4
+numpy==1.19.0
+scipy==1.5.1
