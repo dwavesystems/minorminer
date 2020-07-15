@@ -5,3 +5,5 @@ homebase==1.0.1
 networkx==2.4
 numpy==1.18.5
 scipy==1.4.1
+
+nose>=1.3
