@@ -91,7 +91,9 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
     return layout.layout
 
 
-def _graph_distance_matrix(G, all_pairs_shortest_path_length=None):
+def _graph_distance_matrix(G,
+                           all_pairs_shortest_path_length=None, 
+                           disconnected_distance = None):
     """
     Compute the distance matrix of G.
 
@@ -101,6 +103,9 @@ def _graph_distance_matrix(G, all_pairs_shortest_path_length=None):
         The graph to find the distance matrix of.
     all_pairs_shortest_path_length : dict (default None)
         If None, it is computed by calling nx.all_pairs_shortest_path_length.
+    disconnected_distance : float (default None)
+        A default distance to use when nodes belong to different connected
+        components.  If None, we use len(G).
 
     Returns
     -------
@@ -110,9 +115,13 @@ def _graph_distance_matrix(G, all_pairs_shortest_path_length=None):
     if all_pairs_shortest_path_length is None:
         all_pairs_shortest_path_length = nx.all_pairs_shortest_path_length(G)
 
+    if disconnected_distance is None:
+        disconnected_distance = len(G)
+
     return np.array(
         [
-            [V[v] for v in sorted(G)] for u, V in all_pairs_shortest_path_length
+            [V.get(v, disconnected_distance) for v in sorted(G)]
+                 for u, V in all_pairs_shortest_path_length
         ]
     )
 
