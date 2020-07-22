@@ -88,7 +88,7 @@ def find_clique_embedding(nodes, g, use_cache = True):
                     'chimera': _chimera_busgraph}[family]
     except (AttributeError, KeyError):
         raise ValueError("g must be either a dwave_networkx.chimera_graph or"
-                         "a dwave_networkx.pegasus_graph")
+                         " a dwave_networkx.pegasus_graph")
     if use_cache:
         return busgraph_cache(g).find_clique_embedding(nodes)
     else:
@@ -158,12 +158,18 @@ class busgraph_cache:
             if rootdir.exists():
                 dirstack.append(rootdir)
         while dirstack:
-            top = dirstack.pop()
+            top = dirstack[-1]
+            substack = []
             for item in top.iterdir():
                 if item.is_dir():
-                    dirstack.append(item)
+                    substack.append(item)
                 else:
                     item.unlink()
+            if substack:
+                dirstack.extend(substack)
+            else:
+                top.rmdir()
+                dirstack.pop()
 
     def _fetch_cache(self, dirname, compute):
         """
