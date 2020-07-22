@@ -75,7 +75,7 @@ class TestBusclique(unittest.TestCase):
         self.p16 = dnx.pegasus_graph(16)
         self.c16c = dnx.chimera_graph(16, coordinates=True, data = False)
         self.c428 = dnx.chimera_graph(4, n = 2, t = 8)
-        self.c248 = dnx.chimera_graph(4, n = 2, t = 8)
+        self.c248 = dnx.chimera_graph(2, n = 4, t = 8)
         self.c42A = dnx.chimera_graph(4, n = 2, t = 9)
         c4c_0 = subgraph_node_yield(dnx.chimera_graph(4, coordinates = True), .95)
         p4c_0 = subgraph_node_yield(dnx.pegasus_graph(4, coordinates = True), .95)
@@ -108,23 +108,20 @@ class TestBusclique(unittest.TestCase):
         self.p4, self.p4_nd, self.c4_d = list(zip(p4, p4c, p4n))
 
     def test_p16(self):
-        test = self.embed_battery(self.p16,
-                    lambda nodes: dnx.pegasus_graph(16, node_list = nodes))
-        size, cl = next(test)
-        self.assertEqual(size, 180)
-        self.assertEqual(cl, 17)
-        s = nx.complete_graph(size)
-        for i, (g, emb) in enumerate(test):
-            self.assertEqual(len(emb), size)
-            self.assertEqual(max_chainlength(emb), cl)
-            dwe.verify_embedding(emb, s, g)
+        def reconstruct(nodes):
+            return dnx.pegasus_graph(16, node_list = nodes)
+        self.run_battery(self.p16, reconstruct, 180, 17)
 
     def test_c16(self):
-        test = self.embed_battery(self.c16,
-                    lambda nodes: dnx.chimera_graph(16, node_list = nodes))
+        def reconstruct(nodes):
+            return dnx.chimera_graph(16, node_list = nodes)
+        self.run_battery(self.c16, reconstruct, 64, 17)
+
+    def run_battery(self, g, reconstruct, targetsize, chainlength):
+        test = self.embed_battery(g, reconstruct)
         size, cl = next(test)
-        self.assertEqual(size, 64)
-        self.assertEqual(cl, 17)
+        self.assertEqual(size, targetsize)
+        self.assertEqual(cl, chainlength)
         s = nx.complete_graph(size)
         for i, (g, emb) in enumerate(test):
             self.assertEqual(len(emb), size)
@@ -153,8 +150,33 @@ class TestBusclique(unittest.TestCase):
         yield h, bgch.find_clique_embedding(N)
         yield h, bgch.largest_clique_by_chainlength(cl)
 
+        self.clear_cache()
+
+    def clear_cache(self):
         rootdir = busclique.busgraph_cache.cache_rootdir()
         self.assertTrue(os.path.exists(rootdir))
         busclique.busgraph_cache.clear_all_caches()
         self.assertFalse(os.path.exists(rootdir))
+
+    def test_chimera_weird_sizes(self):
+        self.assertRaises(NotImplementedError,
+                          busclique.busgraph_cache,
+                          self.c42A)
+
+        self.assertRaises(NotImplementedError,
+                          busclique.find_clique_embedding,
+                          999, self.c42A)
+
+        self.assertRaises(NotImplementedError,
+                          busclique.find_clique_embedding,
+                          999, self.c42A, use_cache = False)
+
+        def reconstructor(m, n, t):
+            return lambda nodes: dnx.chimera_graph(m, n = n, t = t,
+                                                   node_list = nodes)
+        for g, params in (self.c428, (4, 2, 8)), (self.c248, (2, 4, 8)):
+            reconstruct = reconstructor(*params)
+            self.run_battery(g, reconstruct, 16, 3)
+
+
 
