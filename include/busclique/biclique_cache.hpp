@@ -43,7 +43,7 @@ class yieldcache {
 template<typename topo_spec>
 class biclique_cache {
   public:
-    biclique_cache(const biclique_cache&) = delete; 
+    biclique_cache(const biclique_cache&) = delete;
     biclique_cache(biclique_cache &&) = delete;
     const cell_cache<topo_spec> &cells;
   private:
@@ -177,6 +177,9 @@ class biclique_yield_cache {
     vector<vector<bound_t>> biclique_bounds;
 
   public:
+    biclique_yield_cache(const biclique_yield_cache&) = delete; 
+    biclique_yield_cache(biclique_yield_cache &&) = delete;
+
     biclique_yield_cache(const cell_cache<topo_spec> &c,
                          const bundle_cache<topo_spec> &b, 
                          const biclique_cache<topo_spec> &bicliques) :
@@ -227,7 +230,7 @@ class biclique_yield_cache {
             return true;
         }
       public:
-        iterator(size_t _s0, size_t _s1, const size_t r, const size_t c, 
+        iterator(size_t _s0, size_t _s1, const size_t &r, const size_t &c,
                  const vector<vector<size_t>> &cl,
                  const vector<vector<bound_t>> &_bounds,
                  const bundle_cache<topo_spec> &_bundles) :
