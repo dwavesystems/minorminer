@@ -185,8 +185,12 @@ class biclique_yield_cache {
                          const biclique_cache<topo_spec> &bicliques) :
         cells(c),
         bundles(b),
-        rows(cells.topo.dim[0]*cells.topo.shore),
-        cols(cells.topo.dim[1]*cells.topo.shore),
+
+        //note: the role of rows and columns is reversed, because the indices
+        //are chainlengths in a given direction (not the number of chains)
+        rows(cells.topo.dim[1]*cells.topo.shore),
+        cols(cells.topo.dim[0]*cells.topo.shore),
+
         chainlength(rows, vector<size_t>(cols, 0)),
         biclique_bounds(rows, vector<bound_t>(cols, bound_t(0,0,0,0))) {
         compute_cache(bicliques);
@@ -201,6 +205,8 @@ class biclique_yield_cache {
                         size_t s0 = cache.get(y, x, 0);
                         size_t s1 = cache.get(y, x, 1);
                         if (s0 == 0 || s1 == 0) continue;
+                        minorminer_assert(s0-1 < rows);
+                        minorminer_assert(s1-1 < cols);
                         size_t maxlen = cells.topo.biclique_length(y, y+h-1, x, x+w-1);
                         size_t prevlen = chainlength[s0-1][s1-1];
                         if(prevlen == 0 || prevlen > maxlen) {
