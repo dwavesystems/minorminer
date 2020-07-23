@@ -98,7 +98,7 @@ bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
         }
         if(minw > maxw) return false;
     } else {
-        maxw = (max_length)*6;
+        maxw = min(cells.topo.dim[0], (max_length)*6);
     }
     //we've already found an embedding; now try to find one with shorter chains
     for(size_t w = minw; w <= maxw; w++) {

@@ -102,6 +102,8 @@ class clique_cache {
             bundles(b),
             width(w),
             mem(new size_t[memsize()]{}) {
+        minorminer_assert(width <= cells.topo.dim[0]);
+        minorminer_assert(width <= cells.topo.dim[1]);
         mem[0] = width;
         for(size_t i = 1; i < width; i++)
             mem[i] = mem[i-1] + memsize(i-1);
@@ -399,7 +401,7 @@ class clique_yield_cache {
                 }
             stop_w1_scan:;
         }
-        for(size_t w = 2; w <= cells.topo.dim[0]; w++) {
+        for(size_t w = 2; w <= min(cells.topo.dim[0], cells.topo.dim[1]); w++) {
             size_t min_length, max_length;
             get_length_range(bundles, w, min_length, max_length);
             for(size_t len = min_length; len < max_length; len++) {

@@ -43,7 +43,7 @@ class yieldcache {
 template<typename topo_spec>
 class biclique_cache {
   public:
-    biclique_cache(const biclique_cache&) = delete; 
+    biclique_cache(const biclique_cache&) = delete;
     biclique_cache(biclique_cache &&) = delete;
     const cell_cache<topo_spec> &cells;
   private:
@@ -101,7 +101,7 @@ class biclique_cache {
                     for(size_t x0 = 0; x0 <= cells.topo.dim[1]-w; x0++)
                         next.set(y0, x0, 0, bundles.get_line_score(0, x0, y0, y0+h-1));
             }
-            for(size_t w = 2; w < cells.topo.dim[1]; w++) {
+            for(size_t w = 2; w <= cells.topo.dim[1]; w++) {
                 yieldcache prev = get(h, w-1);
                 yieldcache next = get(h, w);
                 for(size_t y0 = 0; y0 <= cells.topo.dim[0]-h; y0++) {
@@ -124,7 +124,7 @@ class biclique_cache {
                     for(size_t x0 = 0; x0 <= cells.topo.dim[1]-w; x0++)
                         next.set(y0, x0, 1, bundles.get_line_score(1, y0, x0, x0+w-1));
             }
-            for(size_t h = 2; h < cells.topo.dim[0]; h++) {
+            for(size_t h = 2; h <= cells.topo.dim[0]; h++) {
                 yieldcache prev = get(h-1, w);
                 yieldcache next = get(h, w);
                 for(size_t x0 = 0; x0 <= cells.topo.dim[1]-w; x0++) {
@@ -177,13 +177,20 @@ class biclique_yield_cache {
     vector<vector<bound_t>> biclique_bounds;
 
   public:
+    biclique_yield_cache(const biclique_yield_cache&) = delete; 
+    biclique_yield_cache(biclique_yield_cache &&) = delete;
+
     biclique_yield_cache(const cell_cache<topo_spec> &c,
                          const bundle_cache<topo_spec> &b, 
                          const biclique_cache<topo_spec> &bicliques) :
         cells(c),
         bundles(b),
-        rows(cells.topo.dim[0]*cells.topo.shore),
-        cols(cells.topo.dim[1]*cells.topo.shore),
+
+        //note: the role of rows and columns is reversed, because the indices
+        //are chainlengths in a given direction (not the number of chains)
+        rows(cells.topo.dim[1]*cells.topo.shore),
+        cols(cells.topo.dim[0]*cells.topo.shore),
+
         chainlength(rows, vector<size_t>(cols, 0)),
         biclique_bounds(rows, vector<bound_t>(cols, bound_t(0,0,0,0))) {
         compute_cache(bicliques);
@@ -198,6 +205,8 @@ class biclique_yield_cache {
                         size_t s0 = cache.get(y, x, 0);
                         size_t s1 = cache.get(y, x, 1);
                         if (s0 == 0 || s1 == 0) continue;
+                        minorminer_assert(s0-1 < rows);
+                        minorminer_assert(s1-1 < cols);
                         size_t maxlen = cells.topo.biclique_length(y, y+h-1, x, x+w-1);
                         size_t prevlen = chainlength[s0-1][s1-1];
                         if(prevlen == 0 || prevlen > maxlen) {
@@ -227,7 +236,7 @@ class biclique_yield_cache {
             return true;
         }
       public:
-        iterator(size_t _s0, size_t _s1, const size_t r, const size_t c, 
+        iterator(size_t _s0, size_t _s1, const size_t &r, const size_t &c,
                  const vector<vector<size_t>> &cl,
                  const vector<vector<bound_t>> &_bounds,
                  const bundle_cache<topo_spec> &_bundles) :

@@ -184,11 +184,20 @@ class optional_parameters {
         localInteractionPtr->displayOutput(loglevel, buffer);
     }
 
+    void print_out(int loglevel, const char* format) const {
+        localInteractionPtr->displayOutput(loglevel, format);
+    }
+
+
     template <typename... Args>
     void print_err(int loglevel, const char* format, Args... args) const {
         char buffer[1024];
         snprintf(buffer, 1024, format, args...);
-        localInteractionPtr->displayError(loglevel, buffer);
+        localInteractionPtr->displayError(loglevel, buffer);\
+    }
+
+    void print_err(int loglevel, const char* format) const {
+        localInteractionPtr->displayError(loglevel, format);
     }
 
     template <typename... Args>
