@@ -101,7 +101,7 @@ class biclique_cache {
                     for(size_t x0 = 0; x0 <= cells.topo.dim[1]-w; x0++)
                         next.set(y0, x0, 0, bundles.get_line_score(0, x0, y0, y0+h-1));
             }
-            for(size_t w = 2; w < cells.topo.dim[1]; w++) {
+            for(size_t w = 2; w <= cells.topo.dim[1]; w++) {
                 yieldcache prev = get(h, w-1);
                 yieldcache next = get(h, w);
                 for(size_t y0 = 0; y0 <= cells.topo.dim[0]-h; y0++) {
@@ -124,7 +124,7 @@ class biclique_cache {
                     for(size_t x0 = 0; x0 <= cells.topo.dim[1]-w; x0++)
                         next.set(y0, x0, 1, bundles.get_line_score(1, y0, x0, x0+w-1));
             }
-            for(size_t h = 2; h < cells.topo.dim[0]; h++) {
+            for(size_t h = 2; h <= cells.topo.dim[0]; h++) {
                 yieldcache prev = get(h-1, w);
                 yieldcache next = get(h, w);
                 for(size_t x0 = 0; x0 <= cells.topo.dim[1]-w; x0++) {

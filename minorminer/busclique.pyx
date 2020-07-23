@@ -23,7 +23,7 @@ import networkx as nx, dwave_networkx as dnx
 #increment this version any time there is a change made to the cache format,
 #when yield-improving changes are made to clique algorithms, or when bugs are
 #fixed in the same.
-cdef int __cache_version = 3
+cdef int __cache_version = 4
 
 cdef int __lru_size = 100
 cdef dict __global_locks = {'clique': threading.Lock(),
