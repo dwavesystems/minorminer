@@ -102,6 +102,8 @@ class clique_cache {
             bundles(b),
             width(w),
             mem(new size_t[memsize()]{}) {
+        minorminer_assert(width <= cells.topo.dim[0]);
+        minorminer_assert(width <= cells.topo.dim[1]);
         mem[0] = width;
         for(size_t i = 1; i < width; i++)
             mem[i] = mem[i-1] + memsize(i-1);
