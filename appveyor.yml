@@ -110,7 +110,7 @@ build_script:
 
 test_script:
   # Run the project tests
-  - pip install -r tests\requirements.txt
+  - pip install -r requirements.txt -r tests\requirements.txt
   - python -m nose . --exe
 
 after_test:
