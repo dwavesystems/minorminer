@@ -19,10 +19,9 @@
 import subprocess
 import os
 import sys
-# sys.path.insert(0, os.path.abspath('.'))
 config_directory = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(
-    os.path.join(config_directory, '../../minorminer')))
+sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.dirname(config_directory))
 
 _PY2 = sys.version_info.major == 2
 
