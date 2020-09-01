@@ -145,7 +145,7 @@ def setup(app):
 # Configuration for intersphinx.
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'qbsolv': ('https://docs.ocean.dwavesys.com/projects/qbsolv/en/latest/', None),
-                       'oceandocs': ('https://docs.ocean.dwavesys.com/en/latest/', None),
+                       'oceandocs': ('https://docs.ocean.dwavesys.com/en/stable/', None),
                        'sysdocs_gettingstarted': ('https://docs.dwavesys.com/docs/latest/', None)}
 # -- Options for HTMLHelp output ------------------------------------------
 
