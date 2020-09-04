@@ -9,6 +9,7 @@ General Embedding
 Clique Embedding
 ----------------
 
+.. autoclass:: minorminer.busclique.busgraph_cache
 .. autofunction:: minorminer.busclique.find_clique_embedding
 
 Layout & Placement Embedding
