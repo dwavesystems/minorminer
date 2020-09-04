@@ -19,10 +19,9 @@
 import subprocess
 import os
 import sys
-# sys.path.insert(0, os.path.abspath('.'))
 config_directory = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(
-    os.path.join(config_directory, '../../minorminer')))
+sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.dirname(config_directory))
 
 _PY2 = sys.version_info.major == 2
 
@@ -146,7 +145,7 @@ def setup(app):
 # Configuration for intersphinx.
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'qbsolv': ('https://docs.ocean.dwavesys.com/projects/qbsolv/en/latest/', None),
-                       'oceandocs': ('https://docs.ocean.dwavesys.com/en/latest/', None),
+                       'oceandocs': ('https://docs.ocean.dwavesys.com/en/stable/', None),
                        'sysdocs_gettingstarted': ('https://docs.dwavesys.com/docs/latest/', None)}
 # -- Options for HTMLHelp output ------------------------------------------
 
