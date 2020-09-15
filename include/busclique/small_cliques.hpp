@@ -59,7 +59,7 @@ bool find_generic_3(const vector<pair<size_t, size_t>> &edges,
         B.emplace(e.first);
         A.emplace(e.second);
     }
-    return false;   
+    return false;
 }
 
 //find a 4-clique in a generic graph
