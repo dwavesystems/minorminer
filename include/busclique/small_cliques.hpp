@@ -78,7 +78,7 @@ bool find_generic_4(const vector<pair<size_t, size_t>> &edges,
         for(auto &p : A) {
             if(B.count(p) == 0) continue;
             for(auto &q : A) {
-                if(p < q || B.count(p) == 0) continue;
+                if(p < q || B.count(q) == 0) continue;
                 // here we've found the edges a~b, a~p, a~q, b~p, b~q
                 // so to finish the clique we only need to know p~q
                 auto z = adj.find(q);
@@ -95,7 +95,7 @@ bool find_generic_4(const vector<pair<size_t, size_t>> &edges,
         B.emplace(e.first);
         A.emplace(e.second);
     }
-    return false;   
+    return false;
 }
 
 

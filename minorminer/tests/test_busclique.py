@@ -265,3 +265,9 @@ class TestBusclique(unittest.TestCase):
                                  test_python = test_nocache,
                                  test_nocache = test_nocache)
 
+    def test_k4_bug(self):
+        edges = [30, 2940], [30, 2955], [45, 2940], [45, 2955], [2940, 2955]
+        p = dnx.pegasus_graph(16, edge_list = edges)
+        k4 = busclique.find_clique_embedding(4, p)
+
+        self.assertEquals(k4, {})
