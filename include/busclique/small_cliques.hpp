@@ -14,7 +14,7 @@
 
 #pragma once
 #include "util.hpp"
-
+ 
 namespace busclique {
 
 //find a 1-clique... uh... node... in a generic graph
