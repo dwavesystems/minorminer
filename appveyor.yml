@@ -81,4 +81,4 @@ artifacts:
   - path: "minorminer\\dist"
 
 deploy_script:
-  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] if NOT [%CPPDEBUG%]==[1] twine upload --skip-existing minorminer\\dist\\*.whl"
+  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] if NOT [%CPPDEBUG%]==[1] %PYTHON%\\Scripts\\twine upload --skip-existing %MM_BUILD_DIR%\\*.whl"
