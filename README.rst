@@ -48,7 +48,7 @@ To install from this repository, run the `setuptools` script.
 
 .. code-block:: bash
 
-    pip install cython==0.27
+    pip install -r requirements.txt
     python setup.py install
     # optionally, run the tests to check your build
     pip install -r tests/requirements.txt
