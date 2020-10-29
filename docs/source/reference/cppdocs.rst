@@ -7,5 +7,6 @@ C++ Library
     :maxdepth: 2
 
     ../cpp/namespacelist
-    ../cpp/classlist
     ../cpp/filelist
+    ../cpp/classlist
+    ../cpp/structlist
