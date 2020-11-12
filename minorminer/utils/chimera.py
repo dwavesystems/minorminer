@@ -23,7 +23,7 @@ import dwave_networkx as dnx
 import networkx as nx
 
 
-from dwave.embedding.polynomialembedder import processor
+from minorminer.utils.polynomialembedder import processor
 
 __all__ = ['find_clique_embedding', 'find_biclique_embedding']
 

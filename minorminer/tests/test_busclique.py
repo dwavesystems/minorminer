@@ -1,5 +1,5 @@
 from minorminer import busclique
-import minorminer as mm, dwave.embedding as dwe
+from minorminer.utils import verify_embedding, chimera, pegasus
 import unittest, random, itertools, dwave_networkx as dnx, networkx as nx, os
 
 def subgraph_node_yield(g, q):
@@ -134,7 +134,7 @@ class TestBusclique(unittest.TestCase):
             print(name, labels, kind)
             if check_cl:
                 self.assertEqual(max_chainlength(emb), cl)
-            dwe.verify_embedding(emb, s, h)
+            verify_embedding(emb, s, h)
 
         test = self.biclique_battery(g, reconstruct)
         size, cl = next(test)
@@ -146,7 +146,7 @@ class TestBusclique(unittest.TestCase):
             print(name, labels, kind)
             if bicliquelength is not None:
                 self.assertEqual(max_chainlength(emb), bicliquelength)
-            dwe.verify_embedding(emb, s, h)
+            verify_embedding(emb, s, h)
 
 
     def clique_battery(self, g, reconstruct,
@@ -172,12 +172,12 @@ class TestBusclique(unittest.TestCase):
                     args = size, g.graph['rows']
                     kwargs = dict(target_edges = g.edges)
                     yield (g,
-                           dwe.chimera.find_clique_embedding(*args, **kwargs),
-                           'g:dwe.fce', True)
+                           chimera.find_clique_embedding(*args, **kwargs),
+                           'g:legacy.fce', True)
             if g.graph['family'] == 'pegasus':
                 kwargs = dict(target_graph = g)
-                yield (g, dwe.pegasus.find_clique_embedding(size, **kwargs),
-                       'g:dwe.fce', False)
+                yield (g, pegasus.find_clique_embedding(size, **kwargs),
+                       'g:legacy.fce', False)
 
         nodes = set(itertools.chain.from_iterable(emb0.values()))
         h = reconstruct(nodes)
@@ -196,12 +196,12 @@ class TestBusclique(unittest.TestCase):
                     args = size, h.graph['rows']
                     kwargs = dict(target_edges = h.edges)
                     yield (h,
-                           dwe.chimera.find_clique_embedding(*args, **kwargs),
-                           'h:dwe.fce', True)
+                           chimera.find_clique_embedding(*args, **kwargs),
+                           'h:legacy.fce', True)
             if g.graph['family'] == 'pegasus':
                 kwargs = dict(target_graph = h)
-                yield (h, dwe.pegasus.find_clique_embedding(size, **kwargs),
-                       'h:dwe.fce', False)
+                yield (h, pegasus.find_clique_embedding(size, **kwargs),
+                       'h:legacy.fce', False)
             
 
     def biclique_battery(self, g, reconstruct):

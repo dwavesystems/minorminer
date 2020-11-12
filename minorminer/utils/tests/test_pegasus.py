@@ -1,5 +1,5 @@
-from dwave.embedding.pegasus import find_clique_embedding, find_biclique_embedding
-from dwave.embedding.diagnostic import is_valid_embedding
+from minorminer.utils.pegasus import find_clique_embedding, find_biclique_embedding
+from minorminer.utils import is_valid_embedding
 from dwave_networkx.generators.pegasus import pegasus_graph
 from random import shuffle
 import networkx as nx

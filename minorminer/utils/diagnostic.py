@@ -16,8 +16,8 @@
 
 import networkx as nx
 
-from dwave.embedding.exceptions import MissingChainError, ChainOverlapError, DisconnectedChainError
-from dwave.embedding.exceptions import InvalidNodeError, MissingEdgeError
+from minorminer.utils import (MissingChainError, ChainOverlapError,
+DisconnectedChainError, InvalidNodeError, MissingEdgeError)
 
 
 def diagnose_embedding(emb, source, target):
