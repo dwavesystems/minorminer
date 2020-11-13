@@ -1,7 +1,11 @@
-scipy==1.4.1
-networkx==2.4
-dwave-networkx==0.8.6
-numpy==1.18.5
+numpy==1.19.4; python_version >= '3.6'
+scipy==1.5.4; python_version >= '3.6'
+
+numpy==1.18.5; python_version == '3.5'
+scipy==1.4.1; python_version == '3.5'
+
+networkx==2.5
+dwave-networkx==0.8.8
 fasteners==0.15
 homebase==1.0.1
 Cython==0.29.21
