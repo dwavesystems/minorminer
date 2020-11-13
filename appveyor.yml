@@ -67,9 +67,8 @@ install:
 
   # Install dependencies
   - if "%CPPDEBUG%" == "1" ( SET MM_BUILD_DIR=%DEBUG_MM_BUILD_DIR% ) else ( SET MM_BUILD_DIR=%TRUE_MM_BUILD_DIR%)
+  - "%PYTHON%\\python.exe -m pip install -U wheel setuptools pip twine"
   - "%PYTHON%\\python.exe -m pip install -r requirements.txt -r tests\\requirements.txt"
-  - "%PYTHON%\\python.exe -m pip install cython==0.28.4"
-  - "%PYTHON%\\python.exe -m pip install -U wheel setuptools twine"
  
 build_script:
   # Build the compiled extension
