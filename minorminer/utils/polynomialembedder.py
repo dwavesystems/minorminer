@@ -56,6 +56,8 @@ from itertools import product
 
 __author__ = "Kelly Boothby"
 
+__all__ = ['eden_processor', 'processor', 'random_processor']
+
 
 def _accumulate_random(count, found, oldthing, newthing):
     """This performs on-line random selection.

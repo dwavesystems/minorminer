@@ -16,8 +16,10 @@
 
 import networkx as nx
 
-from minorminer.utils import (MissingChainError, ChainOverlapError,
-DisconnectedChainError, InvalidNodeError, MissingEdgeError)
+from minorminer.utils import MissingChainError, ChainOverlapError, \
+    DisconnectedChainError, InvalidNodeError, MissingEdgeError
+
+__all__ = ['diagnose_embedding', 'is_valid_embedding', 'verify_embedding']
 
 
 def diagnose_embedding(emb, source, target):
