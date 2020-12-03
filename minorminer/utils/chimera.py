@@ -25,7 +25,10 @@ import networkx as nx
 
 from minorminer.utils.polynomialembedder import processor
 
-__all__ = ['find_clique_embedding', 'find_biclique_embedding']
+__all__ = ['find_clique_embedding',
+           'find_biclique_embedding',
+           'find_grid_embedding',
+           ]
 
 
 @nx.utils.decorators.nodes_or_number(0)

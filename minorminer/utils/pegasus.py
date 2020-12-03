@@ -20,6 +20,8 @@ from dwave_networkx.generators.pegasus import (get_tuple_defragmentation_fn, fra
 from minorminer.utils.polynomialembedder import processor
 import networkx as nx
 
+__all__ = ['find_clique_embedding', 'find_biclique_embedding']
+
 
 def _pegasus_fragment_helper(m=None, target_graph=None):
     # This is a function that takes m or a target_graph and produces a
