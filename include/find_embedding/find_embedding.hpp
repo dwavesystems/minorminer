@@ -28,18 +28,18 @@ namespace find_embedding {
 
 class parameter_processor {
   public:
-    int num_vars;
-    int num_qubits;
+    unsigned int num_vars;
+    unsigned int num_qubits;
 
     vector<int> qub_reserved_unscrewed;
     vector<int> var_fixed_unscrewed;
-    int num_reserved;
+    unsigned int num_reserved;
 
     graph::components qub_components;
-    int problem_qubits;
-    int problem_reserved;
+    unsigned int problem_qubits;
+    unsigned int problem_reserved;
 
-    int num_fixed;
+    unsigned int num_fixed;
     vector<int> unscrew_vars;
     vector<int> screw_vars;
 
@@ -69,8 +69,8 @@ class parameter_processor {
               qubit_nbrs(qub_components.component_neighbors(0)) {}
 
   private:
-    inline int _reserved(optional_parameters &params_) {
-        int r = 0;
+    inline unsigned int _reserved(optional_parameters &params_) {
+        unsigned int r = 0;
         for (auto &vC : params_.fixed_chains) {
             var_fixed_unscrewed[vC.first] = 1;
             for (auto &q : vC.second) {
@@ -87,7 +87,7 @@ class parameter_processor {
         vector<int> unscrew(num_vars);
         assert(var_fixed_unscrewed.size() == num_vars);
         assert(num_fixed < num_vars);
-        for (int i = 0, front = 0, back = num_vars - num_fixed; i < num_vars; i++) {
+        for (unsigned int i = 0, front = 0, back = num_vars - num_fixed; i < num_vars; i++) {
             if (var_fixed_unscrewed[i]) {
                 unscrew[back++] = i;
             } else {
@@ -110,7 +110,7 @@ class parameter_processor {
     map<int, vector<int>> input_chains(map<int, vector<int>> &m) {
         map<int, vector<int>> n;
         for (auto &kv : m) {
-            if (kv.first < 0 || kv.first >= num_vars) throw CorruptParametersException();
+            if (kv.first < 0 || static_cast<unsigned int>(kv.first) >= num_vars) throw CorruptParametersException();
             auto &ju = *(n.emplace(screw_vars[kv.first], vector<int>{}).first);
             if (!qub_components.into_component(0, kv.second, ju.second)) {
                 throw CorruptParametersException();
@@ -122,7 +122,7 @@ class parameter_processor {
     vector<int> input_vars(vector<int> &V) {
         vector<int> U;
         for (auto &v : V) {
-            if (v < 0 || v >= num_vars) throw CorruptParametersException();
+            if (v < 0 || static_cast<unsigned int>(v) >= num_vars) throw CorruptParametersException();
             if (!var_fixed_unscrewed[v]) U.push_back(v);
         }
         return U;

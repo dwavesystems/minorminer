@@ -286,7 +286,7 @@ class components {
         for (auto& x : nodes_in) {
             try {
                 if (index.at(x) != c) return false;
-            } catch (std::out_of_range& _) {
+            } catch (std::out_of_range& /*e*/) {
                 return false;
             }
             nodes_out.push_back(label[x]);
