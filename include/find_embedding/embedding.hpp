@@ -41,7 +41,7 @@ template <typename embedding_problem_t>
 class embedding {
   public:
 #ifdef CPPDEBUG
-    char *last_diagnostic;
+    std::string last_diagnostic;
 #endif
   private:
     embedding_problem_t &ep;
@@ -63,7 +63,7 @@ class embedding {
     embedding(embedding_problem_t &e_p)
             :
 #ifdef CPPDEBUG
-              last_diagnostic(nullptr),
+              last_diagnostic(""),
 #endif
               ep(e_p),
               num_qubits(ep.num_qubits()),
@@ -124,7 +124,7 @@ class embedding {
     inline const chain &get_chain(int v) const { return var_embedding[v]; }
 
     //! Get the size of a chain
-    inline int chainsize(int v) const { return var_embedding[v].size(); }
+    inline unsigned int chainsize(int v) const { return var_embedding[v].size(); }
 
     //! Get the weight of a qubit
     inline int weight(int q) const { return qub_weight[q]; }
@@ -369,7 +369,7 @@ class embedding {
 
     //! run a long diagnostic, and if debugging is enabled, record `current_state` so that the
     //! error message has a little more context.  if an error is found, throw a CorruptEmbeddingException
-    void long_diagnostic(char *current_state) {
+    void long_diagnostic(std::string current_state) {
         run_long_diagnostic(current_state);
 #ifdef CPPDEBUG
         last_diagnostic = current_state;
@@ -378,7 +378,7 @@ class embedding {
 
     //! run a long diagnostic to verify the integrity of this datastructure.  the guts of this function
     //! are its documentation, because this function only exists for debugging purposes
-    void run_long_diagnostic(char *current_state) const {
+    void run_long_diagnostic(std::string current_state) const {
         int err = 0;
         vector<int> tmp_weight(num_qubits + num_reserved, 0);
         int zeros = 0;
@@ -544,7 +544,7 @@ class embedding {
         if (err) {
             ep.error("errors found in data structure, current state is '%s'.  quitting\n", current_state);
 #ifdef CPPDEBUG
-            if (last_diagnostic != nullptr) ep.debug("last state was %s\n", last_diagnostic);
+            if (last_diagnostic.size()) ep.debug("last state was %s\n", last_diagnostic);
 #endif
             print();
             throw CorruptEmbeddingException("Errors found in embedding data structure.  Cannot recover.");
