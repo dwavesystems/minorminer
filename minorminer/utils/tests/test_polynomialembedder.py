@@ -280,13 +280,6 @@ class TestGeneric(unittest.TestCase):
         emb = proc.tightestNativeBiClique(1, 1)
         verify_biclique(proc, emb, 1, 1, 1, 1)
 
-        for _ in range(100):  # this should be plenty
-            proc = processor(couplers, M=2, N=2, L=4, linear=False, proc_limit=4)
-            emb = proc.tightestNativeBiClique(1, 1)
-            if emb is not None:
-                break
-        verify_biclique(proc, emb, 1, 1, 1, 1)
-
     def test_objectives(self):
         couplers = [((0, 0, 0, i), (1, 0, 0, i)) for i in range(4)]
         couplers += [((0, 0, 1, i), (0, 1, 1, i)) for i in range(4)]

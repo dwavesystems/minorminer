@@ -211,7 +211,7 @@ class pathfinder_base : public pathfinder_public_interface {
         } catch (const TimeoutException & /*e*/) {
             ep.major_info("problem timed out");
             return -2;
-        } catch (const ProblemCancelledException &e) {
+        } catch (const ProblemCancelledException & /*e*/) {
             ep.major_info("problem cancelled via keyboard interrupt");
             if (params.interactive)
                 return -2;
@@ -574,7 +574,8 @@ class pathfinder_base : public pathfinder_public_interface {
             }
 
             if (got) {
-                if (bestEmbedding.chainsize(u) > chainlength_bound && chainlength_bound > 0) {
+                if (chainlength_bound > 0 &&
+                    bestEmbedding.chainsize(u) > static_cast<unsigned int>(chainlength_bound)) {
                     bestEmbedding.steal_all(u);
                     bestEmbedding.tear_out(u);
                 }
