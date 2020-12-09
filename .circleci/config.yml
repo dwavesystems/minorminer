@@ -90,12 +90,11 @@ jobs:
       - run:
           name: coveralls
           command: |
-            if [[ -n $COVERALLS_REPO_TOKEN ]];
-            then python -m virtualenv env;
-            . env/bin/activate;
-            python -m pip install cpp-coveralls;
-            find build \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} . \;
-            coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
+            if [[ -n $COVERALLS_REPO_TOKEN ]]; then
+              . env/bin/activate;
+              python -m pip install cpp-coveralls;
+              find build \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} . \;
+              coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
             fi;
 
   test-3.9: &full-test-template
