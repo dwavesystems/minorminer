@@ -44,7 +44,7 @@ jobs:
 
   coverage-osx:
     macos:
-      xcode: "12.1.0"
+      xcode: "12.2.0"
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
       PYTHON: 3.8.6
@@ -71,7 +71,7 @@ jobs:
             brew install pyenv
       - restore_cache:
           keys:
-            - pyenv-{{ .Environment.CIRCLE_JOB }}
+            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
       - run:
           name: install python
           command: |
@@ -79,7 +79,7 @@ jobs:
       - save_cache:
           paths:
             - ~/.pyenv
-          key: pyenv-{{ .Environment.CIRCLE_JOB }}
+          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
       - run:
           name: create virtualenv
           command: |
@@ -110,7 +110,7 @@ jobs:
 
       - restore_cache: &restore-cache-template
           keys:
-          - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
+          - v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
 
       - run:
           name: create virtualenv
@@ -127,7 +127,7 @@ jobs:
       - save_cache: &save-cache-template
           paths:
             - ./env
-          key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
+          key: v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
 
       - run: &build-ext-template
           name: install package
@@ -190,7 +190,7 @@ jobs:
 
   test-osx-3.9: &osx-tests-template
     macos:
-      xcode: "12.1.0"
+      xcode: "12.2.0"
     environment:
       PYTHON: 3.9.0
       HOMEBREW_NO_AUTO_UPDATE: 1
@@ -207,7 +207,7 @@ jobs:
 
       - restore_cache:
           keys:
-            - pyenv-{{ .Environment.CIRCLE_JOB }}
+            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
 
       - run:
           name: install python
@@ -217,7 +217,7 @@ jobs:
       - save_cache:
           paths:
             - ~/.pyenv
-          key: pyenv-{{ .Environment.CIRCLE_JOB }}
+          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
 
       - restore_cache: *restore-cache-template
 
@@ -258,7 +258,6 @@ jobs:
           command: |
             eval "$(pyenv init -)"
             python setup.py sdist
-
 
       - run: 
           name: install sdist without cython
@@ -357,7 +356,7 @@ jobs:
 
   deploy-osx-3.9: &osx-deploy-template
     macos:
-      xcode: "12.1.0"
+      xcode: "12.2.0"
     environment:
       PYTHON: 3.9.0
       HOMEBREW_NO_AUTO_UPDATE: 1
@@ -374,7 +373,7 @@ jobs:
 
       - restore_cache:
           keys:
-            - pyenv-{{ .Environment.CIRCLE_JOB }}
+            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
 
       - run:
           name: install python
@@ -384,7 +383,7 @@ jobs:
       - save_cache:
           paths:
             - ~/.pyenv
-          key: pyenv-{{ .Environment.CIRCLE_JOB }}
+          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
 
       - run:
           name: create virtualenv
