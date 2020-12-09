@@ -873,10 +873,10 @@ def run_interactive_interrupt(interactive):
 
 
 @skip_if(
-    # there appears to be a bug in the osx, py3.8 version of multiprocessing.
+    # there appears to be a bug in the osx, py3.8+ version of multiprocessing.
     # this has turned into a yak-shaving exercise and I'm not doing any more here
     # for the time being -- #TODO if anybody has a mac and they wanna dig in, please do
-    (sys.version_info[:2] == (3, 8) and sys.platform == 'darwin') or
+    (sys.version_info[:2] >= (3, 8) and sys.platform == 'darwin') or
 
     # TODO this test seems to actually work on windows but it's doing something funky
     # to our appveyor framework.  Giving up on yak-shaving 'cause we're going to retire
@@ -889,10 +889,10 @@ def test_interactive_interrupt():
 
 
 @skip_if(
-    # there appears to be a bug in the osx, py3.8 version of multiprocessing.
+    # there appears to be a bug in the osx, py3.8+ version of multiprocessing.
     # this has turned into a yak-shaving exercise and I'm not doing any more here
     # for the time being -- #TODO if anybody has a mac and they wanna dig in, please do
-    (sys.version_info[:2] == (3, 8) and sys.platform == 'darwin') or
+    (sys.version_info[:2] >= (3, 8) and sys.platform == 'darwin') or
 
     # TODO this test seems to actually work on windows but it's doing something funky
     # to our appveyor framework.  Giving up on yak-shaving 'cause we're going to retire
