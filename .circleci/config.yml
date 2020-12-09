@@ -47,7 +47,7 @@ jobs:
       xcode: "12.1.0"
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
-      PYTHON: 3.8.0
+      PYTHON: 3.8.6
     working_directory: ~/repo
     steps:
       - checkout
@@ -277,25 +277,25 @@ jobs:
   test-osx-3.8:
     <<: *osx-tests-template
     environment:
-      PYTHON: 3.8.1
+      PYTHON: 3.8.6
       HOMEBREW_NO_AUTO_UPDATE: 1
 
   test-osx-3.7:
     <<: *osx-tests-template
     environment:
-      PYTHON: 3.7.4
+      PYTHON: 3.7.9
       HOMEBREW_NO_AUTO_UPDATE: 1
 
   test-osx-3.6:
     <<: *osx-tests-template
     environment:
-      PYTHON: 3.6.5
+      PYTHON: 3.6.12
       HOMEBREW_NO_AUTO_UPDATE: 1
 
   test-osx-3.5:
     <<: *osx-tests-template
     environment:
-      PYTHON: 3.5.5
+      PYTHON: 3.5.10
       HOMEBREW_NO_AUTO_UPDATE: 1
 
   deploy-manylinux-64: &manylinux-template
@@ -414,25 +414,25 @@ jobs:
   deploy-osx-3.8:
     <<: *osx-deploy-template
     environment:
-      PYTHON: 3.8.1
+      PYTHON: 3.8.6
       HOMEBREW_NO_AUTO_UPDATE: 1
 
   deploy-osx-3.7:
     <<: *osx-deploy-template
     environment:
-      PYTHON: 3.7.4
+      PYTHON: 3.7.9
       HOMEBREW_NO_AUTO_UPDATE: 1
 
   deploy-osx-3.6:
     <<: *osx-deploy-template
     environment:
-      PYTHON: 3.6.5
+      PYTHON: 3.6.12
       HOMEBREW_NO_AUTO_UPDATE: 1
 
   deploy-osx-3.5:
     <<: *osx-deploy-template
     environment:
-      PYTHON: 3.5.5
+      PYTHON: 3.5.10
       HOMEBREW_NO_AUTO_UPDATE: 1
 
 workflows:
