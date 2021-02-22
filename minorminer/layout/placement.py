@@ -329,6 +329,24 @@ def _minimize_overlap(distances, v_indices, T_subset_lookup, layout_points, over
 
 
 class Placement(abc.MutableMapping):
+    """Map source nodes to collections of target nodes without any constraints.
+    In mathematical terms, map V(S) to 2^{V(T)}.
+
+    Parameters
+    ----------
+    S_layout: layout.Layout
+        A layout for S; i.e. a map from S to R^d.
+    T_layout: layout.Layout
+        A layout for T; i.e. a map from T to R^d.
+    placement: dict or function (default None)
+        If a dict, this specifies a pre-computed placement for S in T. If a function, the function is called on
+        S_layout and T_layout `placement(S_layout, T_layout)` and should return a placement of S in T. If None,
+        a random placement of S in T is selected.
+    scale_ratio: float (default None)
+        If None, S_layout is not scaled. Otherwise, S_layout is scaled to scale_ratio*T_layout.scale.
+    kwargs: dict
+        Keyword arguments are given to placement if it is a function.
+    """
     def __init__(
         self,
         S_layout,
@@ -337,24 +355,6 @@ class Placement(abc.MutableMapping):
         scale_ratio=None,
         **kwargs
     ):
-        """
-        Compute a placement of S in T, i.e., map V(S) to 2^{V(T)}.
-
-        Parameters
-        ----------
-        S_layout : layout.Layout
-            A layout for S; i.e. a map from S to R^d.
-        T_layout : layout.Layout
-            A layout for T; i.e. a map from T to R^d.
-        placement : dict or function (default None)
-            If a dict, this specifies a pre-computed placement for S in T. If a function, the function is called on
-            S_layout and T_layout `placement(S_layout, T_layout)` and should return a placement of S in T. If None,
-            a random placement of S in T is selected.
-        scale_ratio : float (default None)
-            If None, S_layout is not scaled. Otherwise, S_layout is scaled to scale_ratio*T_layout.scale.
-        kwargs : dict
-            Keyword arguments are given to placement if it is a function.
-        """
         self.S_layout = _parse_layout(S_layout)
         self.T_layout = _parse_layout(T_layout)
 

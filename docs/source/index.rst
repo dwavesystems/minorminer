@@ -1,7 +1,5 @@
 
-.. include:: README.rst
-  :start-after: index-start-marker
-  :end-before: index-end-marker
+.. include:: intro.rst
 
 Documentation
 -------------
@@ -22,7 +20,6 @@ Documentation
 .. toctree::
     :maxdepth: 2
 
-    intro
     reference/index
 
 .. sdk-end-marker

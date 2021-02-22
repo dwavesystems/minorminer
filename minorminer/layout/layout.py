@@ -192,9 +192,10 @@ def _p_norm_objective(layout_vector, G_distances, dim, p):
 
 
 def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
-    """
-    The Chimera or Pegasus layout from dwave_networkx centerd at the origin with scale a function of the number of rows
-    or columns. Note: As per the implementation of dnx.*_layout, if dim > 2, coordinates beyond the second are 0.
+    """The Chimera or Pegasus layout from dwave_networkx centered at the origin
+    with scale a function of the number of rows or columns. Note: As per the
+    implementation of dnx.*_layout, if dim > 2, coordinates beyond the second
+    are 0.
 
     Parameters
     ----------
@@ -259,6 +260,30 @@ def _nx_to_dnx_layout(center, scale):
 
 
 class Layout(abc.MutableMapping):
+    """Compute coordinates in dimension `dim` for each node in graph `G`.
+
+    Parameters
+    ----------
+    G : NetworkX graph or NetworkX supported edges data structure (dict, list, ...)
+        The graph you want to compute the layout for.
+    layout : dict or function (default None)
+        If a dict, this specifies a pre-computed layout for G. If a function, first add dim, center, and scale to
+        kwargs (if they are not None) and then call the function, `layout(G, **kwargs)`. This should return a layout
+        of G. If None, `nx.random_layout(G, **kwargs)` is called.
+    dim : int (default None)
+        The desired dimension of the layout, R^dim. If None, set dim to be the dimension of layout.
+    center : tuple (default None)
+        The desired center point of the layout. If None, set center to be the center of layout.
+    scale : float (default None)
+        The desired scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space. If None,
+        set scale to be the scale of layout.
+    pack_components : bool (default True)
+        If the graph contains multiple components and dim is None or 2, the components will be laid out
+        individually and packed into a rectangle
+    kwargs : dict
+        Keyword arguments are given to layout if it is a function.
+    """
+
     def __init__(
         self,
         G,
@@ -269,30 +294,6 @@ class Layout(abc.MutableMapping):
         pack_components = True,
         **kwargs
     ):
-        """
-        Compute a layout for G, i.e., a map from G to R^d.
-
-        Parameters
-        ----------
-        G : NetworkX graph or NetworkX supported edges data structure (dict, list, ...)
-            The graph you want to compute the layout for.
-        layout : dict or function (default None)
-            If a dict, this specifies a pre-computed layout for G. If a function, first add dim, center, and scale to
-            kwargs (if they are not None) and then call the function, `layout(G, **kwargs)`. This should return a layout
-            of G. If None, `nx.random_layout(G, **kwargs)` is called.
-        dim : int (default None)
-            The desired dimension of the layout, R^dim. If None, set dim to be the dimension of layout.
-        center : tuple (default None)
-            The desired center point of the layout. If None, set center to be the center of layout.
-        scale : float (default None)
-            The desired scale of the layout; i.e. the layout is in [center - scale, center + scale]^d space. If None,
-            set scale to be the scale of layout.
-        pack_components : bool (default True)
-            If the graph contains multiple components and dim is None or 2, the components will be laid out
-            individually and packed into a rectangle
-        kwargs : dict
-            Keyword arguments are given to layout if it is a function.
-        """
         # Ensure G is a graph object
         self.G = _parse_graph(G)
 

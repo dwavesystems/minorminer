@@ -60,76 +60,83 @@ include "_minorminer_h.pxi"
 import os as _os, logging as _logging
 
 def find_embedding(S, T, **params):
-    """
-    find_embedding(S, T, **params)
-    Heuristically attempt to find a minor-embedding of a graph representing an Ising/QUBO into a target graph.
+    """Heuristically attempt to find a minor-embedding of a graph representing an Ising/QUBO 
+    into a target graph.
 
-    Args::
-
+    Args:
         S: an iterable of label pairs representing the edges in the source graph, or a NetworkX Graph
 
         T: an iterable of label pairs representing the edges in the target graph, or a NetworkX Graph
 
         **params (optional): see below
+ 
+    Returns: 
+        When return_overlap = False (the default), returns a dict that maps labels in S to lists 
+        of labels in T. If the heuristic fails to find an embedding, an empty dictionary is returned.
 
-    Returns::
+        When return_overlap = True, returns a tuple consisting of a dict that maps labels in S to 
+        lists of labels in T and a bool indicating whether or not a valid embedding was found.
 
-        When return_overlap = False (the default), returns a dict that maps labels in S to lists of labels in T.
-            If the heuristic fails to find an embedding, an empty dictionary is returned
+        When interrupted by Ctrl-C, returns the best embedding found so far.
 
-        When return_overlap = True, returns a tuple consisting of a dict that maps labels in S to lists of
-            labels in T and a bool indicating whether or not a valid embedding was found
+        Note that failure to return an embedding does not prove that no embedding exists.
 
-        When interrupted by Ctrl-C, returns the best embedding found so far
-
-        Note that failure to return an embedding does not prove that no embedding exists
-
-    Optional parameters::
-
-        max_no_improvement: Maximum number of failed iterations to improve the
+    Optional parameters:
+        max_no_improvement:
+            Maximum number of failed iterations to improve the
             current solution, where each iteration attempts to find an embedding
             for each variable of S such that it is adjacent to all its
             neighbours. Integer >= 0 (default = 10)
 
-        random_seed: Seed for the random number generator that find_embedding
+        random_seed:
+            Seed for the random number generator that find_embedding
             uses. Integer >=0 (default is randomly set)
 
-        timeout: Algorithm gives up after timeout seconds. Number >= 0 (default
+        timeout:
+            Algorithm gives up after timeout seconds. Number >= 0 (default
             is approximately 1000 seconds, stored as a double)
 
-        max_beta: Qubits are assigned weight according to a formula (beta^n)
+        max_beta:
+            Qubits are assigned weight according to a formula (beta^n)
             where n is the number of chains containint that qubit.  This value
             should never be less than or equal to 1. (default is effectively
             infinite, stored as a double)
 
-        tries: Number of restart attempts before the algorithm stops. On
+        tries:
+            Number of restart attempts before the algorithm stops. On
             D-WAVE 2000Q, a typical restart takes between 1 and 60 seconds.
             Integer >= 0 (default = 10)
 
-        inner_rounds: the algorithm takes at most this many iterations between
+        inner_rounds:
+            The algorithm takes at most this many iterations between
             restart attempts; restart attempts are typically terminated due to
             max_no_improvement. Integer >= 0 (default = effectively infinite)
 
-        chainlength_patience: Maximum number of failed iterations to improve
+        chainlength_patience:
+            Maximum number of failed iterations to improve
             chainlengths in the current solution, where each iteration attempts
             to find an embedding for each variable of S such that it is adjacent
             to all its neighbours. Integer >= 0 (default = 10)
 
-        max_fill: Restricts the number of chains that can simultaneously
+        max_fill:
+            Restricts the number of chains that can simultaneously
             incorporate the same qubit during the search. Integer >= 0, values
             above 63 are treated as 63 (default = effectively infinite)
 
-        threads: Maximum number of threads to use. Note that the
+        threads:
+            Maximum number of threads to use. Note that the
             parallelization is only advantageous where the expected degree of
             variables is significantly greater than the number of threads.
             Integer >= 1 (default = 1)
 
-        return_overlap: This function returns an embedding whether or not qubits
+        return_overlap:
+            This function returns an embedding whether or not qubits
             are used by multiple variables. Set this value to 1 to capture both
             return values to determine whether or not the returned embedding is
             valid. Logical 0/1 integer (default = 0)
 
-        skip_initialization: Skip the initialization pass. Note that this only
+        skip_initialization:
+            Skip the initialization pass. Note that this only
             works if the chains passed in through initial_chains and
             fixed_chains are semi-valid. A semi-valid embedding is a collection
             of chains such that every adjacent pair of variables (u,v) has a
@@ -139,7 +146,8 @@ def find_embedding(S, T, **params):
             semi-valid embeddings is the output of this function with the
             return_overlap parameter enabled. Logical 0/1 integer (default = 0)
 
-        verbose: Level of output verbosity. Integer < 4 (default = 0).
+        verbose:
+            Level of output verbosity. Integer < 4 (default = 0).
             When set to 0, the output is quiet until the final result.
             When set to 1, output looks like this:
 
@@ -171,7 +179,8 @@ def find_embedding(S, T, **params):
                 max chain length: largest number of qubits representing a single variable
                 num max chains: the number of variables that has max chain size
 
-        interactive: If `logging` is None or False, the verbose output will be printed
+        interactive:
+            If `logging` is None or False, the verbose output will be printed
             to stdout/stderr as appropriate, and keyboard interrupts will stop the embedding
             process and the current state will be returned to the user.  Otherwise, output
             will be directed to the logger `logging.getLogger(minorminer.__name__)` and
@@ -179,7 +188,8 @@ def find_embedding(S, T, **params):
             `logger.error()`, verbosity levels 1 through 3 will use `logger.info()` and level
             4 will use `logger.debug()`.  bool, default False
 
-        initial_chains: Initial chains inserted into an embedding before
+        initial_chains:
+            Initial chains inserted into an embedding before
             fixed_chains are placed, which occurs before the initialization
             pass. These can be used to restart the algorithm in a similar state
             to a previous embedding; for example, to improve chainlength of a
@@ -188,22 +198,28 @@ def find_embedding(S, T, **params):
             or empty entries are ignored. A dictionary, where initial_chains[i]
             is a list of qubit labels.
 
-        fixed_chains: Fixed chains inserted into an embedding before the
+        fixed_chains:
+            Fixed chains inserted into an embedding before the
             initialization pass. As the algorithm proceeds, these chains are not
             allowed to change, and the qubits used by these chains are not used by
             other chains. Missing or empty entries are ignored. A dictionary, where
             fixed_chains[i] is a list of qubit labels.
 
-        restrict_chains: Throughout the algorithm, we maintain the condition
+        restrict_chains:
+            Throughout the algorithm, we maintain the condition
             that chain[i] is a subset of restrict_chains[i] for each i, except
             those with missing or empty entries. A dictionary, where
             restrict_chains[i] is a list of qubit labels.
 
-        suspend_chains: This is a metafeature that is only implemented in the Python
-            interface.  suspend_chains[i] is an iterable of iterables; for example
+        suspend_chains:
+            This is a metafeature that is only implemented in the Python
+            interface. suspend_chains[i] is an iterable of iterables; for example
                 suspend_chains[i] = [blob_1, blob_2],
             with each blob_j an iterable of target node labels.
             this enforces the following:
+
+            .. code-block:: text
+
                 for each suspended variable i,
                     for each blob_j in the suspension of i,
                         at least one qubit from blob_j will be contained in the

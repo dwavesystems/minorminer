@@ -30,13 +30,12 @@ cdef dict __global_locks = {'clique': threading.Lock(),
                             'biclique': threading.Lock()}
 
 def _num_nodes(nn, offset = 0):
-    """
-    Internal-use function to normalize inputs.
+    """Internal-use function to normalize inputs.
 
-    Inputs:
+    Args:
         nn: int or iterable
 
-    Outputs:
+    Returns:
         (n, nodes)
             n: nn if n is an int, otherwise len(nodes)
             nodes: tuple(offset, offset + nn) if nn is an iterable, otherwise
@@ -51,10 +50,9 @@ def _num_nodes(nn, offset = 0):
     return num, nodes
 
 def find_clique_embedding(nodes, g, use_cache = True):
-    """
-    Finds a clique embedding in the graph g using a polynomial-time algorithm.
-    
-    Inputs:
+    """Finds a clique embedding in the graph g using a polynomial-time algorithm.
+
+    Args:
         g: either a dwave_networkx.chimera_graph or dwave_networkx.pegasus_graph
         nodes: a number (indicating the size of the desired clique) or an 
             iterable (specifying the node labels of the desired clique)
@@ -68,18 +66,19 @@ def find_clique_embedding(nodes, g, use_cache = True):
         emb: dict mapping node labels (either nodes, or range(nodes)) to chains
             of a clique embedding
 
-    Note: due to internal optimizations, not all chimera graphs are supported by
-    this code.  Specifically, the graphs 
-        dwave_networkx.chimera_graph(m, n, t)
-    are only supported for t <= 8.  Thus, we support current D-Wave products
-    (which have t = 4) but not all graphs.  For graphs with t > 8, use the
-    legacy chimera-embedding package.
+    Note:
+        Due to internal optimizations, not all chimera graphs are supported by
+        this code. Specifically, the graphs `dwave_networkx.chimera_graph(m, n, t)`
+        are only supported for t <= 8.  Thus, we support current D-Wave products
+        (which have t = 4) but not all graphs.  For graphs with t > 8, use the
+        legacy chimera-embedding package.
 
-    Note: when the cache is used, clique embeddings of all sizes are computed
-    and cached.  This takes somewhat longer than a single embedding, but tends
-    to pay off after a fairly small number of calls.  An exceptional use case is
-    when there are a large number of missing internal couplers, where the result
-    is nondeterministic -- avoiding the cache in this case may be preferable.
+    Note:
+        When the cache is used, clique embeddings of all sizes are computed
+        and cached.  This takes somewhat longer than a single embedding, but tends
+        to pay off after a fairly small number of calls.  An exceptional use case is
+        when there are a large number of missing internal couplers, where the result
+        is nondeterministic -- avoiding the cache in this case may be preferable.
     """
     try:
         graphdata = g.graph
@@ -95,21 +94,21 @@ def find_clique_embedding(nodes, g, use_cache = True):
         return busgraph(g).find_clique_embedding(nodes)
 
 class busgraph_cache:
+    """A cache class for chimera / pegasus graphs, and their associated cliques
+    and bicliques.
+
+    Args:
+        g: a dwave_networkx.pegasus_graph or dwave_networkx.chimera_graph
+
+    Note:
+        Due to internal optimizations, not all chimera graphs are
+        supported by this code. Specifically, the graphs 
+        `dwave_networkx.chimera_graph(m, n, t)` are only supported 
+        for t <= 8. Thus, we support current D-Wave products
+        (which have t = 4) but not all graphs. For graphs with t > 8, 
+        use the legacy chimera-embedding package.
+    """
     def __init__(self, g):
-        """
-        A cache class for chimera / pegasus graphs, and their associated cliques
-        and bicliques.
-
-        Input:
-            g: a dwave_networkx.pegasus_graph or dwave_networkx.chimera_graph
-
-        Note: due to internal optimizations, not all chimera graphs are
-        supported by this code.  Specifically, the graphs 
-            dwave_networkx.chimera_graph(m, n, t)
-        are only supported for t <= 8.  Thus, we support current D-Wave products
-        (which have t = 4) but not all graphs.  For graphs with t > 8, use the
-        legacy chimera-embedding package.
-        """
         self._family = g.graph['family']
         if(self._family == 'chimera'):
             self._graph = _chimera_busgraph(g)
@@ -139,7 +138,7 @@ class busgraph_cache:
                                                 self._graph.bicliques)
 
     @staticmethod
-    def cache_rootdir(version = __cache_version):
+    def cache_rootdir(version=__cache_version):
         """
         Returns the directory corresponding to the provided cache version
         (default is the current cache version).
@@ -269,18 +268,17 @@ class busgraph_cache:
             return {}
 
     def find_clique_embedding(self, nn):
-        """
-        Returns a clique embedding, minimizing the maximum chainlength given its
-        size.  This will compute the entire clique cache if it is missing from
+        """Returns a clique embedding, minimizing the maximum chainlength given its
+        size. This will compute the entire clique cache if it is missing from
         the filesystem.
         
-        Inputs:
+        Args:
             nn: a number (indicating the size of the desired clique) or an 
                 iterable (specifying the node labels of the desired clique)
 
         Returns:
             emb: dict mapping node labels (either nn, or range(nn)) to chains
-                of a clique embedding
+                 of a clique embedding
         """
         num, nodes = _num_nodes(nn)
         self._ensure_clique_cache()
@@ -313,13 +311,12 @@ class busgraph_cache:
         return self._graph.relabel(dict(enumerate(emb0 + emb1)))
 
     def find_biclique_embedding(self, nn, mm):
-        """
-        Returns a biclique embedding, minimizing the maximum chainlength given 
+        """Returns a biclique embedding, minimizing the maximum chainlength given 
         its size.  This will compute the entire biclique cache if it is missing 
         from the filesystem.
 
         
-        Inputs:
+        Args:
             nn: int (indicating the size of one side of the desired biclique) or
                 an iterable (specifying the node labels of one side the desired
                 buclique)
