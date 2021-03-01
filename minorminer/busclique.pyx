@@ -53,30 +53,36 @@ def find_clique_embedding(nodes, g, use_cache = True):
     """Finds a clique embedding in the graph g using a polynomial-time algorithm.
 
     Args:
-        g: either a dwave_networkx.chimera_graph or dwave_networkx.pegasus_graph
-        nodes: a number (indicating the size of the desired clique) or an 
-            iterable (specifying the node labels of the desired clique)
-        use_cache: bool, default True -- whether or not to compute / restore a
-            cache of clique embeddings for g.  Note that this function only uses
-            the filesystem cache, and does not maintain the cache in memory.  If
-            many (or even several) embeddings are desired in a single session,
-            it is recommended to use `busgraph_cache`
+        nodes (int/iterable): 
+            A number (indicating the size of the desired clique) or an 
+            iterable (specifying the node labels of the desired clique).
+        
+        g (NetworkX Graph): 
+            The source graph that is either a :func:`dwave_networkx.chimera_graph` 
+            or :func:`dwave_networkx.pegasus_graph`.
+        
+        use_cache (bool, optional, default=True):
+            Whether or not to compute/restore a cache of clique embeddings for g. 
+            Note that this function only uses the filesystem cache, and does not 
+            maintain the cache in memory. If many (or even several) embeddings are 
+            desired in a single session, it is recommended to use 
+            :class:`.busgraph_cache`.
 
     Returns:
-        emb: dict mapping node labels (either nodes, or range(nodes)) to chains
-            of a clique embedding
+        dict: An embedding of node labels (either nodes, or range(nodes)) mapped 
+        to chains of a clique embedding.
 
     Note:
         Due to internal optimizations, not all chimera graphs are supported by
-        this code. Specifically, the graphs `dwave_networkx.chimera_graph(m, n, t)`
-        are only supported for t <= 8.  Thus, we support current D-Wave products
-        (which have t = 4) but not all graphs.  For graphs with t > 8, use the
-        legacy chimera-embedding package.
+        this code. Specifically, the graphs :func:`dwave_networkx.chimera_graph(m, n, t)`
+        are only supported for :math:`t<=8`. The code currently supports D-Wave 
+        products, which have :math:`t=4`, but not all graphs. For graphs with 
+        :math:`t>8`, use the legacy chimera-embedding package.
 
     Note:
         When the cache is used, clique embeddings of all sizes are computed
-        and cached.  This takes somewhat longer than a single embedding, but tends
-        to pay off after a fairly small number of calls.  An exceptional use case is
+        and cached. This takes somewhat longer than a single embedding, but tends
+        to pay off after a fairly small number of calls. An exceptional use case is
         when there are a large number of missing internal couplers, where the result
         is nondeterministic -- avoiding the cache in this case may be preferable.
     """
@@ -94,19 +100,19 @@ def find_clique_embedding(nodes, g, use_cache = True):
         return busgraph(g).find_clique_embedding(nodes)
 
 class busgraph_cache:
-    """A cache class for chimera / pegasus graphs, and their associated cliques
+    """A cache class for Chimera and Pegasus graphs, and their associated cliques
     and bicliques.
 
     Args:
-        g: a dwave_networkx.pegasus_graph or dwave_networkx.chimera_graph
+        g (NetworkX Graph):
+            A :func:`dwave_networkx.pegasus_graph` or :func:`dwave_networkx.chimera_graph`.
 
     Note:
-        Due to internal optimizations, not all chimera graphs are
-        supported by this code. Specifically, the graphs 
-        `dwave_networkx.chimera_graph(m, n, t)` are only supported 
-        for t <= 8. Thus, we support current D-Wave products
-        (which have t = 4) but not all graphs. For graphs with t > 8, 
-        use the legacy chimera-embedding package.
+        Due to internal optimizations, not all chimera graphs are supported by
+        this code. Specifically, the graphs :func:`dwave_networkx.chimera_graph(m, n, t)`
+        are only supported for :math:`t<=8`. The code currently supports D-Wave 
+        products, which have :math:`t=4`, but not all graphs. For graphs with 
+        :math:`t>8`, use the legacy chimera-embedding package.
     """
     def __init__(self, g):
         self._family = g.graph['family']
@@ -122,33 +128,29 @@ class busgraph_cache:
         self._bicliques = None
 
     def _ensure_clique_cache(self):
-        """
-        Fetch / compute the clique cache, if it's not already in memory
-        """
+        """Fetch/compute the clique cache, if it's not already in memory."""
         if self._cliques is None:
             self._cliques = self._fetch_cache('clique', self._graph.cliques)
 
 
     def _ensure_biclique_cache(self):
-        """
-        Fetch / compute the clique cache, if it's not already in memory
-        """
+        """Fetch/compute the clique cache, if it's not already in memory."""
         if self._bicliques is None:
             self._bicliques = self._fetch_cache('biclique', 
                                                 self._graph.bicliques)
 
     @staticmethod
     def cache_rootdir(version=__cache_version):
-        """
-        Returns the directory corresponding to the provided cache version
-        (default is the current cache version).
+        """Returns the directory corresponding to the provided cache version.
+
+        Args:
+            version (int, optional, default = current cache version)
         """
         return homebase.user_data_dir('busclique', 'dwave', version)
 
     @staticmethod
     def clear_all_caches():
-        """
-        Removes all caches created by this class, up to and including the
+        """Removes all caches created by this class, up to and including the
         current version.
         """
         dirstack = []
@@ -171,8 +173,7 @@ class busgraph_cache:
                 dirstack.pop()
 
     def _fetch_cache(self, dirname, compute):
-        """
-        This is an ad-hoc implementation of a file-cache using a LRU strategy.
+        """This is an ad-hoc implementation of a file-cache using a LRU strategy.
         It's intended to be platform independent, thread- and multiprocess-safe,
         and reasonably performant -- I couldn't find a ready-made solution that
         satisfies those requirements, so I had to roll my own.  TODO: keep 
@@ -242,10 +243,10 @@ class busgraph_cache:
         return cache
 
     def largest_clique(self):
-        """
-        Returns the largest-found clique in the clique cache.  Keys of the
-        embedding dict are from range(len(emb)).  This will compute the entire
-        clique cache if it is missing from the filesystem.
+        """Returns the largest-found clique in the clique cache.
+        
+        Keys of the embedding dict are from `range(len(emb))`. This will compute 
+        the entire clique cache if it is missing from the filesystem.
         """
         self._ensure_clique_cache()
         embs = self._cliques['raw']
@@ -253,11 +254,14 @@ class busgraph_cache:
         return self._graph.relabel(dict(enumerate(embs[keys[max(keys)]])))
 
     def largest_clique_by_chainlength(self, chainlength):
-        """
-        Returns the largest-found clique in the clique cache, with a specified
-        maximum chainlength.  Keys of the embedding dict are from 
-        `range(len(emb))`.  This will compute the entire clique cache if it is
-        missing from the filesystem.
+        """Returns the largest-found clique in the clique cache, with a specified
+        maximum chainlength.
+
+        Args:
+            chainlength (int)
+
+        Keys of the embedding dict are from `range(len(emb))`. This will compute 
+        the entire clique cache if it is missing from the filesystem.
         """
         self._ensure_clique_cache()
         embs = self._cliques['raw']
@@ -268,17 +272,20 @@ class busgraph_cache:
             return {}
 
     def find_clique_embedding(self, nn):
-        """Returns a clique embedding, minimizing the maximum chainlength given its
-        size. This will compute the entire clique cache if it is missing from
+        """Returns a clique embedding, minimizing the maximum chainlength given 
+        its size.
+        
+        This will compute the entire clique cache if it is missing from
         the filesystem.
         
         Args:
-            nn: a number (indicating the size of the desired clique) or an 
-                iterable (specifying the node labels of the desired clique)
+            nn (int/iterable):
+                A number (indicating the size of the desired clique) or an 
+                iterable (specifying the node labels of the desired clique).
 
         Returns:
-            emb: dict mapping node labels (either nn, or range(nn)) to chains
-                 of a clique embedding
+            dict: An embedding of node labels (either nn, or range(nn)) mapped 
+            to chains of a clique embedding.
         """
         num, nodes = _num_nodes(nn)
         self._ensure_clique_cache()
@@ -290,11 +297,12 @@ class busgraph_cache:
         return self._graph.relabel(emb)
 
     def largest_balanced_biclique(self):
-        """
-        Returns the largest-size biclique where both sides have equal size.
-        Nodes of the embedding dict are from range(len(emb)), where the nodes
-        range(len(emb)//2) are completely connected to the nodes 
-        range(len(emb)//2, len(emb)).
+        """Returns the largest-size biclique where both sides have equal size.
+
+        Nodes of the embedding dict are from `range(len(emb))`, where the nodes
+        `range(len(emb)//2)` are completely connected to the nodes 
+        `range(len(emb)//2, len(emb))`.
+
         This will compute the entire biclique cache if it is missing from the
         filesystem.
         """
@@ -312,24 +320,26 @@ class busgraph_cache:
 
     def find_biclique_embedding(self, nn, mm):
         """Returns a biclique embedding, minimizing the maximum chainlength given 
-        its size.  This will compute the entire biclique cache if it is missing 
+        its size. This will compute the entire biclique cache if it is missing 
         from the filesystem.
-
         
         Args:
-            nn: int (indicating the size of one side of the desired biclique) or
-                an iterable (specifying the node labels of one side the desired
-                buclique)
-            mm: int or iterable, as above.
+            nn (int/iterable):
+                A number (indicating the size of one side of the desired biclique) 
+                or an iterable (specifying the node labels of one side the desired
+                buclique).
+
+            mm (int/iterable):
+                Same as nn, for the other side of the desired biclique.
 
         In the case that nn is a number, the first side will have nodes labeled
-        from range(nn).  In the case that mm is a number, the second side will
-        have nodes labeled from range(n, n + mm); where n is either nn or
-        len(nn).        
+        from `range(nn)`. In the case that mm is a number, the second side will
+        have nodes labeled from `range(n, n + mm)`; where n is either nn or
+        `len(nn)`.
 
         Returns:
-            emb: dict mapping node labels (described above) to chains of a
-                biclique embedding
+            dict: An embedding of node labels (described above) mapped to chains 
+            of a biclique embedding.
         """
         self._ensure_biclique_cache()
         biggest = self._bicliques['max_side']

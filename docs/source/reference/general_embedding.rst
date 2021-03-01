@@ -4,17 +4,11 @@
 General Embedding
 =================
 
-General embedding refers to embedding that may be useful for any type of graph. 
+General embedding refers to embedding that may be useful for any type of graph.
 
-The primary utility function, :meth:`~minorminer.find_embedding()`, is an implementation of
-the heuristic algorithm described in [1]. It accepts various optional parameters
-used to tune the algorithm's execution or constrain the given problem.
-
-This implementation performs on par with tuned, non-configurable implementations
-while providing users with hooks to easily use the code as a basic building
-block in research.
-
-[1] https://arxiv.org/abs/1406.2741
+.. include:: ../README.rst
+  :start-after: index-start-marker
+  :end-before: index-end-marker
 
 .. autofunction:: minorminer.find_embedding
 

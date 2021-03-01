@@ -60,26 +60,34 @@ include "_minorminer_h.pxi"
 import os as _os, logging as _logging
 
 def find_embedding(S, T, **params):
-    """Heuristically attempt to find a minor-embedding of a graph representing an Ising/QUBO 
-    into a target graph.
+    """Heuristically attempt to find a minor-embedding of a graph representing 
+    an Ising/QUBO into a target graph.
 
     Args:
-        S: an iterable of label pairs representing the edges in the source graph, or a NetworkX Graph
+        S (iterable/NetworkX Graph): 
+            The source graph as an iterable of label pairs representing the 
+            edges, or a NetworkX Graph.
 
-        T: an iterable of label pairs representing the edges in the target graph, or a NetworkX Graph
+        T (iterable/NetworkX Graph):
+            The target graph as an iterable of label pairs representing the 
+            edges, or a NetworkX Graph.
 
-        **params (optional): see below
+        **params (optional): See below.
  
     Returns: 
-        When return_overlap = False (the default), returns a dict that maps labels in S to lists 
-        of labels in T. If the heuristic fails to find an embedding, an empty dictionary is returned.
+        When return_overlap = False (the default), the function returns a dict 
+        that maps labels in S to lists of labels in T. If the heuristic fails to 
+        find an embedding, an empty dictionary is returned.
 
-        When return_overlap = True, returns a tuple consisting of a dict that maps labels in S to 
-        lists of labels in T and a bool indicating whether or not a valid embedding was found.
+        When return_overlap = True, the function returns a tuple consisting of 
+        a dict that maps labels in S to lists of labels in T and a bool indicating 
+        whether or not a valid embedding was found.
 
-        When interrupted by Ctrl-C, returns the best embedding found so far.
+        When interrupted by Ctrl-C, the function returns the best embedding found 
+        so far.
 
-        Note that failure to return an embedding does not prove that no embedding exists.
+        Note that failure to return an embedding does not prove that no embedding 
+        exists.
 
     Optional parameters:
         max_no_improvement:

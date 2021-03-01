@@ -1,5 +1,9 @@
+==========
+minorminer
+==========
 
-.. include:: intro.rst
+`minorminer` is a heuristic tool for minor embedding: given a minor and target
+graph, it tries to find a mapping that embeds the minor into the target.
 
 Documentation
 -------------

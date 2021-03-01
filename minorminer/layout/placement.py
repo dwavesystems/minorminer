@@ -23,23 +23,18 @@ from . import layout
 
 
 def intersection(S_layout, T_layout, **kwargs):
-    """
-    Map each vertex of S to its nearest row/column intersection qubit in T (T must be a D-Wave hardware graph).
-    Note: This will modifiy S_layout. 
+    """Map each vertex of S to its nearest row/column intersection qubit in T 
+    (T must be a D-Wave hardware graph). Note: This will modifiy S_layout. 
 
-    Parameters
-    ----------
-    S_layout : layout.Layout
-        A layout for S; i.e. a map from S to R^d.
-    T_layout : layout.Layout
-        A layout for T; i.e. a map from T to R^d.
-    scale_ratio : float (default None)
-        If None, S_layout is not scaled. Otherwise, S_layout is scaled to scale_ratio*T_layout.scale.
+    Args:
+        S_layout (:class:`.Layout`):
+            A layout for S; i.e. a map from S to R^d.
 
-    Returns
-    -------
-    placement : dict
-        A mapping from vertices of S (keys) to vertices of T (values).
+        T_layout (:class:`.Layout`):
+            A layout for T; i.e. a map from T to R^d.
+
+    Returns:
+        dict: A mapping from vertices of S (keys) to vertices of T (values).
     """
     # Extract the target graph
     T = T_layout.G
@@ -208,27 +203,28 @@ def _pegasus_all_intersection_points(intersection_points, offsets, v, u, w, k, z
 
 
 def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
-    """
-    Maps vertices of S to the closest vertices of T as given by S_layout and T_layout. i.e. For each vertex u in
-    S_layout and each vertex v in T_layout, map u to the v with minimum Euclidean distance (||u - v||_2).
+    """Maps vertices of S to the closest vertices of T as given by `S_layout` 
+    and `T_layout`. i.e. For each vertex u in `S_layout` and each vertex v in 
+    `T_layout`, map u to the v with minimum Euclidean distance :math:`(||u - v||_2)`.
 
-    Parameters
-    ----------
-    S_layout : layout.Layout
-        A layout for S; i.e. a map from S to R^d.
-    T_layout : layout.Layout
-        A layout for T; i.e. a map from T to R^d.
-    subset_size : tuple (default (1, 1))
-        A lower (subset_size[0]) and upper (subset_size[1]) bound on the size of subets of T that will be considered
-        when mapping vertices of S.
-    num_neighbors : int (default 1)
-        The number of closest neighbors to query from the KDTree--the neighbor with minimium overlap is chosen.
-        Increasing this reduces overlap, but increases runtime.
+    Args:
+        S_layout (:class:`.Layout`):
+            A layout for S; i.e. a map from S to :math:`R^d`.
 
-    Returns
-    -------
-    placement : dict
-        A mapping from vertices of S (keys) to subsets of vertices of T (values).
+        T_layout (:class:`.Layout`):
+            A layout for T; i.e. a map from T to :math:`R^d`.
+
+        subset_size (tuple, optional, default=(1, 1)):
+            A lower (subset_size[0]) and upper (subset_size[1]) bound on the size 
+            of subets of T that will be considered when mapping vertices of S.
+        
+        num_neighbors (int, optional, default=1):
+            The number of closest neighbors to query from the KDTree--the 
+            neighbor with minimum overlap is chosen. Increasing this reduces 
+            overlap, but increases runtime.
+
+    Returns:
+        dict: A mapping from vertices of S (keys) to subsets of vertices of T (values).
     """
     # Extract the target graph
     T = T_layout.G
@@ -330,22 +326,30 @@ def _minimize_overlap(distances, v_indices, T_subset_lookup, layout_points, over
 
 class Placement(abc.MutableMapping):
     """Map source nodes to collections of target nodes without any constraints.
-    In mathematical terms, map V(S) to 2^{V(T)}.
+    In mathematical terms, map V(S) to :math:`2^{V(T)}`.
 
-    Parameters
-    ----------
-    S_layout: layout.Layout
-        A layout for S; i.e. a map from S to R^d.
-    T_layout: layout.Layout
-        A layout for T; i.e. a map from T to R^d.
-    placement: dict or function (default None)
-        If a dict, this specifies a pre-computed placement for S in T. If a function, the function is called on
-        S_layout and T_layout `placement(S_layout, T_layout)` and should return a placement of S in T. If None,
-        a random placement of S in T is selected.
-    scale_ratio: float (default None)
-        If None, S_layout is not scaled. Otherwise, S_layout is scaled to scale_ratio*T_layout.scale.
-    kwargs: dict
-        Keyword arguments are given to placement if it is a function.
+    Args:
+        S_layout (:class:`.Layout`):
+            A layout for S; i.e. a map from S to :math:`R^d`.
+
+        T_layout (:class:`.Layout`):
+            A layout for T; i.e. a map from T to :math:`R^d`.
+
+        placement (dict/function, optional, default=None):
+            If a dict, this specifies a pre-computed placement for S in T.
+            
+            If a function, the function is called on `S_layout` and `T_layout`, 
+            `placement(S_layout, T_layout)`, and should return a dict representing 
+            a placement of S in T. 
+            
+            If None, a random placement of S in T is selected.
+
+        scale_ratio (float, optional, default=None):
+            If None, `S_layout` is not scaled. Otherwise, `S_layout` is scaled 
+            to `scale_ratio*T_layout.scale`.
+
+        **kwargs (dict):
+            Keyword arguments are passed to `placement` if it is a function.
     """
     def __init__(
         self,
