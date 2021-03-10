@@ -15,47 +15,73 @@
 # distutils: language = c++
 # cython: language_level=2
 # Note: chosing to use language_level=2 because of how `enum VARORDER` is exposed
-"""
-`minorminer` is a tool for finding graph minor embeddings, developed to embed Ising problems onto quantum annealers (QA). While it can be used to find minors in arbitrary graphs, it is particularly geared toward state-of-the-art QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.
-
-The primary function :py:func:`find_embedding` is a modernized implementation of the Cai, Macready and Roy [1] algorithm with several new features to give users finer control and address a wider class of problems.
+"""The primary function :py:func:`find_embedding` is a modernized implementation 
+of the Cai, Macready and Roy [1] algorithm with several new features to give users 
+finer control and address a wider class of problems.
 
 Definitions
 ===========
 
-Let :math:`S` and :math:`T` be graphs, which we call source and target.  If a set of target nodes is either size 1 or it's a connected subgraph of :math:`T`, we call it a `chain`.  A mapping :math:`f` from source nodes to chains is an embedding of :math:`S` into :math:`T` when:
+Let :math:`S` and :math:`T` be graphs, which we call source and target. If a set 
+of target nodes is either size 1 or it's a connected subgraph of :math:`T`, we 
+call it a `chain`.  A mapping :math:`f` from source nodes to chains is an 
+embedding of :math:`S` into :math:`T` when:
 
-- for every pair of nodes :math:`s_1 \\neq s_2` of :math:`S`, the chains :math:`f(s_1)` and :math:`f(s_2)` are disjoint, and
-- for every source edge :math:`(s_1, s_2)`, there is at least one target edge :math:`(t_1, t_2)` for which :math:`t_1 \\in f(s_1)` and :math:`t_2 \\in f(s_2)`
+* For every pair of nodes :math:`s_1 \neq s_2` of :math:`S`, the chains :math:`f(s_1)` 
+  and :math:`f(s_2)` are disjoint, and
 
-In cases where two chains are not disjoint, we say that they `overlap`.  If a mapping has overlapping chains, and some of its source edges are represented by qubits shared by their associated chains but the others are all proper, we call that mapping an `overlapped embedding`.
+* For every source edge :math:`(s_1, s_2)`, there is at least one target edge 
+  :math:`(t_1, t_2)` for which :math:`t_1 \in f(s_1)` and :math:`t_2 \in f(s_2)`.
+
+In cases where two chains are not disjoint, we say that they `overlap`. If a 
+mapping has overlapping chains, and some of its source edges are represented by 
+qubits shared by their associated chains but the others are all proper, we call 
+that mapping an `overlapped embedding`.
 
 High-level Algorithm Description
 ================================
 
-This is a very rough description of the heuristic more properly described in [1], and most accurately described by the source code.
+This is a very rough description of the heuristic more properly described in 
+[1], and most accurately described by the source code.
 
-While it is difficult to find proper embeddings, it is much easier to find embeddings where chains are allowed to overlap.  The key operation of this algorithm is a placement heuristic.  We initialize by setting :math:`f(s_0) = {t_0}` for chosen source and target nodes, and then proceed to place nodes heedless of accumulating overlaps. We persist: tear out a chain, clean up its neighboring chains, and replace it.  The placement heuristic attempts to avoid qubits involved in overlaps, and once it finds an embedding, continues in the same fashion with the aim of minimizing the sizes of its chains.
+While it is difficult to find proper embeddings, it is much easier to find 
+embeddings where chains are allowed to overlap.  The key operation of this 
+algorithm is a placement heuristic.  We initialize by setting 
+:math:`f(s_0) = {t_0}` for chosen source and target nodes, and then proceed to 
+place nodes heedless of accumulating overlaps. We persist: tear out a chain, 
+clean up its neighboring chains, and replace it.  The placement heuristic 
+attempts to avoid qubits involved in overlaps, and once it finds an embedding, 
+continues in the same fashion with the aim of minimizing the sizes of its chains.
 
 Placement Heuristic
 -------------------
 
-Let :math:`s` be a source node with neighbors :math:`n_1, \cdots, n_d`.  We first measure the distance from each neighbor's chain, :math:`f(n_i)` to all target nodes. First we select a target node :math:`t_0` that minimizes the sum of distances to those chains.  Next we follow a minimum-length path from :math:`t_0` to each neighbor's chain, and the union of those paths is the new chain for :math:`s`.  Distances are computed in :math:`T` as a node-weighted graph, where the weight of a node is an exponential function of the number of chains which use it.
-
+Let :math:`s` be a source node with neighbors :math:`n_1, \cdots, n_d`.  We 
+first measure the distance from each neighbor's chain, :math:`f(n_i)` to all 
+target nodes. First we select a target node :math:`t_0` that minimizes the sum 
+of distances to those chains.  Next we follow a minimum-length path from 
+:math:`t_0` to each neighbor's chain, and the union of those paths is the new 
+chain for :math:`s`.  Distances are computed in :math:`T` as a node-weighted 
+graph, where the weight of a node is an exponential function of the number of 
+chains which use it.
 
 Hinting and Constraining
 ========================
 
 This implementation adds several useful features:
 
-* ``initial_chains``: Initial chains are used during the initialization procedure, and can
-  be used to provide hints in the form of an overlapped, partial, or otherwise faulty embedding.
-* ``fixed_chains``: Fixed chains are held constant during the execution of the algorithm.
-* ``restrict_chains``: Chains can be restricted to being contained within a user-defined subset
-  of :math:`T` -- this constraint is somewhat soft, and the algorithm can be expected to violate it.
+* ``initial_chains``: Initial chains are used during the initialization procedure, 
+  and can be used to provide hints in the form of an overlapped, partial, or 
+  otherwise faulty embedding.
+* ``fixed_chains``: Fixed chains are held constant during the execution of the 
+  algorithm.
+* ``restrict_chains``: Chains can be restricted to being contained within a 
+  user-defined subset of :math:`T` -- this constraint is somewhat soft, and the 
+  algorithm can be expected to violate it.
 
 [1] https://arxiv.org/abs/1406.2741
 """
+
 include "_minorminer_h.pxi"
 import os as _os, logging as _logging
 
@@ -189,12 +215,13 @@ def find_embedding(S, T, **params):
 
         interactive:
             If `logging` is None or False, the verbose output will be printed
-            to stdout/stderr as appropriate, and keyboard interrupts will stop the embedding
-            process and the current state will be returned to the user.  Otherwise, output
-            will be directed to the logger `logging.getLogger(minorminer.__name__)` and
-            keyboard interrupts will be propagated back to the user.  Errors will use 
-            `logger.error()`, verbosity levels 1 through 3 will use `logger.info()` and level
-            4 will use `logger.debug()`.  bool, default False
+            to stdout/stderr as appropriate, and keyboard interrupts will stop 
+            the embedding process and the current state will be returned to the 
+            user. Otherwise, output will be directed to the logger 
+            `logging.getLogger(minorminer.__name__)` and keyboard interrupts will 
+            be propagated back to the user. Errors will use `logger.error()`, 
+            verbosity levels 1 through 3 will use `logger.info()` and level 4 
+            will use `logger.debug()`.  bool, default False
 
         initial_chains:
             Initial chains inserted into an embedding before
