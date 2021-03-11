@@ -24,7 +24,7 @@ from . import layout
 
 def intersection(S_layout, T_layout, **kwargs):
     """Map each vertex of S to its nearest row/column intersection qubit in T 
-    (T must be a D-Wave hardware graph). Note: This will modifiy S_layout. 
+    (T must be a D-Wave hardware graph). Note: This will modify S_layout. 
 
     Args:
         S_layout (:class:`.Layout`):
@@ -35,6 +35,7 @@ def intersection(S_layout, T_layout, **kwargs):
 
     Returns:
         dict: A mapping from vertices of S (keys) to vertices of T (values).
+    
     """
     # Extract the target graph
     T = T_layout.G
@@ -56,24 +57,20 @@ def intersection(S_layout, T_layout, **kwargs):
 
 
 def _intersection_binning(S_layout, T):
-    """
-    Map the vertices of S to the "intersection graph" of T. This modifies the grid graph G by assigning vertices 
-    from S and T to vertices of G.
+    """Map the vertices of S to the "intersection graph" of T. This modifies the 
+    grid graph G by assigning vertices from S and T to vertices of G.
 
-    Parameters
-    ----------
-    S_layout : layout.Layout
-        A layout for S; i.e. a map from S to R^d.
-    T : networkx.Graph
-        The target graph to embed S in.
-    scale_ratio : float (default None)
-        If None, S_layout is not scaled. Otherwise, S_layout is scaled to scale_ratio*T_layout.scale.
+    Args:
+        S_layout (:class:`.Layout`):
+            A layout for S; i.e. a map from S to R^d.
+        T (networkx.Graph):
+            The target graph to embed S in.
 
-    Returns
-    -------
-    G : networkx.Graph
-        A grid graph. Each vertex of G contains data attributes "variables" and "qubits", that is, respectively 
-        vertices of S and T assigned to that vertex.  
+    Returns:
+        networkx.Graph: A grid graph. Each vertex of G contains data attributes 
+        "variables" and "qubits", that is, respectively vertices of S and T 
+        assigned to that vertex.
+    
     """
     # Scale the layout so that for each unit-cell edge, we have an integer point.
     m, n, t = T.graph["rows"], T.graph["columns"], T.graph["tile"]
@@ -117,10 +114,13 @@ def _intersection_binning(S_layout, T):
 
 
 def _lookup_intersection_coordinates(G):
-    """
-    For a dwave_networkx graph G, this returns a dictionary mapping the lattice points to sets of vertices of G. 
-        - Chimera: Each lattice point corresponds to the 2 qubits intersecting at that point.
-        - Pegasus: Not Implemented
+    """For a dwave_networkx graph G, this returns a dictionary mapping the 
+    lattice points to sets of vertices of G. 
+    
+    - Chimera: Each lattice point corresponds to the 2 qubits intersecting at 
+      that point.
+    - Pegasus: Not Implemented
+
     """
     graph_data = G.graph
     family = graph_data.get("family")
@@ -165,8 +165,8 @@ def _lookup_intersection_coordinates(G):
 
 
 def _chimera_all_intersection_points(intersection_points, v, t, i, j, u, k):
-    """
-    Given a coordinate vertex, v = (i, j, u, k), of a Chimera with tile, t, get all intersection points it is in.
+    """Given a coordinate vertex, v = (i, j, u, k), of a Chimera with tile, t, 
+    get all intersection points it is in.
     """
     # If you're a row vertex, you go in all grid points of your row intersecting columns in your unit tile
     if u == 1:
@@ -183,8 +183,7 @@ def _chimera_all_intersection_points(intersection_points, v, t, i, j, u, k):
             intersection_points[(col, row)].add(v)
 
 def _pegasus_all_intersection_points(intersection_points, offsets, v, u, w, k, z):
-    """
-    Given a coordinate vertex, v = (u, w, k, z), of a Pegasus graph with offsets
+    """Given a coordinate vertex, v = (u, w, k, z), of a Pegasus graph with offsets
     `offsets`, get all intersection points it is in.
     """
     # Each horizontal qubit spans twelve grid-points in the row 12w+k
@@ -225,6 +224,7 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
 
     Returns:
         dict: A mapping from vertices of S (keys) to subsets of vertices of T (values).
+    
     """
     # Extract the target graph
     T = T_layout.G
@@ -274,27 +274,25 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
 
 
 def _get_connected_subgraphs(G, k, single_set=False):
-    """
-    Finds all connectected subgraphs S of G within a given subset_size.
+    """Finds all connected subgraphs S of G within a given subset_size.
 
-    Parameters
-    ----------
-    G : networkx graph
-        The graph you want to find all connected subgraphs of.
-    k : int
-        An upper bound of the size of connected subgraphs to find.
+    Args:
+        G (networkx.Graph):
+            The graph you want to find all connected subgraphs of.
+        k (int):
+            An upper bound of the size of connected subgraphs to find.
 
-    Returns
-    -------
-    connected_subgraphs : dict
-        The dictionary is keyed by size of subgraph and each value is a set containing
-        frozensets of vertices that comprise the connected subgraphs.
+    Returns:
+        dict: connected_subgraphs, the dictionary is keyed by size of subgraph 
+        and each value is a set containing frozensets of vertices that comprise 
+        the connected subgraphs.
         {
             1: { {v_1}, {v_2}, ... },
             2: { {v_1, v_2}, {v_1, v_3}, ... },
             ...,
             k: { {v_1, v_2, ..., v_m}, ... }
         }
+
     """
     connected_subgraphs = defaultdict(set)
     connected_subgraphs[1] = {frozenset((v,)) for v in G}
@@ -311,9 +309,7 @@ def _get_connected_subgraphs(G, k, single_set=False):
 
 
 def _minimize_overlap(distances, v_indices, T_subset_lookup, layout_points, overlap_counter):
-    """
-    A greedy penalty-type model for choosing nonoverlapping chains.
-    """
+    """A greedy penalty-type model for choosing nonoverlapping chains."""
     subsets = {}
     for i, d in zip(v_indices, distances):
         subset = T_subset_lookup[layout_points[i]]
@@ -350,6 +346,7 @@ class Placement(abc.MutableMapping):
 
         **kwargs (dict):
             Keyword arguments are passed to `placement` if it is a function.
+    
     """
     def __init__(
         self,
@@ -385,45 +382,33 @@ class Placement(abc.MutableMapping):
 
     # The class should behave like a dictionary
     def __iter__(self):
-        """
-        Iterate through the keys of the dictionary placement.
-        """
+        """Iterate through the keys of the dictionary placement."""
         yield from self.placement
 
     def __getitem__(self, key):
-        """
-        Get the placement value at the key vertex.
-        """
+        """Get the placement value at the key vertex."""
         return self.placement[key]
 
     def __setitem__(self, key, value):
-        """
-        Set the placement value at the key vertex.
-        """
+        """Set the placement value at the key vertex."""
         self.placement[key] = value
 
     def __delitem__(self, key):
-        """
-        Delete the placement value at the key vertex.
-        """
+        """Delete the placement value at the key vertex."""
         del self.placement[key]
 
     def __repr__(self):
-        """
-        Use the placement's dictionary representation.
-        """
+        """Use the placement's dictionary representation."""
         return repr(self.placement)
 
     def __len__(self):
-        """
-        The length of a placement is the length of the placement dictionary.
-        """
+        """The length of a placement is the length of the placement dictionary."""
         return len(self.placement)
 
 
 def _parse_layout(G_layout):
-    """
-    Ensures a Layout object was passed in and makes a copy to save in the Placement object.
+    """Ensures a Layout object was passed in and makes a copy to save in the 
+    Placement object.
     """
     if isinstance(G_layout, layout.Layout):
         return layout.Layout(G_layout.G, G_layout.layout)

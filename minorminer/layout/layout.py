@@ -51,8 +51,8 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
             is set to 2.
 
         center (tuple, optional, default=None):
-            The desired center point of the returned layout. If None, 
-            `center` is set as the origin in :math:`R^{\dim}` space.
+            The desired center point of the returned layout. If None, `center` 
+            is set as the origin in :math:`R^{\dim}` space.
         
         scale (float, optional, default=None):
             The desired scale of the returned layout; i.e. the layout 
@@ -62,6 +62,7 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
     Returns:
         dict: :attr:`.Layout.layout`, a mapping from vertices of G (keys) to 
         points in :math:`R^d` (values).
+    
     """
     dim, center = _set_dim_and_center(dim, center)
 
@@ -120,6 +121,7 @@ def _graph_distance_matrix(G,
     Returns:
         G_distances (Numpy 2d array):
             An array indexed by sorted vertices of G whose i,j value is d_G(i,j).
+    
     """
     if all_pairs_shortest_path_length is None:
         all_pairs_shortest_path_length = nx.all_pairs_shortest_path_length(G)
@@ -156,6 +158,7 @@ def _p_norm_objective(layout_vector, G_distances, dim, p):
     Returns:
         float: The sum of differences squared between the metric distance and 
         the graph distance.
+    
     """
     # Reconstitute the flattened array that scipy.optimize.minimize passed in
     n = len(G_distances)
@@ -230,6 +233,7 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     Returns:
         dict: :attr:`.Layout.layout`, a mapping from vertices of G (keys) to 
         points in :math:`R^d` (values).
+    
     """
     graph_data = G.graph
 
@@ -267,6 +271,7 @@ def _nx_to_dnx_layout(center, scale):
             float: The top left corner of a layout.
 
             float: A scale value that is twice the original scale.
+    
     """
     dnx_center = (center[0] - scale, ) + tuple(x + scale for x in center[1:])
     dnx_scale = 2*scale
@@ -312,6 +317,7 @@ class Layout(abc.MutableMapping):
 
         **kwargs (dict):
             Keyword arguments are passed to `layout` if it is a function.
+    
     """
 
     def __init__(
@@ -488,6 +494,7 @@ def _dimension_layout(layout_array, new_d, old_d=None):
 
     Returns:
         Numpy array: A layout that has been projected into R^new_dim.
+    
     """
     # If old_center is empty, compute it
     if old_d is None:
@@ -526,6 +533,7 @@ def _center_layout(layout_array, new_center, old_center=None):
 
     Returns:
         Numpy array: A layout that has been centered at new_center.
+    
     """
     # If old_center is empty, compute it
     if old_center is None:
@@ -558,6 +566,7 @@ def _scale_layout(layout_array, new_scale, old_scale=None, center=None):
 
     Returns:
         Numpy array: A layout that has been scaled to [center - new_scale, center + new_scale]^d.
+    
     """
     # If center is empty, compute it
     if center is None:

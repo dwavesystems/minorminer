@@ -14,7 +14,9 @@ While this library can be used to find minors in arbitrary graphs, it is
 particularly geared toward state-of-the-art QA: problem graphs of a few to a few 
 hundred variables, and hardware graphs of a few thousand qubits. For an 
 introduction to the topologies of D-Wave hardware graphs, see 
-:std:doc:`QPU Topology <oceandocs:concepts/topology>`.
+:std:doc:`QPU Topology <oceandocs:concepts/topology>`. Leap users also have
+access to the Pegasus Topology Jupyter Notebook that explores the architecture of 
+D-Wave's quantum computer, Advantage, in further detail.
 
 Minor-embedding can be done manually, though typically for very small problems 
 only. For a walkthrough of the manual minor-embedding process, see the 

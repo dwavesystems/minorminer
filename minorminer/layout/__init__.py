@@ -30,10 +30,10 @@ def find_embedding(
     return_layouts=False,
     **kwargs
 ):
-    """Tries to embed S in T by computing layout-aware chains and passing them 
-    to :func:`minorminer.find_embedding`. Chains are passed as either `initial_chains` 
-    or `suspend_chains` (see documentation for :func:`minorminer.find_embedding`
-    to learn more).
+    """Tries to embed S in T by computing layout-aware chains and passing 
+    them to :func:`minorminer.find_embedding`. Chains are passed as either 
+    `initial_chains` or `suspend_chains` (see documentation for 
+    :func:`minorminer.find_embedding` to learn more).
 
     Args:
         S (NetworkX Graph/edges data structure (dict, list, ...)):
@@ -54,13 +54,13 @@ def find_embedding(
             Note:
                 If layout is a single function and T is a dnx_graph, then the 
                 function passed in is only applied to S and the dnx_layout is 
-                applied to T. To run a layout function explicitly on T, pass it 
-                in as a 2-tuple; i.e. (p_norm, p_norm).
+                applied to T. To run a layout function explicitly on T, pass 
+                it in as a 2-tuple; i.e. (p_norm, p_norm).
 
         placement (function/dict, optional, default=minorminer.placement.closest):
-            A function that uses the layouts of S and T to map the vertices of S 
-            to subsets of vertices of T (:class:`.Placement`), or a dict that 
-            contains the precomputed mapping/:class:`.Placement`.
+            A function that uses the layouts of S and T to map the vertices 
+            of S to subsets of vertices of T (:class:`.Placement`), or a dict 
+            that contains the precomputed mapping/:class:`.Placement`.
             
             By default, :func:`~placement.closest` is called to compute placement.
 
@@ -82,6 +82,7 @@ def find_embedding(
         is True, a 2-tuple is returned in which the first element is the embedding 
         dict and the second element is another 2-tuple containing the source and 
         target :class:`.Layout` objects.
+
     """
     start = time.perf_counter()
 

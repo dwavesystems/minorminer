@@ -1,9 +1,7 @@
-==========
-minorminer
-==========
 
-`minorminer` is a heuristic tool for minor embedding: given a minor and target
-graph, it tries to find a mapping that embeds the minor into the target.
+.. include:: README.rst
+  :start-after: index-start-marker
+  :end-before: index-end-marker
 
 Documentation
 -------------

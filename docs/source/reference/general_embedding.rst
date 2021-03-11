@@ -7,8 +7,8 @@ General Embedding
 General embedding refers to embedding that may be useful for any type of graph.
 
 .. include:: ../README.rst
-  :start-after: index-start-marker
-  :end-before: index-end-marker
+  :start-after: general-embedding-start-marker
+  :end-before: general-embedding-end-marker
 
 .. autofunction:: minorminer.find_embedding
 
