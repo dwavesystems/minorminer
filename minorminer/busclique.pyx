@@ -147,8 +147,11 @@ class busgraph_cache:
         """Returns the directory corresponding to the provided cache version.
 
         Args:
-            version (int, optional, default = current cache version)
-        
+            version (int, optional, default=current cache version):
+                Cache version.
+
+        Returns:
+            str
         """
         return homebase.user_data_dir('busclique', 'dwave', version)
 
@@ -156,6 +159,9 @@ class busgraph_cache:
     def clear_all_caches():
         """Removes all caches created by this class, up to and including the
         current version.
+
+        Returns:
+            None
         """
         dirstack = []
         for i in range(__cache_version + 1):
@@ -249,8 +255,12 @@ class busgraph_cache:
     def largest_clique(self):
         """Returns the largest-found clique in the clique cache.
         
-        Keys of the embedding dict are from `range(len(emb))`. This will compute 
-        the entire clique cache if it is missing from the filesystem.
+        This will compute the entire clique cache if it is missing from the 
+        filesystem.
+
+        Returns:
+            dict: An embedding of node labels from `range(len(embedding))` mapped
+            to chains of the largest-found clique.
         
         """
         self._ensure_clique_cache()
@@ -260,13 +270,18 @@ class busgraph_cache:
 
     def largest_clique_by_chainlength(self, chainlength):
         """Returns the largest-found clique in the clique cache, with a specified
-        maximum chainlength.
+        maximum `chainlength`.
+
+        This will compute the entire clique cache if it is missing from the 
+        filesystem.
 
         Args:
-            chainlength (int)
+            chainlength (int):
+                Max chain length.
 
-        Keys of the embedding dict are from `range(len(emb))`. This will compute 
-        the entire clique cache if it is missing from the filesystem.
+        Returns:
+            dict: An embedding of node labels from `range(len(embedding))` mapped
+            to chains of the largest-found clique with maximum `chainlength`.
         
         """
         self._ensure_clique_cache()
@@ -290,7 +305,7 @@ class busgraph_cache:
                 iterable (specifying the node labels of the desired clique).
 
         Returns:
-            dict: An embedding of node labels (either nn, or range(nn)) mapped 
+            dict: An embedding of node labels (either `nn`, or `range(nn)`) mapped 
             to chains of a clique embedding.
         
         """
@@ -306,12 +321,16 @@ class busgraph_cache:
     def largest_balanced_biclique(self):
         """Returns the largest-size biclique where both sides have equal size.
 
-        Nodes of the embedding dict are from `range(len(emb))`, where the nodes
-        `range(len(emb)//2)` are completely connected to the nodes 
-        `range(len(emb)//2, len(emb))`.
+        Nodes of the embedding dict are from `range(len(embedding))`, where the 
+        nodes `range(len(embedding)/2)` are completely connected to the nodes 
+        `range(len(embedding)/2, len(embedding))`.
 
         This will compute the entire biclique cache if it is missing from the
         filesystem.
+
+        Returns:
+            dict: An embedding of node labels (described above) mapped to chains 
+            of the largest balanced biclique.
 
         """
         self._ensure_biclique_cache()
@@ -327,22 +346,24 @@ class busgraph_cache:
         return self._graph.relabel(dict(enumerate(emb0 + emb1)))
 
     def find_biclique_embedding(self, nn, mm):
-        """Returns a biclique embedding, minimizing the maximum chainlength given 
-        its size. This will compute the entire biclique cache if it is missing 
-        from the filesystem.
+        """Returns a biclique embedding, minimizing the maximum chain length 
+        given its size. 
+        
+        This will compute the entire biclique cache if it is missing from the 
+        filesystem.
         
         Args:
             nn (int/iterable):
                 A number (indicating the size of one side of the desired biclique) 
                 or an iterable (specifying the node labels of one side the desired
-                buclique).
+                biclique).
 
             mm (int/iterable):
-                Same as nn, for the other side of the desired biclique.
+                Same as `nn`, for the other side of the desired biclique.
 
-        In the case that nn is a number, the first side will have nodes labeled
-        from `range(nn)`. In the case that mm is a number, the second side will
-        have nodes labeled from `range(n, n + mm)`; where n is either nn or
+        In the case that `nn` is a number, the first side will have nodes labeled
+        from `range(nn)`. In the case that `mm` is a number, the second side will
+        have nodes labeled from `range(n, n + mm)`; where `n` is either `nn` or
         `len(nn)`.
 
         Returns:
