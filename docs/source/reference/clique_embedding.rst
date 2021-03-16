@@ -17,6 +17,11 @@ better embeddings than the generic :meth:`~minorminer.find_embedding` method.
 Caching
 =======
 
+If multiple clique or biclique embeddings need to be computed for a single Chimera
+or Pegasus graph, it may be more efficient to retrieve these embeddings through 
+the :class:`busgraph_cache`, which creates LRU file-caches for the target graph's
+cliques and bicliques.
+
 Class
 -----
 .. autoclass:: busgraph_cache

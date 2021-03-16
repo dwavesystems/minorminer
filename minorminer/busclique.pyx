@@ -105,6 +105,11 @@ class busgraph_cache:
     """A cache class for Chimera and Pegasus graphs, and their associated cliques
     and bicliques.
 
+    The cache files are stored in a directory determined by `homebase` (use
+    :meth:`busgraph_cache.cache_rootdir` to retrieve the path to this directory). 
+    Subdirectories named `cliques` and `bicliques` are then created to store the
+    respective caches in each.
+
     Args:
         g (NetworkX Graph):
             A :func:`dwave_networkx.pegasus_graph` or :func:`dwave_networkx.chimera_graph`.
@@ -579,16 +584,15 @@ cdef class _pegasus_busgraph:
         return self.relabel(dict(zip(nodes, emb)))
 
 cdef class _chimera_busgraph:
-    """
-    This is a class which manages a single chimera graph, and dispatches various
-    structure-aware c++ embedding functions on it.
+    """Class for managing a single Chimera graph, and dispatches various 
+    structure-aware C++ embedding functions on it.
 
-    Note: due to internal optimizations, not all chimera graphs are supported by
-    this code.  Specifically, the graphs 
-        dwave_networkx.chimera_graph(m, n, t)
-    are only supported for t <= 8.  Thus, we support current D-Wave products
-    (which have t = 4) but not all graphs.  For graphs with t > 8, use the
-    legacy chimera-embedding package.
+    Note: 
+        Due to internal optimizations, not all Chimera graphs are supported by
+        this code. Specifically, the graphs :func:`dwave_networkx.chimera_graph(m, n, t)`
+        are only supported for :math:`t<=8`. The code currently supports D-Wave 
+        products, which have :math:`t=4`, but not all graphs. For graphs with 
+        :math:`t>8`, use the legacy chimera-embedding package.
     """
     cdef topo_cache[chimera_spec] *topo
     cdef embedding_t emb_1
