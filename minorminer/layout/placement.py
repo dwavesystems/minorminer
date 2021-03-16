@@ -36,6 +36,36 @@ def intersection(S_layout, T_layout, **kwargs):
     Returns:
         dict: A mapping from vertices of S (keys) to vertices of T (values).
     
+    Examples:
+        This example creates a :class:`.Placement` object that stores a mapping 
+        computed with :func:`.intersection`, in which the nodes from a source 
+        hexagonal lattice graph are mapped to a target Chimera graph.
+
+        >>> import networkx as nx
+        >>> import dwave_networkx as dnx
+        >>> import minorminer.layout as mml
+        ...
+        >>> G = nx.hexagonal_lattice_graph(2,2)
+        >>> G_layout = mml.Layout(G, mml.p_norm)
+        >>> C = dnx.chimera_graph(2,2)
+        >>> C_layout = mml.Layout(C, mml.dnx_layout)
+        >>> placement = mml.Placement(G_layout, C_layout, placement=mml.intersection)
+
+        `placement` may be passed in directly to :func:`minorminer.layout.find_embedding`. 
+        
+        Alternatively, :func:`.intersection` may be passed in instead, as shown 
+        in the example below.
+
+        >>> import networkx as nx
+        >>> import dwave_networkx as dnx
+        >>> import minorminer.layout as mml
+        ...
+        >>> G = nx.hexagonal_lattice_graph(2,2)
+        >>> C = dnx.chimera_graph(2,2)
+        >>> embedding = mml.find_embedding(G, 
+                                           C, 
+                                           placement=mml.intersection)
+
     """
     # Extract the target graph
     T = T_layout.G
@@ -206,6 +236,9 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
     and `T_layout`. i.e. For each vertex u in `S_layout` and each vertex v in 
     `T_layout`, map u to the v with minimum Euclidean distance :math:`(||u - v||_2)`.
 
+    By default, :func:`closest` is used to compute the placement of an embedding
+    when :func:`minorminer.layout.find_embedding` is called.
+
     Args:
         S_layout (:class:`.Layout`):
             A layout for S; i.e. a map from S to :math:`R^d`.
@@ -215,7 +248,7 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
 
         subset_size (tuple, optional, default=(1, 1)):
             A lower (subset_size[0]) and upper (subset_size[1]) bound on the size 
-            of subets of T that will be considered when mapping vertices of S.
+            of subsets of T that will be considered when mapping vertices of S.
         
         num_neighbors (int, optional, default=1):
             The number of closest neighbors to query from the KDTree--the 
@@ -224,7 +257,22 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
 
     Returns:
         dict: A mapping from vertices of S (keys) to subsets of vertices of T (values).
-    
+
+    Examples:
+        This example creates a :class:`.Placement` object that stores a mapping 
+        computed with :func:`.closest`, in which the nodes from a source 
+        hexagonal lattice graph are mapped to a target Chimera graph.
+
+        >>> import networkx as nx
+        >>> import dwave_networkx as dnx
+        >>> import minorminer.layout as mml
+        ...
+        >>> G = nx.hexagonal_lattice_graph(2,2)
+        >>> G_layout = mml.Layout(G, mml.p_norm)
+        >>> C = dnx.chimera_graph(2,2)
+        >>> C_layout = mml.Layout(C, mml.dnx_layout)
+        >>> placement = mml.Placement(G_layout, C_layout, placement=mml.closest)
+
     """
     # Extract the target graph
     T = T_layout.G
@@ -321,8 +369,9 @@ def _minimize_overlap(distances, v_indices, T_subset_lookup, layout_points, over
 
 
 class Placement(abc.MutableMapping):
-    """Map source nodes to collections of target nodes without any constraints.
-    In mathematical terms, map V(S) to :math:`2^{V(T)}`.
+    """Class that stores (or computes) a mapping of source nodes to collections 
+    of target nodes without any constraints. In mathematical terms, map V(S) to 
+    :math:`2^{V(T)}`.
 
     Args:
         S_layout (:class:`.Layout`):

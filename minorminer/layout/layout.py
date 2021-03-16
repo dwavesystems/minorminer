@@ -29,6 +29,9 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
     This computes a :class:`.Layout` for G where the graph distance and the 
     p-distance are very close to each other.
 
+    By default, :func:`p_norm` is used to compute the layout for source graphs 
+    when :func:`minorminer.layout.find_embedding` is called.
+
     Args:
         G (NetworkX Graph):
             The graph to compute the layout for.
@@ -63,6 +66,35 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
         dict: :attr:`.Layout.layout`, a mapping from vertices of G (keys) to 
         points in :math:`R^d` (values).
     
+    Examples:
+        This example creates a :class:`.Layout` object for a hexagonal lattice 
+        graph, with coordinates computed using :func:`p_norm`.
+
+        >>> import networkx as nx
+        >>> import minorminer.layout as mml
+        ...
+        >>> G = nx.hexagonal_lattice_graph(2,2)
+        >>> layout = mml.Layout(G, mml.p_norm, center=(1,1))
+
+        `layout` may be passed in directly to :func:`minorminer.layout.find_embedding`. 
+        
+        Alternatively, :func:`p_norm` may be passed in instead.
+
+        This next example finds an embedding of a hexagonal lattice graph on a 
+        Chimera graph, in which the layouts of both the source and target graphs 
+        are computed using p_norm.
+
+        >>> import networkx as nx
+        >>> import dwave_networkx as dnx
+        >>> import minorminer.layout as mml
+        ...
+        >>> G = nx.hexagonal_lattice_graph(2,2)
+        >>> C = dnx.chimera_graph(2,2)
+        >>> embedding = mml.find_embedding(G, 
+                                           C, 
+                                           layout=(mml.p_norm, mml.p_norm),
+                                           center=(1,1))
+
     """
     dim, center = _set_dim_and_center(dim, center)
 
@@ -211,6 +243,10 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     implementation of `dnx.*_layout`, if :math:`dim>2`, coordinates beyond the 
     second are 0.
 
+    By default, :func:`dnx_layout` is used to compute the layout for target 
+    Chimera or Pegasus graphs when :func:`minorminer.layout.find_embedding` is 
+    called.
+
     Args:
         G (NetworkX Graph):
             The graph to compute the layout for.
@@ -234,6 +270,16 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
         dict: :attr:`.Layout.layout`, a mapping from vertices of G (keys) to 
         points in :math:`R^d` (values).
     
+    Examples:
+        This example creates a :class:`.Layout` object for a Pegasus graph, with 
+        coordinates computed using :func:`dnx_layout`.
+
+        >>> import networkx as nx
+        >>> import minorminer.layout as mml
+        ...
+        >>> P = dnx.pegasus_graph(4)
+        >>> layout = mml.Layout(P, mml.dnx_layout, center=(1,1), scale=2)
+
     """
     graph_data = G.graph
 
@@ -280,7 +326,8 @@ def _nx_to_dnx_layout(center, scale):
 
 
 class Layout(abc.MutableMapping):
-    """Compute coordinates in dimension `dim` for each node in graph `G`.
+    """Class that stores (or computes) coordinates in dimension `dim` for each 
+    node in graph `G`.
 
     Args:
         G (NetworkX Graph/edges data structure (dict, list, ...)):

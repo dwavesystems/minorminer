@@ -5,11 +5,11 @@ Layout Embedding
 ================
 
 :meth:`minorminer.layout.find_embedding()` offers a more specialized approach to
-find an embedding through the use of the :class:`~minorminer.layout.layout.Layout` and
-:class:`~minorminer.layout.placement.Placement` classes. This kind of embedding may be useful when
-your source graph has a structure that is somewhat spatial, perhaps built on
-2-dimensional or 3-dimensional data. It can also be useful for embedding graphs
-with nodes of a low degree (i.e., a cubic graph).
+find an embedding through the use of the :class:`~minorminer.layout.layout.Layout` 
+and :class:`~minorminer.layout.placement.Placement` classes. This kind of 
+embedding may be useful when the underlying data of your source graph is `spatial
+<https://en.wikipedia.org/wiki/Spatial_network>`_. It can also be useful for 
+embedding graphs with nodes of a low degree (i.e., a cubic graph).
 
 .. autofunction:: minorminer.layout.find_embedding
 
@@ -23,6 +23,7 @@ This example minor embeds a 3x3 grid graph onto a Chimera graph.
 .. code-block:: python
 
     import networkx as nx
+    import dwave_networkx as dnx
     import minorminer.layout as mml
 
     grid_graph = nx.generators.lattice.grid_2d_graph(3, 3)
