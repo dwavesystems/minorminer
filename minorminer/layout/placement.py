@@ -24,7 +24,7 @@ from . import layout
 
 def intersection(S_layout, T_layout, **kwargs):
     """Map each vertex of S to its nearest row/column intersection qubit in T 
-    (T must be a D-Wave hardware graph). Note: This will modify S_layout. 
+    (T must be a D-Wave hardware graph). Note: This will modify ``S_layout``. 
 
     Args:
         S_layout (:class:`.Layout`):
@@ -51,7 +51,7 @@ def intersection(S_layout, T_layout, **kwargs):
         >>> C_layout = mml.Layout(C, mml.dnx_layout)
         >>> placement = mml.Placement(G_layout, C_layout, placement=mml.intersection)
 
-        `placement` may be passed in directly to :func:`minorminer.layout.find_embedding`. 
+        ``placement`` may be passed in directly to :func:`minorminer.layout.find_embedding`. 
         
         Alternatively, :func:`.intersection` may be passed in instead, as shown 
         in the example below.
@@ -232,9 +232,10 @@ def _pegasus_all_intersection_points(intersection_points, offsets, v, u, w, k, z
 
 
 def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
-    """Maps vertices of S to the closest vertices of T as given by `S_layout` 
-    and `T_layout`. i.e. For each vertex u in `S_layout` and each vertex v in 
-    `T_layout`, map u to the v with minimum Euclidean distance :math:`(||u - v||_2)`.
+    """Maps vertices of S to the closest vertices of T as given by ``S_layout`` 
+    and ``T_layout``. i.e. For each vertex u in ``S_layout`` and each vertex v 
+    in ``T_layout``, map u to the v with minimum Euclidean distance 
+    :math:`(||u - v||_2)`.
 
     By default, :func:`closest` is used to compute the placement of an embedding
     when :func:`minorminer.layout.find_embedding` is called.
@@ -383,18 +384,18 @@ class Placement(abc.MutableMapping):
         placement (dict/function, optional, default=None):
             If a dict, this specifies a pre-computed placement for S in T.
             
-            If a function, the function is called on `S_layout` and `T_layout`, 
-            `placement(S_layout, T_layout)`, and should return a dict representing 
+            If a function, the function is called on ``S_layout`` and ``T_layout``, 
+            ``placement(S_layout, T_layout)``, and should return a dict representing 
             a placement of S in T. 
             
             If None, a random placement of S in T is selected.
 
         scale_ratio (float, optional, default=None):
-            If None, `S_layout` is not scaled. Otherwise, `S_layout` is scaled 
-            to `scale_ratio*T_layout.scale`.
+            If None, ``S_layout`` is not scaled. Otherwise, ``S_layout`` is scaled 
+            to ``scale_ratio*T_layout.scale``.
 
         **kwargs (dict):
-            Keyword arguments are passed to `placement` if it is a function.
+            Keyword arguments are passed to ``placement`` if it is a function.
     
     """
     def __init__(

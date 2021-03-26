@@ -22,11 +22,11 @@ from math import ceil
 import minorminer._rpack as rpack
 
 def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None, scale=None, **kwargs):
-    """Embeds graph G in :math:`R^d` with the p-norm and minimizes a 
+    """Embeds graph ``G`` in :math:`R^d` with the p-norm and minimizes a 
     Kamada-Kawai-esque objective function to achieve an embedding with low 
     distortion.
     
-    This computes a :class:`.Layout` for G where the graph distance and the 
+    This computes a :class:`.Layout` for ``G`` where the graph distance and the 
     p-distance are very close to each other.
 
     By default, :func:`p_norm` is used to compute the layout for source graphs 
@@ -40,21 +40,21 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
             The order of the p-norm to use as a metric.
 
         starting_layout (dict, optional, default=None)
-            A mapping from the vertices of G to points in :math:`R^d`. If None, 
-            :func:`nx.spectral_layout` is used if possible. Otherwise, 
+            A mapping from the vertices of ``G`` to points in :math:`R^d`. If 
+            None, :func:`nx.spectral_layout` is used if possible. Otherwise, 
             :func:`nx.random_layout` is used.
 
         G_distances (dict, optional, default=None):
             A dictionary of dictionaries representing distances from every vertex 
-            in G to every other vertex in G. If None, it is computed.
+            in ``G`` to every other vertex in ``G``. If None, it is computed.
 
         dim (int, optional, default=None):
             The desired dimension of the returned layout, :math:`R^{\dim}`. 
-            If None, the dimension of `center` is used. If `center` is None, `dim` 
-            is set to 2.
+            If None, the dimension of ``center`` is used. If ``center`` is None, 
+            ``dim`` is set to 2.
 
         center (tuple, optional, default=None):
-            The desired center point of the returned layout. If None, `center` 
+            The desired center point of the returned layout. If None, ``center`` 
             is set as the origin in :math:`R^{\dim}` space.
         
         scale (float, optional, default=None):
@@ -63,7 +63,7 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
             scale is set.
 
     Returns:
-        dict: :attr:`.Layout.layout`, a mapping from vertices of G (keys) to 
+        dict: :attr:`.Layout.layout`, a mapping from vertices of ``G`` (keys) to 
         points in :math:`R^d` (values).
     
     Examples:
@@ -76,7 +76,7 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
         >>> G = nx.hexagonal_lattice_graph(2,2)
         >>> layout = mml.Layout(G, mml.p_norm, center=(1,1))
 
-        `layout` may be passed in directly to :func:`minorminer.layout.find_embedding`. 
+        ``layout`` may be passed in directly to :func:`minorminer.layout.find_embedding`. 
         
         Alternatively, :func:`p_norm` may be passed in instead.
 
@@ -239,9 +239,9 @@ def _p_norm_objective(layout_vector, G_distances, dim, p):
 
 def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     """The Chimera or Pegasus layout from `dwave_networkx` centered at the origin
-    with `scale` as a function of the number of rows or columns. Note: As per the
-    implementation of `dnx.*_layout`, if :math:`dim>2`, coordinates beyond the 
-    second are 0.
+    with ``scale`` as a function of the number of rows or columns. Note: As per 
+    the implementation of `dnx.*_layout`, if :math:`dim>2`, coordinates beyond 
+    the second are 0.
 
     By default, :func:`dnx_layout` is used to compute the layout for target 
     Chimera or Pegasus graphs when :func:`minorminer.layout.find_embedding` is 
@@ -253,8 +253,8 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
 
         dim (int, optional, default=None):
             The desired dimension of the returned layout, :math:`R^{\dim}`. If 
-            None, the dimension of `center` is used. If `center` is None, `dim` 
-            is set to 2.
+            None, the dimension of ``center`` is used. If ``center`` is None, 
+            ``dim`` is set to 2.
 
         center (tuple, optional, default=None):
             The desired center point of the returned layout. If None, it is set 
@@ -264,10 +264,10 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
             The desired scale of the returned layout; i.e. the layout is in 
             :math:`[center - scale, center + scale]^d` space. If None, it is set 
             as :math:`max(n, m)/2`, where n, m are the number of columns, rows 
-            respectively in G.
+            respectively in ``G``.
 
     Returns:
-        dict: :attr:`.Layout.layout`, a mapping from vertices of G (keys) to 
+        dict: :attr:`.Layout.layout`, a mapping from vertices of ``G`` (keys) to 
         points in :math:`R^d` (values).
     
     Examples:
@@ -326,8 +326,8 @@ def _nx_to_dnx_layout(center, scale):
 
 
 class Layout(abc.MutableMapping):
-    """Class that stores (or computes) coordinates in dimension `dim` for each 
-    node in graph `G`.
+    """Class that stores (or computes) coordinates in dimension ``dim`` for each 
+    node in graph ``G``.
 
     Args:
         G (NetworkX Graph/edges data structure (dict, list, ...)):
@@ -336,34 +336,34 @@ class Layout(abc.MutableMapping):
             details).
 
         layout (dict/function, optional, default=None):
-            If a dict, this specifies a pre-computed layout for G.
+            If a dict, this specifies a pre-computed layout for ``G``.
             
-            If a function, this should be in the form of `layout(G, **kwargs)`,
-            in which `dim`, `center`, and `scale` are passed in as kwargs and the
-            return value is a dict representing a layout of G.
+            If a function, this should be in the form of ``layout(G, **kwargs)``,
+            in which ``dim``, ``center``, and ``scale`` are passed in as kwargs 
+            and the return value is a dict representing a layout of ``G``.
             
             If None, :func:`nx.random_layout(G, **kwargs)` is called.
 
         dim (int, optional, default=None):
             The desired dimension of the computed layout, :math:`R^{\dim}`. If 
-            None, `dim` is set as the dimension of `layout`.
+            None, ``dim`` is set as the dimension of ``layout``.
 
         center (tuple, optional, default=None):
-            The desired center point of the computed layout. If None, `center` 
-            is set as the center of `layout`.
+            The desired center point of the computed layout. If None, ``center`` 
+            is set as the center of ``layout``.
 
         scale (float, optional, default=None):
             The desired scale of the computed layout; i.e. the layout is in 
-            :math:`[center - scale, center + scale]^d` space. If None, `scale` 
-            is set to be the scale of `layout`.
+            :math:`[center - scale, center + scale]^d` space. If None, ``scale`` 
+            is set to be the scale of ``layout``.
 
         pack_components (bool, optional, default=True):
-            If True, and if the graph contains multiple components and `dim` is 
-            None or 2, the components will be laid out individually and packed 
+            If True, and if the graph contains multiple components and ``dim`` 
+            is None or 2, the components will be laid out individually and packed 
             into a rectangle.
 
         **kwargs (dict):
-            Keyword arguments are passed to `layout` if it is a function.
+            Keyword arguments are passed to ``layout`` if it is a function.
     
     """
 

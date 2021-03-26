@@ -101,12 +101,12 @@ def find_embedding(S, T, **params):
         **params (optional): See below.
  
     Returns: 
-        When the optional parameter `return_overlap` is False (the default), the 
-        function returns a dict that maps labels in S to lists of labels in T. 
-        If the heuristic fails to find an embedding, an empty dictionary is 
+        When the optional parameter ``return_overlap`` is False (the default), 
+        the function returns a dict that maps labels in S to lists of labels in 
+        T. If the heuristic fails to find an embedding, an empty dictionary is 
         returned.
 
-        When `return_overlap` is True, the function returns a tuple consisting 
+        When ``return_overlap`` is True, the function returns a tuple consisting 
         of a dict that maps labels in S to lists of labels in T and a bool 
         indicating whether or not a valid embedding was found.
 
@@ -123,8 +123,8 @@ def find_embedding(S, T, **params):
             of S such that it is adjacent to all its neighbours.
 
         random_seed (int, optional, default=None):
-            Seed for the random number generator that find_embedding uses. If
-            None, seed is set by `os.urandom()`.
+            Seed for the random number generator. If None, seed is set by 
+            ``os.urandom()``.
 
         timeout (int, optional, default=1000):
             Algorithm gives up after timeout seconds.
@@ -132,7 +132,7 @@ def find_embedding(S, T, **params):
         max_beta (double, optional, max_beta=None):
             Qubits are assigned weight according to a formula (beta^n)
             where n is the number of chains containing that qubit. This value
-            should never be less than or equal to 1. If None, `max_beta` is 
+            should never be less than or equal to 1. If None, ``max_beta`` is 
             effectively infinite.
 
         tries (int, optional, default=10):
@@ -142,7 +142,8 @@ def find_embedding(S, T, **params):
         inner_rounds (int, optional, default=None):
             The algorithm takes at most this many iterations between
             restart attempts; restart attempts are typically terminated due to
-            `max_no_improvement`. If None, `inner_rounds` is effectively infinite.
+            ``max_no_improvement``. If None, ``inner_rounds`` is effectively 
+            infinite.
 
         chainlength_patience (int, optional, default=10):
             Maximum number of failed iterations to improve chain lengths in the 
@@ -152,7 +153,7 @@ def find_embedding(S, T, **params):
         max_fill (int, optional, default=None):
             Restricts the number of chains that can simultaneously incorporate 
             the same qubit during the search. Values above 63 are treated as 63.
-            If None, `max_fill` is effectively infinite.
+            If None, ``max_fill`` is effectively infinite.
 
         threads (int, optional, default=1):
             Maximum number of threads to use. Note that the parallelization is 
@@ -162,7 +163,7 @@ def find_embedding(S, T, **params):
 
         return_overlap (bool, optional, default=False):
             This function returns an embedding, regardless of whether or not
-            qubits are used by multiple variables. `return_overlap` determines
+            qubits are used by multiple variables. ``return_overlap`` determines
             the function's return value. If True, a 2-tuple is returned, in which 
             the first element is the embedding and the second element is
             a bool representing the embedding validity. If False, only an
@@ -170,13 +171,14 @@ def find_embedding(S, T, **params):
 
         skip_initialization (bool, optional, default=False):
             Skip the initialization pass. Note that this only works if the chains 
-            passed in through `initial_chains` and `fixed_chains` are semi-valid. 
-            A semi-valid embedding is a collection of chains such that every 
-            adjacent pair of variables (u,v) has a coupler (p,q) in the hardware 
-            graph where p is in chain(u) and q is in chain(v). This can be used 
-            on a valid embedding to immediately skip to the chain length 
-            improvement phase. Another good source of semi-valid embeddings is 
-            the output of this function with the `return_overlap` parameter enabled. 
+            passed in through ``initial_chains`` and ``fixed_chains`` are 
+            semi-valid. A semi-valid embedding is a collection of chains such 
+            that every adjacent pair of variables (u,v) has a coupler (p,q) in 
+            the hardware graph where p is in chain(u) and q is in chain(v). This 
+            can be used on a valid embedding to immediately skip to the chain 
+            length improvement phase. Another good source of semi-valid embeddings 
+            is the output of this function with the ``return_overlap`` parameter 
+            enabled. 
 
         verbose (int, optional, default=0):
             Level of output verbosity.
@@ -209,13 +211,13 @@ def find_embedding(S, T, **params):
                 improving, this is when the number of max chains decreases).
 
             When set to 3:
-                Report before each pass. Look here when tweaking `tries`, 
-                `inner_rounds`, and `chainlength_patience`.
+                Report before each pass. Look here when tweaking ``tries``, 
+                ``inner_rounds``, and ``chainlength_patience``.
 
             When set to 4:
                 Report additional debugging information. By default, this package 
                 is built without this functionality. In the C++ headers, this is 
-                controlled by the `CPPDEBUG` flag.
+                controlled by the ``CPPDEBUG`` flag.
 
             Detailed explanation of the output information:
                 max qubit fill:
@@ -232,18 +234,18 @@ def find_embedding(S, T, **params):
             to stdout/stderr as appropriate, and keyboard interrupts will stop 
             the embedding process and the current state will be returned to the 
             user. Otherwise, output will be directed to the logger 
-            `logging.getLogger(minorminer.__name__)` and keyboard interrupts will 
-            be propagated back to the user. Errors will use `logger.error()`, 
-            verbosity levels 1 through 3 will use `logger.info()` and level 4 
-            will use `logger.debug()`.
+            ``logging.getLogger(minorminer.__name__)`` and keyboard interrupts 
+            will be propagated back to the user. Errors will use ``logger.error()``, 
+            verbosity levels 1 through 3 will use ``logger.info()`` and level 4 
+            will use ``logger.debug()``.
 
         initial_chains (dict, optional):
-            Initial chains inserted into an embedding before `fixed_chains` are 
+            Initial chains inserted into an embedding before ``fixed_chains`` are 
             placed, which occurs before the initialization pass. These can be 
             used to restart the algorithm in a similar state to a previous 
             embedding; for example, to improve chain length of a valid embedding 
             or to reduce overlap in a semi-valid embedding (see 
-            `skip_initialization`) previously returned by the algorithm. Missing
+            ``skip_initialization``) previously returned by the algorithm. Missing
             or empty entries are ignored. Each value in the dictionary is a list
             of qubit labels.
 
@@ -256,13 +258,13 @@ def find_embedding(S, T, **params):
 
         restrict_chains (dict, optional):
             Throughout the algorithm, it is guaranteed that chain[i] is a subset 
-            of `restrict_chains[i]` for each i, except those with missing or empty 
-            entries. Each value in the dictionary is a list of qubit labels.
+            of ``restrict_chains[i]`` for each i, except those with missing or 
+            empty entries. Each value in the dictionary is a list of qubit labels.
 
         suspend_chains (dict, optional):
             This is a metafeature that is only implemented in the Python
-            interface. `suspend_chains[i]` is an iterable of iterables; for 
-            example, `suspend_chains[i] = [blob_1, blob_2]`, with each `blob_j` 
+            interface. ``suspend_chains[i]`` is an iterable of iterables; for 
+            example, ``suspend_chains[i] = [blob_1, blob_2]``, with each `blob_j` 
             an iterable of target node labels.
             
             This enforces the following:
@@ -274,7 +276,7 @@ def find_embedding(S, T, **params):
                         at least one qubit from blob_j will be contained in the chain for i
 
             We accomplish this through the following problem transformation
-            for each iterable `blob_j` in `suspend_chains[i]`,
+            for each iterable `blob_j` in ``suspend_chains[i]``,
                 * Add an auxiliary node `Zij` to both source and target graphs
                 * Set `fixed_chains[Zij]` = `[Zij]`
                 * Add the edge `(i,Zij)` to the source graph

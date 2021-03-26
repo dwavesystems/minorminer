@@ -50,7 +50,8 @@ def _num_nodes(nn, offset = 0):
     return num, nodes
 
 def find_clique_embedding(nodes, g, use_cache = True):
-    """Finds a clique embedding in the graph `g` using a polynomial-time algorithm.
+    """Finds a clique embedding in the graph ``g`` using a polynomial-time 
+    algorithm.
 
     Args:
         nodes (int/iterable): 
@@ -63,9 +64,9 @@ def find_clique_embedding(nodes, g, use_cache = True):
         
         use_cache (bool, optional, default=True):
             Whether or not to compute/restore a cache of clique embeddings for 
-            `g`. Note that this function only uses the filesystem cache, and does 
-            not maintain the cache in memory. If many (or even several) embeddings 
-            are desired in a single session, it is recommended to use 
+            ``g``. Note that this function only uses the filesystem cache, and 
+            does not maintain the cache in memory. If many (or even several) 
+            embeddings are desired in a single session, it is recommended to use 
             :class:`.busgraph_cache`.
 
     Returns:
@@ -264,8 +265,8 @@ class busgraph_cache:
         filesystem.
 
         Returns:
-            dict: An embedding of node labels from `range(len(embedding))` mapped
-            to chains of the largest-found clique.
+            dict: An embedding of node labels from ``range(len(embedding))`` 
+            mapped to chains of the largest-found clique.
         
         """
         self._ensure_clique_cache()
@@ -275,7 +276,7 @@ class busgraph_cache:
 
     def largest_clique_by_chainlength(self, chainlength):
         """Returns the largest-found clique in the clique cache, with a specified
-        maximum `chainlength`.
+        maximum ``chainlength``.
 
         This will compute the entire clique cache if it is missing from the 
         filesystem.
@@ -285,8 +286,8 @@ class busgraph_cache:
                 Max chain length.
 
         Returns:
-            dict: An embedding of node labels from `range(len(embedding))` mapped
-            to chains of the largest-found clique with maximum `chainlength`.
+            dict: An embedding of node labels from ``range(len(embedding))`` 
+            mapped to chains of the largest-found clique with maximum ``chainlength``.
         
         """
         self._ensure_clique_cache()
@@ -310,8 +311,8 @@ class busgraph_cache:
                 iterable (specifying the node labels of the desired clique).
 
         Returns:
-            dict: An embedding of node labels (either `nn`, or `range(nn)`) mapped 
-            to chains of a clique embedding.
+            dict: An embedding of node labels (either ``nn``, or ``range(nn)``) 
+            mapped to chains of a clique embedding.
         
         """
         num, nodes = _num_nodes(nn)
@@ -326,9 +327,9 @@ class busgraph_cache:
     def largest_balanced_biclique(self):
         """Returns the largest-size biclique where both sides have equal size.
 
-        Nodes of the embedding dict are from `range(len(embedding))`, where the 
-        nodes `range(len(embedding)/2)` are completely connected to the nodes 
-        `range(len(embedding)/2, len(embedding))`.
+        Nodes of the embedding dict are from ``range(len(embedding))``, where the 
+        nodes ``range(len(embedding)/2)`` are completely connected to the nodes 
+        ``range(len(embedding)/2, len(embedding))``.
 
         This will compute the entire biclique cache if it is missing from the
         filesystem.
@@ -364,12 +365,12 @@ class busgraph_cache:
                 biclique).
 
             mm (int/iterable):
-                Same as `nn`, for the other side of the desired biclique.
+                Same as ``nn``, for the other side of the desired biclique.
 
-        In the case that `nn` is a number, the first side will have nodes labeled
-        from `range(nn)`. In the case that `mm` is a number, the second side will
-        have nodes labeled from `range(n, n + mm)`; where `n` is either `nn` or
-        `len(nn)`.
+        In the case that ``nn`` is a number, the first side will have nodes 
+        labeled from ``range(nn)``. In the case that ``mm`` is a number, the 
+        second side will have nodes labeled from ``range(n, n + mm)``; where 
+        ``n`` is either ``nn`` or ``len(nn)``.
 
         Returns:
             dict: An embedding of node labels (described above) mapped to chains 

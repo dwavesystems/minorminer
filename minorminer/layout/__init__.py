@@ -52,7 +52,7 @@ def find_embedding(
             in the 2-tuple applies to S while the second applies to T.
 
             Note:
-                If layout is a single function and T is a dnx_graph, then the 
+                If ``layout`` is a single function and T is a dnx_graph, then the 
                 function passed in is only applied to S and the dnx_layout is 
                 applied to T. To run a layout function explicitly on T, pass 
                 it in as a 2-tuple; i.e. (p_norm, p_norm).
@@ -78,7 +78,7 @@ def find_embedding(
 
     Returns:
         dict: An embedding of vertices of S (keys) to chains in T (values). This 
-        embedding is dependent on the kwargs being passed in. If `return_layouts`
+        embedding is dependent on the kwargs being passed in. If ``return_layouts``
         is True, a 2-tuple is returned in which the first element is the embedding 
         dict and the second element is another 2-tuple containing the source and 
         target :class:`.Layout` objects.
