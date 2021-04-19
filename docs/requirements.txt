@@ -1,4 +1,4 @@
 breathe<4.13.0
-sphinx-rtd-theme==0.*
-sphinx>=1.8.5
+sphinx-rtd-theme
+sphinx
 cython>=0.28.5

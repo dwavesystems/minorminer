@@ -15,7 +15,6 @@
 import time
 
 import networkx as nx
-
 import minorminer as mm
 
 from .layout import Layout, dnx_layout, p_norm
@@ -31,40 +30,59 @@ def find_embedding(
     return_layouts=False,
     **kwargs
 ):
-    """
-    Tries to embed S in T by computing layout-aware chains and passing them to minorminer.find_embedding(). Chains are
-    passed as either initial_chains or suspend_chains (see documentation for minorminer.find_embedding to learn more).
+    """Tries to embed S in T by computing layout-aware chains and passing 
+    them to :func:`minorminer.find_embedding`. Chains are passed as either 
+    `initial_chains` or `suspend_chains` (see documentation for 
+    :func:`minorminer.find_embedding` to learn more).
 
-    Parameters
-    ----------
-    S : NetworkX graph or edges data structure (dict, list, ...)
-        The graph you are embedding (source) or a NetworkX supported data structure (see to_networkx_graph()).
-    T : NetworkX graph or edges data structure (dict, list, ...)
-        The graph you are embedding into (target) or a NetworkX supported data structure (see to_networkx_graph()).
-    layout : function or [function/dict/Layout, function/dict/Layout] (default None)
-        Specifies either a single function to compute the layout for both S and T or a 2-tuple. The 2-tuple either 
-        consists of a pair of functions or pre-computed layouts, the first entry in the 2-tuple applies to S while
-        the second applies to T. 
-        Note: If layout is a single function and T is a dnx_graph, then the function passed in is only applied to S
-        and the dnx_layout is applied to T. To run a layout function explicitly on T, pass it in as a 2-tuple; i.e.
-        (p_norm, p_norm).
-    placement : function or dict (default None)
-        If a function, it is the placement algorithm to call; each algorithm uses the layouts of S and T to map the 
-        vertices of S to subsets of vertices of T. If it is a dict, it should be a map from the vertices of S to subsets
-        of vertices of T.
-    mm_hint_type : str (default "initial_chains")
-        This is the hint type to tell minorminer.find_embedding(). Supported types are "initial_chains" and 
-        "suspend_chains". See minorminer.find_embedding() for more information.
-    return_layouts : bool (default False)
-        Will return the layout objects of S and T.
-    kwargs : dict 
-        Keyword arguments are passed to various functions.
+    Args:
+        S (NetworkX Graph/edges data structure (dict, list, ...)):
+            The source graph being embedded or a NetworkX supported data structure
+            for edges (see :func:`nx.convert.to_networkx_graph` for details).
 
-    Returns
-    -------
-    emb : dict
-        Output is dependent upon kwargs passed to minorminer, but more or less emb is a mapping from vertices of
-        S (keys) to chains in T (values).
+        T (NetworkX Graph/edges data structure (dict, list, ...)):
+            The target graph being embedded into or a NetworkX supported data 
+            structure for edges (see :func:`nx.convert.to_networkx_graph` for 
+            details).
+
+        layout (function/(function/dict/Layout, function/dict/Layout), optional):
+            A function to compute the :class:`.Layout` for both S and T, or a 
+            2-tuple that either consists of a pair of functions or pre-computed 
+            layouts (in the form of :class:`.Layout` or dicts). The first entry 
+            in the 2-tuple applies to S while the second applies to T.
+
+            Note:
+                If ``layout`` is a single function and T is a dnx_graph, then the 
+                function passed in is only applied to S and the dnx_layout is 
+                applied to T. To run a layout function explicitly on T, pass 
+                it in as a 2-tuple; i.e. (p_norm, p_norm).
+
+        placement (function/dict, optional, default=minorminer.placement.closest):
+            A function that uses the layouts of S and T to map the vertices 
+            of S to subsets of vertices of T (:class:`.Placement`), or a dict 
+            that contains the precomputed mapping/:class:`.Placement`.
+            
+            By default, :func:`~placement.closest` is called to compute placement.
+
+        mm_hint_type (str, optional, default="initial_chains"):
+            This is the hint type passed to :func:`minorminer.find_embedding`. 
+            Supported types are "initial_chains" and "suspend_chains". See
+            :func:`minorminer.find_embedding` for more information.
+        
+        return_layouts (bool, optional, default=False):
+            If True, layout objects of S and T are also returned.
+
+        **kwargs (dict):
+            Keyword arguments passed to :class:`.Layout`, :class:`.Placement` 
+            or :func:`minorminer.find_embedding`.
+
+    Returns:
+        dict: An embedding of vertices of S (keys) to chains in T (values). This 
+        embedding is dependent on the kwargs being passed in. If ``return_layouts``
+        is True, a 2-tuple is returned in which the first element is the embedding 
+        dict and the second element is another 2-tuple containing the source and 
+        target :class:`.Layout` objects.
+
     """
     start = time.perf_counter()
 
@@ -104,8 +122,8 @@ def find_embedding(
 
 
 def _parse_kwargs(kwargs):
-    """
-    Extract kwargs for layout and placement functions. Leave the remaining ones for minorminer.find_embedding().
+    """Extract kwargs for layout and placement functions. Leave the remaining 
+    ones for :func:`minorminer.find_embedding`.
     """
     layout_kwargs = {}
     # For the layout object
@@ -130,8 +148,8 @@ def _parse_kwargs(kwargs):
 
 
 def _parse_layout_parameter(S, T, layout, layout_kwargs):
-    """
-    Determine what combination of iterable, dict, and function the layout parameter is.
+    """Determine what combination of iterable, dict, and function the layout 
+    parameter is.
     """
     if nx.utils.iterable(layout):
         try:

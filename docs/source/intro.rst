@@ -6,87 +6,39 @@ Introduction
 
 .. automodule:: minorminer
 
-Examples
-========
+`minorminer` is a library of tools for finding graph minor embeddings, developed 
+to embed Ising problems onto quantum annealers (QA). While this library can be 
+used to find minors in arbitrary graphs, it is particularly geared towards 
+state-of-the-art QA: problem graphs of a few to a few hundred variables, and 
+hardware graphs of a few thousand qubits. 
 
-This example minor embeds a triangular source K4 graph onto a square target graph.
+`minorminer` has both a Python and C++ API, and includes implementations of
+multiple embedding algorithms to best fit different problems.
 
-.. code-block:: python
+Minor-Embedding and QPU Topology
+================================
 
-    from minorminer import find_embedding
+For an introduction to minor-embedding, see :std:doc:`Minor-Embedding <oceandocs:concepts/embedding>`. 
 
-    # A triangle is a minor of a square.
-    triangle = [(0, 1), (1, 2), (2, 0)]
-    square = [(0, 1), (1, 2), (2, 3), (3, 0)]
+For an introduction to the topologies of D-Wave hardware graphs, see 
+:std:doc:`QPU Topology <oceandocs:concepts/topology>`. Leap users also have access 
+to the Exploring Pegasus Jupyter Notebook that explains the architecture of 
+D-Wave's quantum computer, Advantage, in further detail.
 
-    # Find an assignment of sets of square variables to the triangle variables
-    embedding = find_embedding(triangle, square, random_seed=10)
-    print(len(embedding))  # 3, one set for each variable in the triangle
-    print(embedding)
-    # We don't know which variables will be assigned where, here are a
-    # couple possible outputs:
-    # [[0, 1], [2], [3]]
-    # [[3], [1, 0], [2]]
+Minor-embedding can be done manually, though typically for very small problems 
+only. For a walkthrough of the manual minor-embedding process, see the 
+`Constraints Example: Minor-Embedding <https://docs.dwavesys.com/docs/latest/c_gs_7.html>`_. 
 
-.. figure:: _images/Embedding_TriangularSquare.png
-  :name: Embedding_TriangularSquare
-  :scale: 60 %
-  :alt: Embedding a triangular source graph into a square target graph
+Minor-Embedding in Ocean
+========================
 
-  Embedding a :math:`K_3` source graph into a square target graph by chaining two
-  target nodes to represent one source node.
+Minor-embedding can also be automated through Ocean. `minorminer` is used by several
+:std:doc:`Ocean embedding composites <oceandocs:docs_system/reference/composites>`
+for this purpose. For details on automated (and manual) minor-embedding through 
+Ocean, see how the `EmbeddingComposite` and `FixedEmbeddingComposite` are used 
+in this :std:doc:`Boolean AND Gate example <oceandocs:examples/and>`. 
 
-This minorminer execution of the example requires that source variable 0 always be assigned
-to target node 2.
-
-.. code-block:: python
-
-    embedding = find_embedding(triangle, square, fixed_chains={0: [2]})
-    print(embedding)
-    # [[2], [3, 0], [1]]
-    # [[2], [1], [0, 3]]
-    # And more, but all of them start with [2]
-
-This minorminer execution of the example suggests that source variable 0 be assigned to
-target node 2 as a starting point for finding an embedding.
-
-.. code-block:: python
-
-    embedding = find_embedding(triangle, square, initial_chains={0: [2]})
-    print(embedding)
-    # [[2], [0, 3], [1]]
-    # [[0], [3], [1, 2]]
-    # Output where source variable 0 has switched to a different target node is possible.
-
-This example minor embeds a fully connected K6 graph into a 30-node random regular graph of degree 3.
-
-.. code-block:: python
-
-    import networkx as nx
-
-    clique = nx.complete_graph(6).edges()
-    target_graph = nx.random_regular_graph(d=3, n=30).edges()
-
-    embedding = find_embedding(clique, target_graph)
-
-    print(embedding)
-    # There are many possible outputs, and sometimes it might fail
-    # and return an empty list
-    # One run returned the following embedding:
-    {0: [10, 9, 19, 8],
-     1: [18, 7, 0, 12, 27],
-     2: [1, 17, 22],
-     3: [16, 28, 4, 21, 15, 23, 25],
-     4: [11, 24, 13],
-     5: [2, 14, 26, 5, 3]}
-
-.. figure:: _images/Embedding_K6Random3.png
-  :name: Embedding_K6Random3
-  :scale: 80 %
-  :alt: Embedding a K6 graph into a 30-node random graph
-
-  Embedding a :math:`K_6` source graph (upper left) into a 30-node random target graph of
-  degree 3 (upper right) by chaining several target nodes to represent one source node (bottom).
-  The graphic of the embedding clusters chains representing nodes in the source graph: the
-  cluster of red nodes is a chain of target nodes that represent source node 0, the orange
-  nodes represent source node 1, and so on.
+Once an embedding has been found, D-Wave's Problem Inspector tool can be used to 
+evaluate its quality. See
+:std:doc:`Using the Problem Inspector <oceandocs:examples/inspector_graph_partitioning>`
+for more information.

@@ -19,16 +19,24 @@
 minorminer
 ==========
 
-`minorminer` is a heuristic tool for minor embedding: given a minor and target graph, it tries to find a mapping that embeds the minor into the target.
+`minorminer` is a heuristic tool for minor embedding: given a minor and target
+graph, it tries to find a mapping that embeds the minor into the target.
 
-The primary utility function, ```find_embedding()```, is an implementation of the heuristic algorithm described in [1]. It accepts various optional parameters used to tune the algorithm's execution or constrain the given problem.
+.. index-end-marker
 
-This implementation performs on par with tuned, non-configurable implementations while
-providing users with hooks to easily use the code as a basic building block in research.
+.. general-embedding-start-marker
+
+The primary utility function, ```find_embedding()```, is an implementation of
+the heuristic algorithm described in [1]. It accepts various optional parameters
+used to tune the algorithm's execution or constrain the given problem.
+
+This implementation performs on par with tuned, non-configurable implementations
+while providing users with hooks to easily use the code as a basic building
+block in research.
 
 [1] https://arxiv.org/abs/1406.2741
 
-.. index-end-marker
+.. general-embedding-end-marker
 
 Python
 ======
@@ -38,7 +46,8 @@ Installation
 
 .. install-python-start
 
-pip installation is recommended for platforms with precompiled wheels posted to pypi. Source distributions are provided as well.
+pip installation is recommended for platforms with precompiled wheels posted to
+pypi. Source distributions are provided as well.
 
 .. code-block:: bash
 
@@ -181,7 +190,9 @@ Installation
 
 .. install-c-start
 
-The `CMakeLists.txt` in the root of this repo will build the library and optionally run a series of tests. On linux the commands would be something like this:
+The `CMakeLists.txt` in the root of this repo will build the library and
+optionally run a series of tests. On Linux, the commands would be something like
+this:
 
 .. code-block:: bash
 
@@ -189,12 +200,16 @@ The `CMakeLists.txt` in the root of this repo will build the library and optiona
     cmake ..
     make
 
-To build the tests turn the cmake option `MINORMINER_BUILD_TESTS` on. The command line option for cmake to do this would be `-DMINORMINER_BUILD_TESTS=ON`.
+To build the tests, turn the CMake option `MINORMINER_BUILD_TESTS` on. The
+command line option for CMake to do this would be `-DMINORMINER_BUILD_TESTS=ON`.
 
 Library Usage
 -------------
 
-C++11 programs should be able to use this as a header-only library. If your project is using CMake this library can be used fairly simply; if you have checked out this repo as `externals/minorminer` in your project you would need to add the following lines to your `CMakeLists.txt`
+C++11 programs should be able to use this as a header-only library. If your
+project is using CMake, this library can be used fairly simply; if you have
+checked out this repo as `externals/minorminer` in your project, you would need
+to add the following lines to your `CMakeLists.txt`
 
 .. code-block:: CMake
 
@@ -208,11 +223,15 @@ C++11 programs should be able to use this as a header-only library. If your proj
 Examples
 --------
 
-A minimal example that can be built can be found in this repo under `examples/example.cpp`.
+A minimal buildable example can be found in this repo under
+`examples/example.cpp`.
 
 .. code-block:: bash
 
     cd examples
     g++ example.cpp -std=c++11 -o example -pthread
 
-This can also be built using the included `CMakeLists.txt` along with the main library build by turning the cmake option `MINORMINER_BUILD_EXAMPLES` on. The command line option for cmake to do this would be `-DMINORMINER_BUILD_EXAMPLES=ON`.
+This can also be built using the included `CMakeLists.txt` along with the main
+library build by turning the CMake option `MINORMINER_BUILD_EXAMPLES` on. The
+command line option for CMake to do this would be
+`-DMINORMINER_BUILD_EXAMPLES=ON`.

@@ -15,206 +15,272 @@
 # distutils: language = c++
 # cython: language_level=2
 # Note: chosing to use language_level=2 because of how `enum VARORDER` is exposed
-"""
-`minorminer` is a tool for finding graph minor embeddings, developed to embed Ising problems onto quantum annealers (QA). While it can be used to find minors in arbitrary graphs, it is particularly geared toward state-of-the-art QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.
-
-The primary function :py:func:`find_embedding` is a modernized implementation of the Cai, Macready and Roy [1] algorithm with several new features to give users finer control and address a wider class of problems.
+"""The primary function :py:func:`find_embedding` is a modernized implementation 
+of the Cai, Macready and Roy [1] algorithm with several new features to give users 
+finer control and address a wider class of problems.
 
 Definitions
 ===========
 
-Let :math:`S` and :math:`T` be graphs, which we call source and target.  If a set of target nodes is either size 1 or it's a connected subgraph of :math:`T`, we call it a `chain`.  A mapping :math:`f` from source nodes to chains is an embedding of :math:`S` into :math:`T` when:
+Let :math:`S` and :math:`T` be graphs, which we call source and target. If a set 
+of target nodes is either size 1 or it's a connected subgraph of :math:`T`, we 
+call it a `chain`.  A mapping :math:`f` from source nodes to chains is an 
+embedding of :math:`S` into :math:`T` when:
 
-- for every pair of nodes :math:`s_1 \\neq s_2` of :math:`S`, the chains :math:`f(s_1)` and :math:`f(s_2)` are disjoint, and
-- for every source edge :math:`(s_1, s_2)`, there is at least one target edge :math:`(t_1, t_2)` for which :math:`t_1 \\in f(s_1)` and :math:`t_2 \\in f(s_2)`
+* For every pair of nodes :math:`s_1 \neq s_2` of :math:`S`, the chains :math:`f(s_1)` 
+  and :math:`f(s_2)` are disjoint, and
 
-In cases where two chains are not disjoint, we say that they `overlap`.  If a mapping has overlapping chains, and some of its source edges are represented by qubits shared by their associated chains but the others are all proper, we call that mapping an `overlapped embedding`.
+* For every source edge :math:`(s_1, s_2)`, there is at least one target edge 
+  :math:`(t_1, t_2)` for which :math:`t_1 \in f(s_1)` and :math:`t_2 \in f(s_2)`.
+
+In cases where two chains are not disjoint, we say that they `overlap`. If a 
+mapping has overlapping chains, and some of its source edges are represented by 
+qubits shared by their associated chains but the others are all proper, we call 
+that mapping an `overlapped embedding`.
 
 High-level Algorithm Description
 ================================
 
-This is a very rough description of the heuristic more properly described in [1], and most accurately described by the source code.
+This is a very rough description of the heuristic more properly described in 
+[1], and most accurately described by the source code.
 
-While it is difficult to find proper embeddings, it is much easier to find embeddings where chains are allowed to overlap.  The key operation of this algorithm is a placement heuristic.  We initialize by setting :math:`f(s_0) = {t_0}` for chosen source and target nodes, and then proceed to place nodes heedless of accumulating overlaps. We persist: tear out a chain, clean up its neighboring chains, and replace it.  The placement heuristic attempts to avoid qubits involved in overlaps, and once it finds an embedding, continues in the same fashion with the aim of minimizing the sizes of its chains.
+While it is difficult to find proper embeddings, it is much easier to find 
+embeddings where chains are allowed to overlap.  The key operation of this 
+algorithm is a placement heuristic.  We initialize by setting 
+:math:`f(s_0) = {t_0}` for chosen source and target nodes, and then proceed to 
+place nodes heedless of accumulating overlaps. We persist: tear out a chain, 
+clean up its neighboring chains, and replace it.  The placement heuristic 
+attempts to avoid qubits involved in overlaps, and once it finds an embedding, 
+continues in the same fashion with the aim of minimizing the sizes of its chains.
 
 Placement Heuristic
 -------------------
 
-Let :math:`s` be a source node with neighbors :math:`n_1, \cdots, n_d`.  We first measure the distance from each neighbor's chain, :math:`f(n_i)` to all target nodes. First we select a target node :math:`t_0` that minimizes the sum of distances to those chains.  Next we follow a minimum-length path from :math:`t_0` to each neighbor's chain, and the union of those paths is the new chain for :math:`s`.  Distances are computed in :math:`T` as a node-weighted graph, where the weight of a node is an exponential function of the number of chains which use it.
-
+Let :math:`s` be a source node with neighbors :math:`n_1, \cdots, n_d`.  We 
+first measure the distance from each neighbor's chain, :math:`f(n_i)` to all 
+target nodes. First we select a target node :math:`t_0` that minimizes the sum 
+of distances to those chains.  Next we follow a minimum-length path from 
+:math:`t_0` to each neighbor's chain, and the union of those paths is the new 
+chain for :math:`s`.  Distances are computed in :math:`T` as a node-weighted 
+graph, where the weight of a node is an exponential function of the number of 
+chains which use it.
 
 Hinting and Constraining
 ========================
 
 This implementation adds several useful features:
 
-* ``initial_chains``: Initial chains are used during the initialization procedure, and can
-  be used to provide hints in the form of an overlapped, partial, or otherwise faulty embedding.
-* ``fixed_chains``: Fixed chains are held constant during the execution of the algorithm.
-* ``restrict_chains``: Chains can be restricted to being contained within a user-defined subset
-  of :math:`T` -- this constraint is somewhat soft, and the algorithm can be expected to violate it.
+* ``initial_chains``: Initial chains are used during the initialization procedure, 
+  and can be used to provide hints in the form of an overlapped, partial, or 
+  otherwise faulty embedding.
+* ``fixed_chains``: Fixed chains are held constant during the execution of the 
+  algorithm.
+* ``restrict_chains``: Chains can be restricted to being contained within a 
+  user-defined subset of :math:`T` -- this constraint is somewhat soft, and the 
+  algorithm can be expected to violate it.
 
 [1] https://arxiv.org/abs/1406.2741
 """
+
 include "_minorminer_h.pxi"
 import os as _os, logging as _logging
 
 def find_embedding(S, T, **params):
-    """
-    find_embedding(S, T, **params)
-    Heuristically attempt to find a minor-embedding of a graph representing an Ising/QUBO into a target graph.
+    """Heuristically attempt to find a minor-embedding of source graph S 
+    into a target graph T.
 
-    Args::
+    Args:
+        S (iterable/NetworkX Graph): 
+            The source graph as an iterable of label pairs representing the 
+            edges, or a NetworkX Graph.
 
-        S: an iterable of label pairs representing the edges in the source graph, or a NetworkX Graph
+        T (iterable/NetworkX Graph):
+            The target graph as an iterable of label pairs representing the 
+            edges, or a NetworkX Graph.
 
-        T: an iterable of label pairs representing the edges in the target graph, or a NetworkX Graph
+        **params (optional): See below.
+ 
+    Returns: 
+        When the optional parameter ``return_overlap`` is False (the default), 
+        the function returns a dict that maps labels in S to lists of labels in 
+        T. If the heuristic fails to find an embedding, an empty dictionary is 
+        returned.
 
-        **params (optional): see below
+        When ``return_overlap`` is True, the function returns a tuple consisting 
+        of a dict that maps labels in S to lists of labels in T and a bool 
+        indicating whether or not a valid embedding was found.
 
-    Returns::
+        When interrupted by Ctrl-C, the function returns the best embedding found 
+        so far.
 
-        When return_overlap = False (the default), returns a dict that maps labels in S to lists of labels in T.
-            If the heuristic fails to find an embedding, an empty dictionary is returned
+        Note that failure to return an embedding does not prove that no embedding 
+        exists.
 
-        When return_overlap = True, returns a tuple consisting of a dict that maps labels in S to lists of
-            labels in T and a bool indicating whether or not a valid embedding was found
+    Optional Parameters:
+        max_no_improvement (int, optional, default=10):
+            Maximum number of failed iterations to improve the current solution, 
+            where each iteration attempts to find an embedding for each variable 
+            of S such that it is adjacent to all its neighbours.
 
-        When interrupted by Ctrl-C, returns the best embedding found so far
+        random_seed (int, optional, default=None):
+            Seed for the random number generator. If None, seed is set by 
+            ``os.urandom()``.
 
-        Note that failure to return an embedding does not prove that no embedding exists
+        timeout (int, optional, default=1000):
+            Algorithm gives up after timeout seconds.
 
-    Optional parameters::
+        max_beta (double, optional, max_beta=None):
+            Qubits are assigned weight according to a formula (beta^n)
+            where n is the number of chains containing that qubit. This value
+            should never be less than or equal to 1. If None, ``max_beta`` is 
+            effectively infinite.
 
-        max_no_improvement: Maximum number of failed iterations to improve the
-            current solution, where each iteration attempts to find an embedding
-            for each variable of S such that it is adjacent to all its
-            neighbours. Integer >= 0 (default = 10)
-
-        random_seed: Seed for the random number generator that find_embedding
-            uses. Integer >=0 (default is randomly set)
-
-        timeout: Algorithm gives up after timeout seconds. Number >= 0 (default
-            is approximately 1000 seconds, stored as a double)
-
-        max_beta: Qubits are assigned weight according to a formula (beta^n)
-            where n is the number of chains containint that qubit.  This value
-            should never be less than or equal to 1. (default is effectively
-            infinite, stored as a double)
-
-        tries: Number of restart attempts before the algorithm stops. On
+        tries (int, optional, default=10):
+            Number of restart attempts before the algorithm stops. On
             D-WAVE 2000Q, a typical restart takes between 1 and 60 seconds.
-            Integer >= 0 (default = 10)
 
-        inner_rounds: the algorithm takes at most this many iterations between
+        inner_rounds (int, optional, default=None):
+            The algorithm takes at most this many iterations between
             restart attempts; restart attempts are typically terminated due to
-            max_no_improvement. Integer >= 0 (default = effectively infinite)
+            ``max_no_improvement``. If None, ``inner_rounds`` is effectively 
+            infinite.
 
-        chainlength_patience: Maximum number of failed iterations to improve
-            chainlengths in the current solution, where each iteration attempts
-            to find an embedding for each variable of S such that it is adjacent
-            to all its neighbours. Integer >= 0 (default = 10)
+        chainlength_patience (int, optional, default=10):
+            Maximum number of failed iterations to improve chain lengths in the 
+            current solution, where each iteration attempts to find an embedding 
+            for each variable of S such that it is adjacent to all its neighbours. 
 
-        max_fill: Restricts the number of chains that can simultaneously
-            incorporate the same qubit during the search. Integer >= 0, values
-            above 63 are treated as 63 (default = effectively infinite)
+        max_fill (int, optional, default=None):
+            Restricts the number of chains that can simultaneously incorporate 
+            the same qubit during the search. Values above 63 are treated as 63.
+            If None, ``max_fill`` is effectively infinite.
 
-        threads: Maximum number of threads to use. Note that the
-            parallelization is only advantageous where the expected degree of
-            variables is significantly greater than the number of threads.
-            Integer >= 1 (default = 1)
+        threads (int, optional, default=1):
+            Maximum number of threads to use. Note that the parallelization is 
+            only advantageous where the expected degree of variables is 
+            significantly greater than the number of threads. Value must be 
+            greater than 1.
 
-        return_overlap: This function returns an embedding whether or not qubits
-            are used by multiple variables. Set this value to 1 to capture both
-            return values to determine whether or not the returned embedding is
-            valid. Logical 0/1 integer (default = 0)
+        return_overlap (bool, optional, default=False):
+            This function returns an embedding, regardless of whether or not
+            qubits are used by multiple variables. ``return_overlap`` determines
+            the function's return value. If True, a 2-tuple is returned, in which 
+            the first element is the embedding and the second element is
+            a bool representing the embedding validity. If False, only an
+            embedding is returned.
 
-        skip_initialization: Skip the initialization pass. Note that this only
-            works if the chains passed in through initial_chains and
-            fixed_chains are semi-valid. A semi-valid embedding is a collection
-            of chains such that every adjacent pair of variables (u,v) has a
-            coupler (p,q) in the hardware graph where p is in chain(u) and q is
-            in chain(v). This can be used on a valid embedding to immediately
-            skip to the chainlength improvement phase. Another good source of
-            semi-valid embeddings is the output of this function with the
-            return_overlap parameter enabled. Logical 0/1 integer (default = 0)
+        skip_initialization (bool, optional, default=False):
+            Skip the initialization pass. Note that this only works if the chains 
+            passed in through ``initial_chains`` and ``fixed_chains`` are 
+            semi-valid. A semi-valid embedding is a collection of chains such 
+            that every adjacent pair of variables (u,v) has a coupler (p,q) in 
+            the hardware graph where p is in chain(u) and q is in chain(v). This 
+            can be used on a valid embedding to immediately skip to the chain 
+            length improvement phase. Another good source of semi-valid embeddings 
+            is the output of this function with the ``return_overlap`` parameter 
+            enabled. 
 
-        verbose: Level of output verbosity. Integer < 4 (default = 0).
-            When set to 0, the output is quiet until the final result.
-            When set to 1, output looks like this:
+        verbose (int, optional, default=0):
+            Level of output verbosity.
+            
+            When set to 0:
+                Output is quiet until the final result. 
+            
+            When set to 1: 
+                Output looks like this:
 
-                initialized
-                max qubit fill 3; num maxfull qubits=3
-                embedding trial 1
-                max qubit fill 2; num maxfull qubits=21
-                embedding trial 2
-                embedding trial 3
-                embedding trial 4
-                embedding trial 5
-                embedding found.
-                max chain length 4; num max chains=1
-                reducing chain lengths
-                max chain length 3; num max chains=5
+                .. code-block:: bash
 
-            When set to 2, outputs the information for lower levels and also
-                reports progress on minor statistics (when searching for an
-                embedding, this is when the number of maxfull qubits decreases;
-                when improving, this is when the number of max chains decreases)
-            When set to 3, report before each before each pass. Look here when
-                tweaking `tries`, `inner_rounds`, and `chainlength_patience`
-            When set to 4, report additional debugging information. By default,
-                this package is built without this functionality. In the c++
-                headers, this is controlled by the CPPDEBUG flag
+                    initialized
+                    max qubit fill 3; num maxfull qubits=3
+                    embedding trial 1
+                    max qubit fill 2; num maxfull qubits=21
+                    embedding trial 2
+                    embedding trial 3
+                    embedding trial 4
+                    embedding trial 5
+                    embedding found.
+                    max chain length 4; num max chains=1
+                    reducing chain lengths
+                    max chain length 3; num max chains=5
+
+            When set to 2:
+                Output the information for lower levels and also report 
+                progress on minor statistics (when searching for an embedding, 
+                this is when the number of maxfull qubits decreases; when 
+                improving, this is when the number of max chains decreases).
+
+            When set to 3:
+                Report before each pass. Look here when tweaking ``tries``, 
+                ``inner_rounds``, and ``chainlength_patience``.
+
+            When set to 4:
+                Report additional debugging information. By default, this package 
+                is built without this functionality. In the C++ headers, this is 
+                controlled by the ``CPPDEBUG`` flag.
+
             Detailed explanation of the output information:
-                max qubit fill: largest number of variables represented in a qubit
-                num maxfull: the number of qubits that has max overfill
-                max chain length: largest number of qubits representing a single variable
-                num max chains: the number of variables that has max chain size
+                max qubit fill:
+                    Largest number of variables represented in a qubit.
+                num maxfull:
+                    Number of qubits that have max overfill.
+                max chain length:
+                    Largest number of qubits representing a single variable.
+                num max chains:
+                    Number of variables that have max chain size.
 
-        interactive: If `logging` is None or False, the verbose output will be printed
-            to stdout/stderr as appropriate, and keyboard interrupts will stop the embedding
-            process and the current state will be returned to the user.  Otherwise, output
-            will be directed to the logger `logging.getLogger(minorminer.__name__)` and
-            keyboard interrupts will be propagated back to the user.  Errors will use 
-            `logger.error()`, verbosity levels 1 through 3 will use `logger.info()` and level
-            4 will use `logger.debug()`.  bool, default False
+        interactive (bool, optional, default=False):
+            If `logging` is None or False, the verbose output will be printed
+            to stdout/stderr as appropriate, and keyboard interrupts will stop 
+            the embedding process and the current state will be returned to the 
+            user. Otherwise, output will be directed to the logger 
+            ``logging.getLogger(minorminer.__name__)`` and keyboard interrupts 
+            will be propagated back to the user. Errors will use ``logger.error()``, 
+            verbosity levels 1 through 3 will use ``logger.info()`` and level 4 
+            will use ``logger.debug()``.
 
-        initial_chains: Initial chains inserted into an embedding before
-            fixed_chains are placed, which occurs before the initialization
-            pass. These can be used to restart the algorithm in a similar state
-            to a previous embedding; for example, to improve chainlength of a
-            valid embedding or to reduce overlap in a semi-valid embedding (see
-            skip_initialization) previously returned by the algorithm. Missing
-            or empty entries are ignored. A dictionary, where initial_chains[i]
-            is a list of qubit labels.
+        initial_chains (dict, optional):
+            Initial chains inserted into an embedding before ``fixed_chains`` are 
+            placed, which occurs before the initialization pass. These can be 
+            used to restart the algorithm in a similar state to a previous 
+            embedding; for example, to improve chain length of a valid embedding 
+            or to reduce overlap in a semi-valid embedding (see 
+            ``skip_initialization``) previously returned by the algorithm. Missing
+            or empty entries are ignored. Each value in the dictionary is a list
+            of qubit labels.
 
-        fixed_chains: Fixed chains inserted into an embedding before the
-            initialization pass. As the algorithm proceeds, these chains are not
-            allowed to change, and the qubits used by these chains are not used by
-            other chains. Missing or empty entries are ignored. A dictionary, where
-            fixed_chains[i] is a list of qubit labels.
+        fixed_chains (dict, optional):
+            Fixed chains inserted into an embedding before the initialization 
+            pass. As the algorithm proceeds, these chains are not allowed to 
+            change, and the qubits used by these chains are not used by other 
+            chains. Missing or empty entries are ignored. Each value in the
+            dictionary is a list of qubit labels.
 
-        restrict_chains: Throughout the algorithm, we maintain the condition
-            that chain[i] is a subset of restrict_chains[i] for each i, except
-            those with missing or empty entries. A dictionary, where
-            restrict_chains[i] is a list of qubit labels.
+        restrict_chains (dict, optional):
+            Throughout the algorithm, it is guaranteed that chain[i] is a subset 
+            of ``restrict_chains[i]`` for each i, except those with missing or 
+            empty entries. Each value in the dictionary is a list of qubit labels.
 
-        suspend_chains: This is a metafeature that is only implemented in the Python
-            interface.  suspend_chains[i] is an iterable of iterables; for example
-                suspend_chains[i] = [blob_1, blob_2],
-            with each blob_j an iterable of target node labels.
-            this enforces the following:
+        suspend_chains (dict, optional):
+            This is a metafeature that is only implemented in the Python
+            interface. ``suspend_chains[i]`` is an iterable of iterables; for 
+            example, ``suspend_chains[i] = [blob_1, blob_2]``, with each `blob_j` 
+            an iterable of target node labels.
+            
+            This enforces the following:
+
+            .. code-block:: text
+
                 for each suspended variable i,
                     for each blob_j in the suspension of i,
-                        at least one qubit from blob_j will be contained in the
-                        chain for i
+                        at least one qubit from blob_j will be contained in the chain for i
 
-            we accomplish this trhough the following problem transformation
-            for each iterable blob_j in suspend_chains[i],
-                * add an auxiliary node Zij to both source and target graphs
-                * set fixed_chains[Zij] = [Zij]
-                * add the edge (i,Zij) to the source graph
-                * add the edges (q,Zij) to the target graph for each q in blob_j
+            We accomplish this through the following problem transformation
+            for each iterable `blob_j` in ``suspend_chains[i]``,
+                * Add an auxiliary node `Zij` to both source and target graphs
+                * Set `fixed_chains[Zij]` = `[Zij]`
+                * Add the edge `(i,Zij)` to the source graph
+                * Add the edges `(q,Zij)` to the target graph for each `q` in `blob_j`
     """
     cdef _input_parser _in
     try:
