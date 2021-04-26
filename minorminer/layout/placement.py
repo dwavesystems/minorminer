@@ -63,8 +63,8 @@ def intersection(S_layout, T_layout, **kwargs):
         >>> G = nx.hexagonal_lattice_graph(2,2)
         >>> C = dnx.chimera_graph(2,2)
         >>> embedding = mml.find_embedding(G, 
-                                           C, 
-                                           placement=mml.intersection)
+        ...                                C, 
+        ...                                placement=mml.intersection)
 
     """
     # Extract the target graph

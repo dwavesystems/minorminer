@@ -1,5 +1,5 @@
 .. image:: https://img.shields.io/pypi/v/minorminer.svg
-    :target: https://pypi.python.org/pypi/minorminer
+    :target: https://pypi.org/project/minorminer
 
 .. image:: https://ci.appveyor.com/api/projects/status/g4bj8w7mm1v95i6a/branch/main?svg=true
     :target: https://ci.appveyor.com/project/dwave-adtt/minorminer/branch/main

@@ -96,6 +96,11 @@ language = None
 # This patterns also effect to html_static_path and html_extra_path
 exclude_patterns = ['_build', 'sdk_index.rst']
 
+linkcheck_retries = 2
+linkcheck_anchors = False
+linkcheck_ignore = [r'https://cloud.dwavesys.com/leap',  # redirects, many checks
+                    ]
+
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
