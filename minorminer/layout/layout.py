@@ -91,9 +91,9 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
         >>> G = nx.hexagonal_lattice_graph(2,2)
         >>> C = dnx.chimera_graph(2,2)
         >>> embedding = mml.find_embedding(G, 
-                                           C, 
-                                           layout=(mml.p_norm, mml.p_norm),
-                                           center=(1,1))
+        ...                                C, 
+        ...                                layout=(mml.p_norm, mml.p_norm),
+        ...                                center=(1,1))
 
     """
     dim, center = _set_dim_and_center(dim, center)
