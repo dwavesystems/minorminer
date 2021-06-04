@@ -140,8 +140,8 @@ html_static_path = ['_static']
 
 
 def setup(app):
-    app.add_stylesheet('cookie_notice.css')
-    app.add_javascript('cookie_notice.js')
+    app.add_css_file('cookie_notice.css')
+    app.add_js_file('cookie_notice.js')
     app.add_config_value('target', 'repo', 'env')
 
 # Configuration for intersphinx.
