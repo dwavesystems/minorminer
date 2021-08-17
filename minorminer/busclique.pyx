@@ -93,6 +93,7 @@ def find_clique_embedding(nodes, g, use_cache = True):
         graphdata = g.graph
         family = graphdata['family']
         busgraph = {'pegasus': _pegasus_busgraph,
+                    'zephyr': _zephyr_busgraph,
                     'chimera': _chimera_busgraph}[family]
     except (AttributeError, KeyError):
         raise ValueError("g must be either a dwave_networkx.chimera_graph or"
@@ -103,8 +104,8 @@ def find_clique_embedding(nodes, g, use_cache = True):
         return busgraph(g).find_clique_embedding(nodes)
 
 class busgraph_cache:
-    """A cache class for Chimera and Pegasus graphs, and their associated cliques
-    and bicliques.
+    """A cache class for Chimera, Pegasus and Zephyr graphs, and their 
+    associated cliques and bicliques.
 
     The cache files are stored in a directory determined by `homebase` (use
     :meth:`busgraph_cache.cache_rootdir` to retrieve the path to this directory). 
@@ -114,7 +115,7 @@ class busgraph_cache:
     Args:
         g (NetworkX Graph):
             A :func:`dwave_networkx.pegasus_graph` or :func:`dwave_networkx.chimera_graph`.
-
+                or :func:`dwave_networkx.zephyr_graph`.
     Note:
         Due to internal optimizations, not all Chimera graphs are supported by
         this code. Specifically, the graphs :func:`dwave_networkx.chimera_graph(m, n, t)`
@@ -125,14 +126,14 @@ class busgraph_cache:
     """
     def __init__(self, g):
         self._family = g.graph['family']
-        if(self._family == 'chimera'):
-            self._graph = _chimera_busgraph(g)
-        elif(self._family == 'pegasus'):
-            self._graph = _pegasus_busgraph(g)
-        else:
+        self._graph = {'pegasus': _pegasus_busgraph,
+                       'zephyr': _zephyr_busgraph,
+                       'chimera': _chimera_busgraph}.get(self._family)
+        if self._graph is None:
             raise ValueError(("input graph must either be a "
-                              "dwave_networkx.pegasus_graph or a "
-                              "dwave_networkx.chimera_graph"))
+                              "dwave_networkx.pegasus_graph, "
+                              "dwave_networkx.chimera_graph or "
+                              "dwave_networkx.zephyr_graph"))
         self._cliques = None
         self._bicliques = None
 
@@ -500,6 +501,89 @@ def _make_relabeler(f):
     def _relabeler(emb):
         return {v: list(f(chain)) for v, chain in emb.items()}
     return _relabeler
+
+cdef class _zephyr_busgraph:
+    cdef topo_cache[zephyr_spec] *topo
+    cdef nodes_t nodes
+    cdef embedding_t emb_1
+    cdef readonly object relabel
+    cdef readonly object identifier
+    def __cinit__(self, g):
+        """
+        This is a class which manages a single zephyr graph, and dispatches 
+        various structure-aware c++ embedding functions on it.
+        """
+        rows = g.graph['rows']
+        rows = g.graph['cols']
+        tile = g.graph['tile']
+        if tile > 4:
+            raise NotImplementedError(("this clique embedder supports zephyr "
+                                       "graphs with a tile size of 4 or less"))
+
+        cdef zephyr_spec *zep = new zephyr_spec(rows, cols, tile)
+        coordinates = dnx.zephyr_coordinates(rows)
+        cdef edges_t edges
+        if g.graph['labels'] == 'int':
+            self.nodes = g.nodes()
+            edges = g.edges()
+            self.relabel = _trivial_relabeler
+        elif g.graph['labels'] == 'coordinate':
+            self.nodes = coordinates.iter_zephyr_to_linear(g.nodes())
+            edges = coordinates.iter_zephyr_to_linear_pairs(g.edges())
+            self.relabel = _make_relabeler(coordinates.iter_linear_to_zephyr)
+        else:
+            raise ValueError("unrecognized graph labeling")
+
+        self.topo = new topo_cache[zephyr](zep[0], self.nodes, edges)
+        short_clique(zep[0], self.nodes, edges, self.emb_1)
+
+        #TODO replace this garbage with data from topo
+        self.identifier = (rows, cols, tile,
+                           tuple(sorted(self.nodes)),
+                           tuple(sorted(map(tuple, map(sorted, edges)))))
+        del zep
+
+    def __dealloc__(self):
+        del self.topo
+
+    def bicliques(self):
+        """
+        Returns a biclique cache -- see _make_biclique_cache for more info.
+        """
+        cdef vector[pair[pair[size_t, size_t], embedding_t]] embs
+        best_bicliques[zephyr_spec](self.topo[0], embs)
+        return _make_biclique_cache(embs)
+
+    def cliques(self):
+        """
+        Returns a clique cache -- see _make_clique_cache for more info.
+        """
+        cdef vector[embedding_t] embs
+        best_cliques[zephyr_spec](self.topo[0], embs, self.emb_1)
+        return _make_clique_cache(embs)
+
+    def independent_set(self, size):
+        """
+        This is extremely silly, but what else should we do when a user requests
+        a K_{0, n}?
+        """
+        cdef int i
+        if size < self.nodes.size():
+            emb = [self.nodes[i] for i in range(size)]
+            return emb
+
+    def find_clique_embedding(self, nn):
+        """
+        Perfoms a "one-shot" embedding procedure to find K_n where n is either
+        int(nn) or len(tuple(nn)), without generating a cache.
+        """
+        num, nodes = _num_nodes(nn)
+        cdef embedding_t emb
+        if num <= self.emb_1.size():
+            emb = self.emb_1
+        elif not find_clique(self.topo[0], num, emb):
+            return {}
+        return self.relabel(dict(zip(nodes, emb)))
 
 cdef class _pegasus_busgraph:
     cdef topo_cache[pegasus_spec] *topo
