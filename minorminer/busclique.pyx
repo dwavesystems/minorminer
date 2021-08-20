@@ -126,14 +126,15 @@ class busgraph_cache:
     """
     def __init__(self, g):
         self._family = g.graph['family']
-        self._graph = {'pegasus': _pegasus_busgraph,
-                       'zephyr': _zephyr_busgraph,
-                       'chimera': _chimera_busgraph}.get(self._family)
-        if self._graph is None:
+        graphclass = {'pegasus': _pegasus_busgraph,
+                      'zephyr': _zephyr_busgraph,
+                      'chimera': _chimera_busgraph}.get(self._family)
+        if graphclass is None:
             raise ValueError(("input graph must either be a "
                               "dwave_networkx.pegasus_graph, "
                               "dwave_networkx.chimera_graph or "
                               "dwave_networkx.zephyr_graph"))
+        self._graph = graphclass(g)
         self._cliques = None
         self._bicliques = None
 
@@ -513,14 +514,14 @@ cdef class _zephyr_busgraph:
         This is a class which manages a single zephyr graph, and dispatches 
         various structure-aware c++ embedding functions on it.
         """
-        rows = g.graph['rows']
-        rows = g.graph['cols']
-        tile = g.graph['tile']
+        cdef size_t rows = g.graph['rows']
+        cdef size_t cols = g.graph['columns']
+        cdef size_t tile = g.graph['tile']
         if tile > 4:
             raise NotImplementedError(("this clique embedder supports zephyr "
                                        "graphs with a tile size of 4 or less"))
 
-        cdef zephyr_spec *zep = new zephyr_spec(rows, cols, tile)
+        cdef zephyr_spec *zep = new zephyr_spec(rows, tile)
         coordinates = dnx.zephyr_coordinates(rows)
         cdef edges_t edges
         if g.graph['labels'] == 'int':
@@ -534,7 +535,7 @@ cdef class _zephyr_busgraph:
         else:
             raise ValueError("unrecognized graph labeling")
 
-        self.topo = new topo_cache[zephyr](zep[0], self.nodes, edges)
+        self.topo = new topo_cache[zephyr_spec](zep[0], self.nodes, edges)
         short_clique(zep[0], self.nodes, edges, self.emb_1)
 
         #TODO replace this garbage with data from topo

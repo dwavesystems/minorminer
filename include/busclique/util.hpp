@@ -312,12 +312,24 @@ class chimera_spec_base : public topo_spec_base {
 };
 
 
+//! Zephyr
+//! 
 class zephyr_spec_base : public topo_spec_base {
     using super = topo_spec_base;
-    const size_t zdim;
-    const size_t ztile;
   public:
-    zephyr_spec_base(size_t d, size_t t) : super(2*d+1, 2*d+1, 2*t), zdim(d), ztile(t) {}
+    const size_t zdim;
+    const size_t zshore;
+    zephyr_spec_base(size_t d, size_t t) : super(2*d+1, 2*d+1, 2*t), zdim(d), zshore(t) {}
+
+  private:
+    inline void first_fragment(size_t q,
+                               size_t &u, size_t &w, size_t &k, size_t &z) const {
+        z = q % zdim;          q /= zdim;
+        k = q % super::shore;  q /= super::shore;
+        w = q % super::dim[0]; u = q/super::dim[0];
+        z+= z + (k&1);
+    }
+
   protected:
     template<typename badmask_behavior>
     inline void process_edges(uint8_t *edgemask, uint8_t *badmask, 
@@ -336,18 +348,17 @@ class zephyr_spec_base : public topo_spec_base {
                 if(pw == qw && pk == qk && qz == pz + 1) {
                     //p < q; we place the edgemask on the larger qubit z
                     //and don't futz with the "pz == qz + 1" case
-                    size_t z = (qz*12 + 2*offsets[qu][qk/2])/2;
-                    size_t w = (qw*12 + qk)/2;
-                    edgemask[super::cell_addr(pu, w, z)] |= mask_bit[qk];
-                } else if (pw == qw && pk == (qk^1) && qz == pz) {
+                    size_t fz = 2*qz + (qk&1);
+                    edgemask[super::cell_addr(qu, qw, fz)] |= mask_bit[qk];
+                } else if (pw == qw && pk == (qk^1) && (qz == pz || qz+1 == pz)) {
                 } else { std::cout << "urp" << std::endl; throw 10; }
             } else {
                 if(std::is_same<badmask_behavior, populate_badmask>::value) {
                     //p < q, so pu = 0 and qu = 1
-                    size_t y = (qw*12 + qk) / 2;
-                    size_t x = (pw*12 + pk) / 2;
-                    badmask[super::chimera_linear(y, x, 0, pk&1)] &= ~mask_bit[qk&1];
-                    badmask[super::chimera_linear(y, x, 1, qk&1)] &= ~mask_bit[pk&1];
+                    size_t y = qw;
+                    size_t x = pw;
+                    badmask[super::chimera_linear(y, x, 0, pk)] &= ~mask_bit[qk];
+                    badmask[super::chimera_linear(y, x, 1, qk)] &= ~mask_bit[pk];
                 }
             }
         }
@@ -363,6 +374,7 @@ class zephyr_spec_base : public topo_spec_base {
                 if(u) { badmask[super::chimera_linear(w, z, 1, k)] = ~0; }
                 else  { badmask[super::chimera_linear(z, w, 0, k)] = ~0; }
             }
+            //advance to the second fragment
             z++;
             size_t curr = super::cell_addr(u, w, z);
             nodemask[curr] |= mask_bit[k];
@@ -382,25 +394,28 @@ class zephyr_spec_base : public topo_spec_base {
         w = q % super::dim[0]; u = q/super::dim[0];
     }
 
-    inline void first_fragment(size_t q,
-                               size_t &u, size_t &w, size_t &k, size_t &z) const {
-        
+    inline size_t zephyr_linear(size_t u, size_t w, size_t k, size_t z) const {
+        return z + zdim*(k + super::shore*(w + super::dim[0]*u));
     }
 
     void construct_line(size_t u, size_t w, size_t z0, size_t z1, size_t k,
                         vector<size_t> &chain) const {
-        size_t p[2]; 
-        size_t &z = p[u];
-        p[1-u] = w;
-        for(z = z0; z <= z1; z++)
-            chain.push_back(super::chimera_linear(p[0], p[1], u, k));
+        minorminer_assert(z0 > (k&1));
+        minorminer_assert(z1 > (k&1));
+        size_t qz0 = (z0-(k&1))/2;
+        size_t qz1 = (z1-(k&1))/2;
+        for(size_t qz = qz0; qz <= qz1; qz++)
+            chain.push_back(zephyr_linear(u, w, k, qz));
     }
 
     inline size_t line_length(size_t, size_t, size_t z0, size_t z1) const {
+	minorminer_assert(z1 >= z0);
         return z1 - z0 + 1;
     }
 
     inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
+	minorminer_assert(y1 >= y0);
+	minorminer_assert(x1 >= x0);
         return max(y1-y0, x1-x0) + 1;
     }
 

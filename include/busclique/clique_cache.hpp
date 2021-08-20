@@ -350,6 +350,11 @@ class clique_yield_cache {
     vector<vector<vector<size_t>>> best_embeddings;
 
   public:
+    clique_yield_cache(const cell_cache<zephyr_spec> &cells) :
+                       length_bound(2+cells.topo.zdim),
+                       clique_yield(length_bound, 0), 
+                       best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
+
     clique_yield_cache(const cell_cache<pegasus_spec> &cells) :
                        length_bound(5 + cells.topo.pdim),
                        clique_yield(length_bound, 0), 
@@ -379,28 +384,56 @@ class clique_yield_cache {
         }
     }
 
-    void compute_cache(const cell_cache<topo_spec> &cells) {
-        bundle_cache<topo_spec> bundles(cells);
-        if(std::is_same<topo_spec, chimera_spec>::value) {
-            //this handles width 1 embeddings, which aren't properly handled
-            //in the code below.  This is strictly necessary for chimera, and
-            //silly for pegasus because the best possible outcome would be an
-            //embedding of K_2
-            for(size_t y = 0; y < cells.topo.dim[0]; y++)
-                for(size_t x = 0; x < cells.topo.dim[1]; x++) {
-                    size_t score = bundles.score(y,x,y,y,x,x);
-                    if(score > clique_yield[2]) {
-                        vector<vector<size_t>> emb;
-                        bundles.inflate(y,x,y,y,x,x, emb);
-                        clique_yield[2] = score;
-                        best_embeddings[2] = emb;
-                        minorminer_assert(emb.size() == score);
-                        minorminer_assert(emb_max_length(emb) == 2);
-                    }
-                    if(score == cells.topo.shore) goto stop_w1_scan;
+    void compute_cache(const cell_cache<zephyr_spec> &cells) {
+        bundle_cache<zephyr_spec> bundles(cells);
+        for(size_t y = 0; y < cells.topo.dim[0]; y++)
+            for(size_t x = 0; x < cells.topo.dim[1]; x++) {
+                size_t score = bundles.score(y,x,y,y,x,x);
+                if(score > clique_yield[2]) {
+                    vector<vector<size_t>> emb;
+                    bundles.inflate(y,x,y,y,x,x, emb);
+                    clique_yield[2] = score;
+                    best_embeddings[2] = emb;
+                    minorminer_assert(emb.size() == score);
+                    minorminer_assert(emb_max_length(emb) == 2);
                 }
-            stop_w1_scan:;
+                if(score == cells.topo.shore) goto stop_w1_scan;
+            }
+        stop_w1_scan:;
+
+        for(size_t w = 2; w <= min(cells.topo.dim[0], cells.topo.dim[1]); w++) {
+            {
+                clique_cache<zephyr_spec> cliques(cells, bundles, w);
+                process_cliques(cliques);
+            }
         }
+ 
+    }
+
+    void compute_cache(const cell_cache<chimera_spec> &cells) {
+        bundle_cache<chimera_spec> bundles(cells);
+        for(size_t y = 0; y < cells.topo.dim[0]; y++)
+            for(size_t x = 0; x < cells.topo.dim[1]; x++) {
+                size_t score = bundles.score(y,x,y,y,x,x);
+                if(score > clique_yield[2]) {
+                    vector<vector<size_t>> emb;
+                    bundles.inflate(y,x,y,y,x,x, emb);
+                    clique_yield[2] = score;
+                    best_embeddings[2] = emb;
+                    minorminer_assert(emb.size() == score);
+                    minorminer_assert(emb_max_length(emb) == 2);
+                }
+                if(score == cells.topo.shore) goto stop_w1_scan;
+            }
+        stop_w1_scan:;
+        for(size_t w = 2; w <= min(cells.topo.dim[0], cells.topo.dim[1]); w++) {
+            clique_cache<chimera_spec> cliques(cells, bundles, w);
+            process_cliques(cliques);
+        }
+    }
+    
+    void compute_cache(const cell_cache<pegasus_spec> &cells) {
+        bundle_cache<pegasus_spec> bundles(cells);
         for(size_t w = 2; w <= min(cells.topo.dim[0], cells.topo.dim[1]); w++) {
             size_t min_length, max_length;
             get_length_range(bundles, w, min_length, max_length);
@@ -410,11 +443,11 @@ class clique_yield_cache {
                                                     size_t x0, size_t x1){
                     return bundles.length(yc,xc,y0,y1,x0,x1) <= len; 
                 };
-                clique_cache<topo_spec> cliques(cells, bundles, w, check_length);
+                clique_cache<pegasus_spec> cliques(cells, bundles, w, check_length);
                 process_cliques(cliques);
             }
             {
-                clique_cache<topo_spec> cliques(cells, bundles, w);
+                clique_cache<pegasus_spec> cliques(cells, bundles, w);
                 process_cliques(cliques);
             }
         }
@@ -451,6 +484,10 @@ class clique_yield_cache {
 
     void get_length_range(const bundle_cache<chimera_spec> &, size_t width, size_t &min_length, size_t &max_length) {
         max_length = min_length = width+1;
+    }
+    void get_length_range(const bundle_cache<zephyr_spec> &, size_t width, size_t &min_length, size_t &max_length) {
+        max_length = width+3;
+        min_length = width+1;
     }
 };
 

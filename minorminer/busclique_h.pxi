@@ -27,6 +27,9 @@ cdef extern from "../include/busclique/util.hpp" namespace "busclique":
         chimera_spec(vector[size_t], uint8_t)
         chimera_spec(size_t, size_t, uint8_t)
 
+    cdef cppclass zephyr_spec:
+        zephyr_spec(size_t, uint8_t)
+
 cdef extern from "../include/busclique/cell_cache.hpp" namespace "busclique":
     cdef cppclass cell_cache[T]:
         cell_cache(T, nodes_t, edges_t)

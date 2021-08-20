@@ -57,6 +57,15 @@ class topo_cache {
         if(child_edgemask != nullptr) { delete []child_edgemask; child_edgemask = nullptr; }
     }
 
+    topo_cache(const zephyr_spec t, const vector<size_t> &nodes,
+               const vector<pair<size_t, size_t>> &edges) :
+               topo(t),
+               nodemask(new uint8_t[t.num_cells()]{}),
+               edgemask(new uint8_t[t.num_cells()]{}),
+               badmask(new uint8_t[t.num_cells()*t.shore]{}),
+               bad_edges(), mask_num(0), _init(_initialize(nodes, edges)),
+               cells(t, child_nodemask, child_edgemask) {}
+
     topo_cache(const pegasus_spec t, const vector<size_t> &nodes,
                const vector<pair<size_t, size_t>> &edges) :
                topo(t),
@@ -87,11 +96,11 @@ class topo_cache {
     // _initializer_tag is an empty (size zero) struct, so this is "zero-cost"
     _initializer_tag _initialize(const vector<size_t> &nodes,
                                  const vector<pair<size_t, size_t>> &edges) {
-        if(std::is_same<topo_spec, pegasus_spec>::value) {
-            topo.process_nodes(nodemask, edgemask, badmask, nodes);
+        if(std::is_same<topo_spec, chimera_spec>::value) {
+            topo.process_nodes(nodemask, nullptr, badmask, nodes);
             topo.process_edges(edgemask, badmask, edges);
         } else {
-            topo.process_nodes(nodemask, nullptr, badmask, nodes);
+            topo.process_nodes(nodemask, edgemask, badmask, nodes);
             topo.process_edges(edgemask, badmask, edges);
         }
         topo.finish_badmask(nodemask, badmask);

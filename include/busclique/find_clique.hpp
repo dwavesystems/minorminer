@@ -59,8 +59,40 @@ bool find_clique_nice(const cell_cache<chimera_spec> &cells,
     if (max_length > 0) maxw = min(max_length - 1, maxw);
     for(size_t width = minw; width <= maxw; width++) {
         clique_cache<chimera_spec> rects(cells, bundles, width);
-        clique_iterator<chimera_spec> iter(cells, rects);
-        if(iter.next(emb)) {
+        if(rects.extract_solution(emb)) {
+            if(emb.size() < size)
+                emb.clear();
+            else {
+                max_length = width + 1;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+template<>
+bool find_clique_nice(const cell_cache<zephyr_spec> &cells,
+                      size_t size,
+                      vector<vector<size_t>> &emb,
+                      size_t &,
+                      size_t &,
+                      size_t &max_length) {
+    bundle_cache<zephyr_spec> bundles(cells);
+    size_t shore = cells.topo.shore;
+    if(size <= shore)
+        for(size_t y = 0; y < cells.topo.dim[0]; y++)
+            for(size_t x = 0; x < cells.topo.dim[1]; x++)
+                if (bundles.score(y,x,y,y,x,x) >= size) {
+                    bundles.inflate(y,x,y,y,x,x,emb);
+                    return true;
+                }
+    size_t minw = (size + shore - 1)/shore;
+    size_t maxw = min(cells.topo.dim[0], cells.topo.dim[1]);
+    if (max_length > 0) maxw = min(max_length - 1, maxw);
+    for(size_t width = minw; width <= maxw; width++) {
+        clique_cache<zephyr_spec> rects(cells, bundles, width);
+        if(rects.extract_solution(emb)) {
             if(emb.size() < size)
                 emb.clear();
             else {
