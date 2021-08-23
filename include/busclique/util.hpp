@@ -315,6 +315,15 @@ class chimera_spec_base : public topo_spec_base {
 //! Zephyr
 //! 
 class zephyr_spec_base : public topo_spec_base {
+    //Note, this differs from pretty much every treatment of zephyr coordinates,
+    //though the difference is minor.  Where we predominantly use 5-tuple 
+    //coordinates (u, w, k, j, z); we unify the k and j indices to preserve the
+    //view of Zephyr as a minor of Chimera with K_{8, 8} unit tiles.
+    
+    //It may be useful to replace the `k` coordinate in these functions with the
+    //name `kj` to clarify that k_here = 2*k_elsewhere+j.  Only, do that in your
+    //head.
+
     using super = topo_spec_base;
   public:
     const size_t zdim;
@@ -400,22 +409,25 @@ class zephyr_spec_base : public topo_spec_base {
 
     void construct_line(size_t u, size_t w, size_t z0, size_t z1, size_t k,
                         vector<size_t> &chain) const {
-        minorminer_assert(z0 > (k&1));
-        minorminer_assert(z1 > (k&1));
+        minorminer_assert(z0 >= (k&1));
+        minorminer_assert(z1 >= (k&1));
+        minorminer_assert(z1 >= z0);
         size_t qz0 = (z0-(k&1))/2;
         size_t qz1 = (z1-(k&1))/2;
         for(size_t qz = qz0; qz <= qz1; qz++)
             chain.push_back(zephyr_linear(u, w, k, qz));
     }
 
-    inline size_t line_length(size_t, size_t, size_t z0, size_t z1) const {
-	minorminer_assert(z1 >= z0);
-        return z1 - z0 + 1;
+    inline size_t line_length(size_t, size_t, size_t z0, size_t z1, uint8_t k) const {
+        minorminer_assert(z0 >= (k&1));
+        minorminer_assert(z1 >= (k&1));
+        minorminer_assert(z1 >= z0);
+        return (z1-(k&1))/2 - (z0-(k&1))/2 + 1;
     }
 
     inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
-	minorminer_assert(y1 >= y0);
-	minorminer_assert(x1 >= x0);
+        minorminer_assert(y1 >= y0);
+        minorminer_assert(x1 >= x0);
         return max(y1-y0, x1-x0) + 1;
     }
 

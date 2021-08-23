@@ -351,7 +351,7 @@ class clique_yield_cache {
 
   public:
     clique_yield_cache(const cell_cache<zephyr_spec> &cells) :
-                       length_bound(2+cells.topo.zdim),
+                       length_bound(4+cells.topo.zdim),
                        clique_yield(length_bound, 0), 
                        best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
 
