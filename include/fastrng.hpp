@@ -13,6 +13,7 @@
 //    limitations under the License.
 
 #pragma once
+namespace fastrng{
 #include <algorithm>
 
 class fastrng {
@@ -44,18 +45,21 @@ class fastrng {
         S1 = splitmix64(x);
     }
 
-    inline void seed(uint32_t x) {
+    static inline uint64_t amplify_seed (uint32_t x) {
         uint32_t a = splitmix32(x);
         uint64_t b = static_cast<uint64_t>(splitmix32(x));
         b <<= 32;
-        b += a;
-        seed(b);
+        return b + a;
+    }
+
+    inline void seed(uint32_t x) {
+        seed(amplify_seed(x));
     }
 
     inline void seed(uint64_t x) {
         S0 = splitmix64(x);
         S1 = splitmix64(x);
-        discard(1024);
+        discard(64);
     }
 
     uint64_t operator()() {
@@ -80,3 +84,5 @@ class fastrng {
     static constexpr uint64_t min() { return std::numeric_limits<uint64_t>::min(); }
     static constexpr uint64_t max() { return std::numeric_limits<uint64_t>::max(); }
 };
+
+}

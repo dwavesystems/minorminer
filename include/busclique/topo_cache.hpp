@@ -30,6 +30,7 @@ class topo_cache {
     vector<pair<size_t, size_t>> bad_edges;
     uint8_t mask_num;
 
+    fastrng rng;
     //this is a little hackish way to keep everything const & construct cells in-place
     class _initializer_tag {};
     _initializer_tag _init;
@@ -87,6 +88,7 @@ class topo_cache {
     void reset() {
         if(mask_num > 0) {
             mask_num = 0;
+            rng = fastrng(topo.seed);
             next();
         }
     }

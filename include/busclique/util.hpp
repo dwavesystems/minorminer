@@ -24,6 +24,7 @@
 #include<set>
 #include<map>
 #include "../debug.hpp"
+#include "../fastrng.hpp"
 
 namespace busclique {
 using std::numeric_limits;
@@ -31,6 +32,7 @@ using std::vector;
 using std::pair;
 using std::min;
 using std::max;
+using fastrng::fastrng;
 
 enum corner : size_t { 
     NW = 1,
@@ -82,12 +84,18 @@ class topo_spec_base {
   public:
     const size_t dim[2];
     const size_t shore;
-    topo_spec_base(size_t d0, size_t d1, size_t s) : dim{d0, d1}, shore(s) {}
-    template<typename T>
-    topo_spec_base(T d[2], size_t s) : topo_spec_base(d[0], d[1], s) {}
+    const uint64_t seed;
+    
+    topo_spec_base(size_t d0, size_t d1, size_t s, uint64_t e) :
+        dim{d0, d1}, shore(s), seed(e) {}
+
+    topo_spec_base(size_t d0, size_t d1, size_t s, uint32_t e) :
+        topo_spec_base(d0, d1, s, fastrng::amplify_seed(e)) {}
+
     inline size_t cell_addr(size_t u, size_t y, size_t x) const {
         return x + dim[1]*(y + dim[0]*u);
     }
+
     inline size_t num_cells() const {
         return dim[0]*dim[1]*2;
     }
@@ -123,10 +131,12 @@ class pegasus_spec_base : public topo_spec_base {
   public:
     const size_t pdim;
     const uint8_t offsets[2][6];
-    template<typename T>
-    pegasus_spec_base(size_t d, T voff, T hoff) : super(6*d, 6*d, 2), pdim(d),
+    template<typename T, typename S>
+    pegasus_spec_base(size_t d, T voff, T hoff, S seed) :
+        super(6*d, 6*d, 2, seed), pdim(d),
         offsets{{voff[0], voff[1], voff[2], voff[3], voff[4], voff[5]}, 
                 {hoff[0], hoff[1], hoff[2], hoff[3], hoff[4], hoff[5]}} {}
+
   protected:
     template<typename badmask_behavior>
     inline void process_edges(uint8_t *edgemask, uint8_t *badmask, 
@@ -328,7 +338,10 @@ class zephyr_spec_base : public topo_spec_base {
   public:
     const size_t zdim;
     const size_t zshore;
-    zephyr_spec_base(size_t d, size_t t) : super(2*d+1, 2*d+1, 2*t), zdim(d), zshore(t) {}
+    template<typename S>
+    zephyr_spec_base(size_t d, size_t t, S seed) :
+        super(2*d+1, 2*d+1, 2*t, seed), zdim(d), zshore(t) {}
+    static constexpr size_t clique_number = 4;
 
   private:
     inline void first_fragment(size_t q,

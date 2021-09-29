@@ -14,21 +14,20 @@
 
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
-from libc.stdint cimport uint8_t
+from libc.stdint cimport uint8_t, uint32_t, uint64_t
 ctypedef vector[size_t] nodes_t
 ctypedef vector[vector[size_t]] embedding_t
 ctypedef vector[pair[size_t,size_t]] edges_t
 
 cdef extern from "../include/busclique/util.hpp" namespace "busclique":
     cdef cppclass pegasus_spec:
-        pegasus_spec(size_t, vector[uint8_t], vector[uint8_t])
+        pegasus_spec(size_t, vector[uint8_t], vector[uint8_t], uint32_t)
 
     cdef cppclass chimera_spec:
-        chimera_spec(vector[size_t], uint8_t)
-        chimera_spec(size_t, size_t, uint8_t)
+        chimera_spec(size_t, size_t, uint8_t, uint32_t)
 
     cdef cppclass zephyr_spec:
-        zephyr_spec(size_t, uint8_t)
+        zephyr_spec(size_t, uint8_t, uint32_t)
 
 cdef extern from "../include/busclique/cell_cache.hpp" namespace "busclique":
     cdef cppclass cell_cache[T]:
@@ -52,14 +51,11 @@ cdef extern from "../include/busclique/topo_cache.hpp" namespace "busclique":
         topo_cache(T, nodes_t &, edges_t &)
 
 cdef extern from "../include/busclique/find_clique.hpp" namespace "busclique":
-#    int find_clique[T](T, nodes_t, edges_t, size_t, embedding_t &)
     int find_clique[T](topo_cache[T] &, size_t, embedding_t &)
-#    int find_clique_nice[T](T, nodes_t, edges_t, size_t, embedding_t &)
     void best_cliques[T](topo_cache[T], vector[embedding_t] &, embedding_t &)
     int short_clique[T](T, nodes_t, edges_t, embedding_t &)
 
 
 cdef extern from "../include/busclique/find_biclique.hpp" namespace "busclique":
     void best_bicliques[T](topo_cache[T], vector[pair[pair[size_t, size_t], embedding_t]] &)
-
 
