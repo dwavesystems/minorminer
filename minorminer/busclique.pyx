@@ -241,6 +241,9 @@ class busgraph_cache:
         lrufile = os.path.join(basedir, ".lru")
         identifier = self._graph.identifier
         shortcode = self._graph.short_identifier
+        
+        #this makes our writes to the filesystem atomic
+        file_context = copy_on_close_context()
 
         #this solves thread-safety?
         with __global_locks[dirname]:
@@ -256,7 +259,7 @@ class busgraph_cache:
                 if cache is None:
                     cache = compute()
                     currcache[identifier] = cache
-                    with open(cachefile, 'wb') as filecache:
+                    with file_context.open(cachefile, 'wb') as filecache:
                         dump(currcache, filecache)
 
                 #now, update the LRU cache -- if this was being done in-memory,
@@ -271,11 +274,17 @@ class busgraph_cache:
                 for x in LRU:
                     if x != shortcode:
                         newLRU.append(x)
+
+                #this violates atomicity, but it's okay -- at worst, we'll need
+                #to recompute a deleted file that still has an entry in the LRU
                 while len(newLRU) > __lru_size:
                     oldkey = newLRU.pop()
                     os.remove(os.path.join(basedir, oldkey))
-                with open(lrufile, 'wb') as lru:
+                with file_context.open(lrufile, 'wb') as lru:
                     dump(newLRU, lru)
+
+        #perform the copy-on-write for the lrufile and cachefile
+        file_context.close()
         return cache
 
     def largest_clique(self):
@@ -831,3 +840,23 @@ cdef class _chimera_busgraph:
         elif not find_clique(self.topo[0], num, emb):
             return {}
         return self.relabel(dict(zip(nodes, emb)))
+
+class copy_on_close_context:
+    def __init__(self):
+        self.files = {}
+        
+    def open(self, file_name, mode):
+        if file_name in self.files:
+            self.files.clear()
+            raise RuntimeError("copy_on_close_context can only open files once.  Discarding all files.")
+        else:
+            temp_name = file_name + '~'
+            file_obj = open(temp_name, mode)
+            self.files[file_name] = temp_name, file_obj
+            return file_obj        
+
+    def close(self):
+        for file_name, (temp_name, file_obj) in self.files.items():
+            file_obj.close()
+            os.replace(temp_name, file_name)
+

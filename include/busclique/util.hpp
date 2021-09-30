@@ -78,6 +78,74 @@ const uint16_t mask_subsets[8] = {1, 2, 4, 8, 16, 32, 64, 128};
 
 const std::set<size_t> _emptyset;
 
+
+
+class serialize_size_tag {};
+class serialize_write_tag {} ;
+
+
+template<typename T>
+class fat_pointer{
+    T *ptr;
+  public:
+    size_t size;
+    fat_pointer(size_t size, size_t) : ptr(new T[size]{}), size(size) {}
+    fat_pointer(size_t size) : ptr(new T[size]), size(size) {}
+    ~fat_pointer() { delete[] ptr; ptr = nullptr; }
+    T &operator[](size_t i) { return ptr[i]; }
+    operator T*() { return ptr; }
+    operator const T*() const { return ptr; }
+};
+
+
+//! _serial_helper both computes the size of a field of an object being 
+//! serialized, and also writes it into an output buffer, advancing its buffer.
+//! The construction provides a single source of truth for the serialization of
+//! an object field or data pointer.
+template<typename T>
+inline size_t _serial_helper(serialize_size_tag, uint8_t *, const fat_pointer<T> &value) {
+    return sizeof(T[value.size]);
+}
+
+template<typename T>
+inline size_t _serial_helper(serialize_size_tag, uint8_t *, const T &value) {
+    return sizeof(T);
+}
+
+template<typename T>
+const T* _serial_addr(const fat_pointer<T> &value) {
+    return value;
+}
+
+template<typename T> 
+const T* _serial_addr(const T &value) {
+    return &value;
+}
+
+
+template<typename serialize_tag, typename T>
+inline size_t _serial_helper(serialize_tag, uint8_t *output, const T &value) {
+    size_t size = _serial_helper(serialize_size_tag{}, output, value);
+    if (std::is_same<serialize_tag, serialize_write_tag>::value)
+        memcpy(output, _serial_addr(value), size);
+    return size;
+}
+
+//! _serialize computes the size of a sequence of fields associated with an
+//! object being serialized, and also writes those fields into an output buffer
+//! advancing the buffer by the corresponding amount.  This provides a single
+//! source of truth for the serialization of a class.
+template<typename serialize_tag, typename ...>
+inline size_t _serialize(serialize_tag, uint8_t *) {
+        return 0;
+}
+
+template<typename serialize_tag, typename T, typename ...Args>
+inline size_t _serialize(serialize_tag, uint8_t *output, const T &value, Args &...args) {
+    size_t offset = _serial_helper(serialize_tag{}, output, value);
+    return offset + _serialize(serialize_tag{}, output + offset, args...);
+}
+
 class ignore_badmask {};
 class populate_badmask {};
 class topo_spec_base {
@@ -91,6 +159,11 @@ class topo_spec_base {
 
     topo_spec_base(size_t d0, size_t d1, size_t s, uint32_t e) :
         topo_spec_base(d0, d1, s, fastrng::amplify_seed(e)) {}
+
+    template<typename serialize_tag, typename ...Args>
+    size_t serialize(serialize_tag, uint8_t *output, Args &...args) const {
+        return _serialize(serialize_tag{}, output, dim, shore, seed, args...);
+    }
 
     inline size_t cell_addr(size_t u, size_t y, size_t x) const {
         return x + dim[1]*(y + dim[0]*u);
@@ -136,6 +209,11 @@ class pegasus_spec_base : public topo_spec_base {
         super(6*d, 6*d, 2, seed), pdim(d),
         offsets{{voff[0], voff[1], voff[2], voff[3], voff[4], voff[5]}, 
                 {hoff[0], hoff[1], hoff[2], hoff[3], hoff[4], hoff[5]}} {}
+
+    template<typename serialize_tag, typename ...Args>
+    size_t serialize(serialize_tag, uint8_t *output, Args &...args) const {
+        return _serialize(serialize_tag{}, output, offsets, args...);
+    }
 
   protected:
     template<typename badmask_behavior>
