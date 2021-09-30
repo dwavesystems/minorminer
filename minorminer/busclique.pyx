@@ -20,10 +20,13 @@ import homebase, os, pathlib, fasteners, threading, random
 from pickle import dump, load
 import networkx as nx, dwave_networkx as dnx
 
+from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from cpython.bytes cimport PyBytes_FromStringAndSize
+
 #increment this version any time there is a change made to the cache format,
 #when yield-improving changes are made to clique algorithms, or when bugs are
 #fixed in the same.
-cdef int __cache_version = 5
+cdef int __cache_version = 6
 
 cdef int __lru_size = 100
 cdef dict __global_locks = {'clique': threading.Lock(),
@@ -518,6 +521,40 @@ def _make_relabeler(f):
         return {v: list(f(chain)) for v, chain in emb.items()}
     return _relabeler
 
+ctypedef fused topo_cache_t:
+    topo_cache[zephyr_spec]
+    topo_cache[pegasus_spec]
+    topo_cache[chimera_spec]
+
+cdef _serialize(topo_cache_t *topo, str family):
+    cdef size_t nchars = topo.serialize(serialize_size_tag(), NULL)
+    cdef char *tmp0 = <char *>PyMem_Malloc(nchars)
+    cdef uint8_t *tmp = <uint8_t *>tmp0
+    cdef uint64_t *tmp64 = <uint64_t*>(<void *>(tmp));
+    cdef uint64_t shortcode_state = 0
+    cdef uint64_t c
+    cdef object ret, shortcode
+    cdef size_t i, j, d, _
+
+    #print(f"{<long int><void *>tmp0:x}")
+    if tmp == NULL:
+        raise MemoryError("could not allocate memory for topology serialization")
+
+    topo.serialize(serialize_write_tag(), tmp);
+    ret = PyBytes_FromStringAndSize(tmp0, nchars);
+
+    # this is a hash-like operation.  It is *not* a good hash.  It's optimized
+    # for speed and produces a 16-byte key which is reasonably sensitive to input.
+    for i in range(nchars//8):
+        shortcode_state += tmp64[i]
+    for j in range(nchars-(nchars&7), nchars):
+        shortcode_state += tmp[j] << (j&3)
+
+    PyMem_Free(tmp0)
+    #print(''.join('{:02x}'.format(x) for x in ret))
+    shortcode = "{}_{:16x}".format(family, shortcode_state)
+    return ret, shortcode
+
 cdef class _zephyr_busgraph:
     cdef topo_cache[zephyr_spec] *topo
     cdef nodes_t nodes
@@ -525,7 +562,7 @@ cdef class _zephyr_busgraph:
     cdef readonly object relabel
     cdef readonly object identifier
     cdef readonly object short_identifier
-    def __cinit__(self, g, seed = 0):
+    def __cinit__(self, g, seed = 0, compute_identifier = False):
         """
         This is a class which manages a single zephyr graph, and dispatches 
         various structure-aware c++ embedding functions on it.
@@ -561,10 +598,9 @@ cdef class _zephyr_busgraph:
         self.topo = new topo_cache[zephyr_spec](zep[0], self.nodes, edges)
         short_clique(zep[0], self.nodes, edges, self.emb_1)
 
-        #TODO replace this garbage with data from topo
-        self.identifier = (rows, cols, tile, internal_seed,
-                           tuple(sorted(self.nodes)),
-                           tuple(sorted(map(tuple, map(sorted, edges)))))
+        if compute_identifier:
+            self.identifier, self.short_identifier = _serialize(self.topo, 'zephyr')
+
         del zep
 
     def __dealloc__(self):
@@ -616,7 +652,7 @@ cdef class _pegasus_busgraph:
     cdef readonly object relabel
     cdef readonly object identifier
     cdef readonly object short_identifier
-    def __cinit__(self, g, seed = 0):
+    def __cinit__(self, g, seed = 0, compute_identifier = False):
         """
         This is a class which manages a single pegasus graph, and dispatches 
         various structure-aware c++ embedding functions on it.
@@ -653,10 +689,9 @@ cdef class _pegasus_busgraph:
         self.topo = new topo_cache[pegasus_spec](peg[0], self.nodes, edges)
         short_clique(peg[0], self.nodes, edges, self.emb_1)
 
-        #TODO replace this garbage with data from topo
-        self.identifier = (rows, tuple(voff), tuple(hoff), internal_seed,
-                           tuple(sorted(self.nodes)),
-                           tuple(sorted(map(tuple, map(sorted, edges)))))
+        if compute_identifier:
+            self.identifier, self.short_identifier = _serialize(self.topo, 'pegasus')
+
         del peg
 
     def __dealloc__(self):
@@ -718,7 +753,7 @@ cdef class _chimera_busgraph:
     cdef readonly object relabel
     cdef readonly object identifier
     cdef readonly object short_identifier
-    def __cinit__(self, g, seed = 0):
+    def __cinit__(self, g, seed = 0, compute_identifier = False):
         rows = g.graph['rows']
         cols = g.graph['columns']
         tile = g.graph['tile']
@@ -749,9 +784,8 @@ cdef class _chimera_busgraph:
         self.topo = new topo_cache[chimera_spec](chim[0], self.nodes, edges)
         short_clique(chim[0], self.nodes, edges, self.emb_1)
 
-        #TODO replace this garbage with data from topo
-        self.identifier = (rows, cols, tile, internal_seed, tuple(sorted(self.nodes)),
-                           tuple(sorted(tuple(sorted(e)) for e in edges)))
+        if compute_identifier:
+            self.identifier, self.short_identifier = _serialize(self.topo, 'chimera')
 
         del chim
 
