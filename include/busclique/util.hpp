@@ -209,6 +209,7 @@ class pegasus_spec_base : public topo_spec_base {
         super(6*d, 6*d, 2, seed), pdim(d),
         offsets{{voff[0], voff[1], voff[2], voff[3], voff[4], voff[5]}, 
                 {hoff[0], hoff[1], hoff[2], hoff[3], hoff[4], hoff[5]}} {}
+    static constexpr size_t clique_number = 4;
 
     template<typename serialize_tag, typename ...Args>
     size_t serialize(serialize_tag, uint8_t *output, Args &...args) const {
@@ -342,6 +343,7 @@ class chimera_spec_base : public topo_spec_base {
   public:
     template<typename ...Args>
     chimera_spec_base(Args ...args) : super(args...) {}
+    static constexpr size_t clique_number = 2;
   protected:
     template<typename badmask_behavior>
     inline void process_edges(uint8_t *edgemask, uint8_t *badmask, 
@@ -400,11 +402,9 @@ class chimera_spec_base : public topo_spec_base {
 };
 
 
-//! Zephyr
-//! 
 class zephyr_spec_base : public topo_spec_base {
     //Note, this differs from pretty much every treatment of zephyr coordinates,
-    //though the difference is minor.  Where we predominantly use 5-tuple 
+    //though the difference is minor.  Elsewhere, we predominantly use 5-tuple 
     //coordinates (u, w, k, j, z); we unify the k and j indices to preserve the
     //view of Zephyr as a minor of Chimera with K_{8, 8} unit tiles.
     

@@ -71,6 +71,17 @@ bool find_clique_nice(const cell_cache<chimera_spec> &cells,
     return false;
 }
 
+template<typename clique_cache_t>
+size_t check_sol(const clique_cache_t &rects, vector<vector<size_t>> &emb, size_t size) {
+    if(rects.extract_solution(emb)) {
+        if(emb.size() < size)
+            emb.clear();
+        else
+            return get_maxlen(emb, size);
+    }
+    return 0;
+}
+
 template<>
 bool find_clique_nice(const cell_cache<zephyr_spec> &cells,
                       size_t size,
@@ -92,13 +103,10 @@ bool find_clique_nice(const cell_cache<zephyr_spec> &cells,
     if (max_length > 0) maxw = min(max_length - 1, maxw);
     for(size_t width = minw; width <= maxw; width++) {
         clique_cache<zephyr_spec> rects(cells, bundles, width);
-        if(rects.extract_solution(emb)) {
-            if(emb.size() < size)
-                emb.clear();
-            else {
-                max_length = width + 1;
-                return true;
-            }
+        size_t l = check_sol(rects, emb, size);
+        if (l) {
+            max_length = l;
+            return true;
         }
     }
     return false;
@@ -164,14 +172,15 @@ bool find_clique(const topo_spec &topo,
                  const vector<pair<size_t, size_t>> &edges,
                  size_t size,
                  vector<vector<size_t>> &emb) {
-    constexpr bool pegasus = std::is_same<topo_spec, pegasus_spec>::value;
-    switch(size) {
-      case 0: return true;
-      case 1: return find_generic_1(nodes, emb);
-      case 2: return find_generic_2(edges, emb);
-      case 3: if(pegasus && find_generic_3(edges, emb)) return true; else break;
-      case 4: if(pegasus && find_generic_4(edges, emb)) return true; else break;
-      default: break;
+    if (size <= topo_spec::clique_number) {
+        switch(size) {
+          case 0: return true;
+          case 1: return find_generic_1(nodes, emb);
+          case 2: return find_generic_2(edges, emb);
+          case 3: if(find_generic_3(edges, emb)) return true; else break;
+          case 4: if(find_generic_4(edges, emb)) return true; else break;
+          default: break;
+        }
     }
     topo_cache<topo_spec> topology(topo, nodes, edges);
     return find_clique(topology, size, emb);
@@ -211,11 +220,12 @@ void short_clique(const topo_spec &,
                   const vector<size_t> &nodes,
                   const vector<pair<size_t, size_t>> &edges,
                   vector<vector<size_t>> &emb) {
-    constexpr bool pegasus = std::is_same<topo_spec, pegasus_spec>::value;
-    if(pegasus && find_generic_4(edges, emb))       return;
-    else if(pegasus && find_generic_3(edges, emb))  return;
-    else if(find_generic_2(edges, emb))             return;
-    else if(find_generic_1(nodes, emb))             return;
+    constexpr size_t n = topo_spec::clique_number;
+    static_assert(n > 1, "topologies with edges have clique number at least 2");
+    if(n >= 4 && find_generic_4(edges, emb))       return;
+    else if( n >= 3 && find_generic_3(edges, emb)) return;
+    else if(find_generic_2(edges, emb))            return;
+    else if(find_generic_1(nodes, emb))            return;
 }
 
 template<typename topo_spec>
