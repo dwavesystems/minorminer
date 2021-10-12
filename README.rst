@@ -26,7 +26,7 @@ graph, it tries to find a mapping that embeds the minor into the target.
 
 .. general-embedding-start-marker
 
-The primary utility function, ```find_embedding()```, is an implementation of
+The primary utility function, ``find_embedding()``, is an implementation of
 the heuristic algorithm described in [1]. It accepts various optional parameters
 used to tune the algorithm's execution or constrain the given problem.
 
@@ -235,3 +235,18 @@ This can also be built using the included `CMakeLists.txt` along with the main
 library build by turning the CMake option `MINORMINER_BUILD_EXAMPLES` on. The
 command line option for CMake to do this would be
 `-DMINORMINER_BUILD_EXAMPLES=ON`.
+
+License
+=======
+
+Released under the Apache License 2.0. See `<LICENSE>`_ file.
+
+Contributing
+============
+
+Ocean's `contributing guide <https://docs.ocean.dwavesys.com/en/stable/contributing.html>`_
+has guidelines for contributing to Ocean packages.
+
+If you're interested in adding or modifying parameters of the ``find_embedding`` 
+primary utility function, please see the `<parameter_checklist.txt>`_ file.
+
