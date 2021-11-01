@@ -325,7 +325,8 @@ class pegasus_spec_base : public topo_spec_base {
     }
 
     inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
-        minorminer_assert(z1 >= z0);
+        minorminer_assert(y1 >= y0);
+        minorminer_assert(x1 >= x0);
         size_t length = 0;
         size_t ym = std::min(y1, y0+5);
         size_t xm = std::min(x1, x0+5);
@@ -501,8 +502,8 @@ class zephyr_spec_base : public topo_spec_base {
 
     void construct_line(size_t u, size_t w, size_t z0, size_t z1, size_t k,
                         vector<size_t> &chain) const {
-        minorminer_assert(z0 >= (k&1));
-        minorminer_assert(z1 >= (k&1));
+        minorminer_assert(z0 >= (k&1u));
+        minorminer_assert(z1 >= (k&1u));
         minorminer_assert(z1 >= z0);
         size_t qz0 = (z0-(k&1))/2;
         size_t qz1 = (z1-(k&1))/2;
@@ -511,8 +512,8 @@ class zephyr_spec_base : public topo_spec_base {
     }
 
     inline size_t line_length(size_t, size_t, size_t z0, size_t z1, uint8_t k) const {
-        minorminer_assert(z0 >= (k&1));
-        minorminer_assert(z1 >= (k&1));
+        minorminer_assert(z0 >= (k&1u));
+        minorminer_assert(z1 >= (k&1u));
         minorminer_assert(z1 >= z0);
         minorminer_assert(z1 < super::dim[0]);
         return (z1-(k&1))/2 - (z0-(k&1))/2 + 1;
