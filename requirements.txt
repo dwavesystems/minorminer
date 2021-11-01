@@ -5,3 +5,4 @@ dwave-networkx>=0.8.10
 fasteners==0.15
 homebase==1.0.1
 Cython==0.29.21
+rectangle-packer>=2.0.1
