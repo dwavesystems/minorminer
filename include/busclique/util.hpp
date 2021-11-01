@@ -525,13 +525,13 @@ class zephyr_spec_base : public topo_spec_base {
         // because there are zero qubits that span the entire range.
         size_t length = 0;
         if (y0 > 0)
-            length = max(length, line_length(0, 0, y0, y1, 1);
+            length = max(length, line_length(0, 0, y0, y1, 1));
         if (x0 > 0)
-            length = max(length, line_length(0, 0, x0, x1, 1);
+            length = max(length, line_length(0, 0, x0, x1, 1));
         if (y1 + 1 < super::dim[0])
-            length = max(length, line_length(0, 0, y0, y1, 0);
+            length = max(length, line_length(0, 0, y0, y1, 0));
         if (x1 + 1 < super::dim[0])
-            length = max(length, line_length(0, 0, x0, x1, 0);
+            length = max(length, line_length(0, 0, x0, x1, 0));
         return length;
     }
 

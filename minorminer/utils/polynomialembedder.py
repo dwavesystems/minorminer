@@ -52,8 +52,6 @@ produce optimal native embeddings, or approximately-optimal native embeddings.
 #TODO fix this or delete the entire file
 __bugged_graph = [(12, 9), (12, 4), (12, 8), (12, 11), (12, 10), (15, 9), (15, 7), (15, 8), (15, 11), (15, 10), (30, 27), (30, 24), (30, 26), (30, 25), (2, 5), (2, 4), (2, 7), (2, 6), (16, 22), (16, 21), (16, 20), (16, 23), (5, 1), (5, 3), (5, 0), (19, 22), (19, 21), (19, 23), (22, 18), (22, 17), (9, 14), (9, 13), (27, 29), (27, 31), (27, 28), (24, 29), (24, 31), (24, 28), (29, 21), (29, 26), (29, 25), (14, 8), (14, 11), (14, 6), (1, 4), (1, 7), (1, 6), (4, 3), (18, 21), (18, 20), (18, 23), (7, 3), (7, 0), (21, 17), (8, 13), (26, 31), (26, 28), (13, 10), (31, 25), (3, 6), (28, 25), (6, 0), (20, 17), (23, 17)]
 
-from __future__ import division
-
 from random import shuffle, randint, choice, sample
 from collections import defaultdict
 from itertools import product
