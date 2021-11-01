@@ -325,6 +325,7 @@ class pegasus_spec_base : public topo_spec_base {
     }
 
     inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
+        minorminer_assert(z1 >= z0);
         size_t length = 0;
         size_t ym = std::min(y1, y0+5);
         size_t xm = std::min(x1, x0+5);
@@ -513,13 +514,25 @@ class zephyr_spec_base : public topo_spec_base {
         minorminer_assert(z0 >= (k&1));
         minorminer_assert(z1 >= (k&1));
         minorminer_assert(z1 >= z0);
+        minorminer_assert(z1 < super::dim[0]);
         return (z1-(k&1))/2 - (z0-(k&1))/2 + 1;
     }
 
     inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
         minorminer_assert(y1 >= y0);
         minorminer_assert(x1 >= x0);
-        return max(y1-y0, x1-x0) + 1;
+        // we return a length of zero for the ranges (0, super::dim[0]-1)
+        // because there are zero qubits that span the entire range.
+        size_t length = 0;
+        if (y0 > 0)
+            length = max(length, line_length(0, 0, y0, y1, 1);
+        if (x0 > 0)
+            length = max(length, line_length(0, 0, x0, x1, 1);
+        if (y1 + 1 < super::dim[0])
+            length = max(length, line_length(0, 0, y0, y1, 0);
+        if (x1 + 1 < super::dim[0])
+            length = max(length, line_length(0, 0, x0, x1, 0);
+        return length;
     }
 
 };
