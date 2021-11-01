@@ -88,7 +88,7 @@ template<typename T>
 class fat_pointer{
     T *ptr;
   public:
-    size_t size;
+    const size_t size;
     fat_pointer(size_t size, size_t) : ptr(new T[size]{}), size(size) {}
     fat_pointer(size_t size) : ptr(new T[size]), size(size) {}
     ~fat_pointer() { delete[] ptr; ptr = nullptr; }
@@ -104,7 +104,7 @@ class fat_pointer{
 //! an object field or data pointer.
 template<typename T>
 inline size_t _serial_helper(serialize_size_tag, uint8_t *, const fat_pointer<T> &value) {
-    return sizeof(T[value.size]);
+    return sizeof(T)*value.size;
 }
 
 template<typename T>
@@ -141,7 +141,7 @@ inline size_t _serialize(serialize_tag, uint8_t *) {
 }
 
 template<typename serialize_tag, typename T, typename ...Args>
-inline size_t _serialize(serialize_tag, uint8_t *output, const T &value, Args &...args) {
+inline size_t _serialize(serialize_tag, uint8_t *output, const T &value, const Args &...args) {
     size_t offset = _serial_helper(serialize_tag{}, output, value);
     return offset + _serialize(serialize_tag{}, output + offset, args...);
 }
@@ -161,7 +161,7 @@ class topo_spec_base {
         topo_spec_base(d0, d1, s, fastrng::amplify_seed(e)) {}
 
     template<typename serialize_tag, typename ...Args>
-    size_t serialize(serialize_tag, uint8_t *output, Args &...args) const {
+    size_t serialize(serialize_tag, uint8_t *output, const Args &...args) const {
         return _serialize(serialize_tag{}, output, dim, shore, seed, args...);
     }
 
@@ -212,7 +212,7 @@ class pegasus_spec_base : public topo_spec_base {
     static constexpr size_t clique_number = 4;
 
     template<typename serialize_tag, typename ...Args>
-    size_t serialize(serialize_tag, uint8_t *output, Args &...args) const {
+    size_t serialize(serialize_tag, uint8_t *output, const Args &...args) const {
         return _serialize(serialize_tag{}, output, offsets, args...);
     }
 
