@@ -28,30 +28,19 @@ else:
     exec(open(path_to_package_info).read())
 
 extra_compile_args = {
-    'msvc': {
-        'c++': ['/std:c++latest', '/MT', '/EHsc'],
-        'c': [],
-    },
-    'unix': {
-        'c++': ['-std=c++11', '-Wall', '-Wno-format-security', '-Ofast', '-fomit-frame-pointer', '-DNDEBUG', '-fno-rtti'],
-        'c': ['-std=c99', '-Wall', '-Wno-format-security', '-Ofast', '-fomit-frame-pointer', '-DNDEBUG'],
-    },
+    'msvc': ['/std:c++latest', '/MT', '/EHsc'],
+    'unix': ['-std=c++11', '-Wall', '-Wno-format-security', '-Ofast', '-fomit-frame-pointer', '-DNDEBUG', '-fno-rtti'],
 }
 
 extra_link_args = {
-    'msvc': {'c++': [], 'c': []},
-    'unix': {
-        'c++': ['-std=c++11'],
-        'c': ['-std=c99'],
-    },
+    'msvc': [],
+    'unix': ['-std=c++11'],
 }
 
 
 if '--debug' in sys.argv or '-g' in sys.argv or 'CPPDEBUG' in os.environ:
-    extra_compile_args['msvc']['c++'].append('/DCPPDEBUG')
-    extra_compile_args['unix']['c++'] = ['-std=c++1y', '-Wall',
-                                  '-O0', '-g', '-fipa-pure-const', '-DCPPDEBUG']
-    extra_compile_args['unix']['c'] = ['-std=c99', '-Wall',
+    extra_compile_args['msvc'].append('/DCPPDEBUG')
+    extra_compile_args['unix'] = ['-std=c++1y', '-Wall',
                                   '-O0', '-g', '-fipa-pure-const', '-DCPPDEBUG']
 
 
@@ -61,11 +50,11 @@ class build_ext_compiler_check(build_ext):
 
         compile_args = extra_compile_args[compiler]
         for ext in self.extensions:
-            ext.extra_compile_args = compile_args[ext.language]
+            ext.extra_compile_args = compile_args
 
         link_args = extra_link_args[compiler]
         for ext in self.extensions:
-            ext.extra_link_args = link_args[ext.language]
+            ext.extra_link_args = link_args
 
         build_ext.build_extensions(self)
 
@@ -94,16 +83,6 @@ extensions = [
 if USE_CYTHON:
     extensions = cythonize(extensions)
 
-#borrowed from rectangle-packer
-extensions.append(
-    Extension('minorminer._rpack',
-              sources=['rectangle-packer/src/rpack.c',
-                       'rectangle-packer/src/areapack.c',
-                       'rectangle-packer/src/taskpack.c'],
-              include_dirs=['rectangle-packer/include'],
-              language='c')
-)
-
 os.environ["MACOSX_DEPLOYMENT_TARGET"] = platform.mac_ver()[0]
 
 classifiers = [
@@ -118,7 +97,7 @@ classifiers = [
 
 python_requires = '>=3.6'
 install_requires = [
-    "scipy", "networkx", "dwave-networkx>=0.8.10", "numpy", "fasteners", "homebase"
+    "scipy", "networkx", "dwave-networkx>=0.8.10", "numpy", "fasteners", "homebase", "rectangle-packer>=2.0.1"
 ]
 
 setup(
