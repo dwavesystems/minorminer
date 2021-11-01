@@ -23,7 +23,8 @@
 #include <thread>
 #include <unordered_map>
 #include "../debug.hpp"
-#include "fastrng.hpp"
+#include "../errors.hpp"
+#include "../fastrng.hpp"
 #include "pairing_queue.hpp"
 
 namespace find_embedding {
@@ -43,6 +44,8 @@ using std::unordered_map;
 using std::vector;
 using std::chrono::duration;
 using std::chrono::duration_cast;
+using fastrng::fastrng;
+
 
 // Select some default structures and types
 using distance_t = long long int;
@@ -56,10 +59,7 @@ using max_queue = std::priority_queue<priority_node<P, max_heap_tag>>;
 
 using distance_queue = pairing_queue<priority_node<distance_t, min_heap_tag>>;
 
-class MinorMinerException : public std::runtime_error {
-  public:
-    MinorMinerException(const string& m = "find embedding exception") : std::runtime_error(m) {}
-};
+using minorminer::MinorMinerException;
 
 class ProblemCancelledException : public MinorMinerException {
   public:

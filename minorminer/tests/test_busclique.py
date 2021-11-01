@@ -271,3 +271,28 @@ class TestBusclique(unittest.TestCase):
         k4 = busclique.find_clique_embedding(4, p)
 
         self.assertEquals(k4, {})
+        
+class TestZephyr(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super(TestZephyr, self).__init__(*args, **kwargs)
+
+        self.z6 = dnx.zephyr_graph(6)
+    
+    def test_perfect_z6_clique(self):
+        k88 = nx.complete_graph(88)
+        bgc = busclique.busgraph_cache(self.z6)
+        e88_cache = bgc.largest_clique()
+        verify_embedding(e88_cache, k88, self.z6)
+
+        e88_cache2 = busclique.find_clique_embedding(88, self.z6, use_cache=True)
+        verify_embedding(e88_cache2, k88, self.z6)
+
+        e88 = busclique.find_clique_embedding(88, self.z6, use_cache=False)
+        verify_embedding(e88, k88, self.z6)
+        
+    def test_perfect_z6_biclique(self):
+        k88_88 = nx.complete_bipartite_graph(88, 88)
+        bgc = busclique.busgraph_cache(self.z6)
+        e88_88_cache = bgc.largest_balanced_biclique()
+        verify_embedding(e88_88_cache, k88_88, self.z6)
+                

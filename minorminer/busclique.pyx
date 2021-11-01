@@ -16,14 +16,17 @@
 # cython: language_level=3
 include "busclique_h.pxi"
 
-import homebase, os, pathlib, fasteners, threading
+import homebase, os, pathlib, fasteners, threading, random
 from pickle import dump, load
 import networkx as nx, dwave_networkx as dnx
+
+from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from cpython.bytes cimport PyBytes_FromStringAndSize
 
 #increment this version any time there is a change made to the cache format,
 #when yield-improving changes are made to clique algorithms, or when bugs are
 #fixed in the same.
-cdef int __cache_version = 4
+cdef int __cache_version = 6
 
 cdef int __lru_size = 100
 cdef dict __global_locks = {'clique': threading.Lock(),
@@ -49,7 +52,8 @@ def _num_nodes(nn, offset = 0):
         num = len(nodes)
     return num, nodes
 
-def find_clique_embedding(nodes, g, use_cache = True):
+_no_seed = object()
+def find_clique_embedding(nodes, g, seed = _no_seed, use_cache = True):
     """Finds a clique embedding in the graph ``g`` using a polynomial-time 
     algorithm.
 
@@ -68,6 +72,12 @@ def find_clique_embedding(nodes, g, use_cache = True):
             does not maintain the cache in memory. If many (or even several) 
             embeddings are desired in a single session, it is recommended to use 
             :class:`.busgraph_cache`.
+            
+        seed (int, optional):
+            A seed for an internal random number generator.  If ``use_cache`` is
+            True, then the seed defaults to an internally-defined value which
+            is consistent between runs.  Otherwise, a seed is generated from the
+            current python random state.
 
     Returns:
         dict: An embedding of node labels (either nodes, or range(nodes)) mapped 
@@ -93,18 +103,26 @@ def find_clique_embedding(nodes, g, use_cache = True):
         graphdata = g.graph
         family = graphdata['family']
         busgraph = {'pegasus': _pegasus_busgraph,
+                    'zephyr': _zephyr_busgraph,
                     'chimera': _chimera_busgraph}[family]
     except (AttributeError, KeyError):
-        raise ValueError("g must be either a dwave_networkx.chimera_graph or"
-                         " a dwave_networkx.pegasus_graph")
+        raise ValueError(("input graph must either be a "
+                          "dwave_networkx.pegasus_graph, "
+                          "dwave_networkx.chimera_graph or "
+                          "dwave_networkx.zephyr_graph"))
+
     if use_cache:
-        return busgraph_cache(g).find_clique_embedding(nodes)
+        if seed is _no_seed:
+            seed = 0
+        return busgraph_cache(g, seed=seed).find_clique_embedding(nodes)
     else:
-        return busgraph(g).find_clique_embedding(nodes)
+        if seed is _no_seed:
+            seed = None
+        return busgraph(g, seed=seed).find_clique_embedding(nodes)
 
 class busgraph_cache:
-    """A cache class for Chimera and Pegasus graphs, and their associated cliques
-    and bicliques.
+    """A cache class for Chimera, Pegasus and Zephyr graphs, and their 
+    associated cliques and bicliques.
 
     The cache files are stored in a directory determined by `homebase` (use
     :meth:`busgraph_cache.cache_rootdir` to retrieve the path to this directory). 
@@ -114,7 +132,7 @@ class busgraph_cache:
     Args:
         g (NetworkX Graph):
             A :func:`dwave_networkx.pegasus_graph` or :func:`dwave_networkx.chimera_graph`.
-
+                or :func:`dwave_networkx.zephyr_graph`.
     Note:
         Due to internal optimizations, not all Chimera graphs are supported by
         this code. Specifically, the graphs :func:`dwave_networkx.chimera_graph(m, n, t)`
@@ -123,16 +141,17 @@ class busgraph_cache:
         :math:`t>8`, use the legacy chimera-embedding package.
     
     """
-    def __init__(self, g):
+    def __init__(self, g, seed = 0):
         self._family = g.graph['family']
-        if(self._family == 'chimera'):
-            self._graph = _chimera_busgraph(g)
-        elif(self._family == 'pegasus'):
-            self._graph = _pegasus_busgraph(g)
-        else:
+        graphclass = {'pegasus': _pegasus_busgraph,
+                      'zephyr': _zephyr_busgraph,
+                      'chimera': _chimera_busgraph}.get(self._family)
+        if graphclass is None:
             raise ValueError(("input graph must either be a "
-                              "dwave_networkx.pegasus_graph or a "
-                              "dwave_networkx.chimera_graph"))
+                              "dwave_networkx.pegasus_graph, "
+                              "dwave_networkx.chimera_graph or "
+                              "dwave_networkx.zephyr_graph"))
+        self._graph = graphclass(g, seed=seed, compute_identifier=True)
         self._cliques = None
         self._bicliques = None
 
@@ -221,7 +240,11 @@ class busgraph_cache:
         lockfile = os.path.join(basedir, ".lock")
         lrufile = os.path.join(basedir, ".lru")
         identifier = self._graph.identifier
-        shortcode = str(hash(identifier))
+        shortcode = self._graph.short_identifier
+        
+        #this makes our writes to the filesystem atomic
+        file_context = copy_on_close_context()
+
         #this solves thread-safety?
         with __global_locks[dirname]:
             #this solves inter-process safety?
@@ -236,7 +259,7 @@ class busgraph_cache:
                 if cache is None:
                     cache = compute()
                     currcache[identifier] = cache
-                    with open(cachefile, 'wb') as filecache:
+                    with file_context.open(cachefile, 'wb') as filecache:
                         dump(currcache, filecache)
 
                 #now, update the LRU cache -- if this was being done in-memory,
@@ -251,11 +274,17 @@ class busgraph_cache:
                 for x in LRU:
                     if x != shortcode:
                         newLRU.append(x)
+
+                #this violates atomicity, but it's okay -- at worst, we'll need
+                #to recompute a deleted file that still has an entry in the LRU
                 while len(newLRU) > __lru_size:
                     oldkey = newLRU.pop()
                     os.remove(os.path.join(basedir, oldkey))
-                with open(lrufile, 'wb') as lru:
+                with file_context.open(lrufile, 'wb') as lru:
                     dump(newLRU, lru)
+
+        #perform the copy-on-write for the lrufile and cachefile
+        file_context.close()
         return cache
 
     def largest_clique(self):
@@ -501,13 +530,138 @@ def _make_relabeler(f):
         return {v: list(f(chain)) for v, chain in emb.items()}
     return _relabeler
 
+ctypedef fused topo_cache_t:
+    topo_cache[zephyr_spec]
+    topo_cache[pegasus_spec]
+    topo_cache[chimera_spec]
+
+cdef _serialize(topo_cache_t *topo, str family):
+    cdef size_t nchars = topo.serialize(serialize_size_tag(), NULL)
+    cdef char *tmp0 = <char *>PyMem_Malloc(nchars)
+    cdef uint8_t *tmp = <uint8_t *>tmp0
+    cdef uint64_t *tmp64 = <uint64_t*>(<void *>(tmp));
+    cdef uint64_t shortcode_state = 0
+    cdef uint64_t c
+    cdef object ret, shortcode
+    cdef size_t i, j, d, _
+
+    #print(f"{<long int><void *>tmp0:x}")
+    if tmp == NULL:
+        raise MemoryError("could not allocate memory for topology serialization")
+
+    topo.serialize(serialize_write_tag(), tmp);
+    ret = PyBytes_FromStringAndSize(tmp0, nchars);
+
+    # this is a hash-like operation.  It is *not* a good hash.  It's optimized
+    # for speed and produces a 16-byte key which is reasonably sensitive to input.
+    for i in range(nchars//8):
+        shortcode_state += tmp64[i]
+    for j in range(nchars-(nchars&7), nchars):
+        shortcode_state += tmp[j] << (j&3)
+
+    PyMem_Free(tmp0)
+    #print(''.join('{:02x}'.format(x) for x in ret))
+    shortcode = "{}_{:16x}".format(family, shortcode_state)
+    return ret, shortcode
+
+cdef class _zephyr_busgraph:
+    cdef topo_cache[zephyr_spec] *topo
+    cdef nodes_t nodes
+    cdef embedding_t emb_1
+    cdef readonly object relabel
+    cdef readonly object identifier
+    cdef readonly object short_identifier
+    def __cinit__(self, g, seed = 0, compute_identifier = False):
+        """
+        This is a class which manages a single zephyr graph, and dispatches 
+        various structure-aware c++ embedding functions on it.
+        """
+        cdef size_t rows = g.graph['rows']
+        cdef size_t cols = g.graph['columns']
+        cdef size_t tile = g.graph['tile']
+        if tile > 4:
+            raise NotImplementedError(("this clique embedder supports zephyr "
+                                       "graphs with a tile size of 4 or less"))
+
+        cdef uint32_t internal_seed
+        if seed is None:
+            seed_obj = os.urandom(sizeof(uint32_t))
+            internal_seed = (<uint32_t *>(<void *>(<uint8_t *>(seed_obj))))[0]
+        else:
+            internal_seed = seed
+
+        cdef zephyr_spec *zep = new zephyr_spec(rows, tile, internal_seed)
+        coordinates = dnx.zephyr_coordinates(rows)
+        cdef edges_t edges
+        if g.graph['labels'] == 'int':
+            self.nodes = g.nodes()
+            edges = g.edges()
+            self.relabel = _trivial_relabeler
+        elif g.graph['labels'] == 'coordinate':
+            self.nodes = coordinates.iter_zephyr_to_linear(g.nodes())
+            edges = coordinates.iter_zephyr_to_linear_pairs(g.edges())
+            self.relabel = _make_relabeler(coordinates.iter_linear_to_zephyr)
+        else:
+            raise ValueError("unrecognized graph labeling")
+
+        self.topo = new topo_cache[zephyr_spec](zep[0], self.nodes, edges)
+        short_clique(zep[0], self.nodes, edges, self.emb_1)
+
+        if compute_identifier:
+            self.identifier, self.short_identifier = _serialize(self.topo, 'zephyr')
+
+        del zep
+
+    def __dealloc__(self):
+        del self.topo
+
+    def bicliques(self):
+        """
+        Returns a biclique cache -- see _make_biclique_cache for more info.
+        """
+        cdef vector[pair[pair[size_t, size_t], embedding_t]] embs
+        best_bicliques[zephyr_spec](self.topo[0], embs)
+        return _make_biclique_cache(embs)
+
+    def cliques(self):
+        """
+        Returns a clique cache -- see _make_clique_cache for more info.
+        """
+        cdef vector[embedding_t] embs
+        best_cliques[zephyr_spec](self.topo[0], embs, self.emb_1)
+        return _make_clique_cache(embs)
+
+    def independent_set(self, size):
+        """
+        This is extremely silly, but what else should we do when a user requests
+        a K_{0, n}?
+        """
+        cdef int i
+        if size < self.nodes.size():
+            emb = [self.nodes[i] for i in range(size)]
+            return emb
+
+    def find_clique_embedding(self, nn):
+        """
+        Perfoms a "one-shot" embedding procedure to find K_n where n is either
+        int(nn) or len(tuple(nn)), without generating a cache.
+        """
+        num, nodes = _num_nodes(nn)
+        cdef embedding_t emb
+        if num <= self.emb_1.size():
+            emb = self.emb_1
+        elif not find_clique(self.topo[0], num, emb):
+            return {}
+        return self.relabel(dict(zip(nodes, emb)))
+
 cdef class _pegasus_busgraph:
     cdef topo_cache[pegasus_spec] *topo
     cdef nodes_t nodes
     cdef embedding_t emb_1
     cdef readonly object relabel
     cdef readonly object identifier
-    def __cinit__(self, g):
+    cdef readonly object short_identifier
+    def __cinit__(self, g, seed = 0, compute_identifier = False):
         """
         This is a class which manages a single pegasus graph, and dispatches 
         various structure-aware c++ embedding functions on it.
@@ -515,7 +669,15 @@ cdef class _pegasus_busgraph:
         rows = g.graph['rows']
         voff = [o//2 for o in g.graph['vertical_offsets'][::2]]
         hoff = [o//2 for o in g.graph['horizontal_offsets'][::2]]
-        cdef pegasus_spec *peg = new pegasus_spec(rows, voff, hoff)
+        
+        cdef uint32_t internal_seed
+        if seed is None:
+            seed_obj = os.urandom(sizeof(uint32_t))
+            internal_seed = (<uint32_t *>(<void *>(<uint8_t *>(seed_obj))))[0]
+        else:
+            internal_seed = seed
+
+        cdef pegasus_spec *peg = new pegasus_spec(rows, voff, hoff, internal_seed)
         coordinates = dnx.pegasus_coordinates(rows)
         cdef edges_t edges
         if g.graph['labels'] == 'int':
@@ -536,10 +698,9 @@ cdef class _pegasus_busgraph:
         self.topo = new topo_cache[pegasus_spec](peg[0], self.nodes, edges)
         short_clique(peg[0], self.nodes, edges, self.emb_1)
 
-        #TODO replace this garbage with data from topo
-        self.identifier = (rows, tuple(voff), tuple(hoff),
-                           tuple(sorted(self.nodes)),
-                           tuple(sorted(map(tuple, map(sorted, edges)))))
+        if compute_identifier:
+            self.identifier, self.short_identifier = _serialize(self.topo, 'pegasus')
+
         del peg
 
     def __dealloc__(self):
@@ -600,14 +761,22 @@ cdef class _chimera_busgraph:
     cdef nodes_t nodes
     cdef readonly object relabel
     cdef readonly object identifier
-    def __cinit__(self, g):
+    cdef readonly object short_identifier
+    def __cinit__(self, g, seed = 0, compute_identifier = False):
         rows = g.graph['rows']
         cols = g.graph['columns']
         tile = g.graph['tile']
         if tile > 8:
             raise NotImplementedError(("this clique embedder supports chimera "
                                        "graphs with a tile size of 8 or less"))
-        cdef chimera_spec *chim = new chimera_spec(rows, cols, tile)
+        cdef uint32_t internal_seed
+        if seed is None:
+            seed_obj = os.urandom(sizeof(uint32_t))
+            internal_seed = (<uint32_t *>(<void *>(<uint8_t *>(seed_obj))))[0]
+        else:
+            internal_seed = seed
+
+        cdef chimera_spec *chim = new chimera_spec(rows, cols, tile, internal_seed)
         cdef edges_t edges
         coordinates = dnx.chimera_coordinates(rows, cols, tile)
         if g.graph['labels'] == 'int':
@@ -624,9 +793,8 @@ cdef class _chimera_busgraph:
         self.topo = new topo_cache[chimera_spec](chim[0], self.nodes, edges)
         short_clique(chim[0], self.nodes, edges, self.emb_1)
 
-        #TODO replace this garbage with data from topo
-        self.identifier = (rows, cols, tile, tuple(sorted(self.nodes)),
-                           tuple(sorted(tuple(sorted(e)) for e in edges)))
+        if compute_identifier:
+            self.identifier, self.short_identifier = _serialize(self.topo, 'chimera')
 
         del chim
 
@@ -672,3 +840,23 @@ cdef class _chimera_busgraph:
         elif not find_clique(self.topo[0], num, emb):
             return {}
         return self.relabel(dict(zip(nodes, emb)))
+
+class copy_on_close_context:
+    def __init__(self):
+        self.files = {}
+        
+    def open(self, file_name, mode):
+        if file_name in self.files:
+            self.files.clear()
+            raise RuntimeError("copy_on_close_context can only open files once.  Discarding all files.")
+        else:
+            temp_name = file_name + '~'
+            file_obj = open(temp_name, mode)
+            self.files[file_name] = temp_name, file_obj
+            return file_obj        
+
+    def close(self):
+        for file_name, (temp_name, file_obj) in self.files.items():
+            file_obj.close()
+            os.replace(temp_name, file_name)
+
