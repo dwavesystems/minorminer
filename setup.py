@@ -118,7 +118,7 @@ classifiers = [
 
 python_requires = '>=3.6'
 install_requires = [
-    "scipy", "networkx", "dwave-networkx", "numpy", "fasteners", "homebase"
+    "scipy", "networkx", "dwave-networkx>=0.8.10", "numpy", "fasteners", "homebase"
 ]
 
 setup(

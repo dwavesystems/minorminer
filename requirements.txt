@@ -1,7 +1,7 @@
 numpy==1.19.4
 scipy==1.5.4
 networkx==2.4
-dwave-networkx==0.8.8
+dwave-networkx>=0.8.10
 fasteners==0.15
 homebase==1.0.1
 Cython==0.29.21
