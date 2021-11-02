@@ -172,7 +172,7 @@ def _parse_layout_parameter(S, T, layout, layout_kwargs):
         T_layout = t_layout
     else:
         # Use the dnx_layout if possible
-        if T.graph.get("family") in ("chimera", "pegasus"):
+        if T.graph.get("family") in ("chimera", "pegasus", "zephyr"):
             T_layout = Layout(T, layout=dnx_layout, **layout_kwargs)
         # Assumes t_layout a callable or implements a mapping interface
         else:
