@@ -284,9 +284,10 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     graph_data = G.graph
 
     family = graph_data.get("family")
-    if family not in ("chimera", "pegasus"):
+    if G.graph.get("family") not in ("chimera", "pegasus", "zephyr"):
         raise ValueError(
-            "Only dnx.chimera_graph() and dnx.pegasus_graph() are supported.")
+            "This strategy is only implemented for Chimera, Pegasus"
+            " and Zephyr graphs constructed by dwave_networkx`.")
 
     dim, center = _set_dim_and_center(dim, center)
 
@@ -301,6 +302,9 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
             G, dim=dim, center=dnx_center, scale=dnx_scale)
     elif family == "pegasus":
         dnx_layout = dnx.pegasus_layout(
+            G, dim=dim, center=dnx_center, scale=dnx_scale)
+    elif family == "zephyr":
+        dnx_layout = dnx.zephyr_layout(
             G, dim=dim, center=dnx_center, scale=dnx_scale)
 
     layout = Layout(G, dnx_layout)
@@ -391,7 +395,7 @@ class Layout(abc.MutableMapping):
         _call_layout = False
         # If passed in, save or compute the layout
         if layout is None:
-            if self.G.graph.get('family') in ('pegasus', 'chimera'):
+            if self.G.graph.get('family') in ('pegasus', 'chimera', 'zephyr'):
                 self.layout = dnx_layout(self.G, **kwargs)
             else:
                 _call_layout = True

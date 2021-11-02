@@ -38,6 +38,9 @@ class TestLayoutPlacement(unittest.TestCase):
         self.P_coord = dnx.pegasus_graph(4, coordinates=True)
         self.P_nice = dnx.pegasus_graph(4, nice_coordinates=True)
         self.P_blank = dnx.pegasus_graph(4, data=False)
+        self.Z = dnx.zephyr_graph(4)
+        self.Z_coord = dnx.zephyr_graph(4, coordinates=True)
+        self.Z_blank = dnx.pegasus_graph(4, data=False)
 
         # Compute some layouts
         self.S_layout = mml.Layout(self.S)
@@ -52,6 +55,9 @@ class TestLayoutPlacement(unittest.TestCase):
         self.P_coord_layout = mml.Layout(self.P_coord)
         self.P_nice_layout = mml.Layout(self.P_nice)
         self.P_blank_layout = mml.Layout(self.P_blank)
+        self.Z_layout = mml.Layout(self.Z)
+        self.Z_coord_layout = mml.Layout(self.Z_coord)
+        self.Z_blank_layout = mml.Layout(self.Z_blank)
 
     def assertArrayEqual(self, a, b):
         """

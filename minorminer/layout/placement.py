@@ -16,6 +16,7 @@ import random
 from collections import Counter, abc, defaultdict
 
 import networkx as nx
+import dwave_networkx as dnx
 import numpy as np
 from scipy import spatial
 
@@ -70,10 +71,10 @@ def intersection(S_layout, T_layout, **kwargs):
     # Extract the target graph
     T = T_layout.G
 
-    # Currently only implemented for 2d chimera
-    if T.graph.get("family") not in ("chimera", "pegasus"):
+    if T.graph.get("family") not in ("chimera", "pegasus", "zephyr"):
         raise NotImplementedError(
-            "This strategy is currently only implemented for Chimera.")
+            "This strategy is currently only implemented for Chimera, Pegasus"
+            " and Zephyr graphs constructed by dwave_networkx`.")
 
     # Bin vertices of S and T into a grid graph G
     G = _intersection_binning(S_layout, T)
@@ -104,6 +105,10 @@ def _intersection_binning(S_layout, T):
     """
     # Scale the layout so that for each unit-cell edge, we have an integer point.
     m, n, t = T.graph["rows"], T.graph["columns"], T.graph["tile"]
+    if T.graph['family'] == 'zephyr':
+        m = 2*m+1
+        n = 2*n+1
+        t = 2*t
 
     # --- Make the "intersection graph" of the dnx_graph
     # Grid points correspond to intersection rows and columns of the dnx_graph
@@ -147,54 +152,70 @@ def _lookup_intersection_coordinates(G):
     """For a dwave_networkx graph G, this returns a dictionary mapping the 
     lattice points to sets of vertices of G. 
     
-    - Chimera: Each lattice point corresponds to the 2 qubits intersecting at 
-      that point.
-    - Pegasus: Not Implemented
-
+    For Chimera, Pegasus and Zephyr, each lattice point corresponds to the 2
+    qubits intersecting at that point.
     """
     graph_data = G.graph
     family = graph_data.get("family")
-
+    data_key = None
+    intersection_points = defaultdict(set)
     if family == "chimera":
-        t = graph_data.get("tile")
-        intersection_points = defaultdict(set)
+        shore = graph_data.get("tile")
+        collect_intersection_points = _chimera_all_intersection_points
         if graph_data["labels"] == "coordinate":
-            for v in G:
-                _chimera_all_intersection_points(intersection_points, v, t, *v)
-
+            def get_coords(v):
+                return v
         elif graph_data["data"]:
-            for v, d in G.nodes(data=True):
-                _chimera_all_intersection_points(
-                    intersection_points, v, t, *d["chimera_index"])
-
+            data_key = "chimera_index"
         else:
-            raise NotImplementedError("Please pass in a Chimera graph created"
-                " with an optional parameter 'data=True' or 'coordinates=True'")
-
-        return intersection_points
-
+            coords = dnx.chimera_coordinates(
+                graph_data['rows'],
+                n=graph_data['columns'],
+                t=shore
+            )
+            get_coords = coords.linear_to_chimera
     elif family == "pegasus":
-        offsets = [graph_data['vertical_offsets'],
-                   graph_data['horizontal_offsets']]
-
-        intersection_points = defaultdict(set)
+        shore = [graph_data['vertical_offsets'],
+                 graph_data['horizontal_offsets']]
+        collect_intersection_points = _pegasus_all_intersection_points
         if graph_data["labels"] == "coordinate":
-            for v in G:
-                _pegasus_all_intersection_points(intersection_points, offsets,
-                                                 v, *v)
+            def get_coords(v):
+                return v
         elif graph_data["data"]:
-            for v, d in G.nodes(data=True):
-                _pegasus_all_intersection_points(intersection_points, offsets,
-                                                 v, *d["pegasus_index"])
+            data_key = "pegasus_index"
         else:
-            raise NotImplementedError("Please pass in a Pegasus graph created"
-                " with an optional parameter 'data=True' or 'coordinates=True'")
+            coords = dnx.pegasus_coordinates(graph_data['rows'])
+            if graph_data['labels'] == 'int':
+                get_coords = coords.linear_to_pegasus
+            elif graph_data['labels'] == 'nice':
+                get_coords = coords.nice_to_pegasus
+    elif family == "zephyr":
+        shore = graph_data.get("tile")
+        collect_intersection_points = _zephyr_all_intersection_points
+        if graph_data["labels"] == "coordinate":
+            def get_coords(v):
+                return v
+        elif graph_data["data"]:
+            data_key = "zephyr_index"
+        else:
+            coords = dnx.zephyr_coordinates(
+                graph_data['rows'],
+                t=shore
+            )
+            get_coords = coords.linear_to_zephyr
 
-        return intersection_points
+    if data_key is None:
+        for v in G:
+            collect_intersection_points(
+                intersection_points, shore, v, *get_coords(v))
+    else:
+        for v, d in G.nodes(data=True):
+            collect_intersection_points(
+                intersection_points, shore, v, *d[data_key])
 
+    return intersection_points
 
-
-def _chimera_all_intersection_points(intersection_points, v, t, i, j, u, k):
+def _chimera_all_intersection_points(intersection_points, t, v, i, j, u, k):
     """Given a coordinate vertex, v = (i, j, u, k), of a Chimera with tile, t, 
     get all intersection points it is in.
     """
@@ -230,6 +251,21 @@ def _pegasus_all_intersection_points(intersection_points, offsets, v, u, w, k, z
         for kk in range(12):
             intersection_points[(col, row_0 + kk)].add(v)
 
+def _zephyr_all_intersection_points(intersection_points, t, v, u, w, k, j, z):
+    """Given a coordinate vertex, v = (u, w, k, j, z), of a Zephyr graph with tile
+    `t`, get all intersection points it is in.
+    """
+    if u == 0:
+        row = 2*(t*w + k) + j
+        col_0 = (4*z + 2*j)*t
+        for kk in range(4*t):
+            intersection_points[(col_0 + kk, row)].add(v)
+
+    elif u == 1:
+        col = 2*(t*w + k) + j
+        row_0 = (4*z + 2*j)*t
+        for kk in range(4*t):
+            intersection_points[(col, row_0 + kk)].add(v)
 
 def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
     """Maps vertices of S to the closest vertices of T as given by ``S_layout`` 

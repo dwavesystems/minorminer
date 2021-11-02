@@ -91,6 +91,8 @@ class TestLayout(TestLayoutPlacement):
         mml.dnx_layout(self.C)
         # Pegasus
         mml.dnx_layout(self.P)
+        # Zephyr
+        mml.dnx_layout(self.Z)
 
         # Passing in dim
         mml.dnx_layout(self.C, dim=dim)

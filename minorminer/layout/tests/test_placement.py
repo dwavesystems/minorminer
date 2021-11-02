@@ -35,26 +35,24 @@ class TestPlacement(TestLayoutPlacement):
         self.assertIsPlacement(self.S, self.C, placement)
 
         # Test different scale ratios
-        S_layout = mml.Layout(self.S)
         placement_1 = mml.intersection(
             S_layout, self.C_layout, scale_ratio=.5)
-        S_layout = mml.Layout(self.S)
         placement_2 = mml.intersection(
             S_layout, self.C_layout, scale_ratio=1)
-        S_layout = mml.Layout(self.S)
         placement_3 = mml.intersection(
             S_layout, self.C_layout, scale_ratio=1.5)
         self.assertIsPlacement(self.S, self.C, placement_1)
         self.assertIsPlacement(self.S, self.C, placement_2)
         self.assertIsPlacement(self.S, self.C, placement_3)
 
-        # Test a coordinate version of chimera
-        S_layout = mml.Layout(self.S)
+        # Test a coordinate variations of chimera
         placement = mml.intersection(S_layout, self.C_coord_layout)
         self.assertIsPlacement(self.S, self.C_coord, placement)
 
+        placement = mml.intersection(S_layout, self.C_blank_layout)
+        self.assertIsPlacement(self.S, self.C_blank, placement)
+
         # Test coordinate variations of pegasus
-        S_layout = mml.Layout(self.S)
         placement = mml.intersection(S_layout, self.P_coord_layout)
         self.assertIsPlacement(self.S, self.P_coord, placement)
 
@@ -67,15 +65,18 @@ class TestPlacement(TestLayoutPlacement):
         placement = mml.intersection(S_layout, self.P_nice_layout)
         self.assertIsPlacement(self.S, self.P_nice, placement)
 
+        placement = mml.intersection(S_layout, self.P_blank_layout)
+        self.assertIsPlacement(self.S, self.P_blank, placement)
 
-        # Chimera must have data or coordinates
-        self.assertRaises(NotImplementedError, mml.intersection,
-                          self.S_layout, self.C_blank_layout)
+        # Test coordinate variations of zephyr
+        placement = mml.intersection(S_layout, self.Z_coord_layout)
+        self.assertIsPlacement(self.S, self.Z_coord, placement)
 
-        # Pegasus must have data or coordinates
-        self.assertRaises(NotImplementedError, mml.intersection,
-                          self.S_layout, self.P_blank_layout)
+        placement = mml.intersection(S_layout, self.Z_layout)
+        self.assertIsPlacement(self.S, self.Z, placement)
 
+        placement = mml.intersection(S_layout, self.Z_blank_layout)
+        self.assertIsPlacement(self.S, self.Z_blank, placement)
 
     def test_closest(self):
         """
