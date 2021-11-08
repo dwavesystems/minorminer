@@ -438,6 +438,9 @@ class busgraph_cache:
                     emb = dict(zip(N + M, emb1[:n] + emb0))
                 return self._graph.relabel(emb)
         return {}
+        
+    def draw_fragment_embedding(self, emb, **kwargs):
+        self._graph.draw_fragment_embedding(emb, **kwargs)
 
 cdef dict _make_clique_cache(vector[embedding_t] &embs):
     """
@@ -545,7 +548,6 @@ cdef _serialize(topo_cache_t *topo, str family):
     cdef object ret, shortcode
     cdef size_t i, j, d, _
 
-    #print(f"{<long int><void *>tmp0:x}")
     if tmp == NULL:
         raise MemoryError("could not allocate memory for topology serialization")
 
@@ -560,7 +562,6 @@ cdef _serialize(topo_cache_t *topo, str family):
         shortcode_state += tmp[j] << (j&3)
 
     PyMem_Free(tmp0)
-    #print(''.join('{:02x}'.format(x) for x in ret))
     shortcode = "{}_{:16x}".format(family, shortcode_state)
     return ret, shortcode
 
@@ -569,6 +570,7 @@ cdef class _zephyr_busgraph:
     cdef nodes_t nodes
     cdef embedding_t emb_1
     cdef readonly object relabel
+    cdef readonly object delabel
     cdef readonly object identifier
     cdef readonly object short_identifier
     def __cinit__(self, g, seed = 0, compute_identifier = False):
@@ -597,10 +599,12 @@ cdef class _zephyr_busgraph:
             self.nodes = g.nodes()
             edges = g.edges()
             self.relabel = _trivial_relabeler
+            self.delabel = _trivial_relabeler
         elif g.graph['labels'] == 'coordinate':
             self.nodes = coordinates.iter_zephyr_to_linear(g.nodes())
             edges = coordinates.iter_zephyr_to_linear_pairs(g.edges())
             self.relabel = _make_relabeler(coordinates.iter_linear_to_zephyr)
+            self.delabel = _make_relabeler(coordinates.iter_zephyr_to_linear)
         else:
             raise ValueError("unrecognized graph labeling")
 
@@ -654,11 +658,36 @@ cdef class _zephyr_busgraph:
             return {}
         return self.relabel(dict(zip(nodes, emb)))
 
+    def draw_fragment_embedding(self, emb, **kwargs):
+        """Draw the an embedding on the host graph, as it's represented in the 
+        clique/biclique embedding algorithms.  In the case of Chimera, the
+        internal representation is identical to the host graph.  In the case of
+        Zephyr and Pegasus, each qubit is broken into 2 or 6 'fragments'
+        respectively, making a Chimera-structured graph with :math:`K_{2t, 2t}`
+        or :math:`K_{2, 2}` unit tiles.
+        
+        Args:
+            emb (dict): the embedding to draw
+            **kwargs: keyword parameters to be passed to :func:`~dwave_networkx.draw_chimera_embedding`
+            
+        """
+    
+        m = self.topo.topo.dim[0]
+        n = self.topo.topo.dim[1]
+        t = self.topo.topo.shore
+        f = dnx.chimera_graph(m, n=n, t=t, edge_list = self.topo.fragment_edges())
+        f_emb = {
+            k : self.topo.topo.fragment_nodes(c)
+            for k, c in self.delabel(emb).items()
+        }
+        dnx.draw_chimera_embedding(f, f_emb, **kwargs)
+
 cdef class _pegasus_busgraph:
     cdef topo_cache[pegasus_spec] *topo
     cdef nodes_t nodes
     cdef embedding_t emb_1
     cdef readonly object relabel
+    cdef readonly object delabel
     cdef readonly object identifier
     cdef readonly object short_identifier
     def __cinit__(self, g, seed = 0, compute_identifier = False):
@@ -684,14 +713,17 @@ cdef class _pegasus_busgraph:
             self.nodes = g.nodes()
             edges = g.edges()
             self.relabel = _trivial_relabeler
+            self.delabel = _trivial_relabeler
         elif g.graph['labels'] == 'coordinate':
             self.nodes = coordinates.iter_pegasus_to_linear(g.nodes())
             edges = coordinates.iter_pegasus_to_linear_pairs(g.edges())
             self.relabel = _make_relabeler(coordinates.iter_linear_to_pegasus)
+            self.delabel = _make_relabeler(coordinates.iter_pegasus_to_linear)
         elif g.graph['labels'] == 'nice':
             self.nodes = coordinates.iter_nice_to_linear(g.nodes())
             edges = coordinates.iter_nice_to_linear_pairs(g.edges())
             self.relabel = _make_relabeler(coordinates.iter_linear_to_nice)
+            self.delabel = _make_relabeler(coordinates.iter_nice_to_linear)
         else:
             raise ValueError("unrecognized graph labeling")
 
@@ -745,6 +777,18 @@ cdef class _pegasus_busgraph:
             return {}
         return self.relabel(dict(zip(nodes, emb)))
 
+    def draw_fragment_embedding(self, emb, **kwargs):
+        m = self.topo.topo.dim[0]
+        n = self.topo.topo.dim[1]
+        t = self.topo.topo.shore
+        f = dnx.chimera_graph(m, n, t, edge_list = self.topo.fragment_edges());
+        f_emb = {
+            k : self.topo.topo.fragment_nodes(c)
+            for k, c in self.delabel(emb).items()
+        }
+        dnx.draw_chimera_embedding(f, f_emb, **kwargs)
+
+
 cdef class _chimera_busgraph:
     """Class for managing a single Chimera graph, and dispatches various 
     structure-aware C++ embedding functions on it.
@@ -760,6 +804,7 @@ cdef class _chimera_busgraph:
     cdef embedding_t emb_1
     cdef nodes_t nodes
     cdef readonly object relabel
+    cdef readonly object delabel
     cdef readonly object identifier
     cdef readonly object short_identifier
     def __cinit__(self, g, seed = 0, compute_identifier = False):
@@ -783,10 +828,12 @@ cdef class _chimera_busgraph:
             self.nodes = g.nodes()
             edges = g.edges()
             self.relabel = _trivial_relabeler
+            self.delabel = _trivial_relabeler
         elif g.graph['labels'] == 'coordinate':
             self.nodes = coordinates.iter_chimera_to_linear(g.nodes())
             edges = coordinates.iter_chimera_to_linear_pairs(g.edges())
             self.relabel = _make_relabeler(coordinates.iter_linear_to_chimera)
+            self.delabel = _make_relabeler(coordinates.iter_chimera_to_linear)
         else:
             raise ValueError("unrecognized graph labeling")
 
@@ -840,6 +887,17 @@ cdef class _chimera_busgraph:
         elif not find_clique(self.topo[0], num, emb):
             return {}
         return self.relabel(dict(zip(nodes, emb)))
+
+    def draw_fragment_embedding(self, emb, **kwargs):
+        m = self.topo.topo.dim[0]
+        n = self.topo.topo.dim[1]
+        t = self.topo.topo.shore
+        f = dnx.chimera_graph(m, n, t, edge_list = self.topo.fragment_edges());
+        f_emb = {
+            k : self.topo.topo.fragment_nodes(c)
+            for k, c in self.delabel(emb).items()
+        }
+        dnx.draw_chimera_embedding(f, f_emb, **kwargs)
 
 class copy_on_close_context:
     def __init__(self):
