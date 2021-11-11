@@ -43,6 +43,9 @@ if '--debug' in sys.argv or '-g' in sys.argv or 'CPPDEBUG' in os.environ:
     extra_compile_args['unix'] = ['-std=c++1y', '-Wall',
                                   '-O0', '-g', '-fipa-pure-const', '-DCPPDEBUG']
 
+if 'SAFE_COORDS' in os.environ:
+    extra_compile_args['msvc'].append('/DSAFE_COORDS')
+    extra_compile_args['unix'].append('-DSAFE_COORDS')
 
 class build_ext_compiler_check(build_ext):
     def build_extensions(self):

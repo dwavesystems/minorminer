@@ -24,7 +24,7 @@ class maxcache {
   private:
     size_t *mem;
     size_t index(size_y y, size_x x) const {
-        return coordinate_converter::index(y, x, rows, cols);
+        return coordinate_converter::grid_index(y, x, rows, cols);
     }
   public:
     maxcache(size_t r, size_t c, size_t *m) : rows(r), cols(c), mem(m) {};
@@ -67,13 +67,13 @@ class clique_cache {
     size_t *mem;
 
     size_t memrows(size_t i) const {
-        if (i < width) return cells.topo.dim_y.index()-i;
+        if (i < width) return coordinate_index(cells.topo.dim_y)-i;
         else if (i == width) return 1;
         else throw "memrows";
     }
     size_t memcols(size_t i) const {
-        if (i + 1 < width) return cells.topo.dim_x.index()-width+i+2;
-        else if (i + 1 == width) return cells.topo.dim_x.index();
+        if (i + 1 < width) return coordinate_index(cells.topo.dim_x)-width+i+2;
+        else if (i + 1 == width) return coordinate_index(cells.topo.dim_x);
         else throw "memcols";
     }
 
@@ -113,11 +113,6 @@ class clique_cache {
             mem = nullptr;
         }
     }
-    
-    maxcache get(size_y h) const {
-        minorminer_assert(h > size_y(1));
-        return get((h - 2).index());
-    }
 
     maxcache get(size_t i) const {
         minorminer_assert(i < width);
@@ -150,20 +145,20 @@ class clique_cache {
         for(size_t i = 1; i < width-1; i++) {
             size_y h = i+1;
             size_x w = width-i;
-            maxcache prev = get(h);
+            maxcache prev = get(coordinate_index(h-2u));
             extend_cache(prev, h, w, check, corner::NE, corner::NW, corner::SW, corner::SE);
         }
         {
             size_y h = width;
             size_x w = 1;
-            maxcache prev = get(h);
+            maxcache prev = get(coordinate_index(h-2u));
             extend_cache(prev, h, w, check, corner::NE, corner::SE);
         }
     }
 
     template<typename T, typename C, typename ... Corners>
     inline void extend_cache(const T &prev, size_y h, size_x w, C &check, Corners ... corners) {
-        maxcache next = get(h+1);
+        maxcache next = get(coordinate_index(h-1u));
         for(size_y y = 0; y <= cells.topo.dim_y-h; y++)
             for(size_x x = 0; x <= cells.topo.dim_x-w; x++)
                 extend_cache(prev, next, y, y+h-1u, x, x+w-1u, check, corners...);
@@ -185,10 +180,10 @@ class clique_cache {
         size_x next_x, prev_x, xc; next_x = prev_x = xc = x0;
         corner skip_c;
         switch(c) {
-            case corner::NW: next_x = x0+1; prev_y = y0+1; skip_c = corner::NWskip; break;
-            case corner::SW: next_x = x0+1; yc = y1;       skip_c = corner::SWskip; break;
-            case corner::NE: xc = x1;       prev_y = y0+1; skip_c = corner::NEskip; break;
-            case corner::SE: xc = x1;       yc = y1;       skip_c = corner::SEskip; break;
+            case corner::NW: next_x = x0+1u; prev_y = y0+1u; skip_c = corner::NWskip; break;
+            case corner::SW: next_x = x0+1u; yc = y1;        skip_c = corner::SWskip; break;
+            case corner::NE: xc = x1;        prev_y = y0+1u; skip_c = corner::NEskip; break;
+            case corner::SE: xc = x1;        yc = y1;        skip_c = corner::SEskip; break;
             default: throw std::exception();
         }
         size_t score = prev.score(prev_y, prev_x);
@@ -412,7 +407,7 @@ class clique_yield_cache {
 
     void compute_cache_width_gt_1(const cell_cache<pegasus_spec> &cells,
                                   const bundle_cache<pegasus_spec> &bundles) {
-        size_t maxw = min(cells.topo.dim_y.index(), cells.topo.dim_x.index());
+        size_t maxw = coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x);
 
         for(size_t w = 2; w <= maxw; w++) {
             size_t min_length, max_length;
@@ -435,7 +430,7 @@ class clique_yield_cache {
     
     void compute_cache_width_gt_1(const cell_cache<chimera_spec> &cells,
                                   const bundle_cache<chimera_spec> &bundles) {
-        size_t maxw = min(cells.topo.dim_y.index(), cells.topo.dim_x.index());
+        size_t maxw = coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x);
 
         for(size_t w = 2; w <= maxw; w++) {
             clique_cache<topo_spec> cliques(cells, bundles, w);
@@ -447,7 +442,7 @@ class clique_yield_cache {
     
     void compute_cache_width_gt_1(const cell_cache<zephyr_spec> &cells,
                                   const bundle_cache<zephyr_spec> &bundles) {
-        size_t maxw = min(cells.topo.dim_y.index(), cells.topo.dim_x.index());
+        size_t maxw = coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x);
 
         for(size_t w = 2; w <= maxw; w++) {
             clique_cache<topo_spec> cliques(cells, bundles, w);
@@ -483,20 +478,22 @@ class clique_yield_cache {
     void get_length_range(const bundle_cache<pegasus_spec> &bundles, size_t width, size_t &min_length, size_t &max_length) {
         max_length = 0;
         min_length = ~max_length;
-        for(size_t w = 1, h = width; w <= width; w++, h--) {
+        for(size_t i = 0; i < width; i++) {
+            size_y h = width-i;
+            size_x w = i+1;
             for(size_y y = 6; y < size_y(12); y++) {
                 for(size_x x = 6; x < size_x(12); x++) {
                     size_t length;
-                    length = bundles.length(y, x, y, y+h-1, x, x+w-1);
+                    length = bundles.length(y, x, y, y+h-1u, x, x+w-1u);
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
-                    length = bundles.length(y+h-1, x, y, y+h-1, x, x+w-1);
+                    length = bundles.length(y+h-1u, x, y, y+h-1u, x, x+w-1u);
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
-                    length = bundles.length(y+h-1, x+w-1, y, y+h-1, x, x+w-1);
+                    length = bundles.length(y+h-1u, x+w-1u, y, y+h-1u, x, x+w-1u);
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
-                    length = bundles.length(y, x+w-1, y, y+h-1, x, x+w-1);
+                    length = bundles.length(y, x+w-1u, y, y+h-1u, x, x+w-1u);
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
                 }
