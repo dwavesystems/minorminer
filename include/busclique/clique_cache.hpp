@@ -19,37 +19,34 @@ namespace busclique {
 
 class maxcache {
   public:
-    const size_t rows;
-    const size_t cols;
+    const size_y rows;
+    const size_x cols;
   private:
     size_t *mem;
+    size_t index(size_y y, size_x x) const {
+        return coordinate_converter::index(y, x, rows, cols);
+    }
   public:
     maxcache(size_t r, size_t c, size_t *m) : rows(r), cols(c), mem(m) {};
-    void setmax(size_t y, size_t x, size_t s, corner c) { 
-        minorminer_assert(y < rows);
-        minorminer_assert(x < cols);
+    void setmax(size_y y, size_x x, size_t s, corner c) { 
         size_t old_s = score(y, x);
         if(s == old_s) {
-            mem[y*cols+x] |= c;
+            mem[index(y, x)] |= c;
         } else if(s > old_s) {
-            mem[y*cols+x] = (s << corner::shift) | c;
+            mem[index(y, x)] = (s << corner::shift) | c;
         }
     }
-    size_t score(size_t y, size_t x) const {
-        minorminer_assert(y < rows);
-        minorminer_assert(x < cols);
-        return mem[y*cols + x] >> corner::shift;
+    size_t score(size_y y, size_x x) const {
+        return mem[index(y, x)] >> corner::shift;
     }
-    corner corners(size_t y, size_t x) const {
-        minorminer_assert(y < rows);
-        minorminer_assert(x < cols);
-        return static_cast<corner>(mem[y*cols + x] & corner::mask);
+    corner corners(size_y y, size_x x) const {
+        return static_cast<corner>(mem[index(y, x)] & corner::mask);
     }
 };
 
 class zerocache {
   public:
-    inline constexpr size_t score(size_t, size_t) const { return 0; }
+    inline constexpr size_t score(size_y, size_x) const { return 0; }
 };
 
 
@@ -70,13 +67,13 @@ class clique_cache {
     size_t *mem;
 
     size_t memrows(size_t i) const {
-        if (i < width) return cells.topo.dim[0]-i;
+        if (i < width) return cells.topo.dim_y.index()-i;
         else if (i == width) return 1;
         else throw "memrows";
     }
     size_t memcols(size_t i) const {
-        if (i + 1 < width) return cells.topo.dim[1]-width+i+2;
-        else if (i + 1 == width) return cells.topo.dim[1];
+        if (i + 1 < width) return cells.topo.dim_x.index()-width+i+2;
+        else if (i + 1 == width) return cells.topo.dim_x.index();
         else throw "memcols";
     }
 
@@ -90,7 +87,7 @@ class clique_cache {
             size += memsize(i) + 1;
         return size;
     }
-    static constexpr bool nocheck(size_t,size_t,size_t,size_t,size_t,size_t) {return true;}
+    static constexpr bool nocheck(size_y,size_x,size_y,size_y,size_x,size_x) {return true;}
 
   public:
     clique_cache(const cell_cache<topo_spec> &c, const bundle_cache<topo_spec> &b, size_t w) :
@@ -102,8 +99,8 @@ class clique_cache {
             bundles(b),
             width(w),
             mem(new size_t[memsize()]{}) {
-        minorminer_assert(width <= cells.topo.dim[0]);
-        minorminer_assert(width <= cells.topo.dim[1]);
+        minorminer_assert(size_y(width) <= cells.topo.dim_y);
+        minorminer_assert(size_x(width) <= cells.topo.dim_x);
         mem[0] = width;
         for(size_t i = 1; i < width; i++)
             mem[i] = mem[i-1] + memsize(i-1);
@@ -116,6 +113,11 @@ class clique_cache {
             mem = nullptr;
         }
     }
+    
+    maxcache get(size_y h) const {
+        minorminer_assert(h > size_y(1));
+        return get((h - 2).index());
+    }
 
     maxcache get(size_t i) const {
         minorminer_assert(i < width);
@@ -126,8 +128,8 @@ class clique_cache {
         for(size_t i = 0; i < width-1; i++) {
             maxcache m = get(i);
             std::cout << mem[i] << ':' << memsize(i) << "?"<< std::endl;
-            for(size_t y = 0; y < m.rows; y++) {
-                for(size_t x = 0; x < m.cols; x++) {
+            for(size_y y = 0; y < m.rows; y++) {
+                for(size_x x = 0; x < m.cols; x++) {
                     std::cout << m.score(y, x) << '~' << (m.corners(y, x)) << " ";
                 }
                 std::cout << std::endl;
@@ -140,36 +142,36 @@ class clique_cache {
     template<typename C>
     void compute_cache(C &check) {
         {
-            size_t h = 1;
-            size_t w = width;
+            size_y h = 1;
+            size_x w = width;
             auto zero = zerocache();
             extend_cache(zero, h, w, check, corner::SW, corner::SE);
         }
         for(size_t i = 1; i < width-1; i++) {
-            size_t h = i+1;
-            size_t w = width-i;
-            maxcache prev = get(h-2);
+            size_y h = i+1;
+            size_x w = width-i;
+            maxcache prev = get(h);
             extend_cache(prev, h, w, check, corner::NE, corner::NW, corner::SW, corner::SE);
         }
         {
-            size_t h = width;
-            size_t w = 1;
-            maxcache prev = get(h-2);
+            size_y h = width;
+            size_x w = 1;
+            maxcache prev = get(h);
             extend_cache(prev, h, w, check, corner::NE, corner::SE);
         }
     }
 
     template<typename T, typename C, typename ... Corners>
-    inline void extend_cache(const T &prev, size_t h, size_t w, C &check, Corners ... corners) {
-        maxcache next = get(h-1);
-        for(size_t y = 0; y <= cells.topo.dim[0]-h; y++)
-            for(size_t x = 0; x <= cells.topo.dim[1]-w; x++)
-                extend_cache(prev, next, y, y+h-1, x, x+w-1, check, corners...);
+    inline void extend_cache(const T &prev, size_y h, size_x w, C &check, Corners ... corners) {
+        maxcache next = get(h+1);
+        for(size_y y = 0; y <= cells.topo.dim_y-h; y++)
+            for(size_x x = 0; x <= cells.topo.dim_x-w; x++)
+                extend_cache(prev, next, y, y+h-1u, x, x+w-1u, check, corners...);
     }
 
     template<typename T, typename C, typename ... Corners>
     inline void extend_cache(const T &prev, maxcache &next,
-                       size_t y0, size_t y1, size_t x0, size_t x1,
+                       size_y y0, size_y y1, size_x x0, size_x x1,
                        C &check, corner c, Corners ... corners) {
         extend_cache(prev, next, y0, y1, x0, x1, check, c);
         extend_cache(prev, next, y0, y1, x0, x1, check, corners...);
@@ -177,10 +179,10 @@ class clique_cache {
 
     template<typename T, typename C>
     inline void extend_cache(const T &prev, maxcache &next,
-                       size_t y0, size_t y1, size_t x0, size_t x1,
+                       size_y y0, size_y y1, size_x x0, size_x x1,
                        C &check, corner c) {
-        size_t next_y, prev_y, yc; next_y = prev_y = yc = y0;
-        size_t next_x, prev_x, xc; next_x = prev_x = xc = x0;
+        size_y next_y, prev_y, yc; next_y = prev_y = yc = y0;
+        size_x next_x, prev_x, xc; next_x = prev_x = xc = x0;
         corner skip_c;
         switch(c) {
             case corner::NW: next_x = x0+1; prev_y = y0+1; skip_c = corner::NWskip; break;
@@ -198,7 +200,7 @@ class clique_cache {
     }
 
     corner inflate_first_ell(vector<vector<size_t>> &emb,
-                             size_t &y, size_t &x, size_t h, size_t w, corner c) const {
+                             size_y &y, size_x &x, size_y h, size_x w, corner c) const {
         corner c0 = static_cast<corner>(1<< first_bit[c]);
         switch(c0) {
             case corner::NW: x--; bundles.inflate(y,  x,  y,y+h,x,x+w, emb); y++; break;
@@ -216,10 +218,13 @@ class clique_cache {
 
   public:
     bool extract_solution(vector<vector<size_t>> &emb) const {
-        size_t bx, by, bscore=0;
+        minorminer_assert(emb.size() == 0);
+        size_y by;
+        size_x bx;
+        size_t bscore=0;
         maxcache scores = get(width-1);
-        for(size_t y = 0; y < scores.rows; y++) {
-            for(size_t x = 0; x < scores.cols; x++) {
+        for(size_y y = 0; y < scores.rows; y++) {
+            for(size_x x = 0; x < scores.cols; x++) {
                 size_t s = scores.score(y, x);
                 if (bscore < s) { 
                     bx = x; by = y; bscore = s;
@@ -242,8 +247,8 @@ class clique_iterator {
     const cell_cache<topo_spec> &cells;
     const clique_cache<topo_spec> &cliq;
     size_t width;
-    vector<std::tuple<size_t, size_t, corner>> basepoints;
-    vector<std::tuple<size_t, size_t, size_t, corner>> stack;
+    vector<std::tuple<size_y, size_x, corner>> basepoints;
+    vector<std::tuple<size_t, size_y, size_x, corner>> stack;
     vector<vector<size_t>> emb;
     
   public:
@@ -257,8 +262,8 @@ class clique_iterator {
         //location, and a corner c to denote the orientation of the ell.  
         size_t score = 0;
         maxcache scores = cliq.get(width-1);
-        for(size_t y = 0; y < scores.rows; y++)
-            for(size_t x = 0; x < scores.cols; x++) {
+        for(size_y y = 0; y < scores.rows; y++)
+            for(size_x x = 0; x < scores.cols; x++) {
                 size_t s = scores.score(y, x);
                 if(s < score) continue;
                 else if (s > score) basepoints.clear();
@@ -271,7 +276,9 @@ class clique_iterator {
     bool advance() {
         //first, peel back the zeros (exhausted solutions) until we hit a
         //nonzero corner
-        size_t n, by, bx;
+        size_t n;
+        size_y by;
+        size_x bx;
         corner bc;
         while(stack.size()) {
             std::tie(n, by, bx, bc) = stack.back();                
@@ -296,7 +303,9 @@ class clique_iterator {
         //function -- we do one step at a time and return true if there's still
         //more work to do; false otherwise.
 
-        size_t n, by, bx, i;
+        size_t n, i;
+        size_y by;
+        size_x bx;
         corner lc, bc;
         if(stack.size() == 0) {
             //in this case, we've used up the last basepoint that was examined
@@ -361,7 +370,7 @@ class clique_yield_cache {
                        best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
 
     clique_yield_cache(const cell_cache<chimera_spec> &cells) :
-                       length_bound(2+std::min(cells.topo.dim[0], cells.topo.dim[1])),
+                       length_bound(2+coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x)),
                        clique_yield(length_bound, 0), 
                        best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
 
@@ -386,8 +395,8 @@ class clique_yield_cache {
 
     void compute_cache_width_1(const cell_cache<topo_spec> &cells,
                                const bundle_cache<topo_spec> &bundles) {
-        for(size_t y = 0; y < cells.topo.dim[0]; y++)
-            for(size_t x = 0; x < cells.topo.dim[1]; x++) {
+        for(size_y y = 0; y < cells.topo.dim_y; y++)
+            for(size_x x = 0; x < cells.topo.dim_x; x++) {
                 size_t score = bundles.score(y,x,y,y,x,x);
                 if(score > clique_yield[2]) {
                     vector<vector<size_t>> emb;
@@ -403,15 +412,15 @@ class clique_yield_cache {
 
     void compute_cache_width_gt_1(const cell_cache<pegasus_spec> &cells,
                                   const bundle_cache<pegasus_spec> &bundles) {
-        size_t maxw = min(cells.topo.dim[0], cells.topo.dim[1]);
+        size_t maxw = min(cells.topo.dim_y.index(), cells.topo.dim_x.index());
 
         for(size_t w = 2; w <= maxw; w++) {
             size_t min_length, max_length;
             get_length_range(bundles, w, min_length, max_length);
             for(size_t len = min_length; len < max_length; len++) {
-                auto check_length = [&bundles, len](size_t yc, size_t xc,
-                                                    size_t y0, size_t y1,
-                                                    size_t x0, size_t x1){
+                auto check_length = [&bundles, len](size_y yc, size_x xc,
+                                                    size_y y0, size_y y1,
+                                                    size_x x0, size_x x1){
                     return bundles.length(yc,xc,y0,y1,x0,x1) <= len; 
                 };
                 clique_cache<pegasus_spec> cliques(cells, bundles, w, check_length);
@@ -426,7 +435,7 @@ class clique_yield_cache {
     
     void compute_cache_width_gt_1(const cell_cache<chimera_spec> &cells,
                                   const bundle_cache<chimera_spec> &bundles) {
-        size_t maxw = min(cells.topo.dim[0], cells.topo.dim[1]);
+        size_t maxw = min(cells.topo.dim_y.index(), cells.topo.dim_x.index());
 
         for(size_t w = 2; w <= maxw; w++) {
             clique_cache<topo_spec> cliques(cells, bundles, w);
@@ -438,7 +447,7 @@ class clique_yield_cache {
     
     void compute_cache_width_gt_1(const cell_cache<zephyr_spec> &cells,
                                   const bundle_cache<zephyr_spec> &bundles) {
-        size_t maxw = min(cells.topo.dim[0], cells.topo.dim[1]);
+        size_t maxw = min(cells.topo.dim_y.index(), cells.topo.dim_x.index());
 
         for(size_t w = 2; w <= maxw; w++) {
             clique_cache<topo_spec> cliques(cells, bundles, w);
@@ -475,8 +484,8 @@ class clique_yield_cache {
         max_length = 0;
         min_length = ~max_length;
         for(size_t w = 1, h = width; w <= width; w++, h--) {
-            for(size_t y = 6; y < 12; y++) {
-                for(size_t x = 6; x < 12; x++) {
+            for(size_y y = 6; y < size_y(12); y++) {
+                for(size_x x = 6; x < size_x(12); x++) {
                     size_t length;
                     length = bundles.length(y, x, y, y+h-1, x, x+w-1);
                     max_length = max(max_length, length);

@@ -21,19 +21,22 @@ ctypedef vector[pair[size_t,size_t]] edges_t
 
 cdef extern from "../include/busclique/util.hpp" namespace "busclique":
     cdef cppclass pegasus_spec:
-        size_t dim[2]
+        size_y dim_y
+        size_x dim_x
         size_t shore
         pegasus_spec(size_t, vector[uint8_t], vector[uint8_t], uint32_t)
         nodes_t fragment_nodes(nodes_t)
 
     cdef cppclass chimera_spec:
-        size_t dim[2]
+        size_y dim_y
+        size_x dim_x
         size_t shore
         chimera_spec(size_t, size_t, uint8_t, uint32_t)
         nodes_t fragment_nodes(nodes_t)
 
     cdef cppclass zephyr_spec:
-        size_t dim[2]
+        size_y dim_y
+        size_x dim_x
         size_t shore
         zephyr_spec(size_t, uint8_t, uint32_t)
         nodes_t fragment_nodes(nodes_t)
@@ -77,4 +80,11 @@ cdef extern from "../include/busclique/find_clique.hpp" namespace "busclique":
 
 cdef extern from "../include/busclique/find_biclique.hpp" namespace "busclique":
     void best_bicliques[T](topo_cache[T], vector[pair[pair[size_t, size_t], embedding_t]] &)
+
+cdef extern from "../include/busclique/coordinate_types.hpp":
+    cppclass size_y:
+        size_t index()
+    
+    cppclass size_x:
+        size_t index()
 

@@ -48,14 +48,14 @@ bool find_clique_nice(const cell_cache<chimera_spec> &cells,
     bundle_cache<chimera_spec> bundles(cells);
     size_t shore = cells.topo.shore;
     if(size <= shore)
-        for(size_t y = 0; y < cells.topo.dim[0]; y++)
-            for(size_t x = 0; x < cells.topo.dim[1]; x++)
+        for(size_y y = 0; y < cells.topo.dim_y; y++)
+            for(size_x x = 0; x < cells.topo.dim_x; x++)
                 if (bundles.score(y,x,y,y,x,x) >= size) {
                     bundles.inflate(y,x,y,y,x,x,emb);
                     return true;
                 }
     size_t minw = (size + shore - 1)/shore;
-    size_t maxw = min(cells.topo.dim[0], cells.topo.dim[1]);
+    size_t maxw = coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x);
     if (max_length > 0) maxw = min(max_length - 1, maxw);
     for(size_t width = minw; width <= maxw; width++) {
         clique_cache<chimera_spec> rects(cells, bundles, width);
@@ -92,14 +92,14 @@ bool find_clique_nice(const cell_cache<zephyr_spec> &cells,
     bundle_cache<zephyr_spec> bundles(cells);
     size_t shore = cells.topo.shore;
     if(size <= shore)
-        for(size_t y = 0; y < cells.topo.dim[0]; y++)
-            for(size_t x = 0; x < cells.topo.dim[1]; x++)
+        for(size_y y = 0; y < cells.topo.dim_y; y++)
+            for(size_x x = 0; x < cells.topo.dim_x; x++)
                 if (bundles.score(y,x,y,y,x,x) >= size) {
                     bundles.inflate(y,x,y,y,x,x,emb);
                     return true;
                 }
     size_t minw = (size + shore - 1)/shore;
-    size_t maxw = min(cells.topo.dim[0], cells.topo.dim[1]);
+    size_t maxw = coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x);
     if (max_length > 0) maxw = min(max_length - 1, maxw);
     for(size_t width = minw; width <= maxw; width++) {
         clique_cache<zephyr_spec> rects(cells, bundles, width);
@@ -121,7 +121,8 @@ bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
                       size_t &max_length) {
     bundle_cache<pegasus_spec> bundles(cells);
     size_t minw = (size + 1)/2;
-    size_t maxw = cells.topo.dim[0];
+    size_t maxw = cells.topo.dim_y.index();
+    minorminer_assert(maxw == cells.topo.dim_x.index());
     if(max_length == 0) {
         //naive first-pass: search for the first embedding with any max chainlength
         for(; minw <= maxw; minw++) {
@@ -138,13 +139,13 @@ bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
         }
         if(minw > maxw) return false;
     } else {
-        maxw = min(cells.topo.dim[0], (max_length)*6);
+        maxw = coordinate_converter::min(cells.topo.dim_y, (max_length)*6);
     }
     //we've already found an embedding; now try to find one with shorter chains
     for(size_t w = minw; w <= maxw; w++) {
-        auto check_length = [&bundles, max_length](size_t yc, size_t xc,
-                                                   size_t y0, size_t y1,
-                                                   size_t x0, size_t x1){
+        auto check_length = [&bundles, max_length](size_y yc, size_x xc,
+                                                   size_y y0, size_y y1,
+                                                   size_x x0, size_x x1){
             return bundles.length(yc,xc,y0,y1,x0,x1) < max_length; 
         };
         clique_cache<pegasus_spec> rects(cells, bundles, w, check_length);
