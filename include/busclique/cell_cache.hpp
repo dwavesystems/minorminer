@@ -49,10 +49,10 @@ class cell_cache {
                borrow(true), topo(p), nodemask(nm), edgemask(em) {}
 
   public:
-    uint8_t qmask(size_t u, size_t w, size_t z) const {
+    uint8_t qmask(bool u, size_w w, size_z z) const {
         return nodemask[topo.cell_addr(u, w, z)];
     }
-    uint8_t emask(size_t u, size_t w, size_t z) const {
+    uint8_t emask(bool u, size_w w, size_z z) const {
         return edgemask[topo.cell_addr(u, w, z)];
     }
 

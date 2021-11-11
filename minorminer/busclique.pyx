@@ -440,7 +440,14 @@ class busgraph_cache:
         return {}
         
     def draw_fragment_embedding(self, emb, **kwargs):
-        self._graph.draw_fragment_embedding(emb, **kwargs)
+        m, n, t, nodes, edges = self._graph.fragment_graph_spec()
+
+        f = dnx.chimera_graph(m, n=n, t=t, node_list=nodes, edge_list=edges)
+        f_emb = {
+            k : self._graph.fragment_nodes(c)
+            for k, c in self._graph.delabel(emb).items()
+        }
+        dnx.draw_chimera_embedding(f, f_emb, **kwargs)
 
 cdef dict _make_clique_cache(vector[embedding_t] &embs):
     """
@@ -658,29 +665,19 @@ cdef class _zephyr_busgraph:
             return {}
         return self.relabel(dict(zip(nodes, emb)))
 
-    def draw_fragment_embedding(self, emb, **kwargs):
-        """Draw the an embedding on the host graph, as it's represented in the 
-        clique/biclique embedding algorithms.  In the case of Chimera, the
-        internal representation is identical to the host graph.  In the case of
-        Zephyr and Pegasus, each qubit is broken into 2 or 6 'fragments'
-        respectively, making a Chimera-structured graph with :math:`K_{2t, 2t}`
-        or :math:`K_{2, 2}` unit tiles.
-        
-        Args:
-            emb (dict): the embedding to draw
-            **kwargs: keyword parameters to be passed to :func:`~dwave_networkx.draw_chimera_embedding`
-            
-        """
-    
-        m = self.topo.topo.dim[0]
-        n = self.topo.topo.dim[1]
+    def fragment_graph_spec(self):
+        m = self.topo.topo.dim_y.index()
+        n = self.topo.topo.dim_x.index()
         t = self.topo.topo.shore
-        f = dnx.chimera_graph(m, n=n, t=t, edge_list = self.topo.fragment_edges())
-        f_emb = {
-            k : self.topo.topo.fragment_nodes(c)
-            for k, c in self.delabel(emb).items()
-        }
-        dnx.draw_chimera_embedding(f, f_emb, **kwargs)
+        nodes = self.topo.fragment_nodes()
+        edges = self.topo.fragment_edges()
+        return m, n, t, nodes, edges
+        
+    def fragment_nodes(self, nodes = None):
+        if nodes is None:        
+            return self.topo.fragment_nodes()
+        else:
+            return self.topo.topo.fragment_nodes(nodes)
 
 cdef class _pegasus_busgraph:
     cdef topo_cache[pegasus_spec] *topo
@@ -777,17 +774,19 @@ cdef class _pegasus_busgraph:
             return {}
         return self.relabel(dict(zip(nodes, emb)))
 
-    def draw_fragment_embedding(self, emb, **kwargs):
-        m = self.topo.topo.dim[0]
-        n = self.topo.topo.dim[1]
+    def fragment_graph_spec(self):
+        m = self.topo.topo.dim_y.index()
+        n = self.topo.topo.dim_x.index()
         t = self.topo.topo.shore
-        f = dnx.chimera_graph(m, n, t, edge_list = self.topo.fragment_edges());
-        f_emb = {
-            k : self.topo.topo.fragment_nodes(c)
-            for k, c in self.delabel(emb).items()
-        }
-        dnx.draw_chimera_embedding(f, f_emb, **kwargs)
+        nodes = self.topo.fragment_nodes()
+        edges = self.topo.fragment_edges()
+        return m, n, t, nodes, edges
 
+    def fragment_nodes(self, nodes = None):
+        if nodes is None:        
+            return self.topo.fragment_nodes()
+        else:
+            return self.topo.topo.fragment_nodes(nodes)
 
 cdef class _chimera_busgraph:
     """Class for managing a single Chimera graph, and dispatches various 
@@ -888,16 +887,19 @@ cdef class _chimera_busgraph:
             return {}
         return self.relabel(dict(zip(nodes, emb)))
 
-    def draw_fragment_embedding(self, emb, **kwargs):
-        m = self.topo.topo.dim[0]
-        n = self.topo.topo.dim[1]
+    def fragment_graph_spec(self):
+        m = self.topo.topo.dim_y.index()
+        n = self.topo.topo.dim_x.index()
         t = self.topo.topo.shore
-        f = dnx.chimera_graph(m, n, t, edge_list = self.topo.fragment_edges());
-        f_emb = {
-            k : self.topo.topo.fragment_nodes(c)
-            for k, c in self.delabel(emb).items()
-        }
-        dnx.draw_chimera_embedding(f, f_emb, **kwargs)
+        nodes = self.topo.fragment_nodes()
+        edges = self.topo.fragment_edges()
+        return m, n, t, nodes, edges
+
+    def fragment_nodes(self, nodes = None):
+        if nodes is None:        
+            return self.topo.fragment_nodes()
+        else:
+            return self.topo.topo.fragment_nodes(nodes)
 
 class copy_on_close_context:
     def __init__(self):

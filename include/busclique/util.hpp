@@ -25,6 +25,7 @@
 #include<map>
 #include "../debug.hpp"
 #include "../fastrng.hpp"
+#include "coordinate_types.hpp"
 
 namespace busclique {
 using std::numeric_limits;
@@ -150,57 +151,44 @@ class ignore_badmask {};
 class populate_badmask {};
 class topo_spec_base {
   public:
-    const size_t dim[2];
+    const size_y dim_y;
+    const size_x dim_x;
     const size_t shore;
     const uint64_t seed;
     
-    topo_spec_base(size_t d0, size_t d1, size_t s, uint64_t e) :
-        dim{d0, d1}, shore(s), seed(e) {}
+    topo_spec_base(size_t dim_y, size_t dim_x, size_t s, uint64_t e) :
+        dim_y(dim_y), dim_x(dim_x), shore(s), seed(e) {}
 
-    topo_spec_base(size_t d0, size_t d1, size_t s, uint32_t e) :
-        topo_spec_base(d0, d1, s, fastrng::amplify_seed(e)) {}
+    topo_spec_base(size_t dim_y, size_t dim_x, size_t s, uint32_t e) :
+        topo_spec_base(dim_y, dim_x, s, fastrng::amplify_seed(e)) {}
 
     template<typename serialize_tag, typename ...Args>
     size_t serialize(serialize_tag, uint8_t *output, const Args &...args) const {
-        return _serialize(serialize_tag{}, output, dim, shore, seed, args...);
+        return _serialize(serialize_tag{}, output, dim_y, dim_x, shore, seed, args...);
     }
 
-    inline size_t cell_addr(size_t u, size_t y, size_t x) const {
-        return x + dim[1]*(y + dim[0]*u);
+    inline size_t cell_addr(size_y y, size_x x, bool u) const {
+        return coordinate_converter::cell_addr(y, x, u, dim_y, dim_x);
+    }
+
+    inline size_t cell_addr(bool u, size_w w, size_z z) const {
+        if (u) return cell_addr(w.horz(), z.horz(), u);
+        else   return cell_addr(z.vert(), w.vert(), u);
     }
 
     inline size_t num_cells() const {
-        return dim[0]*dim[1]*2;
+        return coordinate_converter::product(dim_y, dim_x, 2);
     }
 
-    inline void linemajor(size_t q, size_t &u, size_t &w, size_t &z, size_t &k) const {
-        k = q % shore;
-        linemajor(q, u, w, z);
-    }
-    inline void linemajor(size_t q, size_t &u, size_t &w, size_t &z) const {
-        size_t p[2];
-                   q /= shore;
-        u = q % 2; q /= 2;
-        p[0] = q % dim[1];
-        p[1] = q / dim[1];
-        w = p[u];
-        z = p[1-u];
+    template<typename shore_t>
+    inline size_t chimera_linear(size_y y, size_x x, bool u, shore_t k) const {
+        return coordinate_converter::chimera_linear(y, x, u, k, dim_y, dim_x, shore_t(shore));
     }
 
-    inline size_t chimera_linear(size_t y, size_t x, size_t u, size_t k) const {
-        minorminer_assert(u < 2);
-        minorminer_assert(k < shore);
-        minorminer_assert(y < dim[0]);
-        minorminer_assert(x < dim[1]);
-        return k + shore*(u + 2*(x + dim[1]*y));
-    }
-
-    inline void chimera_coordinates(size_t q,
-                                    size_t &y, size_t &x, size_t &u, size_t &k) const {
-        k = q % shore;  q /= shore;
-        u = q % 2;      q /= 2;
-        x = q % dim[1]; y  = q/dim[1];
-        minorminer_assert(chimera_linear(y, x, u, k) == q);
+    template<typename shore_t>
+    inline void linear_chimera(size_t q, 
+                               size_y &y, size_x &x, bool &u, shore_t &k) const {
+        coordinate_converter::linear_chimera(q, y, x, u, k, dim_y, dim_x, shore_t(shore));
     }
 };
 
@@ -231,24 +219,26 @@ class pegasus_spec_base : public topo_spec_base {
 
             //ensure some normalization: p < q
             if(q < p) std::swap(p, q);
-            size_t qu, qw, qk, qz;
-            size_t pu, pw, pk, pz;
+            bool    pu, qu;
+            size_w  pw, qw;
+            uint8_t pk, qk;
+            size_z  pz, qz;
             pegasus_coordinates(q, qu, qw, qk, qz);
             pegasus_coordinates(p, pu, pw, pk, pz);
             if(pu == qu) {
-                if(pw == qw && pk == qk && qz == pz + 1) {
+                if(pw == qw && pk == qk && qz == pz + 1u) {
                     //p < q; we place the edgemask on the larger qubit z
                     //and don't futz with the "pz == qz + 1" case
-                    size_t z = (qz*12 + 2*offsets[qu][qk/2])/2;
-                    size_t w = (qw*12 + qk)/2;
+                    size_z z = qz*6u + size_z(offsets[qu][qk/2]);
+                    size_w w = qw*6u + size_w(qk/2);
                     edgemask[super::cell_addr(pu, w, z)] |= mask_bit[qk&1];
                 } else if (pw == qw && pk == (qk^1) && qz == pz) {
                 } else { std::cout << "urp" << std::endl; throw 10; }
             } else {
                 if(std::is_same<badmask_behavior, populate_badmask>::value) {
                     //p < q, so pu = 0 and qu = 1
-                    size_t y = (qw*12 + qk) / 2;
-                    size_t x = (pw*12 + pk) / 2;
+                    size_y y = qw.horz()*6u + size_y(qk/2);
+                    size_x x = pw.vert()*6u + size_x(pk/2);
                     badmask[super::chimera_linear(y, x, 0, pk&1)] &= ~mask_bit[qk&1];
                     badmask[super::chimera_linear(y, x, 1, qk&1)] &= ~mask_bit[pk&1];
                 }
@@ -256,11 +246,13 @@ class pegasus_spec_base : public topo_spec_base {
         }
     }
 
-    inline void first_fragment(size_t q, size_t &u, size_t &w, size_t &k, size_t &z) const {
-        size_t qw, qk, qz;
+    inline void first_fragment(size_t q, bool &u, size_w &w, uint8_t &k, size_z &z) const {
+        size_w qw;
+        uint8_t qk;
+        size_z qz;
         pegasus_coordinates(q, u, qw, qk, qz);
-        z = (qz*12 + 2*offsets[u][qk/2])/2;
-        w = (qw*12 + qk)/2;
+        z = qz*6u + size_z(offsets[u][qk/2]);
+        w = qw*6u + size_w(qk/2);
         k = qk&1;
     }
 
@@ -268,20 +260,23 @@ class pegasus_spec_base : public topo_spec_base {
     inline void process_nodes(uint8_t *nodemask, uint8_t *edgemask, uint8_t *badmask,
                              const vector<size_t> &nodes, badmask_behavior) const {
         for(auto &q: nodes) {
-            size_t u, w, k, z;
+            bool    u;
+            size_w  w;
+            uint8_t k;
+            size_z  z;
             first_fragment(q, u, w, k, z);
             nodemask[super::cell_addr(u, w, z)] |= mask_bit[k];
             if(std::is_same<badmask_behavior, populate_badmask>::value) {
-                if(u) { badmask[super::chimera_linear(w, z, 1, k)] = ~0; }
-                else  { badmask[super::chimera_linear(z, w, 0, k)] = ~0; }
+                if(u) { badmask[super::chimera_linear(w.horz(), z.horz(), 1, k)] = ~0; }
+                else  { badmask[super::chimera_linear(z.vert(), w.vert(), 0, k)] = ~0; }
             }
-            for(size_t i = 1; z++, i < 6; i++) {
-                size_t curr = super::cell_addr(u, w, z);
-                nodemask[curr] |= mask_bit[k];
-                edgemask[curr] |= mask_bit[k];
+            for(size_t i = 1; i < 6; i++) {
+                z++;
+                nodemask[super::cell_addr(u, w, z)] |= mask_bit[k];
+                edgemask[super::cell_addr(u, w, z)] |= mask_bit[k];
                 if(std::is_same<badmask_behavior, populate_badmask>::value) {
-                    if(u) { badmask[super::chimera_linear(w, z, 1, k)] = ~0; }
-                    else  { badmask[super::chimera_linear(z, w, 0, k)] = ~0; }
+                    if(u) { badmask[super::chimera_linear(w.horz(), z.horz(), 1, k)] = ~0; }
+                    else  { badmask[super::chimera_linear(z.vert(), w.vert(), 0, k)] = ~0; }
                 }
             }
         }
@@ -291,9 +286,12 @@ class pegasus_spec_base : public topo_spec_base {
     bool has_qubits(const cell_cache &cells, const vector<vector<size_t>> &emb) const {
         for(auto &chain: emb)
             for(auto &q: chain) {
-                size_t u, w, k, z0;
+                bool u;
+                size_w w;
+                uint8_t k;
+                size_z z0;
                 first_fragment(q, u, w, k, z0);
-                for(size_t z = z0; z < z0+6; z++)
+                for(size_z z = z0; z < z0+6u; z++)
                     if((cells.qmask(u, w, z) & mask_bit[k]) == 0)
                         return false;
             }
@@ -301,57 +299,67 @@ class pegasus_spec_base : public topo_spec_base {
     }
 
   public:
-    inline size_t pegasus_linear(size_t u, size_t w, size_t k, size_t z) const {
-        return z + (pdim-1)*(k + 12*(w + pdim*u));
+    inline size_t pegasus_linear(bool u, size_w w, uint8_t k, size_z z) const {
+        return coordinate_converter::linemajor_linear(u, w, k, z, pdim, uint8_t(12), pdim-1);
+
     }
 
     vector<size_t> fragment_nodes(size_t q) const {
-        size_t u, w, k, z0;
+        bool u;
+        size_w w;
+        uint8_t k;
+        size_z z0;
         first_fragment(q, u, w, k, z0);
         vector<size_t> fragments;
-        for(size_t z = z0+6; z-->z0;) {
+        for(size_z z = z0+6u; z-->z0;) {
             fragments.push_back(
-                u?super::chimera_linear(w, z, u, k):
-                  super::chimera_linear(z, w, u, k)
+                u?super::chimera_linear(w.horz(), z.horz(), u, k):
+                  super::chimera_linear(z.vert(), w.vert(), u, k)
             );
         }        
         return fragments;
     }
 
     inline void pegasus_coordinates(size_t q,
-                                    size_t &u, size_t &w, size_t &k, size_t &z) const {
-        z = q % (pdim-1); q /= pdim-1;
-        k = q % 12;       q /= 12;
-        w = q % pdim;     u = q/pdim;
+                                    bool &u, size_w &w, uint8_t &k, size_z &z) const {
+        coordinate_converter::linear_linemajor(q, u, w, k, z, pdim, uint8_t(12), pdim-1);
     }
 
-    void construct_line(size_t u, size_t w, size_t z0, size_t z1, size_t k,
+    void construct_line(bool u, size_w w, size_z z0, size_z z1, uint8_t k,
                         vector<size_t> &chain) const {
-        size_t qk = (2*w + k)%12;
-        size_t qw = (2*w + k)/12;
-        size_t qz0 = (z0*2 - 2*offsets[u][qk/2])/12;
-        size_t qz1 = (z1*2 - 2*offsets[u][qk/2])/12;
-        for(size_t qz = qz0; qz <= qz1; qz++)
+        uint8_t qk = (2*w.index() + k)%12;
+        size_w qw = (2*w.index() + k)/12;
+        size_z qz0 = (z0.index() - offsets[u][qk/2])/6;
+        size_z qz1 = (z1.index() - offsets[u][qk/2])/6;
+        for(size_z qz = qz0; qz <= qz1; qz++)
             chain.push_back(pegasus_linear(u, qw, qk, qz));
     }
 
-    inline size_t line_length(size_t u, size_t w, size_t z0, size_t z1) const {
-        size_t offset = offsets[u][w%6];
-        size_t qz0 = (z0 + 6 - offset)/6;
-        size_t qz1 = (z1 + 12 - offset)/6;
-        return qz1 - qz0;
+    inline size_t line_length(bool u, size_w w, size_z z0, size_z z1) const {
+        size_z offset = offsets[u][w.index()%6];
+        size_z qz0 = (z0 + size_z(6) - offset)/6u;
+        size_z qz1 = (z1 + size_z(12) - offset)/6u;
+        return (qz1 - qz0).index();
     }
 
-    inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
+    inline size_t line_length(size_x x, size_y y0, size_y y1) const {
+        return line_length(0, x.vert(), y0.vert(), y0.vert());
+    }
+    
+    inline size_t line_length(size_y y, size_x x0, size_x x1) const {
+        return line_length(1, y.horz(), x0.horz(), x1.horz());
+    }
+
+    inline size_t biclique_length(size_y y0, size_y y1, size_x x0, size_x x1) const {
         minorminer_assert(y1 >= y0);
         minorminer_assert(x1 >= x0);
         size_t length = 0;
-        size_t ym = std::min(y1, y0+5);
-        size_t xm = std::min(x1, x0+5);
-        for(size_t x = x0; x <= xm; x++)
-            length = max(line_length(0, x, y0, y1), length);
-        for(size_t y = y0; y <= ym; y++)
-            length = max(line_length(1, y, x0, x1), length);
+        size_y ym = std::min(y1, y0+size_y(5));
+        size_x xm = std::min(x1, x0+size_x(5));
+        for(size_x x = x0; x <= xm; x++)
+            length = max(line_length(0, x.vert(), y0.vert(), y1.vert()), length);
+        for(size_y y = y0; y <= ym; y++)
+            length = max(line_length(1, y.horz(), x0.horz(), x1.horz()), length);
         return length;
     }
 };
@@ -371,17 +379,18 @@ class chimera_spec_base : public topo_spec_base {
                               badmask_behavior) const {
         for(auto &e: edges) {
             size_t p = e.first, q = e.second;
-            size_t pu, pw, pz, pk;
-            size_t qu, qw, qz, qk;
-            super::linemajor(p, pu, pw, pz, pk);
-            super::linemajor(q, qu, qw, qz, qk);
-            if(pu == qu && pw == qw && pk == qk) {
-                if(pz == qz+1)
-                    edgemask[super::cell_addr(pu, pw, pz)] |= mask_bit[pk];
-                if(qz == pz+1)
-                    edgemask[super::cell_addr(qu, qw, qz)] |= mask_bit[qk];
+            if(q < p) std::swap(p, q);
+            size_y  py, qy;
+            size_x  px, qx;
+            bool    pu, qu;
+            uint8_t pk, qk;
+            super::linear_chimera(p, py, px, pu, pk);
+            super::linear_chimera(q, qy, qx, qu, qk);
+            if(pu == qu) {
+                if (pk == qk && py + size_y(1-pu) == qy && px + size_x(pu) == qx)
+                    edgemask[super::cell_addr(qy, qx, qu)] |= mask_bit[qk];
             } else if (std::is_same<badmask_behavior, populate_badmask>::value &&
-                       pu != qu && pw == qz && pz == qw) {
+                       pu != qu && py == qy && px == qx) {
                 badmask[p] &= ~mask_bit[qk];
                 badmask[q] &= ~mask_bit[pk];
             }
@@ -393,30 +402,44 @@ class chimera_spec_base : public topo_spec_base {
         for(auto &q: nodes) {
             //add the node q by updating nodemask on the k-th bit of q's line,
             //and initializing badmask[k] to all-ones
-            size_t u, w, z, k;
-            super::linemajor(q, u, w, z, k);
+            size_y  y;
+            size_x  x;
+            bool    u;
+            uint8_t k;
+            super::linear_chimera(q, y, x, u, k);
             if(std::is_same<badmask_behavior, populate_badmask>::value)
                 badmask[q] = ~0;
-            nodemask[super::cell_addr(u, w, z)] |= mask_bit[k];
+            nodemask[super::cell_addr(y, x, u)] |= mask_bit[k];
         }
     }
 
-  public:
-    void construct_line(size_t u, size_t w, size_t z0, size_t z1, size_t k,
+  public:    
+    void construct_line(size_x x, size_y y0, size_y y1, uint8_t k,
                         vector<size_t> &chain) const {
-        size_t p[2]; 
-        size_t &z = p[u];
-        p[1-u] = w;
-        for(z = z0; z <= z1; z++)
-            chain.push_back(super::chimera_linear(p[0], p[1], u, k));
+        for(size_y y = y0; y <= y1; y++)
+            chain.push_back(super::chimera_linear(y, x, 0, k));        
+    }
+    void construct_line(size_y y, size_x x0, size_x x1, uint8_t k,
+                        vector<size_t> &chain) const {
+        for(size_x x = x0; x <= x1; x++)
+            chain.push_back(super::chimera_linear(y, x, 1, k));        
+    }
+    void construct_line(bool u, size_w w, size_z z0, size_z z1, uint8_t k,
+                        vector<size_t> &chain) const {
+        if(u) {
+            construct_line(w.horz(), z0.horz(), z1.horz(), k, chain);
+        } else {
+            construct_line(w.vert(), z0.vert(), z1.vert(), k, chain);
+        }
     }
 
-    inline size_t line_length(size_t, size_t, size_t z0, size_t z1) const {
-        return z1 - z0 + 1;
+    template<typename U, typename T>
+    inline size_t line_length(bool, U, T t0, T t1) const {
+        return (t1 - t0).index() + 1;
     }
 
-    inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
-        return max(y1-y0, x1-x0) + 1;
+    inline size_t biclique_length(size_y y0, size_y y1, size_x x0, size_x x1) const {
+        return max((y1-y0).index(), (x1-x0).index()) + 1;
     }
 
     vector<size_t> fragment_nodes(size_t q) const {
@@ -447,11 +470,9 @@ class zephyr_spec_base : public topo_spec_base {
 
   private:
     inline void first_fragment(size_t q,
-                               size_t &u, size_t &w, size_t &k, size_t &z) const {
-        z = q % zdim;          q /= zdim;
-        k = q % super::shore;  q /= super::shore;
-        w = q % super::dim[0]; u = q/super::dim[0];
-        z+= z + (k&1);
+                               bool &u, size_w &w, uint8_t &k, size_z &z) const {
+        coordinate_converter::linear_linemajor(q, u, w, k, z, 2*zdim+1, uint8_t(super::shore), zdim);
+        z = z*2u + size_z(k&1);
     }
 
   protected:
@@ -464,23 +485,25 @@ class zephyr_spec_base : public topo_spec_base {
 
             //ensure some normalization: p < q
             if(q < p) std::swap(p, q);
-            size_t qu, qw, qk, qz;
-            size_t pu, pw, pk, pz;
+            bool    pu, qu;
+            size_w  pw, qw;
+            uint8_t pk, qk;
+            size_z  pz, qz;
             zephyr_coordinates(q, qu, qw, qk, qz);
             zephyr_coordinates(p, pu, pw, pk, pz);
             if(pu == qu) {
-                if(pw == qw && pk == qk && qz == pz + 1) {
+                if(pw == qw && pk == qk && qz == pz + size_z(1)) {
                     //p < q; we place the edgemask on the larger qubit z
                     //and don't futz with the "pz == qz + 1" case
-                    size_t fz = 2*qz + (qk&1);
+                    size_z fz = qz*2u + size_z(qk&1);
                     edgemask[super::cell_addr(qu, qw, fz)] |= mask_bit[qk];
-                } else if (pw == qw && pk == (qk^1) && (qz == pz || qz+1 == pz)) {
+                } else if (pw == qw && pk == (qk^1) && (qz == pz || qz+size_z(1) == pz)) {
                 } else { std::cout << "urp" << std::endl; throw 10; }
             } else {
                 if(std::is_same<badmask_behavior, populate_badmask>::value) {
                     //p < q, so pu = 0 and qu = 1
-                    size_t y = qw;
-                    size_t x = pw;
+                    size_x x = qw.vert();
+                    size_y y = pw.horz();
                     badmask[super::chimera_linear(y, x, 0, pk)] &= ~mask_bit[qk];
                     badmask[super::chimera_linear(y, x, 1, qk)] &= ~mask_bit[pk];
                 }
@@ -491,81 +514,85 @@ class zephyr_spec_base : public topo_spec_base {
     inline void process_nodes(uint8_t *nodemask, uint8_t *edgemask, uint8_t *badmask,
                              const vector<size_t> &nodes, badmask_behavior) const {
         for(auto &q: nodes) {
-            size_t u, w, k, z;
+            bool    u;
+            size_w  w;
+            uint8_t k;
+            size_z  z;
             first_fragment(q, u, w, k, z);
             nodemask[super::cell_addr(u, w, z)] |= mask_bit[k];
             if(std::is_same<badmask_behavior, populate_badmask>::value) {
-                if(u) { badmask[super::chimera_linear(w, z, 1, k)] = ~0; }
-                else  { badmask[super::chimera_linear(z, w, 0, k)] = ~0; }
+                if(u) { badmask[super::chimera_linear(w.horz(), z.horz(), 1, k)] = ~0; }
+                else  { badmask[super::chimera_linear(z.vert(), w.vert(), 0, k)] = ~0; }
             }
             //advance to the second fragment
             z++;
-            size_t curr = super::cell_addr(u, w, z);
-            nodemask[curr] |= mask_bit[k];
-            edgemask[curr] |= mask_bit[k];
+            nodemask[super::cell_addr(u, w, z)] |= mask_bit[k];
+            edgemask[super::cell_addr(u, w, z)] |= mask_bit[k];
             if(std::is_same<badmask_behavior, populate_badmask>::value) {
-                if(u) { badmask[super::chimera_linear(w, z, 1, k)] = ~0; }
-                else  { badmask[super::chimera_linear(z, w, 0, k)] = ~0; }
+                if(u) { badmask[super::chimera_linear(w.horz(), z.horz(), 1, k)] = ~0; }
+                else  { badmask[super::chimera_linear(z.vert(), w.vert(), 0, k)] = ~0; }
             }
         }
     }
 
   public:
     inline void zephyr_coordinates(size_t q,
-                                   size_t &u, size_t &w, size_t &k, size_t &z) const {
-        z = q % zdim;          q /= zdim;
-        k = q % super::shore;  q /= super::shore;
-        w = q % super::dim[0]; u = q/super::dim[0];
+                                   bool &u, size_w &w, uint8_t &k, size_z &z) const {
+        coordinate_converter::linear_linemajor(q, u, w, k, z, 2*zdim+1, uint8_t(super::shore), zdim);
     }
 
-    inline size_t zephyr_linear(size_t u, size_t w, size_t k, size_t z) const {
-        return z + zdim*(k + super::shore*(w + super::dim[0]*u));
+    inline size_t zephyr_linear(bool u, size_w w, uint8_t k, size_z z) const {
+        return coordinate_converter::linemajor_linear( u, w, k, z, 2*zdim+1, uint8_t(super::shore), zdim);
     }
 
-    void construct_line(size_t u, size_t w, size_t z0, size_t z1, size_t k,
+    void construct_line(bool u, size_w w, size_z z0, size_z z1, uint8_t k,
                         vector<size_t> &chain) const {
-        minorminer_assert(z0 >= (k&1u));
-        minorminer_assert(z1 >= (k&1u));
+        minorminer_assert(z0 >= size_z(k&1u));
+        minorminer_assert(z1 >= size_z(k&1u));
         minorminer_assert(z1 >= z0);
-        size_t qz0 = (z0-(k&1))/2;
-        size_t qz1 = (z1-(k&1))/2;
-        for(size_t qz = qz0; qz <= qz1; qz++)
+        size_z qz0 = (z0-size_z(k&1))/2u;
+        size_z qz1 = (z1-size_z(k&1))/2u;
+        for(size_z qz = qz0; qz <= qz1; qz++)
             chain.push_back(zephyr_linear(u, w, k, qz));
     }
 
-    inline size_t line_length(size_t, size_t, size_t z0, size_t z1, uint8_t k) const {
-        minorminer_assert(z0 >= (k&1u));
-        minorminer_assert(z1 >= (k&1u));
+    inline size_t line_length(bool u, size_w, size_z z0, size_z z1, uint8_t k) const {
+        minorminer_assert(z0 >= size_z(k&1u));
+        minorminer_assert(z1 >= size_z(k&1u));
         minorminer_assert(z1 >= z0);
-        minorminer_assert(z1 < super::dim[0]);
-        return (z1-(k&1))/2 - (z0-(k&1))/2 + 1;
+        minorminer_assert(u?(z1.horz()<super::dim_x):
+                            (z1.vert()<super::dim_y));
+        return ((z1-size_z(k&1))/2u - (z0-size_z(k&1))/2u).index() + 1;
     }
 
-    inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
+    inline size_t biclique_length(size_y y0, size_y y1, size_x x0, size_x x1) const {
         minorminer_assert(y1 >= y0);
         minorminer_assert(x1 >= x0);
         // we return a length of zero for the ranges (0, super::dim[0]-1)
         // because there are zero qubits that span the entire range.
         size_t length = 0;
-        if (y0 > 0)
-            length = max(length, line_length(0, 0, y0, y1, 1));
-        if (x0 > 0)
-            length = max(length, line_length(0, 0, x0, x1, 1));
-        if (y1 + 1 < super::dim[0])
-            length = max(length, line_length(0, 0, y0, y1, 0));
-        if (x1 + 1 < super::dim[0])
-            length = max(length, line_length(0, 0, x0, x1, 0));
+        if (y0 > size_y(0))
+            length = max(length, line_length(0, 0, y0.vert(), y1.vert(), 1));
+        if (x0 > size_x(0))
+            length = max(length, line_length(1, 0, x0.horz(), x1.horz(), 1));
+        if (y1 + 1u < super::dim_y)
+            length = max(length, line_length(0, 0, y0.vert(), y1.vert(), 0));
+        if (x1 + 1u < super::dim_x)
+            length = max(length, line_length(1, 0, x0.horz(), x1.horz(), 0));
         return length;
     }
 
     vector<size_t> fragment_nodes(size_t q) const {
-        size_t u, w, k, z0;
+        bool u;
+        size_w w;
+        uint8_t k;
+        size_z z0;
         first_fragment(q, u, w, k, z0);
         vector<size_t> fragments;
-        for(size_t z = z0+2; z-->z0;) {
+        for(size_z z = z0+size_z(2); z-->z0;) {
             fragments.push_back(
-                u?super::chimera_linear(w, z, u, k):
-                  super::chimera_linear(z, w, u, k)
+                u?super::chimera_linear(w.horz(), z.horz(), u, k):
+                  super::chimera_linear(z.vert(), w.vert(), u, k)
             );
         }        
         return fragments;
@@ -595,12 +622,17 @@ class topo_spec_cellmask : public topo_spec {
         super::process_nodes(nodemask, edgemask, badmask, nodes, populate_badmask{});
     }
     inline void finish_badmask(uint8_t *nodemask, uint8_t *badmask) const {
-        for(size_t y = 0, q = 0; y < super::dim[0]; y++)
-            for(size_t x = 0; x < super::dim[1]; x++) {
-                for(size_t k = 0; k < super::shore; k++, q++)
-                    badmask[q] &= nodemask[super::cell_addr(1, y, x)];
-                for(size_t k = 0; k < super::shore; k++, q++)
-                    badmask[q] &= nodemask[super::cell_addr(0, x, y)];
+        size_t q = 0;
+        for(size_y y = 0; y < super::dim_y; y++)
+            for(size_x x = 0; x < super::dim_x; x++) {
+                for(uint8_t k = 0; k < super::shore; k++) {
+                    minorminer_assert(q == super::chimera_linear(y, x, 0, k));
+                    badmask[q++] &= nodemask[super::cell_addr(y, x, 1)];
+                }
+                for(uint8_t k = 0; k < super::shore; k++) {
+                    minorminer_assert(q == super::chimera_linear(y, x, 1, k));
+                    badmask[q++] &= nodemask[super::cell_addr(y, x, 0)];
+                }
             }
     }
     inline vector<size_t> fragment_nodes(vector<size_t> &nodes) const {
