@@ -50,10 +50,10 @@ class cell_cache {
 
   public:
     uint8_t qmask(bool u, size_w w, size_z z) const {
-        return nodemask[topo.cell_addr(u, w, z)];
+        return nodemask[topo.cell_index(u, w, z)];
     }
     uint8_t emask(bool u, size_w w, size_z z) const {
-        return edgemask[topo.cell_addr(u, w, z)];
+        return edgemask[topo.cell_index(u, w, z)];
     }
 
 };

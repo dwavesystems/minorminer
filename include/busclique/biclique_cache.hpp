@@ -24,7 +24,7 @@ class yieldcache {
   private:
     size_t *mem;
     size_t index(size_y y, size_x x, bool u) const {
-        return coordinate_converter::index(y, x, u, rows, cols);
+        return coordinate_converter::cell_index(y, x, u, rows, cols);
     }
   public:
     yieldcache(size_y r, size_x c, size_t *m) : rows(r), cols(c), mem(m) {};
@@ -66,7 +66,7 @@ class biclique_cache {
     }
 
     size_t mem_addr(size_y h, size_x w) const {
-        return coordinate_converter::index(h-1, w-1, cells.topo.dim_y, cells.topo.dim_x);
+        return coordinate_converter::grid_index(h-1u, w-1u, cells.topo.dim_y, cells.topo.dim_x);
     }
         
 
@@ -96,18 +96,18 @@ class biclique_cache {
                 yieldcache next = get(h, w);
                 for(size_y y0 = 0; y0 <= cells.topo.dim_y-h; y0++)
                     for(size_x x0 = 0; x0 <= cells.topo.dim_x-w; x0++)
-                        next.set(y0, x0, 0, bundles.get_line_score(x0, y0, y0+h-1));
+                        next.set(y0, x0, 0, bundles.get_line_score(0, vert(x0), vert(y0), vert(y0+h-1u)));
             }
             for(size_x w = 2; w <= cells.topo.dim_x; w++) {
-                yieldcache prev = get(h, w-1);
+                yieldcache prev = get(h, w-1u);
                 yieldcache next = get(h, w);
                 for(size_y y0 = 0; y0 <= cells.topo.dim_y-h; y0++) {
                     size_t score = prev.get(y0, 0, 0);
-                    score += bundles.get_line_score(w-1, y0, y0+h-1);
+                    score += bundles.get_line_score(0, vert(w-1u), vert(y0), vert(y0+h-1u));
                     next.set(y0, 0, 0, score);
                     for(size_x x0 = 1; x0 <= cells.topo.dim_x-w; x0++) {
-                        score -= bundles.get_line_score(x0-1, y0, y0+h-1);
-                        score += bundles.get_line_score(x0+w-1, y0, y0+h-1);
+                        score -= bundles.get_line_score(0, vert(x0-1u), vert(y0), vert(y0+h-1u));
+                        score += bundles.get_line_score(0, vert(x0+w-1u), vert(y0), vert(y0+h-1u));
                         next.set(y0, x0, 0, score);
                     }
                 }
@@ -119,18 +119,18 @@ class biclique_cache {
                 yieldcache next = get(h, w);
                 for(size_y y0 = 0; y0 <= cells.topo.dim_y-h; y0++)
                     for(size_x x0 = 0; x0 <= cells.topo.dim_x-w; x0++)
-                        next.set(y0, x0, 1, bundles.get_line_score(y0, x0, x0+w-1));
+                        next.set(y0, x0, 1, bundles.get_line_score(1, horz(y0), horz(x0), horz(x0+w-1u)));
             }
             for(size_y h = 2; h <= cells.topo.dim_y; h++) {
-                yieldcache prev = get(h-1, w);
+                yieldcache prev = get(h-1u, w);
                 yieldcache next = get(h, w);
                 for(size_x x0 = 0; x0 <= cells.topo.dim_x-w; x0++) {
                     size_t score = prev.get(0, x0, 1);
-                    score += bundles.get_line_score(h-1, x0, x0+w-1);
+                    score += bundles.get_line_score(1, horz(h-1u), horz(x0), horz(x0+w-1u));
                     next.set(0, x0, 1, score);
                     for(size_y y0 = 1; y0 <= cells.topo.dim_y-h; y0++) {
-                        score -= bundles.get_line_score(y0-1, x0, x0+w-1);
-                        score += bundles.get_line_score(y0+h-1, x0, x0+w-1);
+                        score -= bundles.get_line_score(1, horz(y0-1u), horz(x0), horz(x0+w-1u));
+                        score += bundles.get_line_score(1, horz(y0+h-1u), horz(x0), horz(x0+w-1u));
                         next.set(y0, x0, 1, score);
                     }
                 }
@@ -189,8 +189,8 @@ class biclique_yield_cache {
         rows(cells.topo.dim_x*cells.topo.shore),
         cols(cells.topo.dim_y*cells.topo.shore),
 
-        chainlength(rows.index(), vector<size_t>(cols.index(), 0)),
-        biclique_bounds(rows.index(), vector<bound_t>(cols.index(), bound_t(0,0,0,0))) {
+        chainlength(coordinate_index(rows), vector<size_t>(coordinate_index(cols), 0)),
+        biclique_bounds(coordinate_index(rows), vector<bound_t>(coordinate_index(cols), bound_t(0,0,0,0))) {
         compute_cache(bicliques);
     }
   private:
@@ -205,11 +205,11 @@ class biclique_yield_cache {
                         if (s0 == 0 || s1 == 0) continue;
                         minorminer_assert(size_x(s0-1) < rows);
                         minorminer_assert(size_y(s1-1) < cols);
-                        size_t maxlen = cells.topo.biclique_length(y, y+h-1, x, x+w-1);
+                        size_t maxlen = cells.topo.biclique_length(y, y+h-1u, x, x+w-1u);
                         size_t prevlen = chainlength[s0-1][s1-1];
                         if(prevlen == 0 || prevlen > maxlen) {
                             chainlength[s0-1][s1-1] = maxlen;
-                            biclique_bounds[s0-1][s1-1] = bound_t(y, y+h-1, x, x+w-1);
+                            biclique_bounds[s0-1][s1-1] = bound_t(y, y+h-1u, x, x+w-1u);
                         }
                     }
                 }
@@ -261,7 +261,7 @@ class biclique_yield_cache {
         return iterator(0, 0, rows, cols, chainlength, biclique_bounds, bundles);
     }
     iterator end() const {
-        return iterator(rows.index(), 0, rows, cols, chainlength, biclique_bounds, bundles);
+        return iterator(coordinate_index(rows), 0, rows, cols, chainlength, biclique_bounds, bundles);
     }
 };
 

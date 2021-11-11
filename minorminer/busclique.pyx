@@ -666,8 +666,8 @@ cdef class _zephyr_busgraph:
         return self.relabel(dict(zip(nodes, emb)))
 
     def fragment_graph_spec(self):
-        m = self.topo.topo.dim_y.index()
-        n = self.topo.topo.dim_x.index()
+        m = coordinate_index(self.topo.topo.dim_y)
+        n = coordinate_index(self.topo.topo.dim_x)
         t = self.topo.topo.shore
         nodes = self.topo.fragment_nodes()
         edges = self.topo.fragment_edges()
@@ -775,8 +775,8 @@ cdef class _pegasus_busgraph:
         return self.relabel(dict(zip(nodes, emb)))
 
     def fragment_graph_spec(self):
-        m = self.topo.topo.dim_y.index()
-        n = self.topo.topo.dim_x.index()
+        m = coordinate_index(self.topo.topo.dim_y)
+        n = coordinate_index(self.topo.topo.dim_x)
         t = self.topo.topo.shore
         nodes = self.topo.fragment_nodes()
         edges = self.topo.fragment_edges()
@@ -888,8 +888,8 @@ cdef class _chimera_busgraph:
         return self.relabel(dict(zip(nodes, emb)))
 
     def fragment_graph_spec(self):
-        m = self.topo.topo.dim_y.index()
-        n = self.topo.topo.dim_x.index()
+        m = coordinate_index(self.topo.topo.dim_y)
+        n = coordinate_index(self.topo.topo.dim_x)
         t = self.topo.topo.shore
         nodes = self.topo.fragment_nodes()
         edges = self.topo.fragment_edges()

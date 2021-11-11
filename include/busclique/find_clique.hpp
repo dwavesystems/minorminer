@@ -121,8 +121,8 @@ bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
                       size_t &max_length) {
     bundle_cache<pegasus_spec> bundles(cells);
     size_t minw = (size + 1)/2;
-    size_t maxw = cells.topo.dim_y.index();
-    minorminer_assert(maxw == cells.topo.dim_x.index());
+    size_t maxw = coordinate_index(cells.topo.dim_y);
+    minorminer_assert(maxw == coordinate_index(cells.topo.dim_x));
     if(max_length == 0) {
         //naive first-pass: search for the first embedding with any max chainlength
         for(; minw <= maxw; minw++) {
