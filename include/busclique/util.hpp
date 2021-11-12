@@ -188,6 +188,10 @@ class topo_spec_base {
     }
 
     inline size_t chimera_linear(size_t y, size_t x, size_t u, size_t k) const {
+        minorminer_assert(u < 2);
+        minorminer_assert(k < shore);
+        minorminer_assert(y < dim[0]);
+        minorminer_assert(x < dim[1]);
         return k + shore*(u + 2*(x + dim[1]*y));
     }
 
@@ -196,6 +200,7 @@ class topo_spec_base {
         k = q % shore;  q /= shore;
         u = q % 2;      q /= 2;
         x = q % dim[1]; y  = q/dim[1];
+        minorminer_assert(chimera_linear(y, x, u, k) == q);
     }
 };
 
@@ -300,6 +305,19 @@ class pegasus_spec_base : public topo_spec_base {
         return z + (pdim-1)*(k + 12*(w + pdim*u));
     }
 
+    vector<size_t> fragment_nodes(size_t q) const {
+        size_t u, w, k, z0;
+        first_fragment(q, u, w, k, z0);
+        vector<size_t> fragments;
+        for(size_t z = z0+6; z-->z0;) {
+            fragments.push_back(
+                u?super::chimera_linear(w, z, u, k):
+                  super::chimera_linear(z, w, u, k)
+            );
+        }        
+        return fragments;
+    }
+
     inline void pegasus_coordinates(size_t q,
                                     size_t &u, size_t &w, size_t &k, size_t &z) const {
         z = q % (pdim-1); q /= pdim-1;
@@ -399,6 +417,10 @@ class chimera_spec_base : public topo_spec_base {
 
     inline size_t biclique_length(size_t y0, size_t y1, size_t x0, size_t x1) const {
         return max(y1-y0, x1-x0) + 1;
+    }
+
+    vector<size_t> fragment_nodes(size_t q) const {
+        return vector<size_t>(1, q);
     }
 
 };
@@ -536,6 +558,18 @@ class zephyr_spec_base : public topo_spec_base {
         return length;
     }
 
+    vector<size_t> fragment_nodes(size_t q) const {
+        size_t u, w, k, z0;
+        first_fragment(q, u, w, k, z0);
+        vector<size_t> fragments;
+        for(size_t z = z0+2; z-->z0;) {
+            fragments.push_back(
+                u?super::chimera_linear(w, z, u, k):
+                  super::chimera_linear(z, w, u, k)
+            );
+        }        
+        return fragments;
+    }
 };
 
 template<typename topo_spec>
@@ -568,6 +602,14 @@ class topo_spec_cellmask : public topo_spec {
                 for(size_t k = 0; k < super::shore; k++, q++)
                     badmask[q] &= nodemask[super::cell_addr(0, x, y)];
             }
+    }
+    inline vector<size_t> fragment_nodes(vector<size_t> &nodes) const {
+        vector<size_t> fragments;
+        for(auto &q: nodes) {
+            auto f = super::fragment_nodes(q);
+            fragments.insert(fragments.end(), f.begin(), f.end());
+        }
+        return fragments;
     }
 };
 

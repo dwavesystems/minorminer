@@ -78,6 +78,48 @@ class topo_cache {
         return topo.serialize(serialize_tag{}, output, nodemask, edgemask, badmask);
     }
 
+    vector<size_t> fragment_nodes() const {
+        vector<size_t> nodes;
+        size_t q = 0;
+        for (size_t y = 0; y < topo.dim[0]; y++) {
+            for (size_t x = 0; x < topo.dim[1]; x++) {
+                for (size_t k = 0; k < topo.shore; k++, q++) {
+                    if (nodemask[topo.cell_addr(0, x, y)]&mask_bit[k])
+                        nodes.push_back(q);
+                }
+                for (size_t k = 0; k < topo.shore; k++, q++) {
+                    if (nodemask[topo.cell_addr(1, y, x)]&mask_bit[k])
+                        nodes.push_back(q);
+                }
+            }
+        }
+        return nodes;
+    }
+    
+    vector<pair<size_t, size_t>> fragment_edges() const {
+        vector<pair<size_t, size_t>> edges;
+        size_t q = 0;
+        for (size_t y = 0; y < topo.dim[0]; y++) {
+            for (size_t x = 0; x < topo.dim[1]; x++) {
+                for (size_t k = 0; k < topo.shore; k++, q++) {
+                    if (edgemask[topo.cell_addr(0, x, y)]&mask_bit[k])
+                        edges.emplace_back(q, topo.chimera_linear(y-1, x, 0, k));
+                    if (nodemask[topo.cell_addr(0, x, y)]&mask_bit[k]) {
+                        for (size_t k1 = 0; k1 < topo.shore; k1++) {
+                            if (nodemask[topo.cell_addr(1, y, x)]&mask_bit[k1]&~badmask[q])
+                                edges.emplace_back(q, topo.chimera_linear(y, x, 1, k1));
+                        }
+                    }
+                }
+                for (size_t k = 0; k < topo.shore; k++, q++) {
+                    if (edgemask[topo.cell_addr(1, y, x)]&mask_bit[k])
+                        edges.emplace_back(q, topo.chimera_linear(y, x-1, 1, k));
+                }
+            }
+        }
+        return edges;
+    }
+
   private:
     //this is a funny hack used to construct cells in-place:
     // _initializer_tag is an empty (size zero) struct, so this is "zero-cost"

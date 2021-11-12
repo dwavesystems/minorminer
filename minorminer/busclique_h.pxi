@@ -21,13 +21,22 @@ ctypedef vector[pair[size_t,size_t]] edges_t
 
 cdef extern from "../include/busclique/util.hpp" namespace "busclique":
     cdef cppclass pegasus_spec:
+        size_t dim[2]
+        size_t shore
         pegasus_spec(size_t, vector[uint8_t], vector[uint8_t], uint32_t)
+        nodes_t fragment_nodes(nodes_t)
 
     cdef cppclass chimera_spec:
+        size_t dim[2]
+        size_t shore
         chimera_spec(size_t, size_t, uint8_t, uint32_t)
+        nodes_t fragment_nodes(nodes_t)
 
     cdef cppclass zephyr_spec:
+        size_t dim[2]
+        size_t shore
         zephyr_spec(size_t, uint8_t, uint32_t)
+        nodes_t fragment_nodes(nodes_t)
 
     cdef cppclass serialize_size_tag:
         serialize_size_tag()
@@ -55,8 +64,11 @@ cdef extern from "../include/busclique/clique_cache.hpp" namespace "busclique":
 
 cdef extern from "../include/busclique/topo_cache.hpp" namespace "busclique":
     cdef cppclass topo_cache[T]:
+        T topo
         topo_cache(T, nodes_t &, edges_t &)
         size_t serialize[t](t, uint8_t *) const
+        nodes_t fragment_nodes() const
+        edges_t fragment_edges() const
 
 cdef extern from "../include/busclique/find_clique.hpp" namespace "busclique":
     int find_clique[T](topo_cache[T] &, size_t, embedding_t &)
