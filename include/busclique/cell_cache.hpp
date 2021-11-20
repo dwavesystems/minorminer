@@ -56,6 +56,24 @@ class cell_cache {
         return edgemask[topo.cell_index(u, w, z)];
     }
 
+    uint8_t score(size_y y, size_x x) const {
+        return min(popcount[qmask(0, vert(x), vert(y))],
+                   popcount[qmask(1, horz(y), horz(x))]);
+    }
+
+    void inflate(size_y y, size_x x, vector<vector<size_t>> &emb) const {
+        uint8_t k0 = qmask(0, vert(x), vert(y));
+        uint8_t k1 = qmask(1, horz(y), horz(x));
+        while (k0 && k1) {
+            emb.emplace_back(0);
+            vector<size_t> &chain = emb.back();
+            topo.construct_line(0, vert(x), vert(y), vert(y), first_bit[k0], chain);
+            topo.construct_line(1, horz(y), horz(x), horz(x), first_bit[k1], chain);
+        }
+        k0 ^= mask_bit[first_bit[k0]];
+        k1 ^= mask_bit[first_bit[k1]];
+    }
+
 };
 
 }

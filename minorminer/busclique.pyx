@@ -529,7 +529,7 @@ cdef dict _make_biclique_cache(vector[pair[pair[size_t, size_t],
 
 def _trivial_relabeler(emb):
     """This doesn't relabel anything"""
-    return emb
+    return {v: tuple(chain) for v, chain in emb.items()}
 
 def _make_relabeler(f):
     """
@@ -537,7 +537,7 @@ def _make_relabeler(f):
     chain in the embedding.
     """
     def _relabeler(emb):
-        return {v: list(f(chain)) for v, chain in emb.items()}
+        return {v: tuple(f(chain)) for v, chain in emb.items()}
     return _relabeler
 
 ctypedef fused topo_cache_t:

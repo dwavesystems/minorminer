@@ -353,20 +353,22 @@ class clique_yield_cache {
     vector<size_t> clique_yield;
     vector<vector<vector<size_t>>> best_embeddings;
 
+    size_t compute_length_bound(const zephyr_spec &topo) {
+        return 4+topo.zdim;
+    }
+
+    size_t compute_length_bound(const pegasus_spec &topo) {
+        return 5 + topo.pdim;
+    }
+
+    size_t compute_length_bound(const chimera_spec &topo) {
+        return 2+coordinate_converter::min(topo.dim_y, topo.dim_x);
+    }
+
   public:
-    clique_yield_cache(const cell_cache<zephyr_spec> &cells) :
-                       length_bound(4+cells.topo.zdim),
-                       clique_yield(length_bound, 0), 
-                       best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
-
-    clique_yield_cache(const cell_cache<pegasus_spec> &cells) :
-                       length_bound(5 + cells.topo.pdim),
-                       clique_yield(length_bound, 0), 
-                       best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
-
-    clique_yield_cache(const cell_cache<chimera_spec> &cells) :
-                       length_bound(2+coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x)),
-                       clique_yield(length_bound, 0), 
+    clique_yield_cache(const cell_cache<topo_spec> &cells) :
+                       length_bound(compute_length_bound(cells.topo)),
+                       clique_yield(length_bound, 0),
                        best_embeddings(length_bound, empty_emb) { compute_cache(cells); }
 
   private:
@@ -411,7 +413,11 @@ class clique_yield_cache {
 
         for(size_t w = 2; w <= maxw; w++) {
             size_t min_length, max_length;
-            get_length_range(bundles, w, min_length, max_length);
+            get_length_range(cells.topo, w, min_length, max_length);
+            {
+                clique_cache<pegasus_spec> cliques(cells, bundles, w);
+                process_cliques(cliques);
+            }
             for(size_t len = min_length; len < max_length; len++) {
                 auto check_length = [&bundles, len](size_y yc, size_x xc,
                                                     size_y y0, size_y y1,
@@ -419,10 +425,6 @@ class clique_yield_cache {
                     return bundles.length(yc,xc,y0,y1,x0,x1) <= len; 
                 };
                 clique_cache<pegasus_spec> cliques(cells, bundles, w, check_length);
-                process_cliques(cliques);
-            }
-            {
-                clique_cache<pegasus_spec> cliques(cells, bundles, w);
                 process_cliques(cliques);
             }
         }
@@ -439,7 +441,6 @@ class clique_yield_cache {
 
     }
 
-    
     void compute_cache_width_gt_1(const cell_cache<zephyr_spec> &cells,
                                   const bundle_cache<zephyr_spec> &bundles) {
         size_t maxw = coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x);
@@ -451,11 +452,10 @@ class clique_yield_cache {
 
     }
 
-
     void compute_cache(const cell_cache<zephyr_spec> &cells) {
         bundle_cache<zephyr_spec> bundles(cells);
         compute_cache_width_1(cells, bundles);
-        compute_cache_width_gt_1(cells, bundles); 
+        compute_cache_width_gt_1(cells, bundles);
     }
 
     void compute_cache(const cell_cache<chimera_spec> &cells) {
@@ -473,9 +473,8 @@ class clique_yield_cache {
     const vector<vector<vector<size_t>>> &embeddings() {
         return best_embeddings;
     }
-
-  private:
-    void get_length_range(const bundle_cache<pegasus_spec> &bundles, size_t width, size_t &min_length, size_t &max_length) {
+  
+    static void get_length_range(const pegasus_spec &topo, size_t width, size_t &min_length, size_t &max_length) {
         max_length = 0;
         min_length = ~max_length;
         for(size_t i = 0; i < width; i++) {
@@ -484,29 +483,21 @@ class clique_yield_cache {
             for(size_y y = 6; y < size_y(12); y++) {
                 for(size_x x = 6; x < size_x(12); x++) {
                     size_t length;
-                    length = bundles.length(y, x, y, y+h-1u, x, x+w-1u);
+                    length = topo.line_length(0, vert(x), vert(y), vert(y+h-1u)) + topo.line_length(1, horz(y), horz(x), horz(x+w-1u));
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
-                    length = bundles.length(y+h-1u, x, y, y+h-1u, x, x+w-1u);
+                    length = topo.line_length(0, vert(x), vert(y), vert(y+h-1u)) + topo.line_length(1, horz(y+h-1u), horz(x), horz(x+w-1u));
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
-                    length = bundles.length(y+h-1u, x+w-1u, y, y+h-1u, x, x+w-1u);
+                    length = topo.line_length(0, vert(x+w-1u), vert(y), vert(y+h-1u)) + topo.line_length(1, horz(y), horz(x), horz(x+w-1u));
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
-                    length = bundles.length(y, x+w-1u, y, y+h-1u, x, x+w-1u);
+                    length = topo.line_length(0, vert(x+w-1u), vert(y), vert(y+h-1u)) + topo.line_length(1, horz(y+h-1u), horz(x), horz(x+w-1u));
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
                 }
             }
         }
-    }
-
-    void get_length_range(const bundle_cache<chimera_spec> &, size_t width, size_t &min_length, size_t &max_length) {
-        max_length = min_length = width+1;
-    }
-    void get_length_range(const bundle_cache<zephyr_spec> &, size_t width, size_t &min_length, size_t &max_length) {
-        max_length = width+3;
-        min_length = width+1;
     }
 };
 

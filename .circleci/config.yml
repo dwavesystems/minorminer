@@ -109,7 +109,7 @@ jobs:
 
       - restore_cache: &restore-cache-template
           keys:
-          - v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
+          - v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "test_requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
 
       - run:
           name: create virtualenv
@@ -121,12 +121,12 @@ jobs:
           command: |
             . env/bin/activate
             python --version
-            pip install -r requirements.txt -r tests/requirements.txt
+            pip install -r requirements.txt -r test_requirements.txt
 
       - save_cache: &save-cache-template
           paths:
             - ./env
-          key: v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
+          key: v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "test_requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
 
       - run: &build-ext-template
           name: install package
@@ -139,7 +139,7 @@ jobs:
           command: |
             . env/bin/activate
             python --version
-            python -m nose . --exe
+            python -m pytest . --verbose
           environment:
             CPPDEBUG: 1
 
@@ -241,7 +241,7 @@ jobs:
           command: |
             eval "$(pyenv init -)"
             python --version
-            pip install -r requirements.txt -r tests/requirements.txt
+            pip install -r requirements.txt -r test_requirements.txt
 
       - save_cache: *save-cache-template
 
@@ -256,7 +256,7 @@ jobs:
           command: |
             eval "$(pyenv init -)"
             python --version
-            python -m nose . --exe
+            python -m pytest . --verbose
           environment:
             CPPDEBUG: 1
 
@@ -312,7 +312,7 @@ jobs:
           command: |
             for PYBIN in /opt/python/*/bin; do
               if "${PYBIN}/python" -c "import sys; sys.exit(sys.version_info>=(3, 6) and sys.version_info<(3, 10))"; then continue; fi;
-              "${PYBIN}/pip" install -r requirements.txt -r tests/requirements.txt
+              "${PYBIN}/pip" install -r requirements.txt -r test_requirements.txt
               "${PYBIN}/pip" wheel . -w ./wheelhouse
               "${PYBIN}/python" setup.py sdist -d ./dist
             done

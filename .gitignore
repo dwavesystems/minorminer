@@ -180,3 +180,7 @@ venv.bak/
 .vscode/
 
 # End of https://www.gitignore.io/api/c,c++,python
+
+#because I keep doing tests in the repo root directory...
+/*.png
+/callgrind.out.*

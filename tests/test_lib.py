@@ -27,6 +27,7 @@ import sys
 import time
 import signal
 import multiprocessing
+import unittest
 from unittest import SkipTest
 
 # Given that this test is in the tests directory, the calibration data should be
@@ -353,491 +354,531 @@ def skip_if(cond):
     else:
         return lambda f: f
 
+class TestFindEmbedding(unittest.TestCase):
+    @staticmethod
+    @success_count(100, 5)
+    def test_path_label_00(n):
+        p = Path(n)
+        return find_embedding(p, p)
+
+    @staticmethod
+    @success_count(100, 5)
+    def test_path_label_01(n):
+        p = Path(n)
+        L = [str(i) for i in range(n)]
+        Lp = [(L[x], L[y]) for x, y in p.edges()]
+        return find_embedding(p, Lp)
+
+    @staticmethod
+    @success_count(100, 5)
+    def test_path_label_10(n):
+        p = Path(n)
+        L = [str(i) for i in range(n)]
+        Lp = [(L[x], L[y]) for x, y in p.edges()]
+        return find_embedding(Lp, p)
+
+    @staticmethod
+    @success_count(100, 5)
+    def test_path_label_11(n):
+        p = Path(n)
+        L = [str(i) for i in range(n)]
+        Lp = [(L[x], L[y]) for x, y in p.edges()]
+        return find_embedding(Lp, Lp)
+
+    @staticmethod
+    @success_count(30, 3)
+    def test_grid_init_restrict(n):
+        from random import choice
+        chim = Chimera(n, l=4)
+        mask = mask_wxw(n, 1, l=4)
+        grid = Grid(2 * n)
+
+        init = {(x, y): [choice(mask[x // 2, y // 2])]
+                for x in range(2 * n) for y in range(2 * n)}
+        doms = {(x, y): mask[x // 2, y // 2]
+                for x in range(2 * n) for y in range(2 * n)}
+
+        return find_embedding(grid, chim, initial_chains=init, restrict_chains=doms, skip_initialization=False)
+
+    @staticmethod
+    @success_count(30, 3)
+    def test_grid_init(n):
+        chim = Chimera(n, l=4)
+        mask = mask_wxw(n, 1, l=2)
+        grid = Grid(2 * n)
+
+        init = {(x, y): mask[x // 2, y // 2]
+                for x in range(2 * n) for y in range(2 * n)}
+
+        return find_embedding(grid, chim, initial_chains=init, skip_initialization=False)
+
+    @staticmethod
+    @success_count(30, 15, 7)
+    def test_nae3sat(n, m):
+        chim = Chimera(m)
+        prob = NAE3SAT(n)
+
+        return find_embedding(prob, chim)
+
+    @staticmethod
+    @success_count(30, 79, 6)
+    def test_expander(p, m):
+        prob = ChordalCycle(p)
+        chim = Chimera(m)
+
+        return find_embedding(prob, chim)
+
+    @staticmethod
+    @success_count(30, 5)
+    def test_cartesian(n):
+        prob = CartesianProduct(n)
+        chim = Chimera(n, l=n)
+
+        return find_embedding(prob, chim)
+
+    @staticmethod
+    @success_count(30, 45, 6)
+    def test_geometric_nohint(n, m):
+        prob = GeometricGraph(n)
+        chim = Chimera(m)
+
+        return find_embedding(prob, chim)
+
+    @staticmethod
+    @success_count(30, 55, 6)
+    def test_geometric_hint(n, m):
+        from random import randint
+        pos = {}
+        chains = {}
+        for i in range(n):
+            x = randint(0, m - 1)
+            k1 = randint(0, 3)
+            y = randint(0, m - 1)
+            k2 = randint(0, 3)
+            pos[i] = (4 * x + k2) / 4. / m, (4 * y + k1) / 4. / m
+            chains[i] = (x, y, 0, k1), (x, y, 1, k2)
+        prob = GeometricGraph(n, pos)
+        chim = Chimera(m)
+
+        return find_embedding(prob, chim, initial_chains={i: c for i, c in chains.items() if i in pos})
+
+    @staticmethod
+    @success_count(30, 3)
+    def test_grid_restrict(n):
+        chim = Chimera(n)
+        mask = mask_wxw(n, 1)
+        grid = Grid(2 * n)
+
+        doms = {(x, y): mask[x // 2, y // 2]
+                for x in range(2 * n) for y in range(2 * n)}
+
+        check_args(grid, chim, restrict_chains=doms)
+
+        return find_embedding(grid, chim, restrict_chains=doms)
+
+    @staticmethod
+    @success_perfect(100, 4)
+    def test_grid_with_answer_fast(n):
+        chim = Chimera(n)
+        grid = Grid(2 * n)
+
+        init = GridChimeraEmbedding(2 * n)
+
+        check_args(grid, chim, initial_chains=init, skip_initialization=True)
+
+        return find_embedding(grid, chim, initial_chains=init, skip_initialization=True, chainlength_patience=0)
+
+    @staticmethod
+    @success_perfect(100, 2)
+    def test_grid_with_answer_slow(n):
+        chim = Chimera(n)
+        grid = Grid(2 * n)
+
+        init = GridChimeraEmbedding(2 * n)
+
+        check_args(grid, chim, initial_chains=init, skip_initialization=True)
+
+        return find_embedding(grid, chim, initial_chains=init, skip_initialization=True, chainlength_patience=10)
+
+    @staticmethod
+    @success_count(30, 5)
+    def test_grid_suspend(n):
+        chim = Chimera(n)
+        mask = mask_wxw(n, 1)
+        grid = Grid(2 * n)
+
+        suspg = [((x, y), (x // 2, y // 2, 0))
+                 for x in range(2 * n) for y in range(2 * n)]
+        suspc = [((x, y, 0), m) for x in range(n)
+                 for y in range(n) for m in mask[x, y]]
+
+        chim.add_edges_from(suspc)
+        grid.add_edges_from(suspg)
+
+        suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
+
+        return find_embedding(grid, chim, fixed_chains=suspension, chainlength_patience=0)
 
-@success_count(100, 5)
-def test_path_label_00(n):
-    p = Path(n)
-    return find_embedding(p, p)
+    @staticmethod
+    @success_count(30)
+    def test_suspend_example1():
+        K3 = nx.Graph([('A', 'B'), ('B', 'C'), ('C', 'A')])
+        C = dnx.chimera_graph(1, 2, coordinates=False)
+
+        # Example with one blob for one node. Source node will use at least one.
+        blob = [4, 5, 12, 13]
+        suspend_chains = {'A': [blob]}
+        return find_embedding(K3, C, suspend_chains=suspend_chains)
+
+    @staticmethod
+    @success_count(30)
+    def test_suspend_example2():
+        K3 = nx.Graph([('A', 'B'), ('B', 'C'), ('C', 'A')])
+        C = dnx.chimera_graph(1, 2, coordinates=False)
+
+        # Example with one blob for one node, and two blobs for another.
+        # Second source node is forced to use at least one in each blob.
+        blob_A0 = [4, 5]
+        blob_A1 = [12, 13]
+        blob_C0 = [6, 7, 14, 15]
+        suspend_chains = {'A': [blob_A0, blob_A1], 'C': [blob_C0]}
+        return find_embedding(K3, C, suspend_chains=suspend_chains)
+
+    @staticmethod
+    @success_count(30, 5)
+    def test_grid_plant_suspend(n):
+        chim = Chimera(n)
+        mask = mask_wxw(n, 1)
+        grid = Grid(2 * n)
 
+        suspg = [((x, y), (x // 2, y // 2, 0))
+                 for x in range(2 * n) for y in range(2 * n)]
+        suspc = [(m, (x, y, 0)) for x in range(n)
+                 for y in range(n) for m in mask[x, y]]
+
+        chim.add_edges_from(suspc)
+        grid.add_edges_from(suspg)
 
-@success_count(100, 5)
-def test_path_label_01(n):
-    p = Path(n)
-    L = [str(i) for i in range(n)]
-    Lp = [(L[x], L[y]) for x, y in p.edges()]
-    return find_embedding(p, Lp)
-
-
-@success_count(100, 5)
-def test_path_label_10(n):
-    p = Path(n)
-    L = [str(i) for i in range(n)]
-    Lp = [(L[x], L[y]) for x, y in p.edges()]
-    return find_embedding(Lp, p)
-
-
-@success_count(100, 5)
-def test_path_label_11(n):
-    p = Path(n)
-    L = [str(i) for i in range(n)]
-    Lp = [(L[x], L[y]) for x, y in p.edges()]
-    return find_embedding(Lp, Lp)
-
-
-@success_count(30, 3)
-def test_grid_init_restrict(n):
-    from random import choice
-    chim = Chimera(n, l=4)
-    mask = mask_wxw(n, 1, l=4)
-    grid = Grid(2 * n)
-
-    init = {(x, y): [choice(mask[x // 2, y // 2])]
-            for x in range(2 * n) for y in range(2 * n)}
-    doms = {(x, y): mask[x // 2, y // 2]
-            for x in range(2 * n) for y in range(2 * n)}
-
-    return find_embedding(grid, chim, initial_chains=init, restrict_chains=doms, skip_initialization=False)
-
-
-@success_count(30, 3)
-def test_grid_init(n):
-    chim = Chimera(n, l=4)
-    mask = mask_wxw(n, 1, l=2)
-    grid = Grid(2 * n)
-
-    init = {(x, y): mask[x // 2, y // 2]
-            for x in range(2 * n) for y in range(2 * n)}
-
-    return find_embedding(grid, chim, initial_chains=init, skip_initialization=False)
-
-
-@success_count(30, 15, 7)
-def test_nae3sat(n, m):
-    chim = Chimera(m)
-    prob = NAE3SAT(n)
-
-    return find_embedding(prob, chim)
-
-
-@success_count(30, 79, 6)
-def test_expander(p, m):
-    prob = ChordalCycle(p)
-    chim = Chimera(m)
-
-    return find_embedding(prob, chim)
-
-
-@success_count(30, 5)
-def test_cartesian(n):
-    prob = CartesianProduct(n)
-    chim = Chimera(n, l=n)
-
-    return find_embedding(prob, chim)
-
-
-@success_count(30, 45, 6)
-def test_geometric_nohint(n, m):
-    prob = GeometricGraph(n)
-    chim = Chimera(m)
-
-    return find_embedding(prob, chim)
-
-
-@success_count(30, 55, 6)
-def test_geometric_hint(n, m):
-    from random import randint
-    pos = {}
-    chains = {}
-    for i in range(n):
-        x = randint(0, m - 1)
-        k1 = randint(0, 3)
-        y = randint(0, m - 1)
-        k2 = randint(0, 3)
-        pos[i] = (4 * x + k2) / 4. / m, (4 * y + k1) / 4. / m
-        chains[i] = (x, y, 0, k1), (x, y, 1, k2)
-    prob = GeometricGraph(n, pos)
-    chim = Chimera(m)
-
-    return find_embedding(prob, chim, initial_chains={i: c for i, c in chains.items() if i in pos})
-
-
-@success_count(30, 3)
-def test_grid_restrict(n):
-    chim = Chimera(n)
-    mask = mask_wxw(n, 1)
-    grid = Grid(2 * n)
-
-    doms = {(x, y): mask[x // 2, y // 2]
-            for x in range(2 * n) for y in range(2 * n)}
-
-    check_args(grid, chim, restrict_chains=doms)
-
-    return find_embedding(grid, chim, restrict_chains=doms)
-
-
-@success_perfect(100, 4)
-def test_grid_with_answer_fast(n):
-    chim = Chimera(n)
-    grid = Grid(2 * n)
-
-    init = GridChimeraEmbedding(2 * n)
-
-    check_args(grid, chim, initial_chains=init, skip_initialization=True)
-
-    return find_embedding(grid, chim, initial_chains=init, skip_initialization=True, chainlength_patience=0)
-
-
-@success_perfect(100, 2)
-def test_grid_with_answer_slow(n):
-    chim = Chimera(n)
-    grid = Grid(2 * n)
-
-    init = GridChimeraEmbedding(2 * n)
-
-    check_args(grid, chim, initial_chains=init, skip_initialization=True)
-
-    return find_embedding(grid, chim, initial_chains=init, skip_initialization=True, chainlength_patience=10)
-
-
-@success_count(30, 5)
-def test_grid_suspend(n):
-    chim = Chimera(n)
-    mask = mask_wxw(n, 1)
-    grid = Grid(2 * n)
-
-    suspg = [((x, y), (x // 2, y // 2, 0))
-             for x in range(2 * n) for y in range(2 * n)]
-    suspc = [((x, y, 0), m) for x in range(n)
-             for y in range(n) for m in mask[x, y]]
-
-    chim.add_edges_from(suspc)
-    grid.add_edges_from(suspg)
-
-    suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
-
-    return find_embedding(grid, chim, fixed_chains=suspension, chainlength_patience=0)
-
-
-@success_count(30)
-def test_suspend_example1():
-    K3 = nx.Graph([('A', 'B'), ('B', 'C'), ('C', 'A')])
-    C = dnx.chimera_graph(1, 2, coordinates=False)
-
-    # Example with one blob for one node. Source node will use at least one.
-    blob = [4, 5, 12, 13]
-    suspend_chains = {'A': [blob]}
-    return find_embedding(K3, C, suspend_chains=suspend_chains)
-
-
-@success_count(30)
-def test_suspend_example2():
-    K3 = nx.Graph([('A', 'B'), ('B', 'C'), ('C', 'A')])
-    C = dnx.chimera_graph(1, 2, coordinates=False)
-
-    # Example with one blob for one node, and two blobs for another.
-    # Second source node is forced to use at least one in each blob.
-    blob_A0 = [4, 5]
-    blob_A1 = [12, 13]
-    blob_C0 = [6, 7, 14, 15]
-    suspend_chains = {'A': [blob_A0, blob_A1], 'C': [blob_C0]}
-    return find_embedding(K3, C, suspend_chains=suspend_chains)
-
-
-@success_count(30, 5)
-def test_grid_plant_suspend(n):
-    chim = Chimera(n)
-    mask = mask_wxw(n, 1)
-    grid = Grid(2 * n)
-
-    suspg = [((x, y), (x // 2, y // 2, 0))
-             for x in range(2 * n) for y in range(2 * n)]
-    suspc = [(m, (x, y, 0)) for x in range(n)
-             for y in range(n) for m in mask[x, y]]
-
-    chim.add_edges_from(suspc)
-    grid.add_edges_from(suspg)
-
-    suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
-    init = {(x, y): mask[x // 2, y // 2]
-            for x in range(2 * n) for y in range(2 * n)}
-
-    return find_embedding(grid, chim, fixed_chains=suspension, initial_chains=init, chainlength_patience=0)
-
-
-@success_count(30, 5)
-def test_grid_suspend_chains(n):
-    chim = Chimera(n)
-    mask = mask_wxw(n, 1)
-    grid = Grid(2 * n)
-
-    suspension = {(x, y): [mask[x//2, y//2]]
-                  for x in range(2*n) for y in range(2*n)}
-
-    return find_embedding(grid, chim, suspend_chains=suspension, chainlength_patience=0)
-
-
-@success_count(30, 5)
-def test_grid_suspend_domain(n):
-    chim = Chimera(n)
-    mask = mask_wxw(n, 1)
-    grid = Grid(2 * n)
-
-    suspg = [((x, y), (x // 2, y // 2, 0))
-             for x in range(2 * n) for y in range(2 * n)]
-    suspc = [((x, y, 0), m) for x in range(n)
-             for y in range(n) for m in mask[x, y]]
-
-    chim.add_edges_from(suspc)
-    grid.add_edges_from(suspg)
-
-    suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
-    doms = {(x, y): mask[x // 2, y // 2]
-            for x in range(2 * n) for y in range(2 * n)}
-
-    check_args(grid, chim, fixed_chains=suspension,
-               skip_initialization=False, restrict_chains=doms)
-
-    return find_embedding(grid, chim, fixed_chains=suspension, restrict_chains=doms, chainlength_patience=0)
-
-
-@success_count(30, 5)
-def test_grid_cheat_domain(n):
-    chim = Chimera(n)
-    grid = Grid(2 * n)
-    cheat = GridChimeraEmbedding(2 * n)
-
-    return find_embedding(grid, chim, restrict_chains=cheat, chainlength_patience=0)
-
-
-@success_count(30, 2)
-def test_biclique_chimera(n):
-    chim = Chimera(n)
-    kliq = Biclique(4 * n)
-
-    return find_embedding(kliq, chim, chainlength_patience=0)
-
-
-@success_count(30, 5)
-def test_path_cheat_domain(n):
-    P = Path(n)
-    cheat = {p: [p] for p in range(n)}
-
-    return find_embedding(P, P, restrict_chains=cheat, chainlength_patience=0)
-
-
-@success_count(30, 6, 25)
-def test_clique(n, k):
-    chim = Chimera(n)
-    cliq = Clique(k)
-
-    return find_embedding(cliq, chim, chainlength_patience=0)
-
-
-@success_perfect(20, 25, 25)
-def test_clique_clique(n, k):
-    cliq = Clique(k)
-
-    return find_embedding(cliq, cliq, chainlength_patience=0)
-
-
-@success_perfect(3, 16)
-def test_clique_large_nosegfault(n):
-    chim = Chimera(n)
-    cliq = Clique(4 * n + 2)
-
-    return not find_embedding(cliq, chim, chainlength_patience=0, timeout=1)
-
-
-@success_count(30, 6, 25)
-def test_clique_parallel(n, k):
-    chim = Chimera(n)
-    cliq = Clique(k)
-
-    return find_embedding(cliq, chim, chainlength_patience=0, threads=2)
-
-
-@success_count(30, 3, 13)
-def test_clique_term(n, k):
-    chim = Chimera(n)
-    cliq = Clique(k)
-    chim.add_edge((n // 2, n // 2, 0, 0), k)
-    cliq.add_edge(0, k)
-    fix = {k: [k]}
-    return find_embedding(cliq, chim, fixed_chains=fix, chainlength_patience=0)
-
-
-@success_count(30, 8)
-def test_grid_heal_A(n):
-    from random import randint
-    grid = Grid(2 * n)
-    chim = Chimera(n + 2)
-    breaks = {(x, x, x % 2, randint(0, 3)) for x in range(1, 4)}
-    chim = [e for e in chim.edges() if not breaks.intersection(e)]
-
-    emb = GridChimeraEmbedding(2 * n)
-    i_emb = {}
-    for v, chain in emb.items():
-        remainder = {(x + 1, y + 1, u, k)
-                     for x, y, u, k in chain}.difference(breaks)
-        if remainder:
-            i_emb[v] = remainder
-
-    return find_embedding(grid, chim, initial_chains=i_emb, chainlength_patience=0)
-
-
-@success_count(30, 4)
-def test_grid_heal_B(n):
-    from random import randint
-    grid = Grid(2 * n)
-    chim = Chimera(n + 2)
-    breaks = {(x, x, x % 2, randint(0, 3)) for x in range(1, 4)}
-
-    chim.add_edges_from((b, (b, None)) for b in breaks)
-    grid.add_edges_from((b, (b, None)) for b in breaks)
-    f_emb = {(b, None): [(b, None)] for b in breaks}
-
-    emb = GridChimeraEmbedding(2 * n)
-
-    return find_embedding(grid, chim, initial_chains=emb, fixed_chains=f_emb, chainlength_patience=0)
-
-
-@success_perfect(1000, 3)
-def test_fail_impossible(n):
-    Kn = Clique(n)  # we're gonna try to embed this here clique
-    Pn = Path(n)  # into this here path, and it ain't gonna work
-
-    return not find_embedding(Kn, Pn)
-
-
-@success_perfect(1, 16, .1)
-def test_fail_timeout(n, t):
-    Kn = Clique(4 * n + 1)  # we're gonna try to embed this here clique
-    # into this here chimera, and it might work but we'll time out
-    Cn = Chimera(n)
-
-    return not find_embedding(Kn, Cn, tries=1e6, max_no_improvement=1e6, inner_rounds=1e6, timeout=t, threads=4)
-
-
-@success_count(30)
-def test_chainlength_fast():
-    C = Chimera(4)
-    K = Clique(16)
-    e = find_embedding(K, C, tries=1, chainlength_patience=1)
-    if not len(e):
+        suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
+        init = {(x, y): mask[x // 2, y // 2]
+                for x in range(2 * n) for y in range(2 * n)}
+
+        return find_embedding(grid, chim, fixed_chains=suspension, initial_chains=init, chainlength_patience=0)
+
+    @staticmethod
+    @success_count(30, 5)
+    def test_grid_suspend_chains(n):
+        chim = Chimera(n)
+        mask = mask_wxw(n, 1)
+        grid = Grid(2 * n)
+
+        suspension = {(x, y): [mask[x//2, y//2]]
+                      for x in range(2*n) for y in range(2*n)}
+
+        return find_embedding(grid, chim, suspend_chains=suspension, chainlength_patience=0)
+
+    @staticmethod
+    @success_count(30, 5)
+    def test_grid_suspend_domain(n):
+        chim = Chimera(n)
+        mask = mask_wxw(n, 1)
+        grid = Grid(2 * n)
+
+        suspg = [((x, y), (x // 2, y // 2, 0))
+                 for x in range(2 * n) for y in range(2 * n)]
+        suspc = [((x, y, 0), m) for x in range(n)
+                 for y in range(n) for m in mask[x, y]]
+
+        chim.add_edges_from(suspc)
+        grid.add_edges_from(suspg)
+
+        suspension = {(x, y, 0): [(x, y, 0)] for x in range(n) for y in range(n)}
+        doms = {(x, y): mask[x // 2, y // 2]
+                for x in range(2 * n) for y in range(2 * n)}
+
+        check_args(grid, chim, fixed_chains=suspension,
+                   skip_initialization=False, restrict_chains=doms)
+
+        return find_embedding(grid, chim, fixed_chains=suspension, restrict_chains=doms, chainlength_patience=0)
+
+    @staticmethod
+    @success_count(30, 5)
+    def test_grid_cheat_domain(n):
+        chim = Chimera(n)
+        grid = Grid(2 * n)
+        cheat = GridChimeraEmbedding(2 * n)
+
+        return find_embedding(grid, chim, restrict_chains=cheat, chainlength_patience=0)
+
+    @staticmethod
+    @success_count(30, 2)
+    def test_biclique_chimera(n):
+        chim = Chimera(n)
+        kliq = Biclique(4 * n)
+
+        return find_embedding(kliq, chim, chainlength_patience=0)
+
+    @staticmethod
+    @success_count(30, 5)
+    def test_path_cheat_domain(n):
+        P = Path(n)
+        cheat = {p: [p] for p in range(n)}
+
+        return find_embedding(P, P, restrict_chains=cheat, chainlength_patience=0)
+
+    @staticmethod
+    @success_count(30, 6, 25)
+    def test_clique(n, k):
+        chim = Chimera(n)
+        cliq = Clique(k)
+
+        return find_embedding(cliq, chim, chainlength_patience=0)
+
+    @staticmethod
+    @success_perfect(20, 25, 25)
+    def test_clique_clique(n, k):
+        cliq = Clique(k)
+
+        return find_embedding(cliq, cliq, chainlength_patience=0)
+
+    @staticmethod
+    @success_perfect(3, 16)
+    def test_clique_large_nosegfault(n):
+        chim = Chimera(n)
+        cliq = Clique(4 * n + 2)
+
+        return not find_embedding(cliq, chim, chainlength_patience=0, timeout=1)
+
+    @staticmethod
+    @success_count(30, 6, 25)
+    def test_clique_parallel(n, k):
+        chim = Chimera(n)
+        cliq = Clique(k)
+
+        return find_embedding(cliq, chim, chainlength_patience=0, threads=2)
+
+    @staticmethod
+    @success_count(30, 3, 13)
+    def test_clique_term(n, k):
+        chim = Chimera(n)
+        cliq = Clique(k)
+        chim.add_edge((n // 2, n // 2, 0, 0), k)
+        cliq.add_edge(0, k)
+        fix = {k: [k]}
+        return find_embedding(cliq, chim, fixed_chains=fix, chainlength_patience=0)
+
+    @staticmethod
+    @success_count(30, 8)
+    def test_grid_heal_A(n):
+        from random import randint
+        grid = Grid(2 * n)
+        chim = Chimera(n + 2)
+        breaks = {(x, x, x % 2, randint(0, 3)) for x in range(1, 4)}
+        chim = [e for e in chim.edges() if not breaks.intersection(e)]
+
+        emb = GridChimeraEmbedding(2 * n)
+        i_emb = {}
+        for v, chain in emb.items():
+            remainder = {(x + 1, y + 1, u, k)
+                         for x, y, u, k in chain}.difference(breaks)
+            if remainder:
+                i_emb[v] = remainder
+
+        return find_embedding(grid, chim, initial_chains=i_emb, chainlength_patience=0)
+
+    @staticmethod
+    @success_count(30, 4)
+    def test_grid_heal_B(n):
+        from random import randint
+        grid = Grid(2 * n)
+        chim = Chimera(n + 2)
+        breaks = {(x, x, x % 2, randint(0, 3)) for x in range(1, 4)}
+
+        chim.add_edges_from((b, (b, None)) for b in breaks)
+        grid.add_edges_from((b, (b, None)) for b in breaks)
+        f_emb = {(b, None): [(b, None)] for b in breaks}
+
+        emb = GridChimeraEmbedding(2 * n)
+
+        return find_embedding(grid, chim, initial_chains=emb, fixed_chains=f_emb, chainlength_patience=0)
+
+    @staticmethod
+    @success_perfect(1000, 3)
+    def test_fail_impossible(n):
+        Kn = Clique(n)  # we're gonna try to embed this here clique
+        Pn = Path(n)  # into this here path, and it ain't gonna work
+
+        return not find_embedding(Kn, Pn)
+
+    @staticmethod
+    @success_perfect(1, 16, .1)
+    def test_fail_timeout(n, t):
+        Kn = Clique(4 * n + 1)  # we're gonna try to embed this here clique
+        # into this here chimera, and it might work but we'll time out
+        Cn = Chimera(n)
+
+        return not find_embedding(Kn, Cn, tries=1e6, max_no_improvement=1e6, inner_rounds=1e6, timeout=t, threads=4)
+
+    @staticmethod
+    @success_count(30)
+    def test_chainlength_fast():
+        C = Chimera(4)
+        K = Clique(16)
+        e = find_embedding(K, C, tries=1, chainlength_patience=1)
+        if not len(e):
+            return False
+        return max(len(c) for c in e.values()) <= 7
+
+    @staticmethod
+    @success_count(30)
+    def test_chainlength_slow():
+        C = Chimera(4)
+        K = Clique(16)
+        e = find_embedding(K, C, tries=1, chainlength_patience=10)
+        if not len(e):
+            return False
+        return max(len(c) for c in e.values()) <= 6
+
+    @staticmethod
+    @success_count(30)
+    def test_isolated_variables_as_if_that_was_smart():
+        # embedding isolated notes is literally the worst way to use a quantum computer.
+        #                    WHY AM I ASKED FOR THIS FEATURE
+        # like i'd understand if people were using this package for arbitary covering/packing problems on graphs, but
+        #                               SHAAAAAME
+        # that's not what's happening here
+        C = Chimera(4)
+        K = Clique(16)
+        K.add_edges_from((x, x) for x in range(16, 32))
+        C.add_edges_from((x, x) for x in range(16, 32))
+        return find_embedding(K, C, tries=1, chainlength_patience=0)
+
+    @staticmethod
+    @success_count(30)
+    def test_isolated_variables_parallel():
+        C = Chimera(4)
+        K = Clique(16)
+        K.add_edges_from((x, x) for x in range(16, 32))
+        C.add_edges_from((x, x) for x in range(16, 32))
+        return find_embedding(K, C, tries=1, chainlength_patience=0, threads=10)
+
+
+    @staticmethod
+    @success_perfect(1)
+    def test_empty_source():
+        # re: issue 64
+        C = Clique(2)
+        return find_embedding([], C, tries=1) == {}
+
+    @staticmethod
+    @success_perfect(1)
+    def test_empty_target():
+        # re: issue 64
+        C = Clique(2)
+        try:
+            _ = find_embedding(C, [], tries=1)
+            return False
+        except ValueError:
+            return True
+
+    @staticmethod
+    @success_perfect(1)
+    def test_point_source():
+        # re: issue 64
+        C = Clique(2)
+        return find_embedding([(0, 0)], C, tries=1)
+
+    @staticmethod
+    @success_perfect(1)
+    def test_point_target():
+        # re: issue 64
+        C = Clique(2)
+        try:
+            _ = find_embedding(C, [(0, 0)], tries=1)
+        except RuntimeError:
+            return True
         return False
-    return max(len(c) for c in e.values()) <= 7
 
 
-@success_count(30)
-def test_chainlength_slow():
-    C = Chimera(4)
-    K = Clique(16)
-    e = find_embedding(K, C, tries=1, chainlength_patience=10)
-    if not len(e):
-        return False
-    return max(len(c) for c in e.values()) <= 6
+    @staticmethod
+    @success_perfect(30)
+    def test_fixed_chain_issue91():
+        K2 = Clique(2)
+        K3 = Clique(3)
+        return find_embedding(K2, K3, fixed_chains={0: [0, 1]})
+
+    @staticmethod
+    @success_perfect(10)
+    def test_isolated_nodes_networkx():
+        E10 = nx.Graph()
+        E10.add_nodes_from(range(10))
+        K10 = nx.complete_graph(10)
+        return find_embedding(E10, K10)
+
+    @staticmethod
+    @success_count(30)
+    def test_qubit_components():
+        # we only embed into the largest connected component -- we make a random set of components which
+        # cannot exceed the size of the actual Chimera graph (so the performance of this test will be stable)
+        from random import randint
+        C = Chimera(4)
+        for _ in range(50):
+            C.add_edge(randint(0, 100), randint(0, 100))
+        K = Clique(16)
+        K.add_edges_from((x, x) for x in range(16, 32))
+        return find_embedding(K, C, tries=1, chainlength_patience=0)
 
 
-@success_count(30)
-def test_isolated_variables_as_if_that_was_smart():
-    # embedding isolated notes is literally the worst way to use a quantum computer.
-    #                    WHY AM I ASKED FOR THIS FEATURE
-    # like i'd understand if people were using this package for arbitary covering/packing problems on graphs, but
-    #                               SHAAAAAME
-    # that's not what's happening here
-    C = Chimera(4)
-    K = Clique(16)
-    K.add_edges_from((x, x) for x in range(16, 32))
-    C.add_edges_from((x, x) for x in range(16, 32))
-    return find_embedding(K, C, tries=1, chainlength_patience=0)
+    @staticmethod
+    @success_count(30)
+    def test_variable_components():
+        # embed two problems at once?  why not
+        C = Chimera(4)
+        K = Clique(8)
+        K.add_edges_from([(u+8, v+8) for u, v in K.edges()])
+        return find_embedding(K, C, tries=1, chainlength_patience=0)
 
 
-@success_count(30)
-def test_isolated_variables_parallel():
-    C = Chimera(4)
-    K = Clique(16)
-    K.add_edges_from((x, x) for x in range(16, 32))
-    C.add_edges_from((x, x) for x in range(16, 32))
-    return find_embedding(K, C, tries=1, chainlength_patience=0, threads=10)
+    @staticmethod
+    @success_count(30)
+    def test_variable_components_many():
+        from random import randint
+        C = Chimera(8)
+        K = [(randint(0, 128), randint(0, 128)) for _ in range(64)]
+        return find_embedding(K, C, tries=1, chainlength_patience=0)
 
+    @staticmethod
+    @skip_if(
+        # there appears to be a bug in the osx, py3.8+ version of multiprocessing.
+        # this has turned into a yak-shaving exercise and I'm not doing any more here
+        # for the time being -- #TODO if anybody has a mac and they wanna dig in, please do
+        (sys.version_info[:2] >= (3, 8) and sys.platform == 'darwin') or
 
-@success_perfect(1)
-def test_empty_source():
-    # re: issue 64
-    C = Clique(2)
-    return find_embedding([], C, tries=1) == {}
+        # TODO this test seems to actually work on windows but it's doing something funky
+        # to our appveyor framework.  Giving up on yak-shaving 'cause we're going to retire
+        # appveyor soon
+        (sys.platform == 'win32')
+    )
+    @staticmethod
+    @success_perfect(1)
+    def test_interactive_interrupt():
+        return run_interactive_interrupt(True) == 0
 
+    @staticmethod
+    @skip_if(
+        # there appears to be a bug in the osx, py3.8+ version of multiprocessing.
+        # this has turned into a yak-shaving exercise and I'm not doing any more here
+        # for the time being -- #TODO if anybody has a mac and they wanna dig in, please do
+        (sys.version_info[:2] >= (3, 8) and sys.platform == 'darwin') or
 
-@success_perfect(1)
-def test_empty_target():
-    # re: issue 64
-    C = Clique(2)
-    try:
-        _ = find_embedding(C, [], tries=1)
-        return False
-    except ValueError:
-        return True
-
-
-@success_perfect(1)
-def test_point_source():
-    # re: issue 64
-    C = Clique(2)
-    return find_embedding([(0, 0)], C, tries=1)
-
-
-@success_perfect(1)
-def test_point_target():
-    # re: issue 64
-    C = Clique(2)
-    try:
-        _ = find_embedding(C, [(0, 0)], tries=1)
-    except RuntimeError:
-        return True
-    return False
-
-
-@success_perfect(30)
-def test_fixed_chain_issue91():
-    K2 = Clique(2)
-    K3 = Clique(3)
-    return find_embedding(K2, K3, fixed_chains={0: [0, 1]})
-
-@success_perfect(10)
-def test_isolated_nodes_networkx():
-    E10 = nx.Graph()
-    E10.add_nodes_from(range(10))
-    K10 = nx.complete_graph(10)
-    return find_embedding(E10, K10)
-
-@success_count(30)
-def test_qubit_components():
-    # we only embed into the largest connected component -- we make a random set of components which
-    # cannot exceed the size of the actual Chimera graph (so the performance of this test will be stable)
-    from random import randint
-    C = Chimera(4)
-    for _ in range(50):
-        C.add_edge(randint(0, 100), randint(0, 100))
-    K = Clique(16)
-    K.add_edges_from((x, x) for x in range(16, 32))
-    return find_embedding(K, C, tries=1, chainlength_patience=0)
-
-
-@success_count(30)
-def test_variable_components():
-    # embed two problems at once?  why not
-    C = Chimera(4)
-    K = Clique(8)
-    K.add_edges_from([(u+8, v+8) for u, v in K.edges()])
-    return find_embedding(K, C, tries=1, chainlength_patience=0)
-
-
-@success_count(30)
-def test_variable_components_many():
-    from random import randint
-    C = Chimera(8)
-    K = [(randint(0, 128), randint(0, 128)) for _ in range(64)]
-    return find_embedding(K, C, tries=1, chainlength_patience=0)
+        # TODO this test seems to actually work on windows but it's doing something funky
+        # to our appveyor framework.  Giving up on yak-shaving 'cause we're going to retire
+        # appveyor soon
+        (sys.platform == 'win32')
+    )
+    @success_perfect(1)
+    def test_headless_interrupt():
+        return run_interactive_interrupt(False) == 2
 
 
 def _long_running_successful_problem(interactive):
@@ -870,38 +911,6 @@ def run_interactive_interrupt(interactive):
     # exitcode 1: timed out (interactive mode did not catch the interrupt)
     # exitcode 2: halted with error (headless mode propagates the interrupt)
     return p.exitcode
-
-
-@skip_if(
-    # there appears to be a bug in the osx, py3.8+ version of multiprocessing.
-    # this has turned into a yak-shaving exercise and I'm not doing any more here
-    # for the time being -- #TODO if anybody has a mac and they wanna dig in, please do
-    (sys.version_info[:2] >= (3, 8) and sys.platform == 'darwin') or
-
-    # TODO this test seems to actually work on windows but it's doing something funky
-    # to our appveyor framework.  Giving up on yak-shaving 'cause we're going to retire
-    # appveyor soon
-    (sys.platform == 'win32')
-)
-@success_perfect(1)
-def test_interactive_interrupt():
-    return run_interactive_interrupt(True) == 0
-
-
-@skip_if(
-    # there appears to be a bug in the osx, py3.8+ version of multiprocessing.
-    # this has turned into a yak-shaving exercise and I'm not doing any more here
-    # for the time being -- #TODO if anybody has a mac and they wanna dig in, please do
-    (sys.version_info[:2] >= (3, 8) and sys.platform == 'darwin') or
-
-    # TODO this test seems to actually work on windows but it's doing something funky
-    # to our appveyor framework.  Giving up on yak-shaving 'cause we're going to retire
-    # appveyor soon
-    (sys.platform == 'win32')
-)
-@success_perfect(1)
-def test_headless_interrupt():
-    return run_interactive_interrupt(False) == 2
 
 
 def chainlength_diagnostic(n=100, old=False, chainlength_argument=0, verbose=0, m=8):

@@ -78,19 +78,20 @@ class topo_cache {
         return topo.serialize(serialize_tag{}, output, nodemask, edgemask, badmask);
     }
 
-    vector<size_t> fragment_nodes() const {
+    vector<size_t> fragment_nodes(const uint8_t *nmask = nullptr) const {
+        if (nmask == nullptr) nmask = nodemask;
         vector<size_t> nodes;
         size_t q = 0;
         for (size_y y = 0; y < topo.dim_y; y++) {
             for (size_x x = 0; x < topo.dim_x; x++) {
                 for (uint8_t k = 0; k < topo.shore; k++) {
-                    if (nodemask[topo.cell_index(0, vert(x), vert(y))]&mask_bit[k])
+                    if (nmask[topo.cell_index(0, vert(x), vert(y))]&mask_bit[k])
                         nodes.push_back(q);
                     minorminer_assert(q == topo.chimera_linear(y, x, 0, k));
                     q++;
                 }
                 for (uint8_t k = 0; k < topo.shore; k++) {
-                    if (nodemask[topo.cell_index(1, horz(y), horz(x))]&mask_bit[k])
+                    if (nmask[topo.cell_index(1, horz(y), horz(x))]&mask_bit[k])
                         nodes.push_back(q);
                     minorminer_assert(q == topo.chimera_linear(y, x, 1, k));
                     q++;
@@ -100,17 +101,19 @@ class topo_cache {
         return nodes;
     }
     
-    vector<pair<size_t, size_t>> fragment_edges() const {
+    vector<pair<size_t, size_t>> fragment_edges(const uint8_t *nmask = nullptr, const uint8_t *emask = nullptr) const {
+        if (nmask == nullptr) nmask = nodemask;
+        if (emask == nullptr) emask = edgemask;
         vector<pair<size_t, size_t>> edges;
         size_t q = 0;
         for (size_y y = 0; y < topo.dim_y; y++) {
             for (size_x x = 0; x < topo.dim_x; x++) {
                 for (uint8_t k = 0; k < topo.shore; k++) {
-                    if (edgemask[topo.cell_index(0, vert(x), vert(y))]&mask_bit[k])
+                    if (emask[topo.cell_index(0, vert(x), vert(y))]&mask_bit[k])
                         edges.emplace_back(q, topo.chimera_linear(y-1u, x, 0, k));
-                    if (nodemask[topo.cell_index(0, vert(x), vert(y))]&mask_bit[k]) {
+                    if (nmask[topo.cell_index(0, vert(x), vert(y))]&mask_bit[k]) {
                         for (uint8_t k1 = 0; k1 < topo.shore; k1++) {
-                            if (nodemask[topo.cell_index(1, horz(y), horz(x))]&mask_bit[k1]&~badmask[q])
+                            if (nmask[topo.cell_index(1, horz(y), horz(x))]&mask_bit[k1]&~badmask[q])
                                 edges.emplace_back(q, topo.chimera_linear(y, x, 1, k1));
                         }
                     }
@@ -118,7 +121,7 @@ class topo_cache {
                     q++;
                 }
                 for (uint8_t k = 0; k < topo.shore; k++) {
-                    if (edgemask[topo.cell_index(1, horz(y), horz(x))]&mask_bit[k])
+                    if (emask[topo.cell_index(1, horz(y), horz(x))]&mask_bit[k])
                         edges.emplace_back(q, topo.chimera_linear(y, x-1u, 1, k));
                     minorminer_assert(q == topo.chimera_linear(y, x, 1, k));
                     q++;
@@ -200,10 +203,7 @@ class topo_cache {
             //maaaaybe we want to hand control of this parameter to the user?
             if(mask_num < 64) mask_num++;
             else return false;
-            //this is a somewhat ad-hoc, unoptimized implementation.  we should
-            //take a proper seed from the user, etc.
-            std::random_device r;
-            std::ranlux48 rng(r());
+            //this is a somewhat ad-hoc, unoptimized implementation.
             std::shuffle(bad_edges.begin(), bad_edges.end(), rng);
             std::map<size_t, std::set<size_t>> adj;
             for(auto &e : bad_edges) {
