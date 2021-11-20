@@ -57,7 +57,7 @@ install:
   # Install dependencies
   - if "%CPPDEBUG%" == "1" ( SET MM_BUILD_DIR=%DEBUG_MM_BUILD_DIR% ) else ( SET MM_BUILD_DIR=%TRUE_MM_BUILD_DIR%)
   - "%PYTHON%\\python.exe -m pip install -U wheel setuptools pip twine"
-  - "%PYTHON%\\python.exe -m pip install -r requirements.txt -r tests\\requirements.txt"
+  - "%PYTHON%\\python.exe -m pip install -r requirements.txt -r test_requirements.txt"
  
 build_script:
   # Build the compiled extension
@@ -65,7 +65,7 @@ build_script:
 
 test_script:
   # Run the project tests
-  - "%PYTHON%\\python.exe -m nose . --exe"
+  - "%PYTHON%\\python.exe -m pytest . --verbose"
 
 after_test:
   # If tests are successful, create binary packages for the project.

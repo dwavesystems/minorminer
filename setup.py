@@ -28,7 +28,7 @@ else:
     exec(open(path_to_package_info).read())
 
 extra_compile_args = {
-    'msvc': ['/std:c++latest', '/MT', '/EHsc'],
+    'msvc': ['/std:c++latest', '/MT', '/EHsc', '/O2' ],
     'unix': ['-std=c++11', '-Wall', '-Wno-format-security', '-Ofast', '-fomit-frame-pointer', '-DNDEBUG', '-fno-rtti'],
 }
 
@@ -40,8 +40,8 @@ extra_link_args = {
 
 if '--debug' in sys.argv or '-g' in sys.argv or 'CPPDEBUG' in os.environ:
     extra_compile_args['msvc'].append('/DCPPDEBUG')
-    extra_compile_args['unix'] = ['-std=c++1y', '-Wall',
-                                  '-O0', '-g', '-fipa-pure-const', '-DCPPDEBUG']
+    extra_compile_args['unix'] = ['-std=c++1y', '-Wall',# '-O0',
+                                  '-g', '-fipa-pure-const', '-DCPPDEBUG']
 
 if 'SAFE_COORDS' in os.environ:
     extra_compile_args['msvc'].append('/DSAFE_COORDS')

@@ -30,6 +30,30 @@ size_t get_maxlen(vector<T> &emb, size_t size) {
     return emb[size-1].size();
 }
 
+template<typename clique_cache_t>
+size_t get_sol(const clique_cache_t &rects, vector<vector<size_t>> &emb, size_t size) {
+    if(rects.extract_solution(emb)) {
+        if (emb.size() >= size) {
+            return get_maxlen(emb, size);
+        }
+    }
+    return numeric_limits<size_t>::max();
+}
+
+
+template<typename cells_t>
+bool find_clique_short(const cells_t &cells, const size_t size, vector<vector<size_t>> &emb, size_t &max_length) {
+    for(size_y y = 0; y < cells.topo.dim_y; y++)
+        for(size_x x = 0; x < cells.topo.dim_x; x++)
+            if (cells.score(y,x) >= size) {
+                emb.clear();
+                max_length = 1;
+                cells.inflate(y, x, emb);
+                return true;
+            }
+    return false;
+}
+
 template<typename topo_spec>
 bool find_clique_nice(const cell_cache<topo_spec> &,
                       size_t size,
@@ -45,41 +69,26 @@ bool find_clique_nice(const cell_cache<chimera_spec> &cells,
                       size_t &,
                       size_t &,
                       size_t &max_length) {
-    bundle_cache<chimera_spec> bundles(cells);
     size_t shore = cells.topo.shore;
-    if(size <= shore)
-        for(size_y y = 0; y < cells.topo.dim_y; y++)
-            for(size_x x = 0; x < cells.topo.dim_x; x++)
-                if (bundles.score(y,x,y,y,x,x) >= size) {
-                    bundles.inflate(y,x,y,y,x,x,emb);
-                    return true;
-                }
+    if(size <= shore && find_clique_short(cells, size, emb, max_length))
+        return true;
+    else if (max_length == 1)
+        return false;
+    bundle_cache<chimera_spec> bundles(cells);
     size_t minw = (size + shore - 1)/shore;
     size_t maxw = coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x);
-    if (max_length > 0) maxw = min(max_length - 1, maxw);
+    maxw = min(max_length - 1, maxw);
     for(size_t width = minw; width <= maxw; width++) {
         clique_cache<chimera_spec> rects(cells, bundles, width);
-        if(rects.extract_solution(emb)) {
-            if(emb.size() < size)
-                emb.clear();
-            else {
-                max_length = width + 1;
-                return true;
-            }
+        vector<vector<size_t>> temp_emb;
+        size_t l = get_sol(rects, temp_emb, size);
+        if (l < max_length) {
+            emb = temp_emb;
+            max_length = l;
+            return true;
         }
     }
     return false;
-}
-
-template<typename clique_cache_t>
-size_t check_sol(const clique_cache_t &rects, vector<vector<size_t>> &emb, size_t size) {
-    if(rects.extract_solution(emb)) {
-        if(emb.size() < size)
-            emb.clear();
-        else
-            return get_maxlen(emb, size);
-    }
-    return 0;
 }
 
 template<>
@@ -89,23 +98,22 @@ bool find_clique_nice(const cell_cache<zephyr_spec> &cells,
                       size_t &,
                       size_t &,
                       size_t &max_length) {
-    bundle_cache<zephyr_spec> bundles(cells);
     size_t shore = cells.topo.shore;
-    if(size <= shore)
-        for(size_y y = 0; y < cells.topo.dim_y; y++)
-            for(size_x x = 0; x < cells.topo.dim_x; x++)
-                if (bundles.score(y,x,y,y,x,x) >= size) {
-                    bundles.inflate(y,x,y,y,x,x,emb);
-                    return true;
-                }
+    if(size <= shore && find_clique_short(cells, size, emb, max_length))
+        return true;
+    else if (max_length == 1)
+        return false;
+    bundle_cache<zephyr_spec> bundles(cells);
     size_t minw = (size + shore - 1)/shore;
     size_t maxw = coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x);
-    if (max_length > 0) maxw = min(max_length - 1, maxw);
+    if (max_length < numeric_limits<size_t>::max()) maxw = min(2*max_length+1, maxw);
     for(size_t width = minw; width <= maxw; width++) {
         clique_cache<zephyr_spec> rects(cells, bundles, width);
-        size_t l = check_sol(rects, emb, size);
-        if (l) {
+        vector<vector<size_t>> temp_emb;
+        size_t l = get_sol(rects, temp_emb, size);
+        if (l < max_length) {
             max_length = l;
+            emb = temp_emb;
             return true;
         }
     }
@@ -121,45 +129,44 @@ bool find_clique_nice(const cell_cache<pegasus_spec> &cells,
                       size_t &max_length) {
     bundle_cache<pegasus_spec> bundles(cells);
     size_t minw = (size + 1)/2;
-    size_t maxw = coordinate_index(cells.topo.dim_y);
-    minorminer_assert(maxw == coordinate_index(cells.topo.dim_x));
-    if(max_length == 0) {
-        //naive first-pass: search for the first embedding with any max chainlength
-        for(; minw <= maxw; minw++) {
-            vector<vector<size_t>> tmp;
-            clique_cache<pegasus_spec> rects(cells, bundles, minw);
-            if(rects.extract_solution(tmp))
-                //if we find an embedding, check that it's big enough
-                if(tmp.size() >= size) {
-                    emb = tmp;
-                    max_length = get_maxlen(tmp, size);
-                    maxw = min(maxw, minw + 6);
-                    break;
-                }
-        }
-        if(minw > maxw) return false;
-    } else {
-        maxw = coordinate_converter::min(cells.topo.dim_y, (max_length)*6);
-    }
-    //we've already found an embedding; now try to find one with shorter chains
+    size_t maxw = coordinate_converter::min(cells.topo.dim_y, cells.topo.dim_x);
+
     for(size_t w = minw; w <= maxw; w++) {
-        auto check_length = [&bundles, max_length](size_y yc, size_x xc,
+        size_t w_lengthmin, w_lengthmax;
+        clique_yield_cache<pegasus_spec>::get_length_range(cells.topo, w, w_lengthmin, w_lengthmax);
+        if (w_lengthmin < max_length) {
+            //check for any embedding at this length
+            vector<vector<size_t>> tmp;
+            clique_cache<pegasus_spec> rects(cells, bundles, w);
+            if(rects.extract_solution(tmp) && tmp.size() >= size) {
+                size_t length = get_maxlen(tmp, size);
+                if (length < max_length)
+                    emb = tmp;
+                max_length = min(length, max_length);
+                maxw = min(maxw, w+6);
+            } else {
+                //no embeddings here; skip to the next minw;
+                continue;
+            }
+        } else {
+            break;
+        }
+        w_lengthmax = max(max_length, w_lengthmax);
+        for (size_t length = w_lengthmin; length < w_lengthmax; length++) {
+            auto check_length = [&bundles, length](size_y yc, size_x xc,
                                                    size_y y0, size_y y1,
                                                    size_x x0, size_x x1){
-            return bundles.length(yc,xc,y0,y1,x0,x1) < max_length; 
-        };
-        clique_cache<pegasus_spec> rects(cells, bundles, w, check_length);
-        vector<vector<size_t>> tmp;
-        if(rects.extract_solution(tmp)) {
-            //if we find an embedding, check that it's big enough
-            if(tmp.size() >= size) {
-                //if it's big enough, find the max (necessary) chainlength
-                size_t tlen = get_maxlen(tmp, size);
-                if(tlen < max_length) {
-                    emb = tmp;
-                    max_length = tlen;
-                    maxw = min(maxw, w+6);
-                    w--; //re-do this width until we stop improving
+                return bundles.length(yc,xc,y0,y1,x0,x1) <= length;
+            };
+            clique_cache<pegasus_spec> rects(cells, bundles, w, check_length);
+            vector<vector<size_t>> tmp;
+            if(rects.extract_solution(tmp)) {
+                if(tmp.size() >= size) {
+                    //if it's big enough, find the max (necessary) chainlength
+                    size_t tlen = get_maxlen(tmp, size);
+                    if(tlen < max_length)
+                        emb = tmp;
+                    max_length = min(length, max_length);
                 }
             }
         } //if no embeddings were found, keep searching
@@ -192,28 +199,17 @@ bool find_clique(topo_cache<topo_spec> &topology,
                  size_t size,
                  vector<vector<size_t>> &emb) {
     topology.reset();
-    size_t max_length = 0;
+    size_t max_length = numeric_limits<size_t>::max();
     size_t min_width = 0;
     size_t max_width = 0;
     vector<vector<size_t>> _emb;
-    if (find_clique_nice(topology.cells, size, _emb, max_length, min_width, max_width))
+    if (find_clique_nice(topology.cells, size, _emb, min_width, max_width, max_length))
         emb = _emb;
     while(topology.next()) {
-        if (find_clique_nice(topology.cells, size, _emb, max_length, min_width, max_width))
+        if (find_clique_nice(topology.cells, size, _emb, min_width, max_width, max_length))
             emb = _emb;
     }
     return emb.size() >= size;
-}
-
-template<typename topo_spec>
-bool find_clique_nice(const topo_spec &topo,
-                      const vector<size_t> &nodes,
-                      const vector<pair<size_t, size_t>> &edges,
-                      size_t size,
-                      vector<vector<size_t>> &emb) {
-    const cell_cache<topo_spec> cells(topo, nodes, edges);
-    size_t _0, _1, _2;
-    return find_clique_nice(cells, size, emb, _0, _1, _2);
 }
 
 template<typename topo_spec>

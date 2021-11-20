@@ -436,7 +436,7 @@ class coordinate_converter {
   private:
     //! private implementation of bundle_cache_index
     static size_t bundle_cache_index_impl(size_t u, size_t w, size_t z0, size_t z1, size_t stride_u, size_t stride_w) {
-        minorminer_assert(z0 < z1);
+        minorminer_assert(z0 <= z1);
         minorminer_assert(binom(z1) + z0 < stride_w);
         return u*stride_u + w*stride_w + binom(z1) + z0;
     }

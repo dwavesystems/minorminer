@@ -496,8 +496,8 @@ class zephyr_spec_base : public topo_spec_base {
             } else {
                 if(std::is_same<badmask_behavior, populate_badmask>::value) {
                     //p < q, so pu = 0 and qu = 1
-                    size_x x = vert(qw);
-                    size_y y = horz(pw);
+                    size_y y = horz(qw);
+                    size_x x = vert(pw);
                     badmask[super::chimera_linear(y, x, 0, pk)] &= ~mask_bit[qk];
                     badmask[super::chimera_linear(y, x, 1, qk)] &= ~mask_bit[pk];
                 }
@@ -536,7 +536,7 @@ class zephyr_spec_base : public topo_spec_base {
     }
   
     inline size_t zephyr_linear(bool u, size_w w, uint8_t k, size_z z) const {
-        return coordinate_converter::linemajor_linear( u, w, k, z, 2*zdim+1, uint8_t(super::shore), zdim);
+        return coordinate_converter::linemajor_linear(u, w, k, z, 2*zdim+1, uint8_t(super::shore), zdim);
     }
 
     void construct_line(bool u, size_w w, size_z z0, size_z z1, uint8_t k,
@@ -588,7 +588,7 @@ class zephyr_spec_base : public topo_spec_base {
                 u?super::chimera_linear(horz(w), horz(z), u, k):
                   super::chimera_linear(vert(z), vert(w), u, k)
             );
-        }        
+        }
         return fragments;
     }
 };
