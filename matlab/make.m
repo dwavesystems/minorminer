@@ -12,4 +12,4 @@
 %    See the License for the specific language governing permissions and
 %    limitations under the License.
 
-mex find_embedding.cpp -I../include CXXFLAGS="-std=c++1y -fPIC -O3" -lut -largeArrayDims -v
+mex find_embedding.cpp -I../include -I../include/find_embedding CXXFLAGS="-std=c++1y -fPIC -O3" -lut -largeArrayDims -v

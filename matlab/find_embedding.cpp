@@ -122,6 +122,13 @@ class LocalInteractionMATLAB : public find_embedding::LocalInteraction {
     }
 };
 
+void raiseWarning() {
+    mexWarnMsgIdAndTxt(
+        "MinorMiner:DeprecatedMEX",
+        "MEX support for minorminer is deprecated as of version 0.2.7, and will be removed entirely in December 2022"
+    );
+}
+
 void checkFindEmbeddingParameters(const mxArray* paramsArray,
                                   find_embedding::optional_parameters& findEmbeddingExternalParams) {
     // mxIsEmpty(paramsArray) handles the case when paramsArray is: struct('a', {}), since isempty(struct('a', {})) is
@@ -245,6 +252,8 @@ void checkFindEmbeddingParameters(const mxArray* paramsArray,
 
 // problem, A, params
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+    raiseWarning();
+
     if (nrhs != 3) mexErrMsgTxt("Wrong number of arguments");
 
     if (nlhs > 2) mexErrMsgTxt("Too many outputs");

@@ -129,8 +129,14 @@ A more fleshed out example can be found under `examples/fourcolor.py`
     pip install -r requirements.txt
     python fourcolor.py
 
-Matlab
-======
+Matlab (Deprecated)
+===================
+
+Matlab support is deprecated as of vesion 0.2.8, and we will not accept bug reports
+in later versions.  The matlab interface has been broken for the entire 0.2 series,
+and more than a year passed before this was discovered.  It will be fixed in the 
+0.2.8 release, but the matlab support infrastructure will be removed entirely in
+May 2023, unless community developers volunteer to maintain it.
 
 Installation
 ------------
