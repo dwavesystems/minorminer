@@ -125,9 +125,9 @@ class bundle_cache {
                     mask+= coordinate_index(z);
                     minorminer_assert(mask+coordinate_index(z) == &get_line_mask(side.u, w, z, z));
                     uint8_t m = mask[coordinate_index(z)] = cells.qmask(side.u, w, z);
-                    for(size_z z0 = z; z0-->size_z(0);) {
+                    for(size_z z0 = z; z0-->0_z;) {
                         minorminer_assert(mask+coordinate_index(z0) == &get_line_mask(side.u, w, z0, z));
-                        m = mask[coordinate_index(z0)] = m & cells.emask(side.u, w, z0+1u);
+                        m = mask[coordinate_index(z0)] = m & cells.emask(side.u, w, z0+1_z);
                     }
                 }
                 mask += coordinate_index(side.dim_z);

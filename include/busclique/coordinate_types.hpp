@@ -185,24 +185,18 @@ class coordinate_base {
     typedef coordinate_base<T> cb;
     friend size_t coordinate_index<T>(cb);
     size_t v;
-    operator size_t() { return v; }
   public:
-  
     constexpr coordinate_base() {}
-    coordinate_base(size_t v) : v(v) {}
+    constexpr coordinate_base(size_t v) : v(v) {}
     coordinate_base(const coordinate_base<T> &c) : v(c.v) {}
     cb operator++(int) { cb t = *this; v++; return t; }
     cb operator--(int) { cb t = *this; v--; return t; }
     cb &operator++() { v++; return *this; }
     cb &operator--() { v--; return *this; }
-    cb operator+(cb a) const { return v+a; }
-    cb operator-(cb a) const { return v-a; }
-    cb operator/(cb a) const { return v/a; }
-    cb operator*(cb a) const { return v*a; }
-    cb operator+(unsigned int a) const { return v+a; }
-    cb operator-(unsigned int a) const { return v-a; }
-    cb operator/(unsigned int a) const { return v/a; }
-    cb operator*(unsigned int a) const { return v*a; }
+    cb operator+(cb a) const { return v+a.v; }
+    cb operator-(cb a) const { return v-a.v; }
+    cb operator/(cb a) const { return v/a.v; }
+    cb operator*(cb a) const { return v*a.v; }
     bool operator<(cb a) const { return v<a.v; }
     bool operator>(cb a) const { return v>a.v; }
     bool operator<=(cb a) const { return v<=a.v; }
@@ -227,7 +221,7 @@ typedef coordinate_base<coord_z> size_z;
 
 template<typename T>
 size_t coordinate_index(coordinate_base<T> c) {
-    return c;
+    return c.v;
 }
 
 //! This purely for convenience, to make implementations of coordinate_converter
@@ -254,6 +248,11 @@ size_t binom(coordinate_base<T> c) {
     return binom(coordinate_index(c));
 }
 
+template<typename T>
+std::ostream& operator<< (std::ostream& out, coordinate_base<T> v) {
+    return out << coordinate_index(v);
+}
+
 #else
 
 // if neither CPPDEBUG nor COORDINATE_TYPES is set, we take the safeties off.
@@ -269,6 +268,19 @@ inline const size_t &vert(const size_t &c) { return c; }
 inline const size_t &horz(const size_t &c) { return c; }
 
 #endif
+
+
+//! user-defined literal for size_y
+constexpr size_y operator""_y(unsigned long long int v) { return static_cast<size_t>(v); }
+
+//! user-defined literal for size_x
+constexpr size_x operator""_x(unsigned long long int v) { return static_cast<size_t>(v); }
+
+//! user-defined literal for size_w
+constexpr size_w operator""_w(unsigned long long int v) { return static_cast<size_t>(v); }
+
+//! user-defined literal for size_z
+constexpr size_z operator""_z(unsigned long long int v) { return static_cast<size_t>(v); }
 
 //! An arena to perform arithmetic that does not respect the unit system defined
 //! in coordinate_base<T>.  This class is not a friend of coordinate_base<T> so

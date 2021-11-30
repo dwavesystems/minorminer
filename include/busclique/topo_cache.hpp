@@ -110,7 +110,7 @@ class topo_cache {
             for (size_x x = 0; x < topo.dim_x; x++) {
                 for (uint8_t k = 0; k < topo.shore; k++) {
                     if (emask[topo.cell_index(0, vert(x), vert(y))]&mask_bit[k])
-                        edges.emplace_back(q, topo.chimera_linear(y-1u, x, 0, k));
+                        edges.emplace_back(q, topo.chimera_linear(y-1_y, x, 0, k));
                     if (nmask[topo.cell_index(0, vert(x), vert(y))]&mask_bit[k]) {
                         for (uint8_t k1 = 0; k1 < topo.shore; k1++) {
                             if (nmask[topo.cell_index(1, horz(y), horz(x))]&mask_bit[k1]&~badmask[q])
@@ -122,7 +122,7 @@ class topo_cache {
                 }
                 for (uint8_t k = 0; k < topo.shore; k++) {
                     if (emask[topo.cell_index(1, horz(y), horz(x))]&mask_bit[k])
-                        edges.emplace_back(q, topo.chimera_linear(y, x-1u, 1, k));
+                        edges.emplace_back(q, topo.chimera_linear(y, x-1_x, 1, k));
                     minorminer_assert(q == topo.chimera_linear(y, x, 1, k));
                     q++;
                 }
@@ -250,11 +250,11 @@ class topo_cache {
             child_nodemask[topo.cell_index(y, x, u)] &= ~mask_bit[k];
             child_edgemask[topo.cell_index(y, x, u)] &= ~mask_bit[k];
             if(u) {
-                if (x+1u < topo.dim_x) 
-                    child_edgemask[topo.cell_index(y, x+1u, u)] &= ~mask_bit[k];
+                if (x+1_x < topo.dim_x) 
+                    child_edgemask[topo.cell_index(y, x+1_x, u)] &= ~mask_bit[k];
             } else {
-                if (y+1u < topo.dim_y) 
-                    child_edgemask[topo.cell_index(y+1u, x, u)] &= ~mask_bit[k];
+                if (y+1_y < topo.dim_y) 
+                    child_edgemask[topo.cell_index(y+1_y, x, u)] &= ~mask_bit[k];
             }
         }
         return true;

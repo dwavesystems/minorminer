@@ -145,23 +145,23 @@ class clique_cache {
         for(size_t i = 1; i < width-1; i++) {
             size_y h = i+1;
             size_x w = width-i;
-            maxcache prev = get(coordinate_index(h-2u));
+            maxcache prev = get(coordinate_index(h-2_y));
             extend_cache(prev, h, w, check, corner::NE, corner::NW, corner::SW, corner::SE);
         }
         {
             size_y h = width;
             size_x w = 1;
-            maxcache prev = get(coordinate_index(h-2u));
+            maxcache prev = get(coordinate_index(h-2_y));
             extend_cache(prev, h, w, check, corner::NE, corner::SE);
         }
     }
 
     template<typename T, typename C, typename ... Corners>
     inline void extend_cache(const T &prev, size_y h, size_x w, C &check, Corners ... corners) {
-        maxcache next = get(coordinate_index(h-1u));
+        maxcache next = get(coordinate_index(h-1_y));
         for(size_y y = 0; y <= cells.topo.dim_y-h; y++)
             for(size_x x = 0; x <= cells.topo.dim_x-w; x++)
-                extend_cache(prev, next, y, y+h-1u, x, x+w-1u, check, corners...);
+                extend_cache(prev, next, y, y+h-1_y, x, x+w-1_x, check, corners...);
     }
 
     template<typename T, typename C, typename ... Corners>
@@ -483,16 +483,16 @@ class clique_yield_cache {
             for(size_y y = 6; y < size_y(12); y++) {
                 for(size_x x = 6; x < size_x(12); x++) {
                     size_t length;
-                    length = topo.line_length(0, vert(x), vert(y), vert(y+h-1u)) + topo.line_length(1, horz(y), horz(x), horz(x+w-1u));
+                    length = topo.line_length(0, vert(x), vert(y), vert(y+h-1_y)) + topo.line_length(1, horz(y), horz(x), horz(x+w-1_x));
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
-                    length = topo.line_length(0, vert(x), vert(y), vert(y+h-1u)) + topo.line_length(1, horz(y+h-1u), horz(x), horz(x+w-1u));
+                    length = topo.line_length(0, vert(x), vert(y), vert(y+h-1_y)) + topo.line_length(1, horz(y+h-1_y), horz(x), horz(x+w-1_x));
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
-                    length = topo.line_length(0, vert(x+w-1u), vert(y), vert(y+h-1u)) + topo.line_length(1, horz(y), horz(x), horz(x+w-1u));
+                    length = topo.line_length(0, vert(x+w-1_x), vert(y), vert(y+h-1_y)) + topo.line_length(1, horz(y), horz(x), horz(x+w-1_x));
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
-                    length = topo.line_length(0, vert(x+w-1u), vert(y), vert(y+h-1u)) + topo.line_length(1, horz(y+h-1u), horz(x), horz(x+w-1u));
+                    length = topo.line_length(0, vert(x+w-1_x), vert(y), vert(y+h-1_y)) + topo.line_length(1, horz(y+h-1_y), horz(x), horz(x+w-1_x));
                     max_length = max(max_length, length);
                     min_length = min(min_length, length);
                 }
