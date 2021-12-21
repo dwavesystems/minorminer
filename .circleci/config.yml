@@ -1,4 +1,11 @@
-version: 2
+version: 2.1
+
+environment: &global-environment
+  CIBW_BUILD_VERBOSITY: 1
+  CIBW_MANYLINUX_X86_64_IMAGE: manylinux2010
+  CIBW_SKIP: pp* *musllinux*
+  PIP_PROGRESS_BAR: 'off'
+
 jobs:
   coverage-gcc:
     docker:
@@ -18,7 +25,7 @@ jobs:
             C_COMPILER: gcc
             CXX_COMPILER: g++
 
-  coverage-gcc-4.8:
+  coverage-gcc-48:
     docker:
        - image: bellert/cmake:4
     working_directory: ~/repo
@@ -97,389 +104,271 @@ jobs:
               coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
             fi;
 
-  test-3.9: &full-test-template
+  build-linux:
+    parameters:
+      python-version:
+        type: string
+
     docker:
       - image: circleci/python:3.9
 
-    working_directory: ~/repo
-
-    steps:
-
-      - checkout
-
-      - restore_cache: &restore-cache-template
-          keys:
-          - v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "test_requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
-
-      - run:
-          name: create virtualenv
-          command: |
-            python -m virtualenv env
-
-      - run: &install-dependencies-template
-          name: install dependencies
-          command: |
-            . env/bin/activate
-            python --version
-            pip install -r requirements.txt -r test_requirements.txt
-
-      - save_cache: &save-cache-template
-          paths:
-            - ./env
-          key: v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "test_requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
-
-      - run: &build-ext-template
-          name: install package
-          command: |
-            . env/bin/activate
-            python setup.py build_ext --inplace
-
-      - run: &run-tests-template
-          name: run unittests
-          command: |
-            . env/bin/activate
-            python --version
-            python -m pytest . --verbose
-          environment:
-            CPPDEBUG: 1
-
-      - run: &run-doctest-template
-          name: doctest
-          command: |
-            . env/bin/activate
-            pip install -r requirements.txt -r docs/requirements.txt
-            python setup.py install
-            make -C docs/ doctest
-      - run:
-          name: linkcheck
-          command: |
-            . env/bin/activate
-            make -C docs/ linkcheck
-
-      - run: &sdist-build-template
-          name: build sdist
-          command: |
-            . env/bin/activate
-            python setup.py sdist
-
-      - store_artifacts:
-          path: ./dist
-
-      - run: &sdist-install-template
-          name: install sdist without cython
-          command: |
-            python -m virtualenv env_sdist
-            . env_sdist/bin/activate
-            pip install dist/minorminer-*.tar.gz
-
-      - run: &sdist-cython-install-template
-          name: install sdist with cython
-          command: |
-            python -m virtualenv env_cython_sdist
-            . env_cython_sdist/bin/activate
-            pip install cython
-            pip install dist/minorminer-*.tar.gz
-
-  test-3.8:
-    <<: *full-test-template
-    docker:
-      - image: circleci/python:3.8
-
-  test-3.7:
-    <<: *full-test-template
-    docker:
-      - image: circleci/python:3.7
-
-  test-3.6:
-    <<: *full-test-template
-    docker:
-      - image: circleci/python:3.6
-
-  test-osx-3.9: &osx-tests-template
-    macos:
-      xcode: "12.2.0"
     environment:
-      PYTHON: 3.9.0
-      HOMEBREW_NO_AUTO_UPDATE: 1
-
-    working_directory: ~/repo
-
-    steps: 
-      - checkout
-
-      - run: 
-          name: install pyenv
-          command: |
-            brew install pyenv
-
-      - restore_cache:
-          keys:
-            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
-
-      - run:
-          name: install python
-          command: |
-            pyenv install $PYTHON -s
-
-      - save_cache:
-          paths:
-            - ~/.pyenv
-          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
-
-      - restore_cache: *restore-cache-template
-
-      - run:
-          name: create virtualenv
-          command: |
-            eval "$(pyenv init -)"
-            pyenv local $PYTHON
-            python -m pip install virtualenv
-            python -m virtualenv env
-
-      - run:
-          name: install dependencies
-          command: |
-            eval "$(pyenv init -)"
-            python --version
-            pip install -r requirements.txt -r test_requirements.txt
-
-      - save_cache: *save-cache-template
-
-      - run:
-          name: install package
-          command: |
-            eval "$(pyenv init -)"
-            python setup.py build_ext --inplace
-        
-      - run:
-          name: run unittests
-          command: |
-            eval "$(pyenv init -)"
-            python --version
-            python -m pytest . --verbose
-          environment:
-            CPPDEBUG: 1
-
-      - run:
-          name: build sdist
-          command: |
-            eval "$(pyenv init -)"
-            python setup.py sdist
-
-      - run: 
-          name: install sdist without cython
-          command: |
-            eval "$(pyenv init -)"
-            pyenv local $PYTHON
-            pip install dist/minorminer-*.tar.gz
-
-      - run:
-          name: install sdist with cython
-          command: |
-            eval "$(pyenv init -)"
-            pip install cython
-            pip install dist/minorminer-*.tar.gz
-
-  test-osx-3.8:
-    <<: *osx-tests-template
-    environment:
-      PYTHON: 3.8.6
-      HOMEBREW_NO_AUTO_UPDATE: 1
-
-  test-osx-3.7:
-    <<: *osx-tests-template
-    environment:
-      PYTHON: 3.7.9
-      HOMEBREW_NO_AUTO_UPDATE: 1
-
-  test-osx-3.6:
-    <<: *osx-tests-template
-    environment:
-      PYTHON: 3.6.12
-      HOMEBREW_NO_AUTO_UPDATE: 1
-
-  deploy-manylinux-64: &manylinux-template
-    docker:
-      - image: quay.io/pypa/manylinux1_x86_64
-
-    working_directory: ~/repo
+      <<: *global-environment
+      CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
+      CIBW_ARCHS_LINUX: x86_64
 
     steps:
       - checkout
-
-      - run:
+      - setup_remote_docker
+      - restore_cache: &build-linux-restore-cache
+          keys:
+            - pip-{{ .Environment.CIRCLE_JOB }}-{{ checksum "pyproject.toml" }}
+      - when:
+          condition:
+            equal: [3.6.8, << parameters.python-version>>]
+          steps:
+            - run: echo 'export CIBW_MANYLINUX_X86_64_IMAGE=manylinux1' >> $BASH_ENV
+      - run: &build-linux-wheels
           name: build wheels
           command: |
-            for PYBIN in /opt/python/*/bin; do
-              if "${PYBIN}/python" -c "import sys; sys.exit(sys.version_info>=(3, 6) and sys.version_info<(3, 10))"; then continue; fi;
-              "${PYBIN}/pip" install -r requirements.txt -r test_requirements.txt
-              "${PYBIN}/pip" wheel . -w ./wheelhouse
-              "${PYBIN}/python" setup.py sdist -d ./dist
-            done
+            python3 -m venv env
+            . env/bin/activate
+            pip install pip --upgrade
+            pip install cibuildwheel==2.3.0
+            cibuildwheel --output-dir dist
+      - save_cache: &build-linux-save-cache
+          paths:
+            - ~/.cache/pip
+          key: pip-{{ .Environment.CIRCLE_JOB }}-{{ checksum "pyproject.toml" }}
+      - store_artifacts: &store-artifacts
+          path: ./dist
+      - persist_to_workspace: &persist-to-workspace
+          root: ./dist/
+          paths: .
 
+  build-linux-aarch64:
+    parameters:
+      python-version:
+        type: string
+
+    machine:
+      image: ubuntu-2004:202101-01
+
+    resource_class: arm.medium
+
+    environment:
+      <<: *global-environment
+      CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
+      CIBW_ARCHS_LINUX: aarch64
+
+    steps: &build-steps
+      - checkout
+      - restore_cache: *build-linux-restore-cache
+      - run: *build-linux-wheels
+      - save_cache: *build-linux-save-cache
+      - store_artifacts: *store-artifacts
+      - persist_to_workspace: *persist-to-workspace
+
+  build-osx:
+    parameters:
+      python-version:
+        type: string
+      cibw-arch:
+        type: string
+
+    macos:
+      xcode: 13.2.0
+
+    environment:
+      <<: *global-environment
+      CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
+      CIBW_ARCHS_MACOS: << parameters.cibw-arch >>
+
+    steps: *build-steps
+
+  build-sdist:
+    docker:
+      - image: circleci/python:3.9
+
+    steps:
+      - checkout
       - run:
-          name: bundle shared libraries into wheels
+          name: build sdist
           command: |
-            for whl in ./wheelhouse/minorminer*.whl; do
-              auditwheel repair "$whl" -w ./dist
-            done
+            python -m venv env
+            . env/bin/activate
+            pip install -r requirements.txt
+            python setup.py sdist -d ./dist
+      - store_artifacts: *store-artifacts
+      - persist_to_workspace: *persist-to-workspace
+
+  deploy-all:
+    docker:
+      - image: circleci/python:3.9
+
+    steps:
+      - attach_workspace:
+          at: dist
 
       - store_artifacts:
           path: ./dist
 
-      - run: &init-pypirc-template
-          name: init .pypirc
-          command: |
-            echo -e "[pypi]" >> ~/.pypirc
-            echo -e "username = $PYPI_USERNAME" >> ~/.pypirc
-            echo -e "password = $PYPI_PASSWORD" >> ~/.pypirc
-
       - run:
-          name: create a virtualenv
+          name: deploy
           command: |
-            pythons=(/opt/python/*/bin)
-            python="${pythons[0]}"
-            "$python/pip" install virtualenv
-            "$python/python" -m virtualenv env
-
-      - run: &upload-template
-          name: install twine and deploy
-          command: |
+            python -m venv env
             . env/bin/activate
             python -m pip install twine
-            twine upload --skip-existing ./dist/*
+            twine upload -u "$PYPI_USERNAME" -p "$PYPI_PASSWORD" --skip-existing ./dist/*
 
+  test-linux:
+    parameters:
+      python-version:
+        type: string
 
-  deploy-manylinux-32:
-    <<: *manylinux-template
     docker:
-      - image: quay.io/pypa/manylinux1_i686
+      - image: circleci/python:<< parameters.python-version >>
 
-  deploy-osx-3.9: &osx-deploy-template
+    steps:
+      - checkout
+      - attach_workspace:
+          at: dist
+      - run:
+          name: install
+          command: |
+            python -m venv env
+            . env/bin/activate
+            pip install -r requirements.txt
+            pip install minorminer --no-index -f dist/ --force-reinstall --no-deps
+      - run: &unix-run-tests
+          name: run tests
+          command: |
+            . env/bin/activate
+            pip install -r test_requirements.txt
+            cd tests/
+            python -m unittest
+
+  test-osx:
+    parameters:
+      python-version:
+        type: string
+
     macos:
-      xcode: "12.2.0"
+      xcode: 13.2.0
+
     environment:
-      PYTHON: 3.9.0
+      <<: *global-environment
       HOMEBREW_NO_AUTO_UPDATE: 1
 
-    working_directory: ~/repo
-
-    steps: 
+    steps:
       - checkout
-
-      - run: 
+      - attach_workspace:
+          at: dist
+      - run:
           name: install pyenv
           command: |
             brew install pyenv
-
       - restore_cache:
           keys:
-            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
-
+            - pyenv-{{ .Environment.CIRCLE_JOB }}-xcode13.2.0
+      - when:
+          # see https://github.com/pyenv/pyenv/issues/1643. We use an intermediate
+          # file so we can use the --skip-existing without raising errors from curl
+          condition:
+            equal: [3.6.8, << parameters.python-version>>]
+          steps:
+            - run:
+                name: Install Python 3.6 with a patch
+                command: |
+                  curl -sSL https://github.com/python/cpython/commit/8ea6353.patch > tmp.txt
+                  pyenv install -s --patch 3.6.8 < tmp.txt
       - run:
           name: install python
           command: |
-            pyenv install $PYTHON -s
-
+            pyenv install << parameters.python-version>> -s
       - save_cache:
           paths:
             - ~/.pyenv
-          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
-
+          key: pyenv-{{ .Environment.CIRCLE_JOB }}-xcode13.2.0
       - run:
-          name: create virtualenv
+          name: install
           command: |
+            eval "$(pyenv init --path)"
             eval "$(pyenv init -)"
-            pyenv local $PYTHON
-            python -m pip install virtualenv
-            python -m virtualenv env
-
-      - run: *install-dependencies-template
-
-      - run: *build-ext-template
-        
-      - run:
-          name: create bdist_wheel
-          command: |
+            pyenv local << parameters.python-version >>
+            python -m venv env
             . env/bin/activate
-            python setup.py bdist_wheel
-
-      - store_artifacts:
-          path: ./dist
-
-      - run: *init-pypirc-template
-
-      - run: *upload-template
-
-  deploy-osx-3.8:
-    <<: *osx-deploy-template
-    environment:
-      PYTHON: 3.8.6
-      HOMEBREW_NO_AUTO_UPDATE: 1
-
-  deploy-osx-3.7:
-    <<: *osx-deploy-template
-    environment:
-      PYTHON: 3.7.9
-      HOMEBREW_NO_AUTO_UPDATE: 1
-
-  deploy-osx-3.6:
-    <<: *osx-deploy-template
-    environment:
-      PYTHON: 3.6.12
-      HOMEBREW_NO_AUTO_UPDATE: 1
+            pip install pip --upgrade
+            pip install -r requirements.txt
+            pip install -r test_requirements.txt
+            pip install minorminer --no-index -f dist/ --force-reinstall --no-deps
+      - run: *unix-run-tests
 
 workflows:
-  version: 2
+  version: 2.1
   test:
     jobs:
       - coverage-gcc
-      - coverage-gcc-4.8
+      - coverage-gcc-48
       - coverage-clang
       - coverage-osx
-      - test-3.9
-      - test-3.8
-      - test-3.7
-      - test-3.6
-      - test-osx-3.9
-      - test-osx-3.8
-      - test-osx-3.7
-      - test-osx-3.6
+      - build-linux: &build
+          matrix:
+            parameters:
+              python-version: &python-versions [3.6.8, 3.7.9, 3.8.9, 3.9.4, 3.10.0]
+      - build-sdist
+      - build-osx: &build-osx
+          matrix:
+            parameters:
+              python-version: *python-versions
+              cibw-arch: [x86_64, universal2]
+            exclude:
+              - python-version: 3.6.8
+                cibw-arch: universal2
+              - python-version: 3.7.9
+                cibw-arch: universal2
+      - test-linux:
+          requires:
+            - build-linux
+          matrix:
+            parameters:
+              python-version: *python-versions
+      - test-osx:
+          name: test-osx-py<< matrix.python-version >>
+          requires:
+            - build-osx
+          matrix:
+            parameters:
+              python-version: *python-versions     
   deploy:
     jobs:
-      - deploy-manylinux-64:
+      - build-linux:
+          <<: *build
           filters:
             tags:
-              only: /^[0-9]+(\.[0-9]+)*(\.dev([0-9]+)?)?$/
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
-      - deploy-manylinux-32:
+      - build-osx:
+          <<: *build-osx
           filters:
             tags:
-              only: /^[0-9]+(\.[0-9]+)*(\.dev([0-9]+)?)?$/
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
-      - deploy-osx-3.9:
+      - build-sdist:
           filters:
             tags:
-              only: /^[0-9]+(\.[0-9]+)*(\.dev([0-9]+)?)?$/
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
-      - deploy-osx-3.8:
+      - deploy-all:
           filters:
             tags:
-              only: /^[0-9]+(\.[0-9]+)*(\.dev([0-9]+)?)?$/
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
-      - deploy-osx-3.7:
-          filters:
-            tags:
-              only: /^[0-9]+(\.[0-9]+)*(\.dev([0-9]+)?)?$/
-            branches:
-              ignore: /.*/
-      - deploy-osx-3.6:
-          filters:
-            tags:
-              only: /^[0-9]+(\.[0-9]+)*(\.dev([0-9]+)?)?$/
-            branches:
-              ignore: /.*/
+          requires:
+            - build-linux
+            - build-osx
+            - build-sdist
