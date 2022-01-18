@@ -316,6 +316,7 @@ workflows:
           matrix:
             parameters:
               python-version: &python-versions [3.6.8, 3.7.9, 3.8.9, 3.9.4, 3.10.0]
+      - build-linux-aarch64: *build
       - build-sdist
       - build-osx: &build-osx
           matrix:
@@ -349,6 +350,13 @@ workflows:
               only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
+      - build-linux-aarch64:
+          <<: *build
+          filters:
+            tags:
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
+            branches:
+              ignore: /.*/
       - build-osx:
           <<: *build-osx
           filters:
@@ -370,5 +378,6 @@ workflows:
               ignore: /.*/
           requires:
             - build-linux
+            - build-linux-aarch64
             - build-osx
             - build-sdist
