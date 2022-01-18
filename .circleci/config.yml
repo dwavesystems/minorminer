@@ -345,37 +345,21 @@ workflows:
     jobs:
       - build-linux:
           <<: *build
-          filters:
+          filters: &deploy-filters
             tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc|\.post)([0-9]+)?)?$/
             branches:
               ignore: /.*/
       - build-linux-aarch64:
           <<: *build
-          filters:
-            tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
-            branches:
-              ignore: /.*/
+          filters: *deploy-filters
       - build-osx:
           <<: *build-osx
-          filters:
-            tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
-            branches:
-              ignore: /.*/
+          filters: *deploy-filters
       - build-sdist:
-          filters:
-            tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
-            branches:
-              ignore: /.*/
+          filters: *deploy-filters
       - deploy-all:
-          filters:
-            tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
-            branches:
-              ignore: /.*/
+          filters: *deploy-filters
           requires:
             - build-linux
             - build-linux-aarch64
