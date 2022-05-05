@@ -102,17 +102,17 @@ void parseChainArray(const mxArray* a, const char* errorMsg, std::map<int, std::
 
 class LocalInteractionMATLAB : public find_embedding::LocalInteraction {
   private:
-    virtual void displayOutputImpl(const std::string& msg) const {
+    void displayOutputImpl(int, const std::string& msg) const override {
         mexPrintf("%s", msg.c_str());
         mexEvalString("drawnow;");
     }
 
-    virtual void displayErrorImpl(const std::string& msg) const {
+    void displayErrorImpl(int, const std::string& msg) const override {
         mexPrintf("%s", msg.c_str());
         mexEvalString("drawnow;");
     }
 
-    virtual bool cancelledImpl() const {
+    bool cancelledImpl() const override {
         if (utIsInterruptPending()) {
             utSetInterruptPending(false);
             return true;
@@ -276,7 +276,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 
         result = find_embedding::findEmbedding(Qg, Ag, findEmbeddingExternalParams, chains);
     } catch (const find_embedding::MinorMinerException& e) {
-        mexErrMsgTxt(e.what().c_str());
+        mexErrMsgTxt(e.what());
     } catch (...) {
         mexErrMsgTxt("unknown error");
     }
