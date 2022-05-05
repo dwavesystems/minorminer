@@ -21,8 +21,9 @@ class MyCppInteractions : public find_embedding::LocalInteraction {
     void cancel() { _canceled = true; }
 
   private:
-    virtual void displayOutputImpl(const std::string& mess) const { std::cout << mess << std::endl; }
-    virtual bool cancelledImpl() const { return _canceled; }
+    void displayOutputImpl(int, const std::string& mess) const override { std::cout << mess << std::endl; }
+    void displayErrorImpl(int, const std::string& mess) const override { std::cerr << mess << std::endl; }
+    bool cancelledImpl() const override { return _canceled; }
 };
 
 int main() {
