@@ -68,7 +68,7 @@ class Test_find_clique_embedding(unittest.TestCase):
     def test_k2_to_single_chimera_edge(self):
         emb = find_clique_embedding(2, 1, target_edges=[(0, 4)])
 
-        self.assertDictEqual({0: [0], 1: [4]}, emb)
+        self.assertDictEqual({0: (0,), 1: (4,)}, emb)
 
     def test_full_yield_one_tile_k3(self):
         emb = find_clique_embedding(3, 1)

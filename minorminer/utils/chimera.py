@@ -161,8 +161,8 @@ def find_biclique_embedding(a, b, m=None, n=None, t=None, target_edges=None, tar
         {'a': [4], 'b': [5], 'c': [6]} {'d': [0], 'e': [1]}
 
     """
-    _, anodes = a
-    _, bnodes = b
+    _a, anodes = a
+    _b, bnodes = b
 
     if isinstance(_a, int) and isinstance(_b, int):
         bnodes = [len(anodes) + x for x in bnodes]
@@ -246,8 +246,9 @@ def find_grid_embedding(dim, m, n=None, t=4):
 
 _dont_construct = object()
 def _get_target_graph(m, n=None, t=None, target_edges=None, target_graph=None):
+    print(m, n, t, target_edges, target_graph)
     if target_graph is not None and target_graph is not _dont_construct:
-        if target_edges is None:
+        if target_edges is not None:
             raise ValueError("either target_graph or target_edges must be None")
         m = target_graph.graph['rows']
         n = target_graph.graph['columns']
@@ -273,7 +274,8 @@ def _get_target_graph(m, n=None, t=None, target_edges=None, target_graph=None):
             if t <= 0:
                 raise ValueError('Chimera lattice parameter t must be an int and >= 1')
 
-        if target_edges is not None and target_graph is not _dont_construct:
+        if target_graph is not _dont_construct:
             target_graph = chimera_graph(m, n, t, edge_list = target_edges)
 
+    print(m, n, t, target_edges, target_graph)
     return m, n, t, target_graph
