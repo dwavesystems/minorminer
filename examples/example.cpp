@@ -13,7 +13,7 @@
 //    limitations under the License.
 
 #include <iostream>
-#include "../include/find_embedding.hpp"
+#include "../include/find_embedding/find_embedding.hpp"
 
 class MyCppInteractions : public find_embedding::LocalInteraction {
   public:
@@ -21,7 +21,8 @@ class MyCppInteractions : public find_embedding::LocalInteraction {
     void cancel() { _canceled = true; }
 
   private:
-    virtual void displayOutputImpl(const std::string& mess) const { std::cout << mess << std::endl; }
+    void displayOutputImpl(const std::string& mess) const override { std::cout << mess << std::endl; }
+    void displayErrorImpl(const std::string& mess) const override { std::cout << mess << std::endl; }
     virtual bool cancelledImpl() const { return _canceled; }
 };
 

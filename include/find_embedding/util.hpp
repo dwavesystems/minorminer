@@ -94,10 +94,10 @@ class LocalInteraction {
   public:
     virtual ~LocalInteraction() {}
     //! Print a message through the local output method
-    void displayOutput(int loglevel, const string& msg) const { displayOutputImpl(loglevel, msg); }
+    void displayOutput(int loglevel, const string& msg) const { displayOutputImpl(msg); }
 
     //! Print an error through the local output method
-    void displayError(int loglevel, const string& msg) const { displayErrorImpl(loglevel, msg); }
+    void displayError(int loglevel, const string& msg) const { displayErrorImpl(msg); }
 
     //! Check if someone is trying to cancel the embedding process
     int cancelled(const clock::time_point stoptime) const {
@@ -108,10 +108,10 @@ class LocalInteraction {
 
   private:
     //! Print the string to a binding specified sink
-    virtual void displayOutputImpl(int loglevel, const string&) const = 0;
+    virtual void displayOutputImpl(const string&) const = 0;
 
     //! Print the error to a binding specified sink
-    virtual void displayErrorImpl(int loglevel, const string&) const = 0;
+    virtual void displayErrorImpl(const string&) const = 0;
 
     //! Check if the embedding process has timed out.
     virtual bool timedOutImpl(const clock::time_point stoptime) const { return clock::now() >= stoptime; }
