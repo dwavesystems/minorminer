@@ -1,2 +1,3 @@
 pytest>=6.0.0
 pytest-subtests
+parameterized==0.7.4
