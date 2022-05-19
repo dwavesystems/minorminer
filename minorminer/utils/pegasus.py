@@ -14,7 +14,11 @@
 #
 # ================================================================================================
 
+from dwave_networkx.generators.pegasus import pegasus_graph
 import networkx as nx
+
+from minorminer.busclique import busgraph_cache
+
 
 __all__ = ['find_clique_embedding', 'find_biclique_embedding']
 

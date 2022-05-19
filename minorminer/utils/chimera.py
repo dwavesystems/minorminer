@@ -19,8 +19,10 @@ try:
 except ImportError:
     import collections as abc
 
-import dwave_networkx as dnx
+from dwave_networkx.generators.chimera import chimera_graph, chimera_coordinates
 import networkx as nx
+
+from minorminer.busclique import busgraph_cache
 
 __all__ = ['find_clique_embedding',
            'find_biclique_embedding',
@@ -217,7 +219,7 @@ def find_grid_embedding(dim, m, n=None, t=4):
     """
 
     m, n, t, _ = _get_target_graph(m, n, t, None, _dont_construct)
-    indexer = dnx.generators.chimera.chimera_coordinates(m, n, t)
+    indexer = chimera_coordinates(m, n, t)
 
     dim = list(dim)
     num_dim = len(dim)
@@ -272,6 +274,6 @@ def _get_target_graph(m, n=None, t=None, target_edges=None, target_graph=None):
                 raise ValueError('Chimera lattice parameter t must be an int and >= 1')
 
         if target_edges is not None and target_graph is not _dont_construct:
-            target_graph = dnx.chimera_graph(m, n, t, edge_list = target_edges)
+            target_graph = chimera_graph(m, n, t, edge_list = target_edges)
 
     return m, n, t, target_graph
