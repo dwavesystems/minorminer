@@ -247,8 +247,8 @@ jobs:
           command: |
             . env/bin/activate
             pip install -r test_requirements.txt
-            cd tests/
-            python -m unittest
+            python setup.py build_ext --inplace
+            python -m pytest .
 
   test-osx:
     parameters:
