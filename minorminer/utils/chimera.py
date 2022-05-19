@@ -19,11 +19,10 @@ try:
 except ImportError:
     import collections as abc
 
-import dwave_networkx as dnx
+from dwave_networkx.generators.chimera import chimera_graph, chimera_coordinates
 import networkx as nx
 
-
-from minorminer.utils.polynomialembedder import processor
+from minorminer.busclique import busgraph_cache
 
 __all__ = ['find_clique_embedding',
            'find_biclique_embedding',
@@ -32,7 +31,7 @@ __all__ = ['find_clique_embedding',
 
 
 @nx.utils.decorators.nodes_or_number(0)
-def find_clique_embedding(k, m, n=None, t=None, target_edges=None):
+def find_clique_embedding(k, m=None, n=None, t=None, target_edges=None, target_graph=None):
     """Find an embedding for a clique in a Chimera graph.
 
     Given the node labels or size of a clique (fully connected graph) and size or
@@ -45,7 +44,7 @@ def find_clique_embedding(k, m, n=None, t=None, target_edges=None):
             generates an embedding for a clique of size len(k) labelled
             for the given nodes.
 
-        m (int):
+        m (int, optional, default=None):
             Number of rows in the Chimera lattice.
 
         n (int, optional, default=m):
@@ -58,8 +57,16 @@ def find_clique_embedding(k, m, n=None, t=None, target_edges=None):
             A list of edges in the target Chimera graph. Nodes are labelled as
             returned by :func:`~dwave_networkx.chimera_graph`.
 
+        target_graph (networkx.Graph):
+            A Chimera graph constructed by :func:`~dwave_networkx.chimera_graph`.
+
     Returns:
         dict: An embedding mapping a clique to the Chimera lattice.
+
+    Note:
+        Either target_edges or target_graph must be None.  If both are None,
+        a graph with perfect yield is assumed from the parameters m, n, t.  If
+        target_edges is not None, at least m must not be None.
 
     Examples:
         The first example finds an embedding for a :math:`K_4` complete graph in a single
@@ -79,44 +86,19 @@ def find_clique_embedding(k, m, n=None, t=None, target_edges=None):
         {'a': [20, 16], 'b': [21, 17], 'c': [22, 18]}
 
     """
-    import random
-
     _, nodes = k
+    m, n, t, g = _get_target_graph(m, n, t, target_edges, target_graph)
+    embedding = busgraph_cache(g).find_clique_embedding(nodes)
 
-    m, n, t, target_edges = _chimera_input(m, n, t, target_edges)
+    if len(embedding) != len(nodes):
+        raise ValueError("No clique embedding found")
 
-    # Special cases to return optimal embeddings for small k.  The general clique embedder uses chains of length
-    # at least 2, whereas cliques of size 1 and 2 can be embedded with single-qubit chains.
-
-    if len(nodes) == 1:
-        # If k == 1 we simply return a single chain consisting of a randomly sampled qubit.
-
-        qubits = set().union(*target_edges)
-        qubit = random.choice(tuple(qubits))
-        embedding = [[qubit]]
-
-    elif len(nodes) == 2:
-        # If k == 2 we simply return two one-qubit chains that are the endpoints of a randomly sampled coupler.
-
-        if not isinstance(target_edges, abc.Sequence):
-            target_edges = list(target_edges)
-        edge = random.choice(target_edges)
-        embedding = [[edge[0]], [edge[1]]]
-
-    else:
-        # General case for k > 2.
-
-        embedding = processor(target_edges, M=m, N=n, L=t).tightestNativeClique(len(nodes))
-
-    if not embedding:
-        raise ValueError("cannot find a K{} embedding for given Chimera lattice".format(len(nodes)))
-
-    return dict(zip(nodes, embedding))
+    return embedding
 
 
 @nx.utils.decorators.nodes_or_number(0)
 @nx.utils.decorators.nodes_or_number(1)
-def find_biclique_embedding(a, b, m, n=None, t=None, target_edges=None):
+def find_biclique_embedding(a, b, m=None, n=None, t=None, target_edges=None, target_graph=None):
     """Find an embedding for a biclique in a Chimera graph.
 
     Given a biclique (a bipartite graph where every vertex in a set in connected
@@ -138,7 +120,7 @@ def find_biclique_embedding(a, b, m, n=None, t=None, target_edges=None):
             biclique with the right shore of size len(b) labelled for the given
             nodes.
 
-        m (int):
+        m (int, optional, default=None):
             Number of rows in the Chimera lattice.
 
         n (int, optional, default=m):
@@ -151,6 +133,9 @@ def find_biclique_embedding(a, b, m, n=None, t=None, target_edges=None):
             A list of edges in the target Chimera graph. Nodes are labelled as
             returned by :func:`~dwave_networkx.chimera_graph`.
 
+        target_graph (networkx.Graph):
+            A Chimera graph constructed by :func:`~dwave_networkx.chimera_graph`.
+
     Returns:
         tuple: A 2-tuple containing:
 
@@ -159,6 +144,11 @@ def find_biclique_embedding(a, b, m, n=None, t=None, target_edges=None):
 
             dict: An embedding mapping the right shore of the biclique to
             the Chimera lattice.
+
+    Note:
+        Either target_edges or target_graph must be None.  If both are None,
+        a graph with perfect yield is assumed from the parameters m, n, t.  If
+        target_edges is not None, at least m must not be None.
 
     Examples:
         This example finds an embedding for an alphanumerically labeled biclique in a single
@@ -171,17 +161,23 @@ def find_biclique_embedding(a, b, m, n=None, t=None, target_edges=None):
         {'a': [4], 'b': [5], 'c': [6]} {'d': [0], 'e': [1]}
 
     """
-    _, anodes = a
-    _, bnodes = b
+    _a, anodes = a
+    _b, bnodes = b
 
-    m, n, t, target_edges = _chimera_input(m, n, t, target_edges)
-    embedding = processor(target_edges, M=m, N=n, L=t).tightestNativeBiClique(len(anodes), len(bnodes))
+    if isinstance(_a, int) and isinstance(_b, int):
+        bnodes = [len(anodes) + x for x in bnodes]
+
+    if set(anodes).intersection(set(bnodes)):
+        raise ValueError("a and b overlap")
+
+    m, n, t, g = _get_target_graph(m, n, t, target_edges, target_graph)
+    embedding = busgraph_cache(g).find_biclique_embedding(len(anodes), len(bnodes))
 
     if not embedding:
-        raise ValueError("cannot find a K{},{} embedding for given Chimera lattice".format(a, b))
+        raise ValueError("No biclique embedding found")
 
-    left, right = embedding
-    return dict(zip(anodes, left)), dict(zip(bnodes, right))
+    return ({x: embedding[anodes.index(x)] for x in anodes},
+            {y: embedding[bnodes.index(y) + len(anodes)] for y in bnodes})
 
 
 def find_grid_embedding(dim, m, n=None, t=4):
@@ -222,8 +218,8 @@ def find_grid_embedding(dim, m, n=None, t=4):
 
     """
 
-    m, n, t, target_edges = _chimera_input(m, n, t, None)
-    indexer = dnx.generators.chimera.chimera_coordinates(m, n, t)
+    m, n, t, _ = _get_target_graph(m, n, t, None, _dont_construct)
+    indexer = chimera_coordinates(m, n, t)
 
     dim = list(dim)
     num_dim = len(dim)
@@ -248,29 +244,38 @@ def find_grid_embedding(dim, m, n=None, t=4):
                                      indexer.chimera_to_linear((row, col, 1, aisle))]
             for row in range(dim[0]) for col in range(dim[1]) for aisle in range(dim[2])}
 
-
-def _chimera_input(m, n=None, t=None, target_edges=None):
-    if not isinstance(m, int):
-        raise TypeError('Chimera lattice parameter m must be an int and >= 1')
-    if m <= 0:
-        raise ValueError('Chimera lattice parameter m must be an int and >= 1')
-
-    if n is None:
-        n = m
+_dont_construct = object()
+def _get_target_graph(m, n=None, t=None, target_edges=None, target_graph=None):
+    print(m, n, t, target_edges, target_graph)
+    if target_graph is not None and target_graph is not _dont_construct:
+        if target_edges is not None:
+            raise ValueError("either target_graph or target_edges must be None")
+        m = target_graph.graph['rows']
+        n = target_graph.graph['columns']
+        t = target_graph.graph['tile']
     else:
-        if not isinstance(n, int):
-            raise TypeError('Chimera lattice parameter n must be an int and >= 1')
-        if n <= 0:
-            raise ValueError('Chimera lattice parameter n must be an int and >= 1')
-    if t is None:
-        t = 4
-    else:
-        if not isinstance(t, int):
-            raise TypeError('Chimera lattice parameter t must be an int and >= 1')
-        if t <= 0:
-            raise ValueError('Chimera lattice parameter t must be an int and >= 1')
+        if not isinstance(m, int):
+            raise TypeError('Chimera lattice parameter m must be an int and >= 1')
+        if m <= 0:
+            raise ValueError('Chimera lattice parameter m must be an int and >= 1')
 
-    if target_edges is None:
-        target_edges = dnx.chimera_graph(m, n, t).edges
+        if n is None:
+            n = m
+        else:
+            if not isinstance(n, int):
+                raise TypeError('Chimera lattice parameter n must be an int and >= 1')
+            if n <= 0:
+                raise ValueError('Chimera lattice parameter n must be an int and >= 1')
+        if t is None:
+            t = 4
+        else:
+            if not isinstance(t, int):
+                raise TypeError('Chimera lattice parameter t must be an int and >= 1')
+            if t <= 0:
+                raise ValueError('Chimera lattice parameter t must be an int and >= 1')
 
-    return m, n, t, target_edges
+        if target_graph is not _dont_construct:
+            target_graph = chimera_graph(m, n, t, edge_list = target_edges)
+
+    print(m, n, t, target_edges, target_graph)
+    return m, n, t, target_graph

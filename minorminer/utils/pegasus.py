@@ -14,59 +14,21 @@
 #
 # ================================================================================================
 
-from dwave_networkx.generators.pegasus import (get_tuple_defragmentation_fn, fragmented_edges,
-    pegasus_coordinates, pegasus_graph)
-from minorminer.utils.polynomialembedder import processor
+from dwave_networkx.generators.pegasus import pegasus_graph
 import networkx as nx
+
+from minorminer.busclique import busgraph_cache
+
 
 __all__ = ['find_clique_embedding', 'find_biclique_embedding']
 
-
-def _pegasus_fragment_helper(m=None, target_graph=None):
-    # This is a function that takes m or a target_graph and produces a
-    # `processor` object for the corresponding Pegasus graph, and a function
-    # that translates embeddings produced by that object back to the original
-    # pegasus graph.  Consumed by `find_clique_embedding` and
-    # `find_biclique_embedding`.
-
-    # Organize parameter values
+def _get_target_graph(m=None, target_graph=None):
     if target_graph is None:
         if m is None:
             raise TypeError("m and target_graph cannot both be None.")
         target_graph = pegasus_graph(m)
+    return target_graph
 
-    m = target_graph.graph['rows']     # We only support square Pegasus graphs
-
-    # Deal with differences in ints vs coordinate target_graphs
-    if target_graph.graph['labels'] == 'nice':
-        back_converter = pegasus_coordinates.pegasus_to_nice
-        back_translate = lambda embedding: {key: [back_converter(p) for p in chain]
-                                      for key, chain in embedding.items()}
-    elif target_graph.graph['labels'] == 'int':
-        # Convert nodes in terms of Pegasus coordinates
-        coord_converter = pegasus_coordinates(m)
-
-        # A function to convert our final coordinate embedding to an ints embedding
-        back_translate = lambda embedding: {key: list(coord_converter.iter_pegasus_to_linear(chain))
-                                      for key, chain in embedding.items()}
-    else:
-        back_translate = lambda embedding: embedding
-
-    # collect edges of the graph produced by splitting each Pegasus qubit into six pieces
-    fragment_edges = list(fragmented_edges(target_graph))
-
-    # Find clique embedding in K2,2 Chimera graph
-    embedding_processor = processor(fragment_edges, M=m*6, N=m*6, L=2, linear=False)
-
-    # Convert chimera fragment embedding in terms of Pegasus coordinates
-    defragment_tuple = get_tuple_defragmentation_fn(target_graph)
-    def embedding_to_pegasus(nodes, emb):
-        emb = map(defragment_tuple, emb)
-        emb = dict(zip(nodes, emb))
-        emb = back_translate(emb)
-        return emb
-
-    return embedding_processor, embedding_to_pegasus
 
 @nx.utils.decorators.nodes_or_number(0)
 def find_clique_embedding(k, m=None, target_graph=None):
@@ -100,15 +62,13 @@ def find_clique_embedding(k, m=None, target_graph=None):
 
     """
     _, nodes = k
+    g = _get_target_graph(m, target_graph)
+    embedding = busgraph_cache(g).find_clique_embedding(nodes)
 
-    embedding_processor, embedding_to_pegasus = _pegasus_fragment_helper(m, target_graph)
-    chimera_clique_embedding = embedding_processor.tightestNativeClique(len(nodes))
-    pegasus_clique_embedding = embedding_to_pegasus(nodes, chimera_clique_embedding)
-
-    if len(pegasus_clique_embedding) != len(nodes):
+    if len(embedding) != len(nodes):
         raise ValueError("No clique embedding found")
 
-    return pegasus_clique_embedding
+    return embedding
 
 
 @nx.utils.decorators.nodes_or_number(0)
@@ -161,15 +121,20 @@ def find_biclique_embedding(a, b, m=None, target_graph=None):
         {'a': [40], 'b': [41], 'c': [42]} {'d': [4], 'e': [5]}
 
     """
-    _, anodes = a
-    _, bnodes = b
+    _a, anodes = a
+    _b, bnodes = b
 
-    embedding_processor, embedding_to_pegasus = _pegasus_fragment_helper(m, target_graph)
-    embedding = embedding_processor.tightestNativeBiClique(len(anodes), len(bnodes))
+    if isinstance(_a, int) and isinstance(_b, int):
+        bnodes = [len(anodes) + x for x in bnodes]
+
+    if set(anodes).intersection(set(bnodes)):
+        raise ValueError("a and b overlap")
+
+    g = _get_target_graph(m, target_graph)
+    embedding = busgraph_cache(g).find_biclique_embedding(len(anodes), len(bnodes))
 
     if not embedding:
-        raise ValueError("cannot find a K{},{} embedding for given Pegasus lattice".format(a, b))
+        raise ValueError("No biclique embedding found")
 
-    left = embedding_to_pegasus(anodes, embedding[0])
-    right = embedding_to_pegasus(bnodes, embedding[1])
-    return left, right
+    return ({x: embedding[anodes.index(x)] for x in anodes},
+            {y: embedding[bnodes.index(y) + len(anodes)] for y in bnodes})

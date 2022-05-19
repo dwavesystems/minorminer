@@ -55,6 +55,9 @@ __bugged_graph = [(12, 9), (12, 4), (12, 8), (12, 11), (12, 10), (15, 9), (15, 7
 from random import shuffle, randint, choice, sample
 from collections import defaultdict
 from itertools import product
+import warnings
+
+warnings.warn("minorminer.utils.polynomialembedder is deprecated. Use minorminer.busclique intead.", DeprecationWarning)
 
 __author__ = "Kelly Boothby"
 
