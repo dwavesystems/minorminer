@@ -57,7 +57,7 @@ from collections import defaultdict
 from itertools import product
 import warnings
 
-warnings.warn("minorminer.utils.polynomialembedder is deprecated. Use minorminer.busclique intead.", warnings.DeprecationWarning)
+warnings.warn("minorminer.utils.polynomialembedder is deprecated. Use minorminer.busclique intead.", DeprecationWarning)
 
 __author__ = "Kelly Boothby"
 

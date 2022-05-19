@@ -29,7 +29,7 @@ __all__ = ['find_clique_embedding',
 
 
 @nx.utils.decorators.nodes_or_number(0)
-def find_clique_embedding(k, m, n=None, t=None, target_edges=None, target_graph=None):
+def find_clique_embedding(k, m=None, n=None, t=None, target_edges=None, target_graph=None):
     """Find an embedding for a clique in a Chimera graph.
 
     Given the node labels or size of a clique (fully connected graph) and size or
@@ -42,7 +42,7 @@ def find_clique_embedding(k, m, n=None, t=None, target_edges=None, target_graph=
             generates an embedding for a clique of size len(k) labelled
             for the given nodes.
 
-        m (int):
+        m (int, optional, default=None):
             Number of rows in the Chimera lattice.
 
         n (int, optional, default=m):
@@ -58,12 +58,13 @@ def find_clique_embedding(k, m, n=None, t=None, target_edges=None, target_graph=
         target_graph (networkx.Graph):
             A Chimera graph constructed by :func:`~dwave_networkx.chimera_graph`.
 
-    Note:
-        Either target_edges or target_graph must be None.  If both are None,
-        a graph with perfect yield is assumed from the parameters m, n, t.
-
     Returns:
         dict: An embedding mapping a clique to the Chimera lattice.
+
+    Note:
+        Either target_edges or target_graph must be None.  If both are None,
+        a graph with perfect yield is assumed from the parameters m, n, t.  If
+        target_edges is not None, at least m must not be None.
 
     Examples:
         The first example finds an embedding for a :math:`K_4` complete graph in a single
@@ -95,7 +96,7 @@ def find_clique_embedding(k, m, n=None, t=None, target_edges=None, target_graph=
 
 @nx.utils.decorators.nodes_or_number(0)
 @nx.utils.decorators.nodes_or_number(1)
-def find_biclique_embedding(a, b, m, n=None, t=None, target_edges=None, target_graph=None):
+def find_biclique_embedding(a, b, m=None, n=None, t=None, target_edges=None, target_graph=None):
     """Find an embedding for a biclique in a Chimera graph.
 
     Given a biclique (a bipartite graph where every vertex in a set in connected
@@ -117,7 +118,7 @@ def find_biclique_embedding(a, b, m, n=None, t=None, target_edges=None, target_g
             biclique with the right shore of size len(b) labelled for the given
             nodes.
 
-        m (int):
+        m (int, optional, default=None):
             Number of rows in the Chimera lattice.
 
         n (int, optional, default=m):
@@ -141,6 +142,11 @@ def find_biclique_embedding(a, b, m, n=None, t=None, target_edges=None, target_g
 
             dict: An embedding mapping the right shore of the biclique to
             the Chimera lattice.
+
+    Note:
+        Either target_edges or target_graph must be None.  If both are None,
+        a graph with perfect yield is assumed from the parameters m, n, t.  If
+        target_edges is not None, at least m must not be None.
 
     Examples:
         This example finds an embedding for an alphanumerically labeled biclique in a single

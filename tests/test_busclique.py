@@ -1,5 +1,5 @@
 from minorminer import busclique
-from minorminer.utils import verify_embedding, chimera, pegasus
+from minorminer.utils import verify_embedding
 import unittest, random, itertools, dwave_networkx as dnx, networkx as nx, os
 
 def subgraph_node_yield(g, q):
@@ -132,16 +132,12 @@ class TestBusclique(unittest.TestCase):
             return dnx.chimera_graph(16, node_list = nodes)
         self.run_battery('c16', self.c16, reconstruct, 64, 17, 64, 16)
 
-    def run_battery(self, name, g, reconstruct,
-                          cliquesize, cliquelength,
-                          bicliquesize, bicliquelength,
-                          test_python = False, test_nocache = True):
+    def run_battery(self, name, g, reconstruct, cliquesize, cliquelength,
+                          bicliquesize, bicliquelength, test_nocache = True):
         labels = g.graph['labels']
 
         clique_init_ok = False
-        test = self.clique_battery(g, reconstruct,
-                                   test_python = test_python,
-                                   test_nocache = test_nocache)
+        test = self.clique_battery(g, reconstruct, test_nocache = test_nocache)
         with self.subTest(msg=f"clique_battery init"):
             emb0, size, cl = next(test)
             s = nx.complete_graph(size)
@@ -174,8 +170,7 @@ class TestBusclique(unittest.TestCase):
                     if bicliquelength is not None:
                         self.assertEqual(max_chainlength(emb), bicliquelength)
 
-    def clique_battery(self, g, reconstruct,
-                       test_python = False, test_nocache = True):
+    def clique_battery(self, g, reconstruct, test_nocache = True):
         bgcg = busclique.busgraph_cache(g)
         emb0 = bgcg.largest_clique()
         size = len(emb0)
@@ -190,20 +185,6 @@ class TestBusclique(unittest.TestCase):
                    lambda:busclique.find_clique_embedding(size, g, use_cache = False),
                    'g:bc.fce,nc', True)
         yield g, lambda:bgcg.largest_clique_by_chainlength(cl), 'g:bc.lcbc', True
-        if test_python:
-            if g.graph['family'] == 'chimera':
-                if g.graph['labels'] == 'int':
-                    # this fails on coordinate-labeled graphs... TODO?
-                    args = size, g.graph['rows']
-                    kwargs = dict(target_edges = g.edges)
-                    yield (g,
-                           lambda:chimera.find_clique_embedding(*args, **kwargs),
-                           'g:legacy.fce', True)
-            if g.graph['family'] == 'pegasus':
-                kwargs = dict(target_graph = g)
-                yield (g, lambda:pegasus.find_clique_embedding(size, **kwargs),
-                       'g:legacy.fce', False)
-
         nodes = set(itertools.chain.from_iterable(emb0.values()))
         h = reconstruct(nodes)
         bgch = busclique.busgraph_cache(h)
@@ -214,19 +195,6 @@ class TestBusclique(unittest.TestCase):
         yield h, lambda:bgch.largest_clique(), 'h:bgc.lc', True
         yield h, lambda:bgch.find_clique_embedding(N), 'h:bgc.fce', True
         yield h, lambda:bgch.largest_clique_by_chainlength(cl), 'h:bgc.lcbc', True
-        if test_python:
-            if g.graph['family'] == 'chimera':
-                if g.graph['labels'] == 'int':
-                    # this fails on coordinate-labeled graphs... TODO?
-                    args = size, h.graph['rows']
-                    kwargs = dict(target_edges = h.edges)
-                    yield (h,
-                           lambda:chimera.find_clique_embedding(*args, **kwargs),
-                           'h:legacy.fce', True)
-            if g.graph['family'] == 'pegasus':
-                kwargs = dict(target_graph = h)
-                yield (h, lambda:pegasus.find_clique_embedding(size, **kwargs),
-                       'h:legacy.fce', False)
 
     def biclique_battery(self, g, reconstruct):
         bgcg = busclique.busgraph_cache(g)
@@ -275,10 +243,9 @@ class TestBusclique(unittest.TestCase):
 
         names = 'c4_nd', 'c4', 'c4_d', 'p4_nd', 'p4', 'p4_d', 'z4_nd', 'z4', 'z4_d'
         nocache = False, True, True, False, True, True, False, True, True
-        python = False, True, True, False, True, True, False, False, False
         topos = self.c4_nd, self.c4, self.c4_d, self.p4_nd, self.p4, self.p4_d, self.z4_nd, self.z4, self.z4_d
 
-        for (name, test_nocache, test_python, G) in zip(names, nocache, python, topos):
+        for (name, test_nocache, G) in zip(names, nocache, topos):
             g0 = G[0]
             bgc = busclique.busgraph_cache(g0)
             K = bgc.largest_clique()
@@ -299,7 +266,6 @@ class TestBusclique(unittest.TestCase):
                 self.run_battery(name, g, reconstructor(g), 
                                  len(K), max_chainlength(K),
                                  len(B)//2, None,
-                                 test_python = test_python,
                                  test_nocache = test_nocache)
 
     def test_k4_bug(self):

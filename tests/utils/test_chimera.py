@@ -88,17 +88,32 @@ class Test_find_clique_embedding(unittest.TestCase):
 
         self.assertEqual(source, {0: {1}, 1: {0}})
 
-    def test_str_labels(self):
-        emb = find_clique_embedding(['a', 'b'], 1)
+    def test_target_graph(self):
+        target = dnx.chimera_graph(1)
+        emb = find_clique_embedding(4, target_graph=target)
+        source = target_to_source(target, emb)
+        self.assertEqual(source, {0: {1, 2, 3}, 1: {0, 2, 3}, 2: {0, 1, 3}, 3: {0, 1, 2}})
 
-        self.assertEqual(len(emb), 2)
-        self.assertIn('a', emb)
-        self.assertIn('b', emb)
+    def test_target_graph_coordinates(self):
+        target = dnx.chimera_graph(1, coordinates=True)
+        emb = find_clique_embedding(4, target_graph=target)
+        source = target_to_source(target, emb)
+        self.assertEqual(source, {0: {1, 2, 3}, 1: {0, 2, 3}, 2: {0, 1, 3}, 3: {0, 1, 2}})
 
 
 class Test_find_biclique_embedding(unittest.TestCase):
     def test_full_yield_one_tile_k44(self):
         left, right = find_biclique_embedding(4, 4, 1)
+        # smoke test for now
+
+    def test_target_graph(self):
+        target = dnx.chimera_graph(1)
+        emb = find_biclique_embedding(4, 4, target_graph=target)
+        # smoke test for now
+
+    def test_target_graph_coordinates(self):
+        target = dnx.chimera_graph(1, coordinates=True)
+        emb = find_clique_embedding(4, target_graph=target)
         # smoke test for now
 
 
