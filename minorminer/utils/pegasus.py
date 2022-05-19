@@ -14,7 +14,6 @@
 #
 # ================================================================================================
 
-from dwave_networkx.generators.chimera import chimera_graph
 from dwave_networkx.generators.pegasus import (get_tuple_defragmentation_fn, fragmented_edges,
     pegasus_coordinates, pegasus_graph)
 from minorminer.utils.polynomialembedder import processor
