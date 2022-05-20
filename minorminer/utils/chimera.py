@@ -246,7 +246,6 @@ def find_grid_embedding(dim, m, n=None, t=4):
 
 _dont_construct = object()
 def _get_target_graph(m, n=None, t=None, target_edges=None, target_graph=None):
-    print(m, n, t, target_edges, target_graph)
     if target_graph is not None and target_graph is not _dont_construct:
         if target_edges is not None:
             raise ValueError("either target_graph or target_edges must be None")
@@ -277,5 +276,4 @@ def _get_target_graph(m, n=None, t=None, target_edges=None, target_graph=None):
         if target_graph is not _dont_construct:
             target_graph = chimera_graph(m, n, t, edge_list = target_edges)
 
-    print(m, n, t, target_edges, target_graph)
     return m, n, t, target_graph
