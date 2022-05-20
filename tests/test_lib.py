@@ -858,8 +858,8 @@ def _long_running_successful_problem(interactive):
                             interactive=interactive, timeout=2)
     except KeyboardInterrupt:
         sys.exit(2)
-    if time.perf_counter() - t0 > .5:
-        # be a little generous here... but the caller should kill this in way less than .5s
+    if time.perf_counter() - t0 > 1.5:
+        # be a little generous here... but the caller should kill this in way less than 1.5s
         sys.exit(1)
 
 
