@@ -18,7 +18,6 @@ environment:
     # we could test more in debug mode but I think this is sufficient for now
     - PYTHON: "C:\\Python39-x64"
       CPPDEBUG: 1
-    - PYTHON: "C:\\Python36-x64"
     - PYTHON: "C:\\Python37-x64"
     - PYTHON: "C:\\Python38-x64"
     - PYTHON: "C:\\Python39-x64"
