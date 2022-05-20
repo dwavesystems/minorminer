@@ -855,7 +855,7 @@ def _long_running_successful_problem(interactive):
     t0 = time.perf_counter()
     try:
         find_embedding_orig(C, C, chainlength_patience=1 << 20,
-                            interactive=interactive, timeout=1)
+                            interactive=interactive, timeout=2)
     except KeyboardInterrupt:
         sys.exit(2)
     if time.perf_counter() - t0 > .5:
