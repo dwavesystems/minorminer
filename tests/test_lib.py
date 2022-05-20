@@ -872,7 +872,7 @@ def run_interactive_interrupt(interactive):
     p = multiprocessing.Process(
         target=_long_running_successful_problem, args=(interactive,))
     p.start()
-    time.sleep(1)
+    time.sleep(.1 if sys.platform == 'linux' else 1)
     os.kill(p.pid, ctrl_c)
     p.join()
     # exitcode 0: terminated successfully (interactive mode catches the interrupt)
