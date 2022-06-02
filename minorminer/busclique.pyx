@@ -16,17 +16,27 @@
 # cython: language_level=3
 include "busclique_h.pxi"
 
-import homebase, os, pathlib, fasteners, threading, random
+import homebase
+import os
+import pathlib
+import fasteners
+import threading
+import random
+import gzip
 from pickle import dump, load
+from json import dumps, loads
 import networkx as nx, dwave_networkx as dnx
+from itertools import zip_longest
+
 
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromStringAndSize
 
+
 #increment this version any time there is a change made to the cache format,
 #when yield-improving changes are made to clique algorithms, or when bugs are
 #fixed in the same.
-cdef int __cache_version = 6
+cdef int __cache_version = 7
 
 cdef int __lru_size = 100
 cdef dict __global_locks = {'clique': threading.Lock(),
@@ -155,17 +165,21 @@ class busgraph_cache:
         self._cliques = None
         self._bicliques = None
 
-    def _ensure_clique_cache(self):
+    def _ensure_clique_cache(self, blank=False):
         """Fetch/compute the clique cache, if it's not already in memory."""
         if self._cliques is None:
-            self._cliques = self._fetch_cache('clique', self._graph.cliques)
-
+            if blank:
+                self._cliques = _make_clique_cache([])
+            else:
+                self._cliques = self._fetch_cache(
+                    'clique',
+                    self._graph.cliques
+                )
 
     def _ensure_biclique_cache(self):
         """Fetch/compute the clique cache, if it's not already in memory."""
         if self._bicliques is None:
-            self._bicliques = self._fetch_cache('biclique', 
-                                                self._graph.bicliques)
+            self._bicliques = self._fetch_cache('biclique', self._graph.bicliques)
 
     @staticmethod
     def cache_rootdir(version=__cache_version):
@@ -207,7 +221,193 @@ class busgraph_cache:
                 top.rmdir()
                 dirstack.pop()
 
-    def _fetch_cache(self, dirname, compute):
+    def get_clique_cache(self, sparse=False, compress=True):
+        """Returns an object representing the cliques stored in this cache.
+        
+        Args:
+            sparse: (bool, optional, default=False)
+                If True, the cache will be a dictionary mapping embedding sizes
+                to lists of chains.  Otherwise, the cache will be a list of 
+                lists of chains; the index of the outermost list corresponding
+                to embedding size.
+
+            compress: (bool, optional, default=True)
+                if True, the cache will be json-utf8-gzipped.  Otherwise, the
+                cache will be a python object whose type is determined by the
+                ``sparse`` argument.
+        Returns:
+            a cache object
+
+        """
+        self._ensure_clique_cache()
+        raw = self._cliques['raw']
+        size = self._cliques['size']
+        if sparse:
+            cache = {i: raw[s][:i] for i, s in size.items()}
+        else:
+            cache = [raw[size[i]][:i] if i in size else () for i in range(max(size))]
+        if compress:
+            cache = gzip.compress(dumps(cache).encode('utf8'))
+        return cache
+
+    def update_clique_cache(self, cache, write_to_disk = True):
+        """Replaces or sets the cliques stored by this cache with the provided
+        cache object.
+        
+        Args:
+            cache: (bytes, str, dict or iterable)
+                The cache object to replace.  Should be an object returned by
+                :func:`self.get_clique_cache`.
+
+            write_to_disk: (bool, optional, default=True)
+                If True, the updated cache will be written to disk.
+                Otherwise, the cache will only be updated in memory.
+        """
+        if isinstance(cache, bytes):
+            cache = gzip.decompress(cache).decode('utf8')
+        if isinstance(cache, str):
+            cache = loads(cache)
+        if isinstance(cache, dict):
+            cache = cache.items()
+        else:
+            cache = enumerate(cache)
+        for size, emb in cache:
+            self.insert_clique_embedding(emb, write_to_disk=False, direct=True)
+
+        if write_to_disk:
+            self._fetch_cache('clique', lambda: self._cliques, force_write=True)
+
+    def insert_clique_embedding(self, emb, write_to_disk=True, quality_function=None, direct=False):
+        """Inserts a clique embedding into the cache.
+        
+        Args:
+            emb: (dict or list)
+                The embedding to insert into the cache.
+
+            write_to_disk: (bool, optional, default=True)
+                If True, the updated cache will be written to disk.
+                Otherwise, the cache will only be updated in memory.
+
+            quality_function: (callable or None)
+                A function used to evaluate the quality of an embedding before
+                incorporating it into the cache.  If ``quality_function`` is
+                None, preference is given to the embedding with shortest maximum
+                chain length.  The embeddings evaluated by ``quality_function``
+                will be provided as a list of list of integers, corresponding
+                to the integer-labeled graph underlying ``self``.
+
+            direct: (bool, optional, default=False)
+                If True, the embedding will be stored directly into the cache,
+                overwriting the current clique of that size if it exists.  In
+                this case, ``quality_function`` must be ``None``.
+                Otherwise, the embedding and embeddings derived by removing 
+                chains in decreasing order of length may be stored into the
+                cache, if ``quality function`` evaluated on the new embedding is
+                greater than the old.  If ``quality_function`` is None, new
+                embeddings are retained when their chainlength is shorter than
+                the old.
+        """
+        if not isinstance(emb, dict):
+            emb = dict(enumerate(emb))
+        emb = self._graph.delabel(emb)
+        emb = sorted(emb.values(), key=len)
+        if direct:
+            if quality_function is not None:
+                raise ValueError("quality_function is ignored for direct insertion")
+            self._ensure_clique_cache(blank=True)
+            raw = self._cliques['raw']
+            raw.append(emb)
+            key = len(raw)
+            by_length = self._cliques['length']
+            self._cliques['size'][len(emb)] = key
+            length = len(emb[-1]) if emb else 0
+            if length not in by_length or len(raw[by_length[length]]) < len(emb):
+                by_length[length] = key
+            if write_to_disk:
+                self._fetch_cache('clique', lambda: cache, force_write=True)
+        else:
+            cache = _make_clique_cache([emb])
+            self.merge_clique_cache(cache, quality_function, write_to_disk)
+
+    def merge_clique_cache(self, cache, quality_function=None, write_to_disk=True):
+        """Merges the clique cache of another ``busgraph_cache`` object
+        
+        Args:
+            cache: (busgraph_cache or object)
+                If ``cache`` is a ``busgraph_cache``, its clique cache will be
+                incorporated that of ``self``.  Otherwise, the cache object is
+                an undocumented, internal cache representation (do not use).
+
+            quality_function: (callable or None)
+                A function used to evaluate the quality of an embedding before
+                incorporating it into the cache.  If ``quality_function`` is
+                None, preference is given to the embedding with shortest maximum
+                chain length.  The embeddings evaluated by ``quality_function``
+                will be provided as a list of list of integers, corresponding
+                to the integer-labeled graph underlying ``self``.
+
+            write_to_disk: (bool, optional, default=True)
+                If True, the merged cache will be written to disk.
+                Otherwise, the cache will only be updated in memory.
+        """
+        cdef vector[embedding_t] embs
+        self._ensure_clique_cache(blank=True)
+        if isinstance(cache, busgraph_cache):
+            cache._ensure_clique_cache()
+            cache = cache._cliques
+        raw0 = cache['raw']
+        raw1 = self._cliques['raw']
+        used = {}
+        
+        size = {}
+        size0 = cache['size']
+        size1 = self._cliques['size']
+        for i in sorted(set(size0).union(size1)):
+            key0 = size0.get(i)
+            key1 = size1.get(i)
+            if key1 is None:
+                key = used.setdefault((key0, 0), len(used))
+            elif key0 is None:
+                key = used.setdefault((key1, 1), len(used))
+            else:
+                if quality_function is None:
+                    # by default, shortest chainlength is highest quality
+                    qual0 = -len(raw0[key0][i])
+                    qual1 = -len(raw1[key1][i])
+                else:                    
+                    qual0 = quality_function(raw0[key0][:i])
+                    qual1 = quality_function(raw1[key1][:i])
+                if qual0 > qual1:
+                    key = used.setdefault((key0, 0), len(used))
+                else:
+                    # if the quality is the same, retain the old embedding
+                    key = used.setdefault((key1, 1), len(used))
+            size[i] = key            
+
+        length = {}
+        length0 = cache['length']
+        length1 = self._cliques['length']
+        for i in sorted(set(length0).union(length1)):
+            key0 = length0.get(i)
+            key1 = length1.get(i)
+            if key1 is None:
+                key = used.setdefault((key0, 0), len(used))
+            elif key0 is None:
+                key = used.setdefault((key1, 1), len(used))            
+            elif len(raw0[key0]) > len(raw1[key1]):
+                # pick the larger embedding
+                key = used.setdefault((key0, 0), len(used))
+            else:
+                # if the embeddings have the same size, retain the old one
+                key = used.setdefault((key1, 1), len(used))
+            length[i] = key
+
+        raw = [raw0[key] if i == 0 else raw1[key] for (key, i) in used]
+        self._cliques = {"raw": raw, "size": size, "length": length}
+        if write_to_disk:
+            self._fetch_cache('clique', lambda: self._cliques, force_write=True)
+
+    def _fetch_cache(self, dirname, compute, force_write=False):
         """This is an ad-hoc implementation of a file-cache using a LRU strategy.
         It's intended to be platform independent, thread- and multiprocess-safe,
         and reasonably performant -- I couldn't find a ready-made solution that
@@ -223,7 +423,7 @@ class busgraph_cache:
         `self.graph` has the filename `str(shortcode)` -- this is preferable to
         using a single file to store the entire cache.  In the case of hash
         collisions, the databases of multiple graphs will be stored in a single
-        cache file -- so that file contains a `pickle`'d dict mapping
+        cache file -- so that file contains a `json`'d dict mapping
         indentifiers (not shortcodes) to the corresponding clique/biclique
         caches.
 
@@ -256,7 +456,7 @@ class busgraph_cache:
                 else:
                     currcache = {}
                 cache = currcache.get(identifier)
-                if cache is None:
+                if cache is None or force_write:
                     cache = compute()
                     currcache[identifier] = cache
                     with file_context.open(cachefile, 'wb') as filecache:
@@ -301,7 +501,10 @@ class busgraph_cache:
         self._ensure_clique_cache()
         embs = self._cliques['raw']
         keys = self._cliques['size']
-        return self._graph.relabel(dict(enumerate(embs[keys[max(keys)]])))
+        if keys:
+            return self._graph.relabel(dict(enumerate(embs[keys[max(keys)]])))
+        else:
+            return {}
 
     def largest_clique_by_chainlength(self, chainlength):
         """Returns the largest-found clique in the clique cache, with a specified
@@ -321,9 +524,10 @@ class busgraph_cache:
         """
         self._ensure_clique_cache()
         embs = self._cliques['raw']
+        length = self._cliques['length'] or [0]
 
-        if 0 <= chainlength < len(embs):
-            return self._graph.relabel(dict(enumerate(embs[chainlength])))
+        if 0 < chainlength <= max(length):
+            return self._graph.relabel(dict(enumerate(embs[length[chainlength]])))
         else:
             return {}
 
@@ -347,10 +551,11 @@ class busgraph_cache:
         num, nodes = _num_nodes(nn)
         self._ensure_clique_cache()
         keys = self._cliques['size']
+        raw = self._cliques['raw']
         key = keys.get(num)
         if key is None:
             return {}
-        emb = dict(zip(nodes, self._cliques['raw'][key]))
+        emb = dict(zip(nodes, raw[key]))
         return self._graph.relabel(emb)
 
     def largest_balanced_biclique(self):
@@ -462,14 +667,16 @@ cdef dict _make_clique_cache(vector[embedding_t] &embs):
     cdef size_t maxlength = 0
     cdef size_t i, j
     cdef dict by_size = {}
+    cdef dict by_length = {}
     cdef list raw = []
     for length, emb in enumerate(embs):
+        by_length[length] = length
         raw.append(tuple(map(tuple, emb)))
         maxsize = max(emb.size(), maxsize)
         for i in range(maxsize, -1, -1):
             if by_size.setdefault(i, length) != length:
                 break
-    return {'raw': raw, 'size': by_size}
+    return {'raw': raw, 'size': by_size, 'length': by_length}
 
 cdef _keep_biclique_key(tuple key0, tuple key1, dict chainlength):
     """
@@ -588,6 +795,7 @@ cdef class _zephyr_busgraph:
         cdef size_t rows = g.graph['rows']
         cdef size_t cols = g.graph['columns']
         cdef size_t tile = g.graph['tile']
+        cdef str graph_id = g.graph.get('id')
         if tile > 4:
             raise NotImplementedError(("this clique embedder supports zephyr "
                                        "graphs with a tile size of 4 or less"))
@@ -619,7 +827,11 @@ cdef class _zephyr_busgraph:
         short_clique(zep[0], self.nodes, edges, self.emb_1)
 
         if compute_identifier:
-            self.identifier, self.short_identifier = _serialize(self.topo, 'zephyr')
+            if graph_id is None:
+                self.identifier, self.short_identifier = _serialize(self.topo, 'zephyr')
+            else:
+                self.short_identifier = "{}_{:x}".format(graph_id, internal_seed)
+                self.identifier = 0 # short_identifier is unique
 
         del zep
 
@@ -695,7 +907,8 @@ cdef class _pegasus_busgraph:
         rows = g.graph['rows']
         voff = [o//2 for o in g.graph['vertical_offsets'][::2]]
         hoff = [o//2 for o in g.graph['horizontal_offsets'][::2]]
-        
+        cdef str graph_id = g.graph.get('id')
+
         cdef uint32_t internal_seed
         if seed is None:
             seed_obj = os.urandom(sizeof(uint32_t))
@@ -728,7 +941,11 @@ cdef class _pegasus_busgraph:
         short_clique(peg[0], self.nodes, edges, self.emb_1)
 
         if compute_identifier:
-            self.identifier, self.short_identifier = _serialize(self.topo, 'pegasus')
+            if graph_id is None:
+                self.identifier, self.short_identifier = _serialize(self.topo, 'pegasus')
+            else:
+                self.short_identifier = "{}_{}".format(graph_id, internal_seed)
+                self.identifier = 0 # short_identifier is unique
 
         del peg
 
@@ -810,6 +1027,8 @@ cdef class _chimera_busgraph:
         rows = g.graph['rows']
         cols = g.graph['columns']
         tile = g.graph['tile']
+        cdef str graph_id = g.graph.get('id')
+
         if tile > 8:
             raise NotImplementedError(("this clique embedder supports chimera "
                                        "graphs with a tile size of 8 or less"))
@@ -840,7 +1059,11 @@ cdef class _chimera_busgraph:
         short_clique(chim[0], self.nodes, edges, self.emb_1)
 
         if compute_identifier:
-            self.identifier, self.short_identifier = _serialize(self.topo, 'chimera')
+            if graph_id is None:
+                self.identifier, self.short_identifier = _serialize(self.topo, 'chimera')
+            else:
+                self.short_identifier = "{}_{}".format(graph_id, internal_seed)
+                self.identifier = 0 # short_identifier is unique
 
         del chim
 
