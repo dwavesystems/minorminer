@@ -1127,10 +1127,40 @@ cdef class _chimera_busgraph:
             return self.topo.topo.fragment_nodes(nodes)
 
 def _default_quality_function(emb):
+    """A function that returns a tuple corresponds to the "quality" of the embedding.
+
+    The "quality" of the embedding is measured by the maximum chainlength (to be
+    minimized), and the number of chains with that length (to be maximized).
+
+    Args:
+        emb: (list/tuple of lists/tuples)
+            The embedding.
+
+    Returns:
+        quality: (tuple)
+
+    Usage:
+        better_emb = max(emb0, emb1, key = _default_quality_function)
+
+    """
     maxlen = max(map(len, emb))
     return -maxlen, sum(len(chain) == maxlen for chain in emb)
 
 def _regularize_embedding(g, emb):
+    """Best-effort augmented embedding, with hopefully uniform chainlegnths.
+
+    We augment ``emb`` by adding nodes to chains that are shorter than the chain
+    with maximum length.
+
+    Args:
+        emb: (dict with list/tuple values)
+            The embedding
+
+    Returns:
+        emb: (dict with tuple values)
+            The augmented embedding.
+
+    """
     progress = len(set(map(len, emb.values()))) != 1
     max_length = max(map(len, emb.values()))
     emb = {i: list(chain) for i, chain in emb.items()}
@@ -1159,20 +1189,89 @@ def _regularize_embedding(g, emb):
 
 def mine_clique_embeddings(
         g,
+        quality_function=None,
+        regularize=True,
+        num_seeds=16,
+        mask_bound=64,
         heuristic_bound=None,
         heuristic_args=None,
         heuristic_runs=10,
-        mask_bound=64,
-        quality_function=None,
-        regularize=True,
-        num_seeds = 16
     ):
+    """Use heuristic and polynomial methods to construct a cache of clique embeddings.
+
+    This function uses both the heuristic :func:`minorminer.find_embedding` and
+    the polynomial algorithm in :func:`busclique.find_clique_embedding` to find
+    clique embeddings, and collects the best results of the two methods into a
+    single :class:`busgraph_cache` object.  One purpose of this function is to
+    identify optimized embeddings for hardware graphs, to be provided through
+    Ocean structured solvers and samplers.
+
+    If a disk-cache for ``g`` already exists, it will be augmented with the
+    embeddings discovered during execution.  The resulting cache will be writte
+    to disk afterwards, so repeated calls to this function can only improve the
+    quality of the cache.
+
+    The method operates by
+        (1) Load or construct a cache of embeddings for ``g`` with
+            :class:`busgraph_cache`.
+        (2) For 0 <= n < num_seeds, compute a :class:`busgraph_cache` with a
+            random seed, and insert the corresponding embeddings into the cache.
+        (3) For 3 <= n <= heuristic_bound, find clique embeddings of size n
+            into ``g`` with :func:`minorminer.find_embedding`, and insert them
+            into the cache if they improve the quality.
+
+    Args:
+        g: (networkx.Graph)
+            The graph to compute a clique cache for.
+
+        quality_function: (callable, optional, default=None)
+            A function that assesses the "quality" of an embedding and returns
+            an object that can be compared to other values returned by
+            ``quality_function``.  The embeddings are represented as lists of
+            lists of ints corresponding to the integer-labeled topology of ``g``.
+            If None, we use :func:`_default_quality_function`.
+
+        regularize: (bool, optional, default=True)
+            If True, we attempt to augment the found embeddings by adding extra
+            nodes in order to produce embeddings with all-equal chainlengths.
+
+        num_seeds: (int, optional, default=16)
+            The number of random seeds to compute :class:`busgraph_cache`.
+
+        mask_bound: (int, optional, default=64)
+            The number of topologies considered internal to :class:`busgraph_cache`.
+
+        heuristic_bound: (int, optional, default=None)
+            The maximum clique size to attempt heuristic embedding.  If None,
+            a default value is computed based on the topology parameters of ``g``.
+
+        heuristic_args: (dict, optional, default=None)
+            Keyword arguments to be used when calling the heuristic embedder.
+            See :func:`minorminer.find_embedding` for more details.
+
+        heurisitc_runs: (int, optional, default=10)
+            The number of times to attempt heuristic embedding per size.
+
+    Returns:
+        cache: (busgraph_cache)
+
+    """
+
     from minorminer import miner
     import logging
     logger = logging.getLogger(__name__)
     bgc = busgraph_cache(g)
-    bgc._graph.set_mask_bound(1)
-    bgc._ensure_clique_cache()
+    for i in range(num_seeds):
+        logger.info("polynomial embedder run %d of %d", i+1, num_seeds)
+        seed = random.randint(0, 2**32-1)
+        bgc_i = busgraph_cache(g, seed=i)
+        bgc_i._graph.set_mask_bound(mask_bound)
+        bgc.merge_clique_cache(bgc_i, write_to_disk=False, quality_function=quality_function)
+        if regularize:
+            for n in range(3, len(bgc_i.largest_clique())+1):
+                emb = _regularize_embedding(g, bgc_i.find_clique_embedding(n))
+                bgc.insert_clique_embedding(emb, write_to_disk=False, quality_function=quality_function)
+
     if heuristic_bound is None:
         if bgc._family == "zephyr":
             tile = g.graph['tile']
@@ -1205,17 +1304,6 @@ def mine_clique_embeddings(
             if regularize:
                 emb1 = _regularize_embedding(g, emb)
                 bgc.insert_clique_embedding(emb1, write_to_disk=False, quality_function=quality_function)
-
-    for i in range(num_seeds):
-        logger.info("polynomial embedder run %d of %d", i+1, num_seeds)
-        seed = random.randint(0, 2**32-1)
-        bgc_i = busgraph_cache(g, seed=i)
-        bgc_i._graph.set_mask_bound(mask_bound)
-        bgc.merge_clique_cache(bgc_i, write_to_disk=False, quality_function=quality_function)
-        if regularize:
-            for n in range(3, len(bgc_i.largest_clique())+1):
-                emb = _regularize_embedding(g, bgc_i.find_clique_embedding(n))
-                bgc.insert_clique_embedding(emb, write_to_disk=False, quality_function=quality_function)
 
     bgc.insert_clique_embedding({}, write_to_disk=True)
     return bgc
