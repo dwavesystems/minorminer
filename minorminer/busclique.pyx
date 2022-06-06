@@ -331,7 +331,7 @@ class busgraph_cache:
             if length not in by_length or len(raw[by_length[length]]) < len(emb):
                 by_length[length] = key
             if write_to_disk:
-                self._fetch_cache('clique', lambda: cache, force_write=True)
+                self._fetch_cache('clique', lambda: self._cliques, force_write=True)
         else:
             max_length = max(map(len, emb)) if emb else 0
             emb_list = [[c for c in emb if len(c) <= i] for i in range(max_length+1)]
@@ -434,7 +434,7 @@ class busgraph_cache:
         `self.graph` has the filename `str(shortcode)` -- this is preferable to
         using a single file to store the entire cache.  In the case of hash
         collisions, the databases of multiple graphs will be stored in a single
-        cache file -- so that file contains a `json`'d dict mapping
+        cache file -- so that file contains a `pickle`'d dict mapping
         indentifiers (not shortcodes) to the corresponding clique/biclique
         caches.
 

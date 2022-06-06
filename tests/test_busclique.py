@@ -73,6 +73,8 @@ class TestBusclique(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestBusclique, self).__init__(*args, **kwargs)
 
+        busclique.busgraph_cache.clear_all_caches()
+
         self.c16 = dnx.chimera_graph(16)
         self.p16 = dnx.pegasus_graph(16)
         self.z6 = dnx.zephyr_graph(6)
@@ -390,13 +392,13 @@ class TestBusclique(unittest.TestCase):
                     tmp = busclique.busgraph_cache(p4, seed=101)
                     #test loading from disk
                     for n, c in enumerate(cliques):
-                        self.assertEqual(set(c.values()), set(tmp.find_clique_embedding(n).values()))
+                        self.assertEqual(set(c.values()), set(tmp.find_clique_embedding(n).values()))        
 
     def test_cache_merge(self):
         p4 = self.p4_nd[0] 
         bgc0 = busclique.busgraph_cache(p4, seed=200)
-        bgc1 = busclique.busgraph_cache(p4, seed=300)
-        bgc = busclique.busgraph_cache(p4, seed=400)
+        bgc1 = busclique.busgraph_cache(p4, seed=201)
+        bgc = busclique.busgraph_cache(p4, seed=202)
         bgc.update_clique_cache(bgc0.get_clique_cache(), write_to_disk=False)
         bgc.merge_clique_cache(bgc1, write_to_disk=False)
         for n in range(1, len(bgc.largest_clique())):
@@ -415,11 +417,26 @@ class TestBusclique(unittest.TestCase):
             emb1 = bgc1.largest_clique_by_chainlength(n)
             self.assertEqual(len(emb), max(len(emb0), len(emb1)))
 
+    def test_cache_insert(self):
+        p4 = self.p4_nd[0]
+        bgc = busclique.busgraph_cache(p4, seed=300)
+        emb = bgc.largest_clique()
+        chain = max(emb.values(), key=len)
+        
+        bgc.insert_clique_embedding([chain], direct=False) # should not overwrite
+        emb0 = bgc.find_clique_embedding(1) #should be chainlength 1
+        self.assertEqual(len(emb0[0]), 1)
+        
+        bgc.insert_clique_embedding([chain], direct=True) # should overwrite
+        emb1 = bgc.find_clique_embedding(1) #should be the newly-inserted embedding
+        self.assertEqual(len(emb1[0]), len(chain))
+
+
     def test_mine_clique_embeddings_smoketest(self):
         busclique.mine_clique_embeddings(
             self.p4_nd[0],
             num_seeds=1,
-            heuristic_bound=16,
+            heuristic_bound=8,
             heuristic_args=dict(tries=1, max_no_improvement=1, chainlength_patience=0),
             heuristic_runs=1,
         )
