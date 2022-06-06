@@ -170,7 +170,7 @@ class busgraph_cache:
         """Fetch/compute the clique cache, if it's not already in memory."""
         if self._cliques is None:
             if blank:
-                self._cliques = _make_clique_cache([])
+                self._cliques = _make_clique_cache([[]])
             else:
                 self._cliques = self._fetch_cache(
                     'clique',
@@ -272,8 +272,14 @@ class busgraph_cache:
             cache = cache.items()
         else:
             cache = enumerate(cache)
+
+        empty = True
         for size, emb in cache:
+            empty = False
             self.insert_clique_embedding(emb, write_to_disk=False, direct=True)
+
+        if empty:
+            self._ensure_clique_cache(blank=True)
 
         if write_to_disk:
             self._fetch_cache('clique', lambda: self._cliques, force_write=True)
@@ -317,8 +323,8 @@ class busgraph_cache:
                 raise ValueError("quality_function is ignored for direct insertion")
             self._ensure_clique_cache(blank=True)
             raw = self._cliques['raw']
-            raw.append(emb)
             key = len(raw)
+            raw.append(emb)
             by_length = self._cliques['length']
             self._cliques['size'][len(emb)] = key
             length = len(emb[-1]) if emb else 0
@@ -1172,6 +1178,8 @@ def _regularize_embedding(g, emb):
             if len(chain) == max_length:
                 continue
             boundary = nx.node_boundary(g, chain, remainder)
+            if not boundary:
+                continue
             for j in range(len(chain), max_length):
                 chain_node = (i, 'chain', j)
                 top_nodes.append(chain_node)
