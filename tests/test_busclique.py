@@ -437,7 +437,7 @@ class TestBusclique(unittest.TestCase):
             self.p4_nd[0],
             num_seeds=1,
             heuristic_bound=8,
-            heuristic_args=dict(tries=1, max_no_improvement=1, chainlength_patience=0),
+            heuristic_args=dict(tries=1, max_no_improvement=1, chainlength_patience=0, verbose=2),
             heuristic_runs=1,
         )
 
