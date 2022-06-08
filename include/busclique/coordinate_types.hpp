@@ -282,6 +282,21 @@ constexpr size_w operator""_w(unsigned long long int v) { return static_cast<siz
 //! user-defined literal for size_z
 constexpr size_z operator""_z(unsigned long long int v) { return static_cast<size_t>(v); }
 
+// These are for convenience, and probably belong in their own file...
+
+//! user-defined literal for uint64_t
+constexpr uint64_t operator""_u64(unsigned long long int v) { return static_cast<uint64_t>(v); }
+
+//! user-defined literal for uint32_t
+constexpr uint32_t operator""_u32(unsigned long long int v) { return static_cast<uint32_t>(v); }
+
+//! user-defined literal for uint16_t
+constexpr uint16_t operator""_u16(unsigned long long int v) { return static_cast<uint16_t>(v); }
+
+//! user-defined literal for uint8_t
+constexpr uint8_t operator""_u8(unsigned long long int v) { return static_cast<uint8_t>(v); }
+
+
 //! An arena to perform arithmetic that does not respect the unit system defined
 //! in coordinate_base<T>.  This class is not a friend of coordinate_base<T> so
 //! so that we can do all of our bounds-checking here, with full type-safety.

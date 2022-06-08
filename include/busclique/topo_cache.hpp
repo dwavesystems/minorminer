@@ -16,6 +16,7 @@
 #include "util.hpp"
 #include "cell_cache.hpp"
 #include <random>
+#include <math.h>
 
 namespace busclique {
 
@@ -28,7 +29,9 @@ class topo_cache {
     fat_pointer<uint8_t> edgemask;
     fat_pointer<uint8_t> badmask;
     vector<pair<size_t, size_t>> bad_edges;
-    uint8_t mask_num;
+    uint64_t mask_num;
+    uint64_t mask_bound;
+    double log_mask_bound;
 
     fastrng rng;
     //this is a little hackish way to keep everything const & construct cells in-place
@@ -61,8 +64,8 @@ class topo_cache {
                nodemask(t.num_cells(), 0),
                edgemask(t.num_cells(), 0),
                badmask(t.num_cells()*t.shore, 0),
-               bad_edges(), mask_num(0), rng(topo.seed),
-               _init(_initialize(nodes, edges)),
+               bad_edges(), mask_num(0), mask_bound(64), log_mask_bound(6),
+               rng(topo.seed), _init(_initialize(nodes, edges)),
                cells(t, child_nodemask, child_edgemask) {}
 
     void reset() {
@@ -131,6 +134,11 @@ class topo_cache {
         return edges;
     }
 
+    void set_mask_bound(uint64_t bound) {
+        mask_bound = bound;
+        log_mask_bound = log2(static_cast<long double>(mask_bound));
+    }
+
   private:
     //this is a funny hack used to construct cells in-place:
     // _initializer_tag is an empty (size zero) struct, so this is "zero-cost"
@@ -187,10 +195,10 @@ class topo_cache {
             }
         }
         vector<size_t> bad_nodes;
-        if (bad_edges.size() < 7) {
-            if (mask_num < mask_subsets[bad_edges.size()]) {
+        if (static_cast<double>(bad_edges.size()) <= log_mask_bound) {
+            if (mask_num < (1_u64 << bad_edges.size())) {
                 for(size_t i = bad_edges.size(); i--;) {
-                    if(mask_num & mask_bit[i])
+                    if(mask_num & (1_u64 << i))
                         bad_nodes.push_back(bad_edges[i].first);
                     else
                         bad_nodes.push_back(bad_edges[i].second);
@@ -200,8 +208,7 @@ class topo_cache {
                 return false;
             }
         } else {
-            //maaaaybe we want to hand control of this parameter to the user?
-            if(mask_num < 64) mask_num++;
+            if(mask_num < mask_bound) mask_num++;
             else return false;
             //this is a somewhat ad-hoc, unoptimized implementation.
             std::shuffle(bad_edges.begin(), bad_edges.end(), rng);

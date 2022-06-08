@@ -73,6 +73,8 @@ class TestBusclique(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestBusclique, self).__init__(*args, **kwargs)
 
+        busclique.busgraph_cache.clear_all_caches()
+
         self.c16 = dnx.chimera_graph(16)
         self.p16 = dnx.pegasus_graph(16)
         self.z6 = dnx.zephyr_graph(6)
@@ -365,6 +367,79 @@ class TestBusclique(unittest.TestCase):
         #then, do a quick scan for another example -- this will present as a flaky test if
         #we merely got lucky hammering down the tet above
         self.assertEqual(None, find_nondeterminism('chimera', 4, 10))
+
+    def test_cache_export_import(self):
+        # make sure we're nondeterministic so accidentally re-computing the 
+        # cache will be detected
+        p4 = self.p4_nd[0]
+        bgc = busclique.busgraph_cache(p4, seed=100)
+        cliques = [bgc.find_clique_embedding(n) for n in range(len(bgc.largest_clique()))]
+        for sparse in (True, False):
+            for compress in (True, False):
+                with self.subTest(msg=f"sparse: {sparse}, compress: {compress}"):
+                    tmp = busclique.busgraph_cache(p4, seed=101)
+                    tmp.update_clique_cache([], write_to_disk=True)
+                    self.assertEqual(tmp.largest_clique(), {})
+
+                    cache = bgc.get_clique_cache(sparse=sparse, compress=compress)
+                    tmp.update_clique_cache(cache, write_to_disk=False)
+                    #test loading from memory
+                    for n, c in enumerate(cliques):
+                        self.assertEqual(set(c.values()), set(tmp.find_clique_embedding(n).values()))
+
+                    tmp.update_clique_cache(cache, write_to_disk=True)
+
+                    tmp = busclique.busgraph_cache(p4, seed=101)
+                    #test loading from disk
+                    for n, c in enumerate(cliques):
+                        self.assertEqual(set(c.values()), set(tmp.find_clique_embedding(n).values()))        
+
+    def test_cache_merge(self):
+        p4 = self.p4_nd[0] 
+        bgc0 = busclique.busgraph_cache(p4, seed=200)
+        bgc1 = busclique.busgraph_cache(p4, seed=201)
+        bgc = busclique.busgraph_cache(p4, seed=202)
+        bgc.update_clique_cache(bgc0.get_clique_cache(), write_to_disk=False)
+        bgc.merge_clique_cache(bgc1, write_to_disk=False)
+        for n in range(1, len(bgc.largest_clique())):
+            emb = bgc.find_clique_embedding(n)
+            emb0 = bgc0.find_clique_embedding(n)
+            emb1 = bgc1.find_clique_embedding(n)
+            maxlen0 = max(map(len, emb0.values())) if emb0 else 999
+            maxlen1 = max(map(len, emb1.values())) if emb1 else 999
+            maxlen = max(map(len, emb.values()))
+            self.assertEqual(maxlen, min(maxlen0, maxlen1))
+
+        maxlen = max(map(len, bgc.largest_clique().values()))
+        for n in range(maxlen):
+            emb = bgc.largest_clique_by_chainlength(n)
+            emb0 = bgc0.largest_clique_by_chainlength(n)
+            emb1 = bgc1.largest_clique_by_chainlength(n)
+            self.assertEqual(len(emb), max(len(emb0), len(emb1)))
+
+    def test_cache_insert(self):
+        p4 = self.p4_nd[0]
+        bgc = busclique.busgraph_cache(p4, seed=300)
+        emb = bgc.largest_clique()
+        chain = max(emb.values(), key=len)
+        
+        bgc.insert_clique_embedding([chain], direct=False) # should not overwrite
+        emb0 = bgc.find_clique_embedding(1) #should be chainlength 1
+        self.assertEqual(len(emb0[0]), 1)
+        
+        bgc.insert_clique_embedding([chain], direct=True) # should overwrite
+        emb1 = bgc.find_clique_embedding(1) #should be the newly-inserted embedding
+        self.assertEqual(len(emb1[0]), len(chain))
+
+
+    def test_mine_clique_embeddings_smoketest(self):
+        busclique.mine_clique_embeddings(
+            self.p4_nd[0],
+            num_seeds=1,
+            heuristic_bound=8,
+            heuristic_args=dict(tries=1, max_no_improvement=1, chainlength_patience=0, verbose=2),
+            heuristic_runs=1,
+        )
 
 def find_nondeterminism(family, size=4, tries=10):
     if family == 'pegasus':

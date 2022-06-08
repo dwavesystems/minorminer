@@ -72,6 +72,7 @@ cdef extern from "../include/busclique/topo_cache.hpp" namespace "busclique":
         size_t serialize[t](t, uint8_t *) const
         nodes_t fragment_nodes() const
         edges_t fragment_edges() const
+        void set_mask_bound(uint32_t)
 
 cdef extern from "../include/busclique/find_clique.hpp" namespace "busclique":
     int find_clique[T](topo_cache[T] &, size_t, embedding_t &)
