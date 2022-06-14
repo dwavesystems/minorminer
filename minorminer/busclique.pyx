@@ -1172,6 +1172,7 @@ def _regularize_embedding(g, emb):
     emb = {i: list(chain) for i, chain in emb.items()}
     remainder = set(g) - set().union(*emb.values())
     while progress:
+        progress = False
         matching_graph = nx.Graph()
         top_nodes = []
         for i, chain in emb.items():
@@ -1313,6 +1314,7 @@ def mine_clique_embeddings(
                 emb1 = _regularize_embedding(g, emb)
                 bgc.insert_clique_embedding(emb1, write_to_disk=False, quality_function=quality_function)
 
+    logger.info("writing embedding cache to disk")
     bgc.insert_clique_embedding({}, write_to_disk=True)
     return bgc
 
