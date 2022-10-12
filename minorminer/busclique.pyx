@@ -1273,7 +1273,7 @@ def mine_clique_embeddings(
     for i in range(num_seeds):
         logger.info("polynomial embedder run %d of %d", i+1, num_seeds)
         seed = random.randint(0, 2**32-1)
-        bgc_i = busgraph_cache(g, seed=i)
+        bgc_i = busgraph_cache(g, seed=seed)
         bgc_i._graph.set_mask_bound(mask_bound)
         bgc.merge_clique_cache(bgc_i, write_to_disk=False, quality_function=quality_function)
         if regularize:
