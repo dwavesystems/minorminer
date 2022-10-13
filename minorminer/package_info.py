@@ -12,7 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-__version__ = "0.2.9"
+__version__ = "0.2.9.post0"
 __author__ = "Kelly Boothby"
 __authoremail__ = "boothby@dwavesys.com"
 __description__ = "heuristic algorithm to find graph minor embeddings"
