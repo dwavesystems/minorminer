@@ -28,7 +28,7 @@ from json import dumps, loads
 import networkx as nx
 import dwave_networkx as dnx
 from itertools import zip_longest
-
+from hashlib import sha256
 
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromStringAndSize
@@ -181,6 +181,16 @@ class busgraph_cache:
         """Fetch/compute the clique cache, if it's not already in memory."""
         if self._bicliques is None:
             self._bicliques = self._fetch_cache('biclique', self._graph.bicliques)
+
+    def topology_identifier(self):
+        """Return a string identifying the busgraph basing this cache.
+
+        Note that we're using sha256 to generate this.  If a collision is detected,
+        the newsworthiness of that would be worth the hassle of dealing with the
+        fallout."""
+        s = sha256(self._graph.identifier)
+        s.update(__cache_version.to_bytes(sizeof(__cache_version), 'little'))
+        return s.hexdigest()
 
     @staticmethod
     def cache_rootdir(version=__cache_version):
