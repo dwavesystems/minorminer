@@ -5,3 +5,24 @@ requires = [
     "Cython>=0.29.21,<3.0",
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+build-verbosity = "1"
+skip = "pp* *musllinux*"
+before-test = "pip install -r {project}/requirements_dev.txt"
+test-command = "pytest {project}/tests"
+before-build = "pip install cgen==2020.1 && python {project}/dwave/gate/simulator/operation_generation.py"
+
+[tool.cibuildwheel.linux]
+archs = "x86_64 aarch64"
+manylinux-x86_64-image = "manylinux2014"
+manylinux-aarch64-image = "manylinux2014"
+
+[tool.cibuildwheel.macos]
+# We follow NumPy and don't build universal wheels, see https://github.com/numpy/numpy/pull/20787
+archs = "x86_64 arm64"
+
+[tool.cibuildwheel.windows]
+archs = "AMD64"
+before-build = "pip install delvewheel"
+repair-wheel-command = "delvewheel repair -w {dest_dir} {wheel}"
