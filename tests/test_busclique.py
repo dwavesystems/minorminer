@@ -466,6 +466,35 @@ class TestBusclique(unittest.TestCase):
         p4.remove_edges_from(missing_edges)
         busclique._regularize_embedding(p4, emb)                  
 
+    def test_topology_identifier(self):
+        perfect_id = '38cad89632b234831d58675091f1bc581c96de65d4b2a0c06c0d94a7f97e21a7'
+        p16 = dnx.pegasus_graph(16)
+        bgc = busclique.busgraph_cache(p16)
+        self.assertEqual(
+            bgc.topology_identifier(),
+            perfect_id,
+            f'Topology identifier does not match expectation.  If busclique.__cache_version changed, this test needs to be updated.'
+        )
+
+        e = random.choice(list(p16.edges))
+        p16.remove_edge(*e)
+        bgc_e = busclique.busgraph_cache(p16)
+        self.assertNotEqual(
+            bgc_e.topology_identifier(),
+            perfect_id,
+            f'topology identifier did not change after removing edge {e}'
+        )
+
+        p16 = dnx.pegasus_graph(16)
+        n = random.choice(list(p16.nodes))
+        p16.remove_node(n)
+        bgc_n = busclique.busgraph_cache(p16)
+        self.assertNotEqual(
+            bgc_n.topology_identifier(),
+            perfect_id,
+            f'topology identifier did not change after removing node {n}'
+        )
+
 
 def find_nondeterminism(family, size=4, tries=10):
     if family == 'pegasus':
