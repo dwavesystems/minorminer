@@ -100,7 +100,11 @@ jobs:
       - run:
           name: install pyenv
           command: |
-            brew install pyenv
+            git clone https://github.com/pyenv/pyenv.git ~/.pyenv --branch v2.3.4
+            echo '' >> ~/.bash_profile
+            echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bash_profile
+            echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile
+            echo 'eval "$(pyenv init -)"' >> ~/.bash_profile
       - restore_cache:
           keys:
             - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.5.1
@@ -115,7 +119,6 @@ jobs:
       - run:
           name: create virtualenv
           command: |
-            eval "$(pyenv init -)"
             pyenv local $PYTHON
             python -m pip install virtualenv
             python -m virtualenv env
