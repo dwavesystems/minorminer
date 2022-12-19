@@ -1,9 +1,34 @@
 version: 2.1
 
+orbs:
+  win: circleci/windows@2.2.0
+
+commands:
+  run-cibuildwheel:
+    parameters:
+      cibw-version:
+        type: string
+        default: 2.11.2
+    steps:
+      - run:
+          name: run cibuildwheel
+          shell: bash -eo pipefail
+          command: |
+            if [[ $OS == Windows_NT ]]; then
+              python -m pip install --user cibuildwheel==<< parameters.cibw-version >>
+              python -m cibuildwheel --output-dir dist
+            else
+              python3 -m pip install --user cibuildwheel==<< parameters.cibw-version >>
+              python3 -m cibuildwheel --output-dir dist
+            fi
+
+      - store_artifacts: &store-artifacts
+          path: ./dist
+      - persist_to_workspace: &persist-to-workspace
+          root: ./dist/
+          paths: .
+
 environment: &global-environment
-  CIBW_BUILD_VERBOSITY: 1
-  CIBW_MANYLINUX_X86_64_IMAGE: manylinux2010
-  CIBW_SKIP: pp* *musllinux*
   PIP_PROGRESS_BAR: 'off'
 
 jobs:
@@ -104,13 +129,13 @@ jobs:
               coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
             fi;
 
-  build-linux:
+  build-and-test-linux:
     parameters:
       python-version:
         type: string
 
     docker:
-      - image: circleci/python:3.9
+      - image: cimg/python:3.9
 
     environment:
       <<: *global-environment
@@ -120,36 +145,9 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - restore_cache: &build-linux-restore-cache
-          keys:
-            - pip-{{ .Environment.CIRCLE_JOB }}-{{ checksum "pyproject.toml" }}
-      - when:
-          condition:
-            matches:
-              pattern: "^3\\.10.*$"
-              value: << parameters.python-version >>
-          steps:
-            # NumPy only has manylinux2014 images for Python 3.10 so we follow them
-            - run: echo 'export CIBW_MANYLINUX_X86_64_IMAGE=manylinux2014' >> $BASH_ENV
-      - run: &build-linux-wheels
-          name: build wheels
-          command: |
-            python3 -m venv env
-            . env/bin/activate
-            pip install pip --upgrade
-            pip install cibuildwheel==2.3.0
-            cibuildwheel --output-dir dist
-      - save_cache: &build-linux-save-cache
-          paths:
-            - ~/.cache/pip
-          key: pip-{{ .Environment.CIRCLE_JOB }}-{{ checksum "pyproject.toml" }}
-      - store_artifacts: &store-artifacts
-          path: ./dist
-      - persist_to_workspace: &persist-to-workspace
-          root: ./dist/
-          paths: .
+      - run-cibuildwheel
 
-  build-linux-aarch64:
+  build-and-test-linux-aarch64:
     parameters:
       python-version:
         type: string
@@ -164,15 +162,11 @@ jobs:
       CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
       CIBW_ARCHS_LINUX: aarch64
 
-    steps: &build-steps
+    steps:
       - checkout
-      - restore_cache: *build-linux-restore-cache
-      - run: *build-linux-wheels
-      - save_cache: *build-linux-save-cache
-      - store_artifacts: *store-artifacts
-      - persist_to_workspace: *persist-to-workspace
+      - run-cibuildwheel
 
-  build-osx:
+  build-and-test-osx:
     parameters:
       python-version:
         type: string
@@ -180,35 +174,37 @@ jobs:
         type: string
 
     macos:
-      xcode: 13.2.0
+      xcode: 12.5.1
 
     environment:
       <<: *global-environment
       CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
       CIBW_ARCHS_MACOS: << parameters.cibw-arch >>
 
-    steps: *build-steps
+    steps:
+      - checkout
+      - run-cibuildwheel
 
-  build-sdist:
-    docker:
-      - image: circleci/python:3.9
+  build-and-test-windows:
+    parameters:
+      python-version:
+        type: string
+
+    executor:
+      name: win/default
+
+    environment:
+      <<: *global-environment
+      CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
+      CIBW_ARCHS_WINDOWS: AMD64
 
     steps:
       - checkout
-      - run:
-          name: build sdist
-          command: |
-            python -m venv env
-            . env/bin/activate
-            pip install -U pip setuptools
-            pip install -r requirements.txt
-            python setup.py sdist -d ./dist
-      - store_artifacts: *store-artifacts
-      - persist_to_workspace: *persist-to-workspace
+      - run-cibuildwheel
 
   deploy-all:
     docker:
-      - image: circleci/python:3.9
+      - image: cimg/python:3.9
 
     steps:
       - attach_workspace:
@@ -225,136 +221,117 @@ jobs:
             python -m pip install twine
             twine upload -u "$PYPI_USERNAME" -p "$PYPI_PASSWORD" --skip-existing ./dist/*
 
-  test-linux:
-    parameters:
-      python-version:
-        type: string
-
+  build-sdist:
     docker:
-      - image: circleci/python:<< parameters.python-version >>
+      - image: cimg/python:3.9
+
+    steps:
+      - checkout
+      - run:
+          name: build sdist
+          command: |
+            python -m venv env
+            . env/bin/activate
+            pip install -U pip setuptools
+            pip install -r requirements.txt
+            python setup.py sdist -d ./dist
+      - store_artifacts: *store-artifacts
+      - persist_to_workspace: *persist-to-workspace
+
+  test-sdist:
+    docker:
+      - image: cimg/python:3.9
 
     steps:
       - checkout
       - attach_workspace:
           at: dist
       - run:
-          name: install
+          name: install from sdist
           command: |
             python -m venv env
             . env/bin/activate
-            pip install -U pip setuptools
-            pip install -r requirements.txt
-            pip install minorminer --no-index -f dist/ --force-reinstall --no-deps
-      - run: &unix-run-tests
+            pip install dist/minorminer*.tar.gz
+      - run:
           name: run tests
           command: |
             . env/bin/activate
             pip install -r test_requirements.txt
-            cd tests
-            python -m pytest .
-
-  test-osx:
-    parameters:
-      python-version:
-        type: string
-
-    macos:
-      xcode: 13.2.0
-
-    environment:
-      <<: *global-environment
-      HOMEBREW_NO_AUTO_UPDATE: 1
-
-    steps:
-      - checkout
-      - attach_workspace:
-          at: dist
-      - run:
-          name: install pyenv
-          command: |
-            brew install pyenv
-      - restore_cache:
-          keys:
-            - pyenv-{{ .Environment.CIRCLE_JOB }}-xcode13.2.0
-      - run:
-          name: install python
-          command: |
-            pyenv install << parameters.python-version>> -s
-      - save_cache:
-          paths:
-            - ~/.pyenv
-          key: pyenv-{{ .Environment.CIRCLE_JOB }}-xcode13.2.0
-      - run:
-          name: install
-          command: |
-            eval "$(pyenv init --path)"
-            eval "$(pyenv init -)"
-            pyenv local << parameters.python-version >>
-            python -m venv env
-            . env/bin/activate
-            pip install pip --upgrade
-            pip install -U pip setuptools
-            pip install -r requirements.txt
-            pip install -r test_requirements.txt
-            pip install minorminer --no-index -f dist/ --force-reinstall --no-deps
-      - run: *unix-run-tests
+            pytest tests/
 
 workflows:
-  version: 2.1
   test:
     jobs:
       - coverage-gcc
       - coverage-gcc-48
       - coverage-clang
       - coverage-osx
-      - build-linux: &build
+      - build-and-test-linux: &build
           matrix:
             parameters:
-              python-version: &python-versions [3.7.9, 3.8.9, 3.9.4, 3.10.0]
-      - build-linux-aarch64: *build
-      - build-sdist
-      - build-osx: &build-osx
+              python-version: &python-versions [3.7.9, 3.8.9, 3.9.4, 3.10.0, 3.11.0]
+      - build-and-test-linux-aarch64:
           matrix:
             parameters:
               python-version: *python-versions
-              cibw-arch: [x86_64, universal2]
             exclude:
               - python-version: 3.7.9
-                cibw-arch: universal2
-      - test-linux:
-          requires:
-            - build-linux
+      - build-sdist
+      - build-and-test-osx: &build-and-test-osx
           matrix:
             parameters:
               python-version: *python-versions
-      - test-osx:
-          name: test-osx-py<< matrix.python-version >>
+              cibw-arch: [x86_64, arm64]
+            exclude:
+              - python-version: 3.7.9
+                cibw-arch: arm64
+      - build-and-test-windows: *build
+      - test-sdist:
           requires:
-            - build-osx
-          matrix:
-            parameters:
-              python-version: *python-versions     
+            - build-sdist 
   deploy:
     jobs:
-      - build-linux:
+      - build-and-test-linux: &deploy-build
           <<: *build
-          filters: &deploy-filters
+          filters:
             tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc|\.post)([0-9]+)?)?$/
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
-      - build-linux-aarch64:
-          <<: *build
-          filters: *deploy-filters
-      - build-osx:
-          <<: *build-osx
-          filters: *deploy-filters
+      - build-and-test-linux-aarch64:
+          matrix:
+            parameters:
+              python-version: *python-versions
+            exclude:
+              - python-version: 3.7.9
+          filters:
+            tags:
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
+            branches:
+              ignore: /.*/
+      - build-and-test-osx:
+          <<: *build-and-test-osx
+          filters:
+            tags:
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
+            branches:
+              ignore: /.*/
       - build-sdist:
-          filters: *deploy-filters
+          filters:
+            tags:
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
+            branches:
+              ignore: /.*/
+      - build-and-test-windows: *deploy-build
       - deploy-all:
-          filters: *deploy-filters
+          filters:
+            tags:
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
+            branches:
+              ignore: /.*/
           requires:
-            - build-linux
-            - build-linux-aarch64
-            - build-osx
+            - build-and-test-linux
+            - build-and-test-linux-aarch64
+            - build-and-test-osx
             - build-sdist
+            - build-and-test-windows
