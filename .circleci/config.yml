@@ -76,7 +76,7 @@ jobs:
 
   coverage-osx:
     macos:
-      xcode: "12.2.0"
+      xcode: "12.5.1"
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
       PYTHON: 3.8.6
@@ -100,10 +100,14 @@ jobs:
       - run:
           name: install pyenv
           command: |
-            brew install pyenv
+            git clone https://github.com/pyenv/pyenv.git ~/.pyenv --branch v2.3.4
+            echo '' >> ~/.bash_profile
+            echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bash_profile
+            echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile
+            echo 'eval "$(pyenv init -)"' >> ~/.bash_profile
       - restore_cache:
           keys:
-            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
+            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.5.1
       - run:
           name: install python
           command: |
@@ -111,11 +115,10 @@ jobs:
       - save_cache:
           paths:
             - ~/.pyenv
-          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.2.0
+          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.5.1
       - run:
           name: create virtualenv
           command: |
-            eval "$(pyenv init -)"
             pyenv local $PYTHON
             python -m pip install virtualenv
             python -m virtualenv env
