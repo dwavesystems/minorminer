@@ -468,7 +468,7 @@ class TestBusclique(unittest.TestCase):
 
     def test_topology_identifier(self):
         perfect_id = '38cad89632b234831d58675091f1bc581c96de65d4b2a0c06c0d94a7f97e21a7'
-        p16 = dnx.pegasus_graph(16)
+        p16 = dnx.pegasus_graph(16, coordinates=True)
         bgc = busclique.busgraph_cache(p16)
         self.assertEqual(
             bgc.topology_identifier(),
@@ -476,13 +476,36 @@ class TestBusclique(unittest.TestCase):
             f'Topology identifier does not match expectation.  If busclique.__cache_version changed, this test needs to be updated.'
         )
 
-        e = random.choice(list(p16.edges))
+        # see minorminer issue #227 on github -- the busclique algorithm does
+        # not depend on odd edges and does not include them in its serialization
+        odd_edges = []
+        relevant_edges = []
+        for p, q in p16.edges:
+            if p[0] == q[0] and p[-1] == q[-1]:
+                odd_edges.append((p, q))
+            else:
+                relevant_edges.append((p, q))
+
+        # it's actually possible that we will include those edges in the future
+        # though -- there are some optimal clique embeddings which utilize odd
+        # edges -- let's put in an explicit test to remind ourselves to update
+        # this test under that eventuality
+        e = random.choice(odd_edges)
+        p16.remove_edge(*e)
+        bgc_o = busclique.busgraph_cache(p16)
+        self.assertEqual(
+            bgc_o.topology_identifier(),
+            perfect_id,
+            f'topology identifier changed after deleting odd edge {e}'
+        )
+
+        e = random.choice(relevant_edges)
         p16.remove_edge(*e)
         bgc_e = busclique.busgraph_cache(p16)
         self.assertNotEqual(
             bgc_e.topology_identifier(),
             perfect_id,
-            f'topology identifier did not change after removing edge {e}'
+            f'topology identifier did not change after removing non-odd edge {e}'
         )
 
         p16 = dnx.pegasus_graph(16)
