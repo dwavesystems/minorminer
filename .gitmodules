@@ -1,3 +1,6 @@
 [submodule "external/portable-snippets"]
 	path = external/portable-snippets
 	url = git@github.com:nemequ/portable-snippets.git
+[submodule "external/glasgow-subgraph-solver"]
+	path = external/glasgow-subgraph-solver
+	url = git@github.com:boothby/glasgow-subgraph-solver.git
