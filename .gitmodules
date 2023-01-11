@@ -1,0 +1,3 @@
+[submodule "external/portable-snippets"]
+	path = external/portable-snippets
+	url = git@github.com:nemequ/portable-snippets.git
