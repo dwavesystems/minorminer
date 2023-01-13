@@ -85,7 +85,7 @@ class Extension(extension.Extension, object):
 ext = '.pyx' if USE_CYTHON else '.cpp'
 
 glasgow_cc = [
-    '/'.join('external/glasgow-subgraph-solver/src', f)
+    '/'.join(['external/glasgow-subgraph-solver/src', f])
     for f in [
         'cheap_all_different.cc',
         'clique.cc',
