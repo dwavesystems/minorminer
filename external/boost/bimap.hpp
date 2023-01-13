@@ -21,12 +21,13 @@
 #include <unordered_map>
 #include <tuple>
 
-namespace boost::bimaps {
+namespace boost {
 
-template<typename L, typename R> class bimap;
+template<typename L, typename R, typename Alloc>
+class bimap;
 
-template<typename L, typename R>
-class bimap<unordered_set_of<L>, unordered_set_of<R>> {
+template<typename L, typename R, typename Alloc>
+class bimap<boost::bimaps::unordered_set_of<L>, boost::bimaps::unordered_set_of<R>, Alloc> {
   public:
     std::unordered_map<L, R> left;
     std::unordered_map<R, L> right;
@@ -36,6 +37,8 @@ class bimap<unordered_set_of<L>, unordered_set_of<R>> {
         left.insert(std::make_pair(v.first, v.second));
         right.insert(std::make_pair(v.second, v.first));
     }
+
+    bimap() {}
 };
 
 }
