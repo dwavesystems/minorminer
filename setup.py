@@ -128,7 +128,7 @@ extensions = [
         name="minorminer.subgraph",
         sources=["./minorminer/subgraph" + ext] + glasgow_cc,
         include_dirs=['', './include', './external', './external/glasgow-subgraph-solver/src'],
-        library_dirs=['', './include'],
+        library_dirs=['./include'],
         language='c++',
         extra_compile_args = 'glasgow',
     ),
