@@ -17,10 +17,6 @@
 
 #pragma once
 
-#include "bimap/unordered_set_of.hpp"
-#include <unordered_map>
-#include <tuple>
-
 namespace boost::container {
 
 template<typename T> class allocator {};
