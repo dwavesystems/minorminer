@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "bimap/unordered_set_of.hpp"
+#include <boost/bimap/unordered_set_of.hpp>
 #include <unordered_map>
 #include <tuple>
 
