@@ -1,2 +1,4 @@
 global-include *.hpp
-include rectangle-packer/*/*
+recursive-include external/glasgow-subgraph-solver *.hh LICENSE
+recursive-include external/portable-snippets builtin.h COPYING.md
+recursive-include external/boost BOOST_LICENSE

@@ -147,6 +147,11 @@ jobs:
 
     steps:
       - checkout
+      - run: &initialize-submodules
+          name: get submodules
+          command: |
+            git submodule init
+            git submodule update
       - setup_remote_docker
       - run-cibuildwheel
 
@@ -167,6 +172,7 @@ jobs:
 
     steps:
       - checkout
+      - run: *initialize-submodules
       - run-cibuildwheel
 
   build-and-test-osx:
@@ -186,6 +192,7 @@ jobs:
 
     steps:
       - checkout
+      - run: *initialize-submodules
       - run-cibuildwheel
 
   build-and-test-windows:
@@ -203,6 +210,7 @@ jobs:
 
     steps:
       - checkout
+      - run: *initialize-submodules
       - run-cibuildwheel
 
   deploy-all:
@@ -230,6 +238,7 @@ jobs:
 
     steps:
       - checkout
+      - run: *initialize-submodules
       - run:
           name: build sdist
           command: |
@@ -247,6 +256,7 @@ jobs:
 
     steps:
       - checkout
+      - run: *initialize-submodules
       - attach_workspace:
           at: dist
       - run:
