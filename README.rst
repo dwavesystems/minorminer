@@ -50,9 +50,15 @@ pypi. Source distributions are provided as well.
 
     pip install minorminer
 
-To install from this repository, run the `setuptools` script.
+To install from this repository, you will need to first fetch the submodules
+
+    git submodule init
+    git submodule update
+
+and then run the `setuptools` script.
 
 .. code-block:: bash
+
 
     pip install -r requirements.txt
     python setup.py install
