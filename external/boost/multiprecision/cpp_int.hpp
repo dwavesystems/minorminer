@@ -1,4 +1,4 @@
-// Copyright 2022 D-Wave Systems Inc.
+// Copyright 2022-2023 D-Wave Systems Inc.
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 //    limitations under the License.
 //
 // Excerpted from and/or inspired by implementations found in the Boost Library
-// see include/boost/BOOST_LICENSE or https://www.boost.org/LICENSE_1_0.txt
+// see external/boost/BOOST_LICENSE or https://www.boost.org/LICENSE_1_0.txt
 
 #pragma once
 
