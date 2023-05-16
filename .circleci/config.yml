@@ -272,6 +272,35 @@ jobs:
             pip install -r test_requirements.txt
             pytest tests/
 
+  test-dependencies:
+    parameters:
+      dependency-versions:
+        type: string
+      python-version:
+        type: string
+
+    docker:
+      - image: python:<< parameters.python-version >>-slim
+
+    steps:
+      - checkout
+      - attach_workspace:
+          at: dist
+      - run:
+          name: install
+          command: |
+            python -m venv env
+            . env/bin/activate
+            pip install --upgrade << parameters.dependency-versions >>
+            pip install minorminer --no-index -f dist/ --no-deps --force-reinstall
+      - run:
+          name: run tests
+          command: |
+            . env/bin/activate
+            pip install --upgrade setuptools pip
+            pip install -r test_requirements.txt
+            pytest tests/
+
 workflows:
   test:
     jobs:
@@ -302,6 +331,20 @@ workflows:
       - test-sdist:
           requires:
             - build-sdist 
+      - test-dependencies:
+          requires:
+            - build-and-test-linux
+          matrix:
+            parameters:
+              python-version: *python-versions
+              dependency-versions: ["dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy rectangle-packer==2.0.1 scipy==1.7.3",  # oldest supported
+                                    "dwave-networkx fasteners homebase networkx numpy rectangle-packer scipy", # latest
+                                    ]
+            exclude:
+              # SciPy 1.7.3 doesn't support Python 3.11
+              - python-version: 3.11.0
+                dependency-versions: "dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy rectangle-packer==2.0.1 scipy==1.7.3"
+
   deploy:
     jobs:
       - build-and-test-linux: &deploy-build
