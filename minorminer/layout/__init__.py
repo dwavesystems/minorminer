@@ -151,10 +151,10 @@ def _parse_layout_parameter(S, T, layout, layout_kwargs):
     """Determine what combination of iterable, dict, and function the layout 
     parameter is.
     """
-    if nx.utils.iterable(layout):
-        try:
+    if isinstance(layout, (tuple, list)):
+        if len(layout) == 2:
             s_layout, t_layout = layout
-        except ValueError:
+        else:
             raise ValueError(
                 "layout is expected to be a function or a length-2 iterable")
     else:
