@@ -41,7 +41,7 @@ This example minor embeds a 3x3 grid graph onto a Chimera graph.
     :width: 800
     :alt: Source 2-dimensional 3x3 grid graph and a target Chimera graph
 
-.. figure:: ../_images/layout_embedding.png
+.. figure:: ../_images/Layout_Embedding.png
     :name: Layout_Embedding_2DGrid_Chimera
     :width: 800
     :alt: Embedding a source 2-dimensional 3x3 grid graph onto a target Chimera graph
