@@ -20,6 +20,7 @@ manylinux-aarch64-image = "manylinux2014"
 [tool.cibuildwheel.macos]
 # We follow NumPy and don't build universal wheels, see https://github.com/numpy/numpy/pull/20787
 archs = "x86_64 arm64"
+environment = { MACOSX_DEPLOYMENT_TARGET=10.9 }
 
 [tool.cibuildwheel.windows]
 archs = "AMD64"

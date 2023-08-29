@@ -137,8 +137,6 @@ extensions = [
 if USE_CYTHON:
     extensions = cythonize(extensions)
 
-os.environ["MACOSX_DEPLOYMENT_TARGET"] = platform.mac_ver()[0]
-
 classifiers = [
     'License :: OSI Approved :: Apache Software License',
     'Operating System :: OS Independent',
