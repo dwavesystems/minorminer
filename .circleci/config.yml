@@ -8,7 +8,7 @@ commands:
     parameters:
       cibw-version:
         type: string
-        default: 2.11.2
+        default: 2.15.0
     steps:
       - run:
           name: run cibuildwheel
@@ -183,7 +183,7 @@ jobs:
         type: string
 
     macos:
-      xcode: 12.5.1
+      xcode: 13.4.0
 
     environment:
       <<: *global-environment
