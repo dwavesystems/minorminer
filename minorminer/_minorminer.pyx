@@ -308,7 +308,9 @@ def find_embedding(S, T, **params):
 class EmptySourceGraphError(RuntimeError):
     pass
 
-cdef void wrap_logger(void *logger, int loglevel, const string &msg):
+# Even though this is marked as noexcept, exceptions raised by the logger will
+# still eventually be caught.
+cdef void wrap_logger(void *logger, int loglevel, const string &msg) noexcept:
     if loglevel == 0:
         (<object>logger).error(msg.rstrip())
     elif 1 <= loglevel < 4:
