@@ -145,6 +145,7 @@ classifiers = [
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
 ]
 
 python_requires = '>=3.8'
@@ -154,7 +155,8 @@ install_requires = [
     "homebase>=1.0.1",
     "networkx>=2.4",
     "numpy>=1.21.6",
-    "rectangle-packer>=2.0.1",
+    'rectangle-packer==2.0.1;python_version<"3.9"',  # 2.0.1+ does not support Python 3.8
+    'rectangle-packer>=2.0.1;python_version>="3.9"',
     "scipy>=1.7.3",
 ]
 
