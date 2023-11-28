@@ -291,13 +291,13 @@ jobs:
           command: |
             python -m venv env
             . env/bin/activate
-            pip install --upgrade << parameters.dependency-versions >>
+            pip install --upgrade pip wheel
+            pip install --upgrade --prefer-binary << parameters.dependency-versions >>
             pip install minorminer --no-index -f dist/ --no-deps --force-reinstall
       - run:
           name: run tests
           command: |
             . env/bin/activate
-            pip install --upgrade setuptools pip
             pip install -r test_requirements.txt
             pytest tests/
 
@@ -311,7 +311,7 @@ workflows:
       - build-and-test-linux: &build
           matrix:
             parameters:
-              python-version: &python-versions [3.8.9, 3.9.4, 3.10.0, 3.11.0]
+              python-version: &python-versions [3.8.9, 3.9.4, 3.10.0, 3.11.0, 3.12.0]
       - build-and-test-linux-aarch64:
           matrix:
             parameters:
@@ -338,6 +338,8 @@ workflows:
             exclude:
               # SciPy 1.7.3 doesn't support Python 3.11
               - python-version: 3.11.0
+                dependency-versions: "dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy rectangle-packer==2.0.1 scipy==1.7.3"
+              - python-version: 3.12.0
                 dependency-versions: "dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy rectangle-packer==2.0.1 scipy==1.7.3"
 
   deploy:

@@ -101,6 +101,7 @@ wheels/
 *.egg
 minorminer/_minorminer.cpp
 minorminer/busclique.cpp
+minorminer/subgraph.cpp
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

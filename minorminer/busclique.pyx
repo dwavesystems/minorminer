@@ -844,7 +844,7 @@ cdef class _zephyr_busgraph:
             raise ValueError("unrecognized graph labeling")
 
         self.topo = new topo_cache[zephyr_spec](zep[0], self.nodes, edges)
-        short_clique(zep[0], self.nodes, edges, self.emb_1)
+        short_clique[zephyr_spec](zep[0], self.nodes, edges, self.emb_1)
 
         if compute_identifier:
             self.identifier, self.short_identifier = _serialize(self.topo, 'zephyr')
@@ -909,7 +909,7 @@ cdef class _zephyr_busgraph:
         if nodes is None:
             return self.topo.fragment_nodes()
         else:
-            return self.topo.topo.fragment_nodes(nodes)
+            return self.topo.topo.fragment_nodes(<nodes_t&>nodes)
 
 cdef class _pegasus_busgraph:
     cdef topo_cache[pegasus_spec] *topo
@@ -957,7 +957,7 @@ cdef class _pegasus_busgraph:
             raise ValueError("unrecognized graph labeling")
 
         self.topo = new topo_cache[pegasus_spec](peg[0], self.nodes, edges)
-        short_clique(peg[0], self.nodes, edges, self.emb_1)
+        short_clique[pegasus_spec](peg[0], self.nodes, edges, self.emb_1)
 
         if compute_identifier:
             self.identifier, self.short_identifier = _serialize(self.topo, 'pegasus')
@@ -1022,7 +1022,7 @@ cdef class _pegasus_busgraph:
         if nodes is None:
             return self.topo.fragment_nodes()
         else:
-            return self.topo.topo.fragment_nodes(nodes)
+            return self.topo.topo.fragment_nodes(<nodes_t&>nodes)
 
 cdef class _chimera_busgraph:
     """Class for managing a single Chimera graph, and dispatches various
@@ -1074,7 +1074,7 @@ cdef class _chimera_busgraph:
             raise ValueError("unrecognized graph labeling")
 
         self.topo = new topo_cache[chimera_spec](chim[0], self.nodes, edges)
-        short_clique(chim[0], self.nodes, edges, self.emb_1)
+        short_clique[chimera_spec](chim[0], self.nodes, edges, self.emb_1)
 
         if compute_identifier:
             self.identifier, self.short_identifier = _serialize(self.topo, 'chimera')
@@ -1140,7 +1140,7 @@ cdef class _chimera_busgraph:
         if nodes is None:
             return self.topo.fragment_nodes()
         else:
-            return self.topo.topo.fragment_nodes(nodes)
+            return self.topo.topo.fragment_nodes(<nodes_t&>nodes)
 
 def _default_quality_function(emb):
     """A function that returns a tuple corresponds to the "quality" of the embedding.
