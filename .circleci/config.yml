@@ -291,7 +291,7 @@ jobs:
           command: |
             python -m venv env
             . env/bin/activate
-            pip install --upgrade setuptools pip wheel
+            pip install --upgrade pip wheel
             pip install --upgrade --prefer-binary << parameters.dependency-versions >>
             pip install minorminer --no-index -f dist/ --no-deps --force-reinstall
       - run:
