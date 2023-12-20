@@ -102,6 +102,7 @@ wheels/
 minorminer/_minorminer.cpp
 minorminer/busclique.cpp
 minorminer/subgraph.cpp
+minorminer/_extern/rpack/_core.c
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

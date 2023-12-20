@@ -169,7 +169,7 @@ __version__ = '2.0.2'
 from typing import Iterable, Tuple, List
 
 # Extension modules
-from rpack._core import (
+from minorminer._extern.rpack._core import (
     pack as _pack,
     PackingImpossibleError,
     bbox_size,

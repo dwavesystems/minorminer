@@ -68,7 +68,8 @@ class build_ext_compiler_check(build_ext):
 
         for ext in self.extensions:
             arg_key = ext.extra_compile_args
-            ext.extra_compile_args = extra_compile_args[arg_key][compiler]
+            if arg_key:
+                ext.extra_compile_args = extra_compile_args[arg_key][compiler]
 
         link_args = extra_link_args[compiler]
         for ext in self.extensions:
@@ -83,6 +84,7 @@ class Extension(extension.Extension, object):
 
 
 ext = '.pyx' if USE_CYTHON else '.cpp'
+ext_c = '.pyx' if USE_CYTHON else '.c'
 
 glasgow_cc = [
     '/'.join(['external/glasgow-subgraph-solver/src', f])
@@ -132,6 +134,12 @@ extensions = [
         language='c++',
         extra_compile_args = 'glasgow',
     ),
+    Extension(
+        name="minorminer._extern.rpack._core",
+        sources=["./minorminer/_extern/rpack/_core" + ext_c, "./minorminer/_extern/rpack/src/rpackcore.c"],
+        include_dirs=["./minorminer/_extern/rpack/include"],
+        language='c',
+    ),
 ]
 
 if USE_CYTHON:
@@ -155,8 +163,6 @@ install_requires = [
     "homebase>=1.0.1",
     "networkx>=2.4",
     "numpy>=1.21.6",
-    'rectangle-packer==2.0.1;python_version<"3.9"',  # 2.0.1+ does not support Python 3.8
-    'rectangle-packer>=2.0.1;python_version>="3.9"',
     "scipy>=1.7.3",
 ]
 
@@ -173,9 +179,12 @@ setup(
     packages=['minorminer',
               'minorminer.layout',
               'minorminer.utils',
+              'minorminer._extern.rpack',
               ],
     classifiers=classifiers,
     python_requires=python_requires,
     install_requires=install_requires,
-    cmdclass={'build_ext': build_ext_compiler_check}
+    cmdclass={'build_ext': build_ext_compiler_check},
+    package_data={"minorminer._extern.rpack._core": ["_core.pyx"]},
+    include_package_data=True,
 )
