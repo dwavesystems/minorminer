@@ -19,7 +19,7 @@ import networkx as nx
 import numpy as np
 from scipy import optimize, spatial
 from math import ceil
-import rpack
+from minorminer._extern import rpack
 
 def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None, scale=None, **kwargs):
     """Embeds graph ``G`` in :math:`R^d` with the p-norm and minimizes a 
