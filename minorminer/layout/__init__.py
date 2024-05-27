@@ -17,8 +17,8 @@ import time
 import networkx as nx
 import minorminer as mm
 
-from layout import Layout, dnx_layout, p_norm
-from placement import Placement, closest, intersection
+from .layout import Layout, dnx_layout, p_norm
+from .placement import Placement, closest, intersection
 
 
 def find_embedding(

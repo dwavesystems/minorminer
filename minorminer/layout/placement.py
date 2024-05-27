@@ -20,8 +20,7 @@ import dwave_networkx as dnx
 import numpy as np
 from scipy import spatial
 
-#from . import layout #MM-removed
-import layout #MM-added
+from . import layout 
 
 def intersection(S_layout, T_layout, **kwargs):
     """Map each vertex of S to its nearest row/column intersection qubit in T 

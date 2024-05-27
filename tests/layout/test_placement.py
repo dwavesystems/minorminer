@@ -22,7 +22,7 @@ from minorminer.layout.placement import (_lookup_intersection_coordinates,
                                          _parse_layout,
                                          _minimize_overlap)
 
-from common import TestLayoutPlacement
+from .common import TestLayoutPlacement
 
 
 class TestPlacement(TestLayoutPlacement):

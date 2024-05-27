@@ -23,7 +23,7 @@ import numpy as np
 import minorminer.layout as mml
 from minorminer.layout.layout import (_center_layout, _dimension_layout,
                                       _scale_layout, _graph_distance_matrix)
-from common import TestLayoutPlacement
+from .common import TestLayoutPlacement
 
 
 class TestLayout(TestLayoutPlacement):

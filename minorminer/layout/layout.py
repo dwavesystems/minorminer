@@ -333,7 +333,7 @@ def _nx_to_dnx_layout(center, scale):
             float: A scale value that is twice the original scale.
     
     """
-    dnx_center = (center[0] - scale, ) + (center[1] + scale, ) + tuple(0 for _ in center[2:])
+    dnx_center = (center[0] - scale, ) + (center[1] + scale, ) + tuple(x for x in center[2:])
     dnx_scale = 2*scale
 
     return dnx_center, dnx_scale
