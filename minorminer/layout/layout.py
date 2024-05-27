@@ -161,19 +161,18 @@ def _graph_distance_matrix(G,
     if disconnected_distance is None:
         disconnected_distance = len(G)
 
-    return np.array(
-        [
-            [V.get(v, disconnected_distance) for v in sorted(G)]
-                 for u, V in all_pairs_shortest_path_length
-        ]
-    )
+    dist_list = [
+        (u, [V.get(v, disconnected_distance) for v in sorted(G)])
+         for u, V in nx.all_pairs_shortest_path_length(G)
+         ]
+    return(np.array([_[1] for _ in sorted(dist_list)]))
 
 def _p_norm_objective(layout_vector, G_distances, dim, p):
     """Compute the sum of differences squared between the p-norm and the graph 
     distance as well as the gradient.
 
     Args:
-        layout (Numpy Array):
+        layout_vector (Numpy Array):
             A vector indexed by sorted vertices of G whose values are points in 
             some metric space.
 
@@ -238,13 +237,13 @@ def _p_norm_objective(layout_vector, G_distances, dim, p):
 
 
 def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
-    """The Chimera or Pegasus layout from `dwave_networkx` centered at the origin
+    """The Chimera or Pegasus or Zephyr layout from `dwave_networkx` centered at the origin
     with ``scale`` as a function of the number of rows or columns. Note: As per 
     the implementation of `dnx.*_layout`, if :math:`dim>2`, coordinates beyond 
     the second are 0.
 
     By default, :func:`dnx_layout` is used to compute the layout for target 
-    Chimera or Pegasus graphs when :func:`minorminer.layout.find_embedding` is 
+    Chimera or Pegasus or Zephyr graphs when :func:`minorminer.layout.find_embedding` is 
     called.
 
     Args:
@@ -268,7 +267,7 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
 
     Returns:
         dict: :attr:`.Layout.layout`, a mapping from vertices of ``G`` (keys) to 
-        points in :math:`R^d` (values).
+        points in :math:`[-scale, scale]x[-scale, scale]x{0}^{d-2}+center` (values).
     
     Examples:
         This example creates a :class:`.Layout` object for a Pegasus graph, with 
@@ -306,6 +305,17 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     elif family == "zephyr":
         dnx_layout = dnx.zephyr_layout(
             G, dim=dim, center=dnx_center, scale=dnx_scale)
+        
+    dnx_layout_arr = np.array([(dnx_layout[v]-dnx_center)[:2] for v in G.nodes()]) #first two coordinates of layout-dnx_center
+    x_min, y_min = np.min(dnx_layout_arr, axis=0)
+    x_max, y_max = np.max(dnx_layout_arr, axis=0)
+    if x_min!=0 or x_max!=dnx_scale or y_min!=-dnx_scale or y_max!=0: # if the output of dnx_layout is not what it should be (at the moment there is a bug in dnx.zephyr_layout and dnx.pegasus_layout)
+        dnx_layout_arr = dnx_layout_arr - np.array([x_min, y_max]) #make (0, 0) top left corner
+        dnx_layout_arr = dnx_layout_arr * np.array([(dnx_scale)/(x_max-x_min), (dnx_scale)/(y_max-y_min)]) #make (dnx_scale, -dnx_scale) bottom right corner
+        paddim = dim - 2
+        zeros = np.zeros((dnx_layout_arr.shape[0], paddim))
+        dnx_layout_arr = np.hstack((dnx_layout_arr, zeros)) + dnx_center
+        dnx_layout = {v: dnx_layout_arr[i] for i, v in enumerate(G.nodes())}
 
     layout = Layout(G, dnx_layout)
     return layout.layout
@@ -323,7 +333,7 @@ def _nx_to_dnx_layout(center, scale):
             float: A scale value that is twice the original scale.
     
     """
-    dnx_center = (center[0] - scale, ) + tuple(x + scale for x in center[1:])
+    dnx_center = (center[0] - scale, ) + (center[1] + scale, ) + tuple(0 for _ in center[2:])
     dnx_scale = 2*scale
 
     return dnx_center, dnx_scale
@@ -673,8 +683,7 @@ def _rotate_to_minimize_area(points):
     pi2 = np.pi/2
 
     # calculate edge angles
-    edges = np.zeros((len(hull_points)-1, 2))
-    edges = hull_points[1:] - hull_points[:-1]
+    edges = np.concatenate((hull_points[1:], [hull_points[0]]), axis=0) - hull_points
 
     angles = np.zeros((len(edges)))
     angles = np.arctan2(edges[:, 1], edges[:, 0])
@@ -706,7 +715,7 @@ def _rotate_to_minimize_area(points):
     best_idx = np.argmin(areas)
 
     # return the best rotation and its dimensions
-    points = np.dot(points, rotations[best_idx])
+    points = np.dot(rotations[best_idx], points.T)
     min_y = np.nanmin(points[:, 0])
     max_y = np.nanmax(points[:, 0])
     min_x = np.nanmin(points[:, 1])

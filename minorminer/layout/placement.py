@@ -20,8 +20,8 @@ import dwave_networkx as dnx
 import numpy as np
 from scipy import spatial
 
-from . import layout
-
+#from . import layout #MM-removed
+import layout #MM-added
 
 def intersection(S_layout, T_layout, **kwargs):
     """Map each vertex of S to its nearest row/column intersection qubit in T 
@@ -395,14 +395,17 @@ def _get_connected_subgraphs(G, k, single_set=False):
 
 def _minimize_overlap(distances, v_indices, T_subset_lookup, layout_points, overlap_counter):
     """A greedy penalty-type model for choosing nonoverlapping chains."""
-    subsets = {}
-    for i, d in zip(v_indices, distances):
-        subset = T_subset_lookup[layout_points[i]]
-        subsets[subset] = d + sum(10**overlap_counter[v] for v in subset)
-
-    cheapest_subset = min(subsets, key=subsets.get)
-    overlap_counter.update(cheapest_subset)
-    return cheapest_subset
+    for base in range(10, 0, -1):
+        try:    
+            subsets = {}
+            for i, d in zip(v_indices, distances):
+                subset = T_subset_lookup[layout_points[i]]
+                subsets[subset] = d + sum(base**overlap_counter[v] for v in subset)
+            cheapest_subset = min(subsets, key=subsets.get)
+            overlap_counter.update(cheapest_subset)
+            return cheapest_subset
+        except OverflowError:
+            continue
 
 
 class Placement(abc.MutableMapping):
