@@ -17,7 +17,7 @@ import unittest
 
 import dwave_networkx as dnx
 import minorminer.layout as mml
-import networkx as nx
+import networkx as nx 
 from minorminer.layout.placement import (_lookup_intersection_coordinates,
                                          _parse_layout,
                                          _minimize_overlap)
@@ -176,7 +176,7 @@ def rando_placer(S_layout, T_layout):
     T_vertices = list(T_layout)
     return {v: [random.choice(T_vertices)] for v in S_layout}
 
-def test_minimize_overlap():
+def test_minimize_overlap(): # To test whether an avoidable OverFlowError in _minimize_overlap is skipped
     dim_a = 10
     dim_b = 55
     grid_edges = list(nx.grid_graph([dim_a, dim_b]).edges())
@@ -184,3 +184,5 @@ def test_minimize_overlap():
     king = nx.Graph(grid_edges+diagonal_edges)
     T = dnx.zephyr_graph(15)
     mml.find_embedding(king, T, scale=1)
+    
+test_minimize_overlap()

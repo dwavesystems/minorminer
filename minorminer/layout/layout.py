@@ -305,18 +305,19 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     elif family == "zephyr":
         dnx_layout = dnx.zephyr_layout(
             G, dim=dim, center=dnx_center, scale=dnx_scale)
-        
+    
+    # if the output of dnx_layout is not what it should be (at the moment there is a bug in dnx.zephyr_layout and dnx.pegasus_layout)    
     dnx_layout_arr = np.array([(dnx_layout[v]-dnx_center)[:2] for v in G.nodes()]) #first two coordinates of layout-dnx_center
     x_min, y_min = np.min(dnx_layout_arr, axis=0)
     x_max, y_max = np.max(dnx_layout_arr, axis=0)
-    if x_min!=0 or x_max!=dnx_scale or y_min!=-dnx_scale or y_max!=0: # if the output of dnx_layout is not what it should be (at the moment there is a bug in dnx.zephyr_layout and dnx.pegasus_layout)
+    if x_min!=0 or x_max!=dnx_scale or y_min!=-dnx_scale or y_max!=0: 
         dnx_layout_arr = dnx_layout_arr - np.array([x_min, y_max]) #make (0, 0) top left corner
         dnx_layout_arr = dnx_layout_arr * np.array([(dnx_scale)/(x_max-x_min), (dnx_scale)/(y_max-y_min)]) #make (dnx_scale, -dnx_scale) bottom right corner
         paddim = dim - 2
         zeros = np.zeros((dnx_layout_arr.shape[0], paddim))
         dnx_layout_arr = np.hstack((dnx_layout_arr, zeros)) + dnx_center
         dnx_layout = {v: dnx_layout_arr[i] for i, v in enumerate(G.nodes())}
-
+    
     layout = Layout(G, dnx_layout)
     return layout.layout
 
@@ -715,7 +716,7 @@ def _rotate_to_minimize_area(points):
     best_idx = np.argmin(areas)
 
     # return the best rotation and its dimensions
-    points = np.dot(rotations[best_idx], points.T)
+    points = np.dot(rotations[best_idx], points.T).T
     min_y = np.nanmin(points[:, 0])
     max_y = np.nanmax(points[:, 0])
     min_x = np.nanmin(points[:, 1])
