@@ -160,12 +160,12 @@ def _graph_distance_matrix(G,
 
     if disconnected_distance is None:
         disconnected_distance = len(G)
+        
+    return np.array([
+        [V.get(v, disconnected_distance) for v in G]
+        for _, V in nx.all_pairs_shortest_path_length(G)
+        ])
 
-    dist_list = [
-        (u, [V.get(v, disconnected_distance) for v in G])
-            for u, V in nx.all_pairs_shortest_path_length(G)
-            ]
-    return np.array([u_dist for u, u_dist in dist_list])
 
 def _p_norm_objective(layout_vector, G_distances, dim, p):
     """Compute the sum of differences squared between the p-norm and the graph 
