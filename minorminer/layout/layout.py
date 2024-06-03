@@ -673,26 +673,15 @@ def _set_dim_and_center(dim, center, default_dim=2):
 
 
 def _rotate_to_minimize_area(points):
-    """Uses the rotating calipers algorithm to rotate points (a numpy array)
-    into a minimum-area bounding box
+    """Rotates points (a numpy array) into a minimum-area bounding box by
+    iteratively resting the convex hull containing the points on one of its edges.
     """
     # Compute the convex hull
     hull = spatial.ConvexHull(points, qhull_options = 'QJ')
-
-    # Look up the points that constitute the convex hull
     hull_points = points[hull.vertices]
-
-    pi2 = np.pi/2
-
-    # calculate edge angles
     edges = np.concatenate((hull_points[1:], [hull_points[0]]), axis=0) - hull_points
 
-    angles = np.zeros((len(edges)))
-    angles = np.arctan2(edges[:, 1], edges[:, 0])
-
-    angles = np.abs(np.mod(angles, pi2))
-    angles = np.unique(angles)
-
+    angles = -1*np.arctan2(edges[:, 1], edges[:, 0])
     # find rotation matrices
     rotations = np.vstack([
         np.cos(angles),
@@ -700,31 +689,20 @@ def _rotate_to_minimize_area(points):
         np.sin(angles),
         np.cos(angles)]).T
     rotations = rotations.reshape((-1, 2, 2))
-
-    # apply rotations to the hull
-    rot_points = np.dot(rotations, hull_points.T)
-
-    # find the bounding points
-    min_x = np.nanmin(rot_points[:, 0], axis=1)
-    max_x = np.nanmax(rot_points[:, 0], axis=1)
-    min_y = np.nanmin(rot_points[:, 1], axis=1)
-    max_y = np.nanmax(rot_points[:, 1], axis=1)
-
-    # find the box with the best area
-    widths = (max_x - min_x)
-    heights = (max_y - min_y)
-    areas =  widths * heights
+    n = len(hull_points)
+    list_rotated_hull_ps = [np.dot(rotations[i], (hull_points-hull_points[i]).T).T for i in range(n)]
+    areas = np.array([
+        np.prod(np.max(list_rotated_hull_ps[i], axis=0) - np.min(list_rotated_hull_ps[i], axis=0)) for i in range(n)
+        ])    
     best_idx = np.argmin(areas)
+    rotated_points = np.dot(rotations[best_idx], (points - hull_points[best_idx]).T).T
 
     # return the best rotation and its dimensions
-    points = np.dot(rotations[best_idx], points.T).T
-    min_y = np.nanmin(points[:, 0])
-    max_y = np.nanmax(points[:, 0])
-    min_x = np.nanmin(points[:, 1])
-    max_x = np.nanmax(points[:, 1])
-    center = np.array(((max_y + min_y), (max_x + min_x)))/2
-    dims = np.array(((max_y - min_y), (max_x - min_x)))
-    return points - center, dims
+    min_x, min_y = np.nanmin(rotated_points, axis=0)
+    max_x, max_y = np.nanmax(rotated_points, axis=0)
+    center = np.array([max_x + min_x, max_y + min_y])/2
+    dims = np.array([max_x - min_x, max_y - min_y])
+    return rotated_points - center, dims
 
 def _pack_components(G, layout, **kwargs):
     """Attempts to pack components using `layout` to compute component layouts,
