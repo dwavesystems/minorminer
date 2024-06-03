@@ -723,7 +723,4 @@ cdef _read_graph(input_graph &g, E):
             g.push_back(i, i)
     return L
 
-def _mahdieh_delete_this():
-    print("hello")
-
-__all__ = ["find_embedding", "VARORDER", "miner", "_mahdieh_delete_this"]
+__all__ = ["find_embedding", "VARORDER", "miner"]
