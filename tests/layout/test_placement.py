@@ -17,7 +17,7 @@ import unittest
 
 import dwave_networkx as dnx
 import minorminer.layout as mml
-import networkx as nx 
+import networkx as nx
 from minorminer.layout.placement import (_lookup_intersection_coordinates,
                                          _parse_layout,
                                          _minimize_overlap)
@@ -169,7 +169,7 @@ class TestPlacement(TestLayoutPlacement):
         # Layout input failure
         self.assertRaises(TypeError, mml.Placement,
                           "not a layout", self.C_layout)
-        self.assertRaises(TypeError, _parse_layout, "not a layout")       
+        self.assertRaises(TypeError, _parse_layout, "not a layout")
 
 
 def rando_placer(S_layout, T_layout):

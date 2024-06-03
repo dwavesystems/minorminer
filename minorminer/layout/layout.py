@@ -162,10 +162,10 @@ def _graph_distance_matrix(G,
         disconnected_distance = len(G)
 
     dist_list = [
-        (u, [V.get(v, disconnected_distance) for v in sorted(G)])
-         for u, V in nx.all_pairs_shortest_path_length(G)
-         ]
-    return(np.array([_[1] for _ in sorted(dist_list)]))
+        (u, [V.get(v, disconnected_distance) for v in G])
+            for u, V in nx.all_pairs_shortest_path_length(G)
+            ]
+    return np.array([u_dist for u, u_dist in dist_list])
 
 def _p_norm_objective(layout_vector, G_distances, dim, p):
     """Compute the sum of differences squared between the p-norm and the graph 
@@ -306,7 +306,8 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
         dnx_layout = dnx.zephyr_layout(
             G, dim=dim, center=dnx_center, scale=dnx_scale)
     
-    # if the output of dnx_layout is not what it should be (at the moment there is a bug in dnx.zephyr_layout and dnx.pegasus_layout)    
+    # if the output of dnx_layout is not what it should be (at the moment there is a bug in dnx.zephyr_layout and dnx.pegasus_layout)
+    # https://github.com/dwavesystems/dwave-networkx/issues/239    
     dnx_layout_arr = np.array([(dnx_layout[v]-dnx_center)[:2] for v in G.nodes()]) #first two coordinates of layout-dnx_center
     x_min, y_min = np.min(dnx_layout_arr, axis=0)
     x_max, y_max = np.max(dnx_layout_arr, axis=0)
