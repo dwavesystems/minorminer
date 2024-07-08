@@ -12,85 +12,69 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from setuptools import setup, extension
-from setuptools.command.build_ext import build_ext
-import sys
 import os
 import platform
-cwd = os.path.abspath(os.path.dirname(__file__))
+import sys
 
-if not os.path.exists(os.path.join(cwd, 'PKG-INFO')):
-    try:
-        from Cython.Build import cythonize
-        USE_CYTHON = True
-    except ImportError:
-        USE_CYTHON = False
-else:
-    USE_CYTHON = False
+from Cython.Build import cythonize
+from setuptools import setup, Extension
 
-# Change directories so this works when called from other locations. Useful in build systems that build from source.
+
+# Change directories so this works when called from other locations.
+# Useful in build systems that build from source.
 setup_folder_loc = os.path.dirname(os.path.abspath(__file__))
 os.chdir(setup_folder_loc)
 
-base_compile_args = {
-    'msvc': ['/std:c++latest', '/MT', '/EHsc', '/O2'],
-    'unix': ['-std=c++17', '-Wall', '-Wno-format-security', '-Ofast', '-fomit-frame-pointer',
-             '-DNDEBUG'],
-}
+DEBUG = '--debug' in sys.argv or '-g' in sys.argv or 'CPPDEBUG' in os.environ
+SAFE_COORDS = 'SAFE_COORDS' in os.environ
 
-mm_compile_args = {
-    'msvc': base_compile_args['msvc'] + [],
-    'unix': base_compile_args['unix'] + ['-fno-rtti']
-}
+extra_compile_args = []
+extra_compile_args_glasgow = []  # specific to glasgow
+extra_compile_args_minorminer = []  # specific to minorminer
+if platform.system().lower() == "windows":
+    extra_compile_args.extend([
+        '/std:c++17',
+        '/MT',
+        '/EHsc',
+        ])
 
-if '--debug' in sys.argv or '-g' in sys.argv or 'CPPDEBUG' in os.environ:
-    mm_compile_args['msvc'].append('/DCPPDEBUG')
-    base_compile_args['unix'] = ['-std=c++17', '-Wall', '-O0', '-g', '-fipa-pure-const']
+    extra_compile_args_glasgow.extend([
+        '/external:W4',
+        '/external:I external',
+        '/DUSE_PORTABLE_SNIPPETS_BUILTIN',
+        ])
 
+    extra_compile_args_minorminer.extend([
+        '/DCPPDEBUG' if DEBUG else None,
+        '/DSAFE_COORDS' if SAFE_COORDS else None,
+        ])
 
-glasgow_compile_args = {
-    'msvc': base_compile_args['msvc'] + ['/external:W4', '/external:I external', '/DUSE_PORTABLE_SNIPPETS_BUILTIN'],
-    'unix': base_compile_args['unix'] + ['-isystemexternal', '-DUSE_PORTABLE_SNIPPETS_BUILTIN']
-}
+else:  # Unix
+    extra_compile_args.extend([
+        '-std=c++17',
+        '-Wall',
+        '-Wno-format-security',
+        '--O0' if DEBUG else '-Ofast',
+        '-fomit-frame-pointer',
+        '-fipa-pure-const' if DEBUG else None
+        ])
 
-if 'SAFE_COORDS' in os.environ:
-    mm_compile_args['msvc'].append('/DSAFE_COORDS')
-    mm_compile_args['unix'].append('-DSAFE_COORDS')
+    extra_compile_args_glasgow.extend([
+        '-isystemexternal',
+        '-DUSE_PORTABLE_SNIPPETS_BUILTIN',
+        ])
 
-extra_compile_args = {
-    'mm': mm_compile_args,
-    'glasgow': glasgow_compile_args,
-}
+    extra_compile_args_minorminer.extend([
+        '-fno-rtti',
+        '-DSAFE_COORDS' if SAFE_COORDS else None,
+        ])
 
-extra_link_args = {
-    'msvc': [],
-    'unix': ['-std=c++17'],
-}
+# fitler out any None or empty arguments
+extra_compile_args = [arg for arg in extra_compile_args if arg]
+extra_compile_args_glasgow = [arg for arg in extra_compile_args_glasgow if arg]
+extra_compile_args_minorminer = [arg for arg in extra_compile_args_minorminer if arg]
 
-class build_ext_compiler_check(build_ext):
-    def build_extensions(self):
-        compiler = self.compiler.compiler_type
-
-        for ext in self.extensions:
-            arg_key = ext.extra_compile_args
-            if arg_key:
-                ext.extra_compile_args = extra_compile_args[arg_key][compiler]
-
-        link_args = extra_link_args[compiler]
-        for ext in self.extensions:
-            ext.extra_link_args = link_args
-
-        build_ext.build_extensions(self)
-        build_ext.build_extensions(self)
-
-
-class Extension(extension.Extension, object):
-    pass
-
-
-ext = '.pyx' if USE_CYTHON else '.cpp'
-ext_c = '.pyx' if USE_CYTHON else '.c'
-
+# this is a subset of the total source files, so we can't just use glob or similar
 glasgow_cc = [
     '/'.join(['external/glasgow-subgraph-solver/src', f])
     for f in [
@@ -119,45 +103,42 @@ glasgow_cc = [
 extensions = [
     Extension(
         name="minorminer._minorminer",
-        sources=["./minorminer/_minorminer" + ext],
+        sources=["./minorminer/_minorminer.pyx"],
         include_dirs=['', './include/', './include/find_embedding'],
         language='c++',
-        extra_compile_args = 'mm',
+        extra_compile_args=extra_compile_args + extra_compile_args_minorminer,
     ),
     Extension(
         name="minorminer.busclique",
-        sources=["./minorminer/busclique" + ext],
+        sources=["./minorminer/busclique.pyx"],
         include_dirs=['', './include/', '.include/busclique'],
         language='c++',
-        extra_compile_args = 'mm',
+        extra_compile_args=extra_compile_args + extra_compile_args_minorminer,
     ),
     Extension(
         name="minorminer.subgraph",
-        sources=["./minorminer/subgraph" + ext] + glasgow_cc,
-        include_dirs=['', './include', './external', './external/glasgow-subgraph-solver/src'],
+        sources=["./minorminer/subgraph.pyx"] + glasgow_cc,
+        include_dirs=['', './include', './external',
+                      './external/glasgow-subgraph-solver/src'],
         library_dirs=['./include'],
         language='c++',
-        extra_compile_args = 'glasgow',
+        extra_compile_args=extra_compile_args + extra_compile_args_glasgow,
     ),
     Extension(
         name="minorminer._extern.rpack._core",
-        sources=["./minorminer/_extern/rpack/_core" + ext_c, "./minorminer/_extern/rpack/src/rpackcore.c"],
+        sources=["./minorminer/_extern/rpack/_core.pyx",
+                 "./minorminer/_extern/rpack/src/rpackcore.c"],
         include_dirs=["./minorminer/_extern/rpack/include"],
         language='c',
     ),
 ]
 
-if USE_CYTHON:
-    extensions = cythonize(extensions)
-
 setup(
-    ext_modules=extensions,
+    ext_modules=cythonize(extensions),
     packages=['minorminer',
               'minorminer.layout',
               'minorminer.utils',
               'minorminer._extern.rpack',
               ],
-    cmdclass={'build_ext': build_ext_compiler_check},
-    package_data={"minorminer._extern.rpack._core": ["_core.pyx"]},
     include_package_data=True,
 )
