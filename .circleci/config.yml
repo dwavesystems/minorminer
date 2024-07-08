@@ -1,7 +1,8 @@
 version: 2.1
 
 orbs:
-  win: circleci/windows@5.0.0
+  macos: circleci/macos@2.4
+  win: circleci/windows@5.0
 
 commands:
   run-cibuildwheel:
@@ -76,13 +77,15 @@ jobs:
 
   coverage-osx:
     macos:
-      xcode: "12.5.1"
+      xcode: 15.3.0
+    resource_class: macos.m1.medium.gen1
     environment:
       HOMEBREW_NO_AUTO_UPDATE: 1
       PYTHON: 3.8.6
     working_directory: ~/repo
     steps:
       - checkout
+      - macos/install-rosetta
       - run:
           name: install cmake
           command: |
@@ -107,7 +110,7 @@ jobs:
             echo 'eval "$(pyenv init -)"' >> ~/.bash_profile
       - restore_cache:
           keys:
-            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.5.1
+            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-15.3.0
       - run:
           name: install python
           command: |
@@ -115,7 +118,7 @@ jobs:
       - save_cache:
           paths:
             - ~/.pyenv
-          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.5.1
+          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-15.3.0
       - run:
           name: create virtualenv
           command: |
@@ -183,7 +186,8 @@ jobs:
         type: string
 
     macos:
-      xcode: 13.4.0
+      xcode: 15.3.0
+    resource_class: macos.m1.medium.gen1
 
     environment:
       <<: *global-environment
@@ -192,6 +196,7 @@ jobs:
 
     steps:
       - checkout
+      - macos/install-rosetta
       - run: *initialize-submodules
       - run-cibuildwheel
 
