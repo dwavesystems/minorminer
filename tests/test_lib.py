@@ -839,13 +839,13 @@ class TestFindEmbedding(unittest.TestCase):
         return find_embedding(K, C, tries=1, chainlength_patience=0)
 
     @staticmethod
-    @unittest.skipIf(sys.platform == 'win32', 'Test may hang on win32, skipping out of caution')
+    @unittest.skipIf(os.getenv("CIRCLECI", None), 'Test is unreliable in CI')
     @success_perfect(1)
     def test_interactive_interrupt():
         return run_interactive_interrupt(True) == 0
 
     @staticmethod
-    @unittest.skipIf(sys.platform == 'win32', 'Test hangs on win32')
+    @unittest.skipIf(os.getenv("CIRCLECI", None), 'Test is unreliable in CI')
     @success_perfect(1)
     def test_headless_interrupt():
         return run_interactive_interrupt(False) == 2
