@@ -56,7 +56,8 @@ else:  # Unix
         '-Wno-format-security',
         '--O0' if DEBUG else '-Ofast',
         '-fomit-frame-pointer',
-        '-fipa-pure-const' if DEBUG else None
+        '-fipa-pure-const' if DEBUG else None,
+        '-g' if DEBUG else '-g1',
         ])
 
     extra_compile_args_glasgow.extend([
