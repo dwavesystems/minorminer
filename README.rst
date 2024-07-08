@@ -1,9 +1,6 @@
 .. image:: https://img.shields.io/pypi/v/minorminer.svg
     :target: https://pypi.org/project/minorminer
 
-.. image:: https://coveralls.io/repos/github/dwavesystems/minorminer/badge.svg?branch=main
-    :target: https://coveralls.io/github/dwavesystems/minorminer?branch=main
-
 .. image:: https://readthedocs.com/projects/d-wave-systems-minorminer/badge/?version=latest
     :target: https://docs.ocean.dwavesys.com/projects/minorminer/en/latest/?badge=latest
 

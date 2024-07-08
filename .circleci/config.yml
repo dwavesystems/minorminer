@@ -1,7 +1,8 @@
 version: 2.1
 
 orbs:
-  win: circleci/windows@5.0.0
+  macos: circleci/macos@2.4
+  win: circleci/windows@5.0
 
 commands:
   run-cibuildwheel:
@@ -32,106 +33,6 @@ environment: &global-environment
   PIP_PROGRESS_BAR: 'off'
 
 jobs:
-  coverage-gcc:
-    docker:
-       - image: bellert/cmake:4
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - run: &cpp-template
-          name: run unittests
-          command: |
-            mkdir -p build;
-            cd build;
-            cmake .. -DMINORMINER_BUILD_TESTS=ON;
-            make CC=$C_COMPILER CXX=$CXX_COMPILER;
-            ./tests/run_tests;
-          environment:
-            C_COMPILER: gcc
-            CXX_COMPILER: g++
-
-  coverage-gcc-48:
-    docker:
-       - image: bellert/cmake:4
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - run:
-          <<: *cpp-template
-          environment:
-            C_COMPILER: gcc-4.8
-            CXX_COMPILER: g++-4.8
-
-  coverage-clang:
-    docker:
-       - image: bellert/cmake:4
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - run:
-          <<: *cpp-template
-          environment:
-            C_COMPILER: clang
-            CXX_COMPILER: clang++
-
-  coverage-osx:
-    macos:
-      xcode: "12.5.1"
-    environment:
-      HOMEBREW_NO_AUTO_UPDATE: 1
-      PYTHON: 3.8.6
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - run:
-          name: install cmake
-          command: |
-            brew install cmake
-      - run:
-          <<: *cpp-template
-          environment:
-            C_COMPILER: gcc
-            CXX_COMPILER: g++
-      - run:
-          <<: *cpp-template
-          environment:
-            C_COMPILER: clang
-            CXX_COMPILER: clang++
-      - run:
-          name: install pyenv
-          command: |
-            git clone https://github.com/pyenv/pyenv.git ~/.pyenv --branch v2.3.4
-            echo '' >> ~/.bash_profile
-            echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bash_profile
-            echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile
-            echo 'eval "$(pyenv init -)"' >> ~/.bash_profile
-      - restore_cache:
-          keys:
-            - v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.5.1
-      - run:
-          name: install python
-          command: |
-            pyenv install $PYTHON -s
-      - save_cache:
-          paths:
-            - ~/.pyenv
-          key: v2-pyenv-{{ .Environment.CIRCLE_JOB }}-xcode-12.5.1
-      - run:
-          name: create virtualenv
-          command: |
-            pyenv local $PYTHON
-            python -m pip install virtualenv
-            python -m virtualenv env
-      - run:
-          name: coveralls
-          command: |
-            if [[ -n $COVERALLS_REPO_TOKEN ]]; then
-              . env/bin/activate;
-              python -m pip install cpp-coveralls;
-              find build \( -name '*.gcno' -or -name '*.gcda' \) -exec mv {} . \;
-              coveralls --exclude tests -E '.*gtest.*' --gcov-options '\-lp';
-            fi;
-
   build-and-test-linux:
     parameters:
       python-version:
@@ -183,7 +84,8 @@ jobs:
         type: string
 
     macos:
-      xcode: 13.4.0
+      xcode: 15.3.0
+    resource_class: macos.m1.medium.gen1
 
     environment:
       <<: *global-environment
@@ -192,6 +94,7 @@ jobs:
 
     steps:
       - checkout
+      - macos/install-rosetta
       - run: *initialize-submodules
       - run-cibuildwheel
 
@@ -304,10 +207,6 @@ jobs:
 workflows:
   test:
     jobs:
-      - coverage-gcc
-      - coverage-gcc-48
-      - coverage-clang
-      - coverage-osx
       - build-and-test-linux: &build
           matrix:
             parameters:
