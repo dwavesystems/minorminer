@@ -70,10 +70,10 @@ else:  # Unix
         '-DSAFE_COORDS' if SAFE_COORDS else None,
         ])
 
-# fitler out any None or empty arguments
-extra_compile_args = [arg for arg in extra_compile_args if arg]
-extra_compile_args_glasgow = [arg for arg in extra_compile_args_glasgow if arg]
-extra_compile_args_minorminer = [arg for arg in extra_compile_args_minorminer if arg]
+# filter out any None or empty arguments
+extra_compile_args = list(filter(None, extra_compile_args))
+extra_compile_args_glasgow = list(filter(None, extra_compile_args_glasgow))
+extra_compile_args_minorminer = list(filter(None, extra_compile_args_minorminer))
 
 # this is a subset of the total source files, so we can't just use glob or similar
 glasgow_cc = [
