@@ -1,3 +1,17 @@
+# Copyright 2024 D-Wave Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
 from setuptools import setup, extension
 from setuptools.command.build_ext import build_ext
 import sys
@@ -14,18 +28,9 @@ if not os.path.exists(os.path.join(cwd, 'PKG-INFO')):
 else:
     USE_CYTHON = False
 
-_PY2 = sys.version_info.major == 2
-
 # Change directories so this works when called from other locations. Useful in build systems that build from source.
 setup_folder_loc = os.path.dirname(os.path.abspath(__file__))
 os.chdir(setup_folder_loc)
-
-# Add __version__, __author__, __authoremail__, __description__ to this namespace
-path_to_package_info = os.path.join('.', 'minorminer', 'package_info.py')
-if _PY2:
-    execfile(path_to_package_info)
-else:
-    exec(open(path_to_package_info).read())
 
 base_compile_args = {
     'msvc': ['/std:c++latest', '/MT', '/EHsc', '/O2'],
@@ -145,45 +150,13 @@ extensions = [
 if USE_CYTHON:
     extensions = cythonize(extensions)
 
-classifiers = [
-    'License :: OSI Approved :: Apache Software License',
-    'Operating System :: OS Independent',
-    'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.8',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10',
-    'Programming Language :: Python :: 3.11',
-    'Programming Language :: Python :: 3.12',
-]
-
-python_requires = '>=3.8'
-install_requires = [
-    "dwave-networkx>=0.8.10",
-    "fasteners>=0.15",
-    "homebase>=1.0.1",
-    "networkx>=2.4",
-    "numpy>=1.21.6",
-    "scipy>=1.7.3",
-]
-
 setup(
-    name="minorminer",
-    description=__description__,
-    long_description="minorminer is a tool for finding graph minors, developed to embed Ising problems onto quantum annealers (QA). Where it can be used to find minors in arbitrary graphs, it is particularly geared towards the state of the art in QA: problem graphs of a few to a few hundred variables, and hardware graphs of a few thousand qubits.",
-    author=__author__,
-    author_email=__authoremail__,
-    url="https://github.com/dwavesystems/minorminer",
-    version=__version__,
-    license="Apache 2.0",
     ext_modules=extensions,
     packages=['minorminer',
               'minorminer.layout',
               'minorminer.utils',
               'minorminer._extern.rpack',
               ],
-    classifiers=classifiers,
-    python_requires=python_requires,
-    install_requires=install_requires,
     cmdclass={'build_ext': build_ext_compiler_check},
     package_data={"minorminer._extern.rpack._core": ["_core.pyx"]},
     include_package_data=True,
