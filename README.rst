@@ -7,6 +7,12 @@
 .. image:: https://circleci.com/gh/dwavesystems/minorminer.svg?style=svg
     :target: https://circleci.com/gh/dwavesystems/minorminer
 
+.. image:: https://img.shields.io/badge/arXiv-1406.2741-b31b1b.svg
+    :target: https://arxiv.org/abs/1406.2741
+
+.. image:: https://img.shields.io/badge/arXiv-1507.04774-b31b1b.svg
+    :target: https://arxiv.org/abs/1507.04774
+
 .. index-start-marker
 
 ==========
@@ -29,6 +35,13 @@ while providing users with hooks to easily use the code as a basic building
 block in research.
 
 [1] https://arxiv.org/abs/1406.2741
+
+Another function, ``find_clique_embedding()``, can be used to find clique embeddings
+for Chimera, Pegasus, and Zephyr graphs in polynomial time. It is an implementation
+of the algorithm described in [2]. There are additional utilities for finding
+biclique embeddings as well.
+
+[2] https://arxiv.org/abs/1507.04774
 
 .. general-embedding-end-marker
 
