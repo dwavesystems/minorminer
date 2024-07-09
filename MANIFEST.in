@@ -1,4 +1,5 @@
-global-include *.hpp
+include pyproject.toml
+global-include *.hpp *.pyx *.pxd *.pxi
 recursive-include external/glasgow-subgraph-solver *.hh LICENSE
 recursive-include external/portable-snippets builtin.h COPYING.md
 recursive-include external/boost BOOST_LICENSE
