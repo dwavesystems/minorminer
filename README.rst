@@ -1,8 +1,8 @@
 .. image:: https://img.shields.io/pypi/v/minorminer.svg
     :target: https://pypi.org/project/minorminer
 
-.. image:: https://readthedocs.com/projects/d-wave-systems-minorminer/badge/?version=latest
-    :target: https://docs.ocean.dwavesys.com/projects/minorminer/en/latest/?badge=latest
+.. image:: https://img.shields.io/pypi/pyversions/minorminer.svg
+    :target: https://pypi.python.org/pypi/minorminer
 
 .. image:: https://circleci.com/gh/dwavesystems/minorminer.svg?style=svg
     :target: https://circleci.com/gh/dwavesystems/minorminer
