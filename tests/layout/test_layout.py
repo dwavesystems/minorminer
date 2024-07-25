@@ -22,7 +22,7 @@ import numpy as np
 
 import minorminer.layout as mml
 from minorminer.layout.layout import (_center_layout, _dimension_layout,
-                                      _scale_layout)
+                                      _scale_layout, _graph_distance_matrix, dnx_layout)
 from .common import TestLayoutPlacement
 
 
@@ -263,3 +263,18 @@ class TestLayout(TestLayoutPlacement):
 
         # Test __repr__
         self.assertEqual(repr(L), "{}")
+
+    def test_graph_distance_matrix(self):
+        G = nx.Graph()
+        G.add_nodes_from([2, 1, 3, 4])
+        G.add_edges_from([(2, 1), (1, 3), (4, 2)])
+        dist_mat = _graph_distance_matrix(G)
+        self.assertTrue(np.array_equal(dist_mat, dist_mat.T), "The graph distance matrix is not symmetric")
+        
+    def test_dnx_layout(self):
+        G = dnx.zephyr_graph(2)
+        scale=10
+        G_dnx_layout = dnx_layout(G, scale=scale)
+        G_dnx_layout_arr = np.array([G_dnx_layout[v] for v in G.nodes()])
+        self.assertTrue(np.all((G_dnx_layout_arr >= -scale) & (G_dnx_layout_arr <= scale)),
+                        msg=f"Values are not within [{-scale}, {scale}]^2")
