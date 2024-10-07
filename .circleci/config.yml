@@ -9,7 +9,7 @@ commands:
     parameters:
       cibw-version:
         type: string
-        default: 2.15.0
+        default: 2.21.2
     steps:
       - run:
           name: run cibuildwheel
@@ -39,7 +39,7 @@ jobs:
         type: string
 
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/python:3.12
 
     environment:
       <<: *global-environment
@@ -62,7 +62,7 @@ jobs:
         type: string
 
     machine:
-      image: ubuntu-2004:202101-01
+      image: default
 
     resource_class: arm.medium
 
@@ -118,7 +118,7 @@ jobs:
 
   deploy-all:
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/python:3.12
 
     steps:
       - attach_workspace:
@@ -137,7 +137,7 @@ jobs:
 
   build-sdist:
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/python:3.12
 
     steps:
       - checkout
@@ -155,7 +155,7 @@ jobs:
 
   test-sdist:
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/python:3.12
 
     steps:
       - checkout
@@ -210,7 +210,7 @@ workflows:
       - build-and-test-linux: &build
           matrix:
             parameters:
-              python-version: &python-versions [3.8.9, 3.9.4, 3.10.0, 3.11.0, 3.12.0]
+              python-version: &python-versions [3.9.4, 3.10.0, 3.11.0, 3.12.0, 3.13.0]
       - build-and-test-linux-aarch64:
           matrix:
             parameters:
@@ -224,22 +224,24 @@ workflows:
       - build-and-test-windows: *build
       - test-sdist:
           requires:
-            - build-sdist 
+            - build-sdist
       - test-dependencies:
           requires:
             - build-and-test-linux
           matrix:
             parameters:
               python-version: *python-versions
-              dependency-versions: ["dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy rectangle-packer==2.0.1 scipy==1.7.3",  # oldest supported
-                                    "dwave-networkx fasteners homebase networkx numpy rectangle-packer scipy", # latest
+              dependency-versions: ["dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy scipy==1.7.3",  # oldest supported
+                                    "dwave-networkx fasteners homebase networkx numpy scipy", # latest
                                     ]
             exclude:
               # SciPy 1.7.3 doesn't support Python 3.11
               - python-version: 3.11.0
-                dependency-versions: "dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy rectangle-packer==2.0.1 scipy==1.7.3"
+                dependency-versions: "dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy scipy==1.7.3"
               - python-version: 3.12.0
-                dependency-versions: "dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy rectangle-packer==2.0.1 scipy==1.7.3"
+                dependency-versions: "dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy scipy==1.7.3"
+              - python-version: 3.13.0
+                dependency-versions: "dwave-networkx==0.8.10 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy scipy==1.7.3"
 
   deploy:
     jobs:
