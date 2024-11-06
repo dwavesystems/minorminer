@@ -17,11 +17,13 @@
 #include <chrono>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <random>
 #include <thread>
 #include <unordered_map>
+
 #include "../debug.hpp"
 #include "../errors.hpp"
 #include "../fastrng.hpp"
@@ -29,6 +31,7 @@
 
 namespace find_embedding {
 // Import some things from the std library
+using fastrng::fastrng;
 using std::default_random_engine;
 using std::map;
 using std::max;
@@ -44,8 +47,6 @@ using std::unordered_map;
 using std::vector;
 using std::chrono::duration;
 using std::chrono::duration_cast;
-using fastrng::fastrng;
-
 
 // Select some default structures and types
 using distance_t = long long int;
@@ -184,21 +185,16 @@ class optional_parameters {
         localInteractionPtr->displayOutput(loglevel, buffer);
     }
 
-    void print_out(int loglevel, const char* format) const {
-        localInteractionPtr->displayOutput(loglevel, format);
-    }
-
+    void print_out(int loglevel, const char* format) const { localInteractionPtr->displayOutput(loglevel, format); }
 
     template <typename... Args>
     void print_err(int loglevel, const char* format, Args... args) const {
         char buffer[1024];
         snprintf(buffer, 1024, format, args...);
-        localInteractionPtr->displayError(loglevel, buffer);\
+        localInteractionPtr->displayError(loglevel, buffer);
     }
 
-    void print_err(int loglevel, const char* format) const {
-        localInteractionPtr->displayError(loglevel, format);
-    }
+    void print_err(int loglevel, const char* format) const { localInteractionPtr->displayError(loglevel, format); }
 
     template <typename... Args>
     void error(const char* format, Args... args) const {

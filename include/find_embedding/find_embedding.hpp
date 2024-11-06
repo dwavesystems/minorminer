@@ -174,14 +174,14 @@ class pathfinder_wrapper {
 
   private:
     template <bool parallel, bool fixed, bool restricted, bool verbose, typename... Args>
-    inline std::unique_ptr<pathfinder_public_interface> _pf_parse4(Args &&... args) {
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse4(Args &&...args) {
         return std::unique_ptr<pathfinder_public_interface>(static_cast<pathfinder_public_interface *>(
                 new (typename pathfinder_type<parallel, fixed, restricted, verbose>::pathfinder_t)(
                         std::forward<Args>(args)...)));
     }
 
     template <bool parallel, bool fixed, bool restricted, typename... Args>
-    inline std::unique_ptr<pathfinder_public_interface> _pf_parse3(Args &&... args) {
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse3(Args &&...args) {
         if (pp.params.verbose <= 0)
             return _pf_parse4<parallel, fixed, restricted, false>(std::forward<Args>(args)...);
         else
@@ -189,7 +189,7 @@ class pathfinder_wrapper {
     }
 
     template <bool parallel, bool fixed, typename... Args>
-    inline std::unique_ptr<pathfinder_public_interface> _pf_parse2(Args &&... args) {
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse2(Args &&...args) {
         if (pp.params.restrict_chains.size())
             return _pf_parse3<parallel, fixed, true>(std::forward<Args>(args)...);
         else
@@ -197,7 +197,7 @@ class pathfinder_wrapper {
     }
 
     template <bool parallel, typename... Args>
-    inline std::unique_ptr<pathfinder_public_interface> _pf_parse1(Args &&... args) {
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse1(Args &&...args) {
         if (pp.params.fixed_chains.size())
             return _pf_parse2<parallel, true>(std::forward<Args>(args)...);
         else
@@ -205,7 +205,7 @@ class pathfinder_wrapper {
     }
 
     template <typename... Args>
-    inline std::unique_ptr<pathfinder_public_interface> _pf_parse(Args &&... args) {
+    inline std::unique_ptr<pathfinder_public_interface> _pf_parse(Args &&...args) {
         if (pp.params.threads > 1)
             return _pf_parse1<true>(std::forward<Args>(args)...);
         else
