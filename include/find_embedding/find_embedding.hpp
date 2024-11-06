@@ -229,8 +229,8 @@ class pathfinder_wrapper {
 //! The optional parameters themselves can be found in util.hpp.  Respectively,
 //! the controlling options for the above are restrict_chains, fixed_chains,
 //! and threads.
-int findEmbedding(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params,
-                  vector<vector<int>> &chains) {
+inline int findEmbedding(graph::input_graph &var_g, graph::input_graph &qubit_g, optional_parameters &params,
+                         vector<vector<int>> &chains) {
     pathfinder_wrapper pf(var_g, qubit_g, params);
     int success = pf.heuristicEmbedding();
 
