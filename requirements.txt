@@ -1,7 +1,8 @@
-numpy==1.22.3
-scipy==1.8.0
-networkx==2.4
-dwave-networkx>=0.8.11
-fasteners==0.15
+# working environment for Python>=3.8, <=3.12
+numpy==2.0.2
+scipy==1.13.1
+networkx==3.2.1
+dwave-networkx==0.8.15
+fasteners==0.19
 homebase==1.0.1
-Cython==3.0.6
+Cython==3.0.11
