@@ -6,6 +6,49 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+authors = [
+    {name = "Kelly Boothby", email = "boothby@dwavesys.com"},
+]
+classifiers = [
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = [
+    "dwave-networkx>=0.8.10",
+    "fasteners>=0.15",
+    "homebase>=1.0.1",
+    "networkx>=2.4",
+    "numpy>=1.21.6",
+    "scipy>=1.7.3",
+]
+description = "heuristic algorithm to find graph minor embeddings"
+dynamic = ["version"]
+license = {file = "LICENSE"}
+maintainers = [
+    {name = "D-Wave Inc.", email = "tools@dwavesys.com"},
+]
+name = "minorminer"
+requires-python = ">= 3.9"
+
+[project.readme]
+file = "README.rst"
+content-type = "text/x-rst"
+
+[project.urls]
+Homepage = "https://github.com/dwavesystems/minorminer"
+Download = "https://github.com/dwavesystems/minorminer/releases"
+
 [tool.cibuildwheel]
 build-verbosity = "1"
 skip = "pp* *musllinux*"
@@ -26,3 +69,6 @@ environment = { MACOSX_DEPLOYMENT_TARGET=10.9 }
 archs = "AMD64"
 # before-build = "pip install delvewheel"
 # repair-wheel-command = "delvewheel repair {wheel}"
+
+[tool.setuptools.dynamic]
+version = {attr = "minorminer.package_info.__version__"}
