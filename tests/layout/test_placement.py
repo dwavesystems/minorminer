@@ -184,5 +184,3 @@ def test_minimize_overlap(): # To test whether an avoidable OverFlowError in _mi
     king = nx.Graph(grid_edges+diagonal_edges)
     T = dnx.zephyr_graph(15)
     mml.find_embedding(king, T, scale=1)
-    
-test_minimize_overlap()
