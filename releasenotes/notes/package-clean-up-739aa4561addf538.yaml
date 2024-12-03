@@ -1,0 +1,5 @@
+---
+upgrade:
+  - Provide ``manylinux_2_28`` wheels instead of ``manylinux2014``.
+fixes:
+  - Remove unnecessary ``future`` imports due to Python 2 not being supported.
