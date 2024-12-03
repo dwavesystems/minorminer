@@ -18,14 +18,7 @@ because, as you'll see, it's gotten to be a fairly tedious process.
   [ ] add the parameter (with default) to the wrapper function signature
   [ ] pass the parameter to `minorminer_c.find_embedding`
 
-5) matlab/find_embedding.cpp:
-  [ ] insert parameter name to `paramNameSet`
-  [ ] add populate and cast the parameter found in `findEmbeddingExternalParams`
-
-6) matlab/find_embedding.m:
-  [ ] document the parameter (with default) in the comment block
-
-7) tests/test_lib.py:
+5) tests/test_lib.py:
   [ ] add tests excercising the parameter
   [ ] optional -- if the parameter imposes checkable constraints on the input,
     add it to check_args

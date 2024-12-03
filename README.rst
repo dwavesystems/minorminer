@@ -142,64 +142,6 @@ A more fleshed out example can be found under `examples/fourcolor.py`
     pip install -r requirements.txt
     python fourcolor.py
 
-Matlab (Deprecated)
-===================
-
-Matlab support is deprecated as of vesion 0.2.8, and we will not accept bug reports
-in later versions.  The matlab interface has been broken for the entire 0.2 series,
-and more than a year passed before this was discovered.  It will be fixed in the 
-0.2.8 release, but the matlab support infrastructure will be removed entirely in
-May 2023, unless community developers volunteer to maintain it.
-
-Installation
-------------
-
-.. install-matlab-start
-
-The mex bindings for this library will work with some versions of 2013 and earlier,
-and versions from 2016b an onward. An example build command used in Ubuntu is
-found in the makefile `matlab/make.m`.
-
-If you run `make` in the `matlab` directory on Ubuntu it should generate
-`find_embedding.mexa64`, which can be added to the MATLAB path.
-
-.. install-matlab-end
-
-Examples
---------
-
-.. code-block:: matlab
-
-    % A triangle is a minor of a square.
-    triangle = triu(ones(3),1);
-    square = sparse([1,2,3,4],[2,3,4,1],[1,1,1,1],4,4);
-
-    % Find an assignment of sets of square variables to the triangle variables
-    options = struct('random_seed',10);
-    embedding = find_embedding_matlab_wrapper(triangle, square, options)
-    % typically in matlab we use indices starting at one rather than 0:
-    embedding = cellfun(@(x)x+1,embedding,'UniformOutput',false);
-    embedding{:}
-
-.. code-block:: matlab
-
-    % We can insist that variable 0 of the triangle will always be assigned to
-    % [2] (zero-indexed)
-    chains = cell(1);
-    chains{1} = 2;
-    options = struct();
-    options.fixed_chains = chains;
-    embedding = find_embedding(triangle, square, options)
-    embedding{:}
-
-.. code-block:: matlab
-
-    % If we didn't want to force variable 0 to stay as [2], but we thought that
-    % was a good start we could provide it as an initialization hint instead.
-    options = struct();
-    options.initial_chains = chains;
-    embedding = find_embedding(triangle, square, options)
-    embedding{:}
 
 C++
 ===
@@ -266,6 +208,5 @@ Contributing
 Ocean's `contributing guide <https://docs.ocean.dwavesys.com/en/stable/contributing.html>`_
 has guidelines for contributing to Ocean packages.
 
-If you're interested in adding or modifying parameters of the ``find_embedding`` 
+If you're interested in adding or modifying parameters of the ``find_embedding``
 primary utility function, please see the `<parameter_checklist.txt>`_ file.
-
