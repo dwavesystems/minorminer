@@ -7,9 +7,15 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
+name = "minorminer"
+dynamic = ["version"]
 authors = [
-    {name = "Kelly Boothby", email = "boothby@dwavesys.com"},
+    {name = "Kelly Boothby"},
 ]
+maintainers = [
+    {name = "D-Wave Inc.", email = "tools@dwavesys.com"},
+]
+license = {file = "LICENSE"}
 classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX",
@@ -24,6 +30,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
 ]
+requires-python = ">= 3.9"
 dependencies = [
     "dwave-networkx>=0.8.10",
     "fasteners>=0.15",
@@ -32,14 +39,8 @@ dependencies = [
     "numpy>=1.21.6",
     "scipy>=1.7.3",
 ]
-description = "heuristic algorithm to find graph minor embeddings"
-dynamic = ["version"]
-license = {file = "LICENSE"}
-maintainers = [
-    {name = "D-Wave Inc.", email = "tools@dwavesys.com"},
-]
-name = "minorminer"
-requires-python = ">= 3.9"
+
+description = "Heuristic algorithm to find graph minor embeddings."
 
 [project.readme]
 file = "README.rst"
@@ -52,18 +53,18 @@ Download = "https://github.com/dwavesystems/minorminer/releases"
 [tool.cibuildwheel]
 build-verbosity = "1"
 skip = "pp* *musllinux*"
-before-test = "pip install -r {project}/test_requirements.txt"
+before-test = "pip install -r {project}/tests/requirements.txt"
 test-command = "pytest {project}/tests"
 
 [tool.cibuildwheel.linux]
 archs = "x86_64 aarch64"
-manylinux-x86_64-image = "manylinux2014"
-manylinux-aarch64-image = "manylinux2014"
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
 # We follow NumPy and don't build universal wheels, see https://github.com/numpy/numpy/pull/20787
 archs = "x86_64 arm64"
-environment = { MACOSX_DEPLOYMENT_TARGET=10.9 }
+environment = { MACOSX_DEPLOYMENT_TARGET=10.13 }
 
 [tool.cibuildwheel.windows]
 archs = "AMD64"
@@ -71,4 +72,4 @@ archs = "AMD64"
 # repair-wheel-command = "delvewheel repair {wheel}"
 
 [tool.setuptools.dynamic]
-version = {attr = "minorminer.package_info.__version__"}
+version = {attr = "minorminer.__version__"}

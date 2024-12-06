@@ -54,7 +54,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.ifconfig',
 ]
-extensions += ['breathe']  # , 'sphinxcontrib.matlab']
+extensions += ['breathe']
 
 autosummary_generate = True
 
@@ -119,10 +119,6 @@ breathe_projects = {"minorminer": os.path.join(
 breathe_default_project = "minorminer"
 
 breathe_default_members = ('members', )
-
-# -------------------------------------------------------------------------
-
-matlab_src_dir = os.path.join(config_directory, '../../matlab/')
 
 # -- Options for HTML output ----------------------------------------------
 

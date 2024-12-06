@@ -17,7 +17,6 @@
 
     TODO ADD MORE
 """
-from __future__ import print_function
 from minorminer import find_embedding as find_embedding_orig
 import networkx as nx
 import dwave_networkx as dnx
