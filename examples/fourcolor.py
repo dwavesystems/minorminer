@@ -46,7 +46,6 @@ supplies those additional requirements to `find_embedding`.
 """
 
 # before we get to anything else, let's get some imports out of the way.
-from __future__ import print_function
 from past.builtins import xrange
 import networkx as nx
 import dwave_networkx as dnx
