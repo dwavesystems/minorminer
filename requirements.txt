@@ -6,3 +6,4 @@ dwave-networkx==0.8.15
 fasteners==0.19
 homebase==1.0.1
 Cython==3.0.11
+reno==4.1.0  # for changelog

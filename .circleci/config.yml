@@ -172,7 +172,7 @@ jobs:
           name: run tests
           command: |
             . env/bin/activate
-            pip install -r test_requirements.txt
+            pip install -r tests/requirements.txt
             pytest tests/
 
   test-dependencies:
@@ -201,7 +201,7 @@ jobs:
           name: run tests
           command: |
             . env/bin/activate
-            pip install -r test_requirements.txt
+            pip install -r tests/requirements.txt
             pytest tests/
 
 workflows:

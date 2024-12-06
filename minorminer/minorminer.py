@@ -12,7 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from __future__ import absolute_import as __absolute_import
 from minorminer._minorminer import miner, VARORDER, find_embedding as __find_embedding
 from functools import wraps as __wraps
 

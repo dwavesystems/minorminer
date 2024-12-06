@@ -1,0 +1,3 @@
+---
+upgrade:
+  - Matlab support was deprecated as of version 0.2.8 and removed in the current version.
