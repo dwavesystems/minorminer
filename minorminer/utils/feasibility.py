@@ -64,41 +64,41 @@ def embedding_feasibility_filter(
         if one_to_one or T_degree[-1] <= 2:
             # Too many high degree nodes in S
             return False
-        else:  # Attempt minor embed (enhance T degrees)
-            # Minor embedding feasibility reduces to bin packing when
-            # considering a best target case knowing only the degree
-            # distribution. In general feasibility is NP-complete, a cheap
-            # marginal degree distribution filter is used.
+        # Attempt minor embed (enhance T degrees)
+        # Minor embedding feasibility reduces to bin packing when
+        # considering a best target case knowing only the degree
+        # distribution. In general feasibility is NP-complete, a cheap
+        # marginal degree distribution filter is used.
 
-            # We can eliminate nodes of equal degree assuming best case:
-            ResidualCounts = Counter(T_degree)
-            ResidualCounts.subtract(Counter(S_degree))
+        # We can eliminate nodes of equal degree assuming best case:
+        ResidualCounts = Counter(T_degree)
+        ResidualCounts.subtract(Counter(S_degree))
 
-            # Target nodes of degree x <=2 are only of use for minor
-            # embedding source nodes of degree <=x:
-            for kS in range(3):
-                if ResidualCounts[kS] < 0:
-                    ResidualCounts[kS + 1] += ResidualCounts[kS]
-                ResidualCounts[kS] = 0
+        # Target nodes of degree x <=2 are only of use for minor
+        # embedding source nodes of degree <=x:
+        for kS in range(3):
+            if ResidualCounts[kS] < 0:
+                ResidualCounts[kS + 1] += ResidualCounts[kS]
+            ResidualCounts[kS] = 0
 
-            if all(v > 0 for v in ResidualCounts.values()):
-                return True
-            nT_auxiliary = sum(ResidualCounts.values())
-            if nT_auxiliary < 0:  # extra available to form chains
-                return False
+        if all(v > 0 for v in ResidualCounts.values()):
+            return True
+        nT_auxiliary = sum(ResidualCounts.values())
+        if nT_auxiliary < 0:  # extra available to form chains
+            return False
 
-            # In best case all target nodes have degree kTmax, and chains
-            # are trees. To cover degree k in S requires n auxiliary target
-            # nodes such that kTmax + n(kTmax-2) >= k
-            kTmax = np.max([k for k, v in ResidualCounts.items() if v > 0])
-            min_auxiliary_necessary = sum(
-                [
-                    -v * np.ceil((k - kTmax) / (kTmax - 2))
-                    for k, v in ResidualCounts.items()
-                    if v < 0
-                ]
-            )
-            return min_auxiliary_necessary <= nT_auxiliary
+        # In best case all target nodes have degree kTmax, and chains
+        # are trees. To cover degree k in S requires n auxiliary target
+        # nodes such that kTmax + n(kTmax-2) >= k
+        kTmax = np.max([k for k, v in ResidualCounts.items() if v > 0])
+        min_auxiliary_necessary = sum(
+            [
+                -v * np.ceil((k - kTmax) / (kTmax - 2))
+                for k, v in ResidualCounts.items()
+                if v < 0
+            ]
+        )
+        return min_auxiliary_necessary <= nT_auxiliary
     else:
         return True
 
