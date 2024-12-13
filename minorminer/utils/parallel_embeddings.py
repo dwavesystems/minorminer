@@ -409,7 +409,7 @@ def find_sublattice_embeddings(
             Defaults to inf (unbounded).
         use_filter: Specifies whether to check feasibility of arguments for
             embedding independently of the embedder routine. Defaults to False.
-        embedder: Specifies the embedding search method, a callable taking S, T as
+        embedder: Specifies the embedding search method, a callable taking ``S``, ``T`` as
             the first two arguments. Defaults to minorminer.subgraph.find_subgraph.
         embedder_kwargs: Dictionary specifying arguments for the `embedder`
             other than `S`, `T`.
