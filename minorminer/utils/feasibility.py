@@ -30,9 +30,9 @@ def embedding_feasibility_filter(
 ) -> bool:
     """Feasibility filter for embedding.
 
-    Determines if the source graph `S` can be subgraph-embedded onto the target
-    graph `T` based on their degree distributions. Returns `False` if embedding
-    is definitely infeasible; otherwise, returns `True`. False positives are
+    Determines if the source graph ``S`` can be subgraph-embedded onto the target
+    graph ``T`` based on their degree distributions. Returns ``False`` if embedding
+    is definitely infeasible; otherwise, returns ``True``. False positives are
     permissible because deciding the graph isomorphism problem is NP-complete,
     and this filter is designed to be efficient.
 
@@ -46,7 +46,7 @@ def embedding_feasibility_filter(
             Defaults to False, permitting minor embeddings.
 
     Returns:
-        bool: `False` if subgraph embedding is definitely infeasible, `True`
+        bool: ``False`` if subgraph embedding is definitely infeasible, ``True``
             otherwise.
     """
     if T == S:
@@ -127,7 +127,7 @@ def lattice_size_lower_bound(
 ) -> float:
     """Returns a lower bound on the size necessary for embedding.
 
-    The lattice size is the parameter `m` of a dwave_networkx graph, also
+    The lattice size is the parameter ``m`` of a dwave_networkx graph, also
     called number of rows. The function returns a lower bound (necessary but
     not sufficient for embedding) using efficiently established graph
     properties such as the number of nodes, number of edges, node-degree
@@ -139,20 +139,20 @@ def lattice_size_lower_bound(
             'zephyr', 'pegasus', or 'chimera' and constructed by dwave_networkx.
         topology: The topology ('chimera', 'pegasus', or 'zephyr'). This is
             inferred from `T` by default. Any set value must be consistent with
-            `T` (if `T` is not None).
+            ``T`` (if ``T`` is not None).
         t: The tile parameter, relevant for 'zephyr' and 'chimera' topologies.
-            Inferred from `T` by default. Any set value must be consistent with
-            `T` (if `T` is not None).
+            Inferred from ``T`` by default. Any set value must be consistent with
+            ``T`` (if ``T`` is not None).
         one_to_one: True if a subgraph embedding is assumed, False for general
             embeddings.
 
     Raises:
-        ValueError: If `T` and `topology` are inconsistent, or if `T` and `t` are inconsistent.
-        ValueError: If neither `T` nor `topology` is specified.
-        ValueError: If `S` cannot be embedded in `T` or the specified topology.
+        ValueError: If ``T`` and ``topology`` are inconsistent, or if ``T`` and ``t`` are inconsistent.
+        ValueError: If neither ``T`` nor ``topology`` is specified.
+        ValueError: If ``S`` cannot be embedded in ``T`` or the specified topology.
 
     Returns:
-        float: Minimum `lattice_size` for embedding to be feasible. Returns
+        float: Minimum ``lattice_size`` for embedding to be feasible. Returns
             None if embedding for any number of graph rows is infeasible.
     """
     # Comment, similar bounds are possible allowing for minor embeddings,

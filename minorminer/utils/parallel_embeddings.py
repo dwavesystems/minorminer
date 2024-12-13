@@ -55,16 +55,16 @@ def visualize_embeddings(
             mapping nodes of the source graph to nodes in the target graph.
         S: The source graph to visualize (optional). If provided, only edges
             corresponding to the source graph embeddings are visualized.
-        one_to_iterable: Specifies how embeddings are interpreted. Set to `True`
+        one_to_iterable: Specifies how embeddings are interpreted. Set to ``True`
             to allow multiple target nodes to map to a single source node.
-            Defaults to `False` for one-to-one embeddings.
+            Defaults to ``False`` for one-to-one embeddings.
         shuffle_colormap: A sequential colormap is used. If shuffle_colormap is
             False the sequential ordering determines a sequence of related colors
             otherwise colors are randomized.
         seed: A seed for the pseudo-random number generator. When provided,
             it randomizes the colormap assignment for embeddings.
         **kwargs: Additional keyword arguments passed to the drawing functions
-            (e.g., `node_size`, `font_size`, `width`).
+            (e.g., ``node_size``, ``font_size``, ``width``).
 
     Returns:
         Two dictionaries the first mapping plotted nodes to the source index.
@@ -72,9 +72,9 @@ def visualize_embeddings(
         is embeddings[index]. Background edges/nodes are mapped to nan.
 
     Draws:
-        - Specialized layouts: Uses dwave_networkx's `draw_chimera`,
-          `draw_pegasus`, or `draw_zephyr` functions if the graph family is identified.
-        - General layouts: Falls back to networkx's `draw_networkx` for
+        - Specialized layouts: Uses dwave_networkx's ``draw_chimera``,
+          ``draw_pegasus``, or ``draw_zephyr`` functions if the graph family is identified.
+        - General layouts: Falls back to networkx's ``draw_networkx`` for
           graphs with unknown topology.
     """
     ax = plt.gca()
@@ -231,7 +231,7 @@ def embeddings_to_array(embs: list, node_order=None, as_ndarray=False):
             form of a dictionary with integer values.
         node_order: An iterable giving the ordering of
             variables in each row. When not provided variables are ordered to
-            match the first embedding :code:`embs[0].keys()`. node_order
+            match the first embedding :code:``embs[0].keys()``. node_order
             can define any subset of the source graph nodes (embedding
             keys).
         as_ndarray: The list is cast to an ndarray, this requires that
@@ -239,7 +239,7 @@ def embeddings_to_array(embs: list, node_order=None, as_ndarray=False):
             a target graph) can be cast as numpy numeric types.
 
     Raises:
-        ValueError: If `embs` is empty and `node_order` not provided.
+        ValueError: If ``embs`` is empty and ``node_order`` not provided.
 
     Returns:
         An embedding matrix; each row defines an embedding ordered
@@ -294,19 +294,19 @@ def find_multiple_embeddings(
         use_filter: Specifies whether to check feasibility
             of embedding arguments independently of the embedder method.
         embedder: Specifies the embedding search method,
-            a callable taking `S`, `T`, as the first two parameters. Defaults to
-            `minorminer.subgraph.find_subgraph`.
+            a callable taking ``S``, ``T``, as the first two parameters. Defaults to
+            ``minorminer.subgraph.find_subgraph``.
         embedder_kwargs: Additional arguments for the embedder
-            beyond `S` and `T`.
+            beyond ``S`` and ``T``.
         one_to_iterable: Determines how embedding mappings are
-            interpreted. Set to `True` to allow multiple target nodes to map to
-            a single source node. Defaults to `False` for one-to-one embeddings.
+            interpreted. Set to ``True`` to allow multiple target nodes to map to
+            a single source node. Defaults to ``False`` for one-to-one embeddings.
         shuffle_all_graphs: If True, the tile-masked target graph and source graph are
             shuffled on each embedding attempt. Note that, if the embedder supports
             randomization this should be preferred by use of embedder_kwargs. If an
             embedder is a function of the node or edge order this allows
             diversification of the embeddings found.
-        seed: seed for the `numpy.random.Generator` controlling shuffling (if
+        seed: seed for the ``numpy.random.Generator`` controlling shuffling (if
             invoked).
 
     Returns:
@@ -381,9 +381,9 @@ def find_sublattice_embeddings(
     embeddings are yielded.
 
     Embedding multiple times on a large graph can take significant time.
-    It is recommended the user adjust `embedder_kwargs` appropriately such
+    It is recommended the user adjust ``embedder_kwargs`` appropriately such
     as timeout, and also consider bounding the number of embeddings
-    returned (with `max_num_emb`).
+    returned (with ``max_num_emb``).
 
     See https://doi.org/10.3389/fcomp.2023.1238988 for examples of usage.
 
@@ -392,19 +392,19 @@ def find_sublattice_embeddings(
         T: The target graph in which to embed. If
             raster_embedding is not None, the graph must be of type zephyr,
             pegasus, or chimera and constructed by dwave_networkx.
-        tile: A mask applied to the target graph `T` defining a restricted
+        tile: A mask applied to the target graph ``T`` defining a restricted
             space in which to search for embeddings; the tile family
-            should match that of `T`. If the tile is not
+            should match that of ``T``. If the tile is not
             provided, it is generated as a fully yielded square sublattice
-            of `T`, with `m=sublattice_size`.
-            If `tile==S`, `embedder` can be ignored since a 1:1 mapping is
+            of ``T``, with ``m=sublattice_size``.
+            If ``tile==S``, ``embedder`` can be ignored since a 1:1 mapping is
             necessary on each subgraph and easily verified by checking the
             mask is complete.
         sublattice_size: Parameterizes the tile when it is not provided
            as an input argument: defines the number of rows and columns
            of a square sublattice (parameter m of the dwave_networkx graph
            family matching T).
-           :code:`lattice_size_lower_bound()`
+           :code:``lattice_size_lower_bound()``
            provides a lower bound based on a fast feasibility filter.
         max_num_emb: Maximum number of embeddings to find.
             Defaults to inf (unbounded).
@@ -413,7 +413,7 @@ def find_sublattice_embeddings(
         embedder: Specifies the embedding search method, a callable taking S, T as
             the first two arguments. Defaults to minorminer.subgraph.find_subgraph.
         embedder_kwargs: Dictionary specifying arguments for the `embedder`
-            other than `S`, `T`.
+            other than ``S``, ``T``.
         one_to_iterable: Specifies whether the embedder returns a dict with
             iterable values. Defaults to False to match find_subgraph.
         shuffle_all_graphs: If True, the tile-masked target graph and source graph are
@@ -428,7 +428,7 @@ def find_sublattice_embeddings(
             invoked).
 
     Raises:
-        ValueError: If the target graph `T` is not of type zephyr, pegasus, or
+        ValueError: If the target graph ``T`` is not of type zephyr, pegasus, or
             chimera.
 
     Returns:
