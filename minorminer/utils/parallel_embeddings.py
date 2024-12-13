@@ -243,7 +243,7 @@ def embeddings_to_array(embs: list, node_order=None, as_ndarray=False):
 
     Returns:
         An embedding matrix; each row defines an embedding ordered
-            by node_order.
+        by node_order.
     """
     if node_order is None:
         if len(embs) == 0:
@@ -311,9 +311,9 @@ def find_multiple_embeddings(
 
     Returns:
         list: A list of disjoint embeddings. Each embedding follows the format
-            dictated by the embedder. By default, each embedding defines a 1:1
-            map from the source to the target graph as a dictionary without
-            reusing target variables.
+        dictated by the embedder. By default, each embedding defines a 1:1
+        map from the source to the target graph as a dictionary without
+        reusing target variables.
     """
     embs = []
     if embedder is None:
@@ -403,14 +403,13 @@ def find_sublattice_embeddings(
         sublattice_size: Parameterizes the tile when it is not provided
            as an input argument: defines the number of rows and columns
            of a square sublattice (parameter m of the dwave_networkx graph
-           family matching T).
-           :code:``lattice_size_lower_bound()``
+           family matching T). ``lattice_size_lower_bound()``
            provides a lower bound based on a fast feasibility filter.
         max_num_emb: Maximum number of embeddings to find.
             Defaults to inf (unbounded).
         use_filter: Specifies whether to check feasibility of arguments for
             embedding independently of the embedder routine. Defaults to False.
-        embedder: Specifies the embedding search method, a callable taking S, T as
+        embedder: Specifies the embedding search method, a callable taking ``S``, ``T`` as
             the first two arguments. Defaults to minorminer.subgraph.find_subgraph.
         embedder_kwargs: Dictionary specifying arguments for the `embedder`
             other than ``S``, ``T``.
@@ -428,8 +427,7 @@ def find_sublattice_embeddings(
             invoked).
 
     Raises:
-        ValueError: If the target graph ``T`` is not of type zephyr, pegasus, or
-            chimera.
+        ValueError: If the target graph ``T`` is not of type zephyr, pegasus, or chimera.
 
     Returns:
         list: A list of disjoint embeddings.
