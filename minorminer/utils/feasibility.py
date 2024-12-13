@@ -47,7 +47,7 @@ def embedding_feasibility_filter(
 
     Returns:
         bool: `False` if subgraph embedding is definitely infeasible, `True`
-            otherwise.
+        otherwise.
     """
     if T == S:
         return True
