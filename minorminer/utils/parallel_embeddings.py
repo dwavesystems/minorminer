@@ -427,8 +427,7 @@ def find_sublattice_embeddings(
             invoked).
 
     Raises:
-        ValueError: If the target graph `T` is not of type zephyr, pegasus, or
-            chimera.
+        ValueError: If the target graph ``T`` is not of type zephyr, pegasus, or chimera.
 
     Returns:
         list: A list of disjoint embeddings.
