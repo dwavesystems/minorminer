@@ -403,8 +403,7 @@ def find_sublattice_embeddings(
         sublattice_size: Parameterizes the tile when it is not provided
            as an input argument: defines the number of rows and columns
            of a square sublattice (parameter m of the dwave_networkx graph
-           family matching T).
-           :code:`lattice_size_lower_bound()`
+           family matching T). ``lattice_size_lower_bound()``
            provides a lower bound based on a fast feasibility filter.
         max_num_emb: Maximum number of embeddings to find.
             Defaults to inf (unbounded).
