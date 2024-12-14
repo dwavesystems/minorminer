@@ -99,6 +99,7 @@ def embedding_feasibility_filter(
             ]
         )
         return min_auxiliary_necessary <= nT_auxiliary
+    
     else:
         return True
 
@@ -162,19 +163,23 @@ def lattice_size_lower_bound(
     if T is not None:
         if embedding_feasibility_filter(S, T, one_to_one) is False:
             return None
+        
         if topology is None:
             topology = T.graph.get("family")
         elif topology != T.graph.get("family"):
             raise ValueError("Arguments T and topology are inconsistent")
+        
         if t is None:
             t = T.graph["tile"]
     else:
         if topology is None:
             raise ValueError("T or topology must be specified")
+        
         if t is None:
             t = 4
         max_degrees = {"chimera": 2 + 2 * t, "pegasus": 15, "zephyr": 4 + 4 * t}
         max_source_degree = max(S.degree[n] for n in S.nodes())
+
         if max_source_degree > max_degrees[topology]:
             return None
 
@@ -189,18 +194,23 @@ def lattice_size_lower_bound(
         ):
             return None
 
+
         def generator(lattice_size):
             return dnx.chimera_graph(m=lattice_size, n=lattice_size, t=t)
 
+
         # A lower bound based on number of variables N = m*n*2*t
         lattice_size = np.ceil(np.sqrt(N / 4 / t))
+
     elif topology == "pegasus":
 
         def generator(lattice_size):
             return dnx.pegasus_graph(m=lattice_size)
 
+
         # A lower bound based on number of variables N = (m*24-8)*(m-1)
         lattice_size = np.ceil(1 / 12 * (8 + np.sqrt(6 * N + 16)))
+        
     elif topology == "zephyr":
 
         def generator(lattice_size):
@@ -208,11 +218,13 @@ def lattice_size_lower_bound(
 
         # A lower bound based on number of variables N = (2m+1)*m*4*t
         lattice_size = np.ceil((np.sqrt(2 * N / t + 1) - 1) / 4)
+
     else:
         raise ValueError(
             "source graphs must be a graph constructed by "
             "dwave_networkx as chimera, pegasus or zephyr type"
         )
+    
     # Evaluate tile feasibility (defect free subgraphs)
     lattice_size = round(lattice_size)
     tile = generator(lattice_size=lattice_size)

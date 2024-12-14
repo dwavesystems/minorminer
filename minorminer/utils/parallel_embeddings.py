@@ -105,6 +105,7 @@ def visualize_embeddings(
             node_color_dict.update(
                 {q: idx for idx, emb in enumerate(_embeddings) for q in emb.values()}
             )
+
     else:
         node_set = set(S.nodes())
         if one_to_iterable:
@@ -125,6 +126,8 @@ def visualize_embeddings(
                     if n in node_set
                 }
             )
+
+
     # Create edge color mapping
     edge_color_dict = {}
     if S is not None:
@@ -137,6 +140,7 @@ def visualize_embeddings(
             for tv in (emb[v] if one_to_iterable else [emb[v]])
             if G.has_edge(tu, tv)
         }
+
         if one_to_iterable:
             # Feature enhancement? We could consider formatting these lines
             # differently to distinguish chain couplers from logical couplers
@@ -181,6 +185,7 @@ def visualize_embeddings(
     else:
         pos = nx.spring_layout(G)
         nx.draw_networkx(**draw_kwargs)
+
     if len(edge_color_dict) > 0:
         # Recolor specific edges on top of the original graph
         nx.draw_networkx_edges(
@@ -192,6 +197,7 @@ def visualize_embeddings(
             edge_cmap=cmap,
             ax=ax,
         )
+
     return node_color_dict, edge_color_dict
 
 
@@ -251,13 +257,16 @@ def embeddings_to_array(embs: list, node_order=None, as_ndarray=False):
                 raise ValueError("shape of ndarray cannot be inferred")
             else:
                 return []
+            
         else:
             node_order = embs[0].keys()
+
     if as_ndarray:
         if len(embs) == 0:
             return np.empty(shape=(0, len(node_order)))
         else:
             return np.asarray([[emb[v] for v in node_order] for emb in embs])
+        
     else:
         return [[emb[v] for v in node_order] for emb in embs]
 
@@ -344,6 +353,7 @@ def find_multiple_embeddings(
         else:
             emb = embedder(_S, _T, **embedder_kwargs)
 
+
         if len(emb) == 0:
             break
         elif max_num_emb > 1:
@@ -353,6 +363,7 @@ def find_multiple_embeddings(
                 _T.remove_nodes_from(n for c in emb.values() for n in c)
             else:
                 _T.remove_nodes_from(emb.values())
+
         embs.append(emb)
     return embs
 
@@ -449,6 +460,8 @@ def find_sublattice_embeddings(
         if feasibility_bound is None or sublattice_size < feasibility_bound:
             warnings.warn("sublattice_size < lower bound: embeddings will be empty.")
             return []
+        
+
     # A possible feature enhancement might allow for sublattice_size (m) to be
     # replaced by shape: (m,t) [zephyr] or (m,n,t) [Chimera]
     family = T.graph.get("family")
@@ -463,6 +476,8 @@ def find_sublattice_embeddings(
         ):
             warnings.warn("tile is infeasible: embeddings will be empty.")
             return []
+        
+
     elif family == "pegasus":
         sublattice_mappings = dnx.pegasus_sublattice_mappings
         if tile is None:
@@ -473,6 +488,8 @@ def find_sublattice_embeddings(
         ):
             warnings.warn("tile is infeasible: embeddings will be empty.")
             return []
+        
+
     elif family == "zephyr":
         sublattice_mappings = dnx.zephyr_sublattice_mappings
         t = T.graph["tile"]
@@ -484,6 +501,8 @@ def find_sublattice_embeddings(
         ):
             warnings.warn("tile is infeasible: embeddings will be empty.")
             return []
+        
+
     else:
         raise ValueError(
             "source graphs must a graph constructed by "
@@ -512,6 +531,7 @@ def find_sublattice_embeddings(
                 sub_embs = [{k: v for k, v in zip(S.nodes, Tr.nodes)}]
             else:
                 sub_embs = []
+
         else:
             sub_embs = find_multiple_embeddings(
                 S,
