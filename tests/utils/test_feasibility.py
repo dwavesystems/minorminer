@@ -182,15 +182,30 @@ class TestEmbeddings(unittest.TestCase):
         T = dnx.zephyr_graph(m)
         self.assertEqual(m // 2, lattice_size_lower_bound(S=S, T=T, one_to_one=True))
 
+    
+    def test_lattice_size_lower_bound_one_to_one_false(self):
+        self.skipTest("TODO: make lattice_size_lower_bound work in the one_to_one=False case")
 
-    def test_embedding_feasibility_filter_atlas(self):
-        for i, G in enumerate(nx.atlas):
+        S = nx.complete_graph(12)
+        self.assertEqual(lattice_size_lower_bound(S=S, topology='chimera', one_to_one=False), 3)
+
+    def test_embedding_feasibility_filter_atlas_and_ER(self):
+        for i, G in enumerate(nx.atlas.graph_atlas_g()):
             H = random_linear_chain_major(G)
-            assertTrue(embedding_feasibility_filter(G, H), f"Atlas graph {i} with random linear chains")
+            self.assertTrue(embedding_feasibility_filter(G, H), f"Atlas graph {i} with random linear chains")
             H = random_tree_chain_major(G)
-            assertTrue(embedding_feasibility_filter(G, H), f"Atlas graph {i} with random tree chains")
+            self.assertTrue(embedding_feasibility_filter(G, H), f"Atlas graph {i} with random tree chains")
             H = random_split_major(G)
-            assertTrue(embedding_feasibility_filter(G, H), f"Atlas graph {i} with random split major")
+            self.assertTrue(embedding_feasibility_filter(G, H), f"Atlas graph {i} with random split major")
+
+        G = nx.erdos_renyi_graph(1000, .005)
+        H = random_linear_chain_major(G)
+        self.assertTrue(embedding_feasibility_filter(G, H), f"Erdos-Renyi graph with random linear chains")
+        H = random_tree_chain_major(G)
+        self.assertTrue(embedding_feasibility_filter(G, H), f"Erdos-Renyi graph with random tree chains")
+        H = random_split_major(G)
+        self.assertTrue(embedding_feasibility_filter(G, H), f"Erdos-Renyi graph with random split major")
+        
 
 if __name__ == "__main__":
     unittest.main()
