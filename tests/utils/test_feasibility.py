@@ -25,6 +25,78 @@ from minorminer.utils.feasibility import (
 )
 
 
+def construct_chain_major(G, construct_chain):
+    _random = np.random
+    _shuffle = _random.shuffle
+    half_edge_label = {}
+    
+    H = nx.Graph()
+    for v, nbrs in G._adj.items():
+        if nbrs:
+            nbrs = list(nbrs)
+            _shuffle(nbrs)
+            construct_chain(H, half_edge_label, v, nbrs)
+        else:
+            H.add_node((0, v))
+
+    H.add_edges_from(
+        (half_edge_label[u, v], half_edge_label[v, u])
+        for u, v in G.edges
+    )
+    return H
+
+
+def random_linear_chain_major(G):
+    def construct_chain(H, half_edge_label, v, nbrs):
+        nx.add_path(H, enumerate(nbrs))
+        half_edge_label.update(((v, u), (i, v)) for i, u in enumerate(nbrs))
+
+    return construct_chain_major(G, construct_chain)
+
+
+def random_tree_chain_major(G):
+    _random = np.random
+    _choice = _random.choice
+    def construct_chain(H, half_edge_label, v, nbrs):
+        deg = len(nbrs)
+        chain_length = _randint(1, deg)
+        tree = nx.random_tree(chain_length, seed=_random)
+        H.add_edges_from(((i, v), (j, v)) for i, j in tree.edges)
+
+        #now let's populate the tree with half-edges -- put at least one on
+        #each leaf, and randomly distribute the rest
+        index = [i for i, d in tree.degree if d == 1]
+        index.extend(_choice(chain_length, deg-len(index)))
+
+        half_label_edges.update(((v, u), (i, v)) for i, u in zip(index, nbrs))
+
+    return construct_chain_major(G, construct_chain)
+
+
+def random_split_major(G):
+    _random = np.random
+    _randint = _random.randint
+    if len(G) <= 2:
+        return nx.random_tree(_randint(len(G), 4), _random)
+
+    #first, subdivide about half of nodes
+    def construct_chain(H, half_edge_label, v, nbrs):
+        if _randint(0, 1):
+            H.add_edge((0, v), (1, v))
+            half_edge_label.update(((v, u), (_randint(0, 1), v)) for u in nbrs)
+        else:
+            half_edge_label.update(((v, u), (0, v)) for u in nbrs)
+
+    H = construct_chain_major(G, construct_chain)
+
+    #next, subdivide about half of edges
+    remove_edges = [e for e in H.edges if _randint(0, 1)]
+    H.remove_edges_from(remove_edges)
+    H.add_edges_from((x, e) for e in remove_edges for x in e)
+
+    return H
+
+
 class TestEmbeddings(unittest.TestCase):
     def test_embedding_feasibility_filter(self):
         m = 7  # Odd m
@@ -110,6 +182,15 @@ class TestEmbeddings(unittest.TestCase):
         T = dnx.zephyr_graph(m)
         self.assertEqual(m // 2, lattice_size_lower_bound(S=S, T=T, one_to_one=True))
 
+
+    def test_embedding_feasibility_filter_atlas(self):
+        for i, G in enumerate(nx.atlas):
+            H = random_linear_chain_major(G)
+            assertTrue(embedding_feasibility_filter(G, H), f"Atlas graph {i} with random linear chains")
+            H = random_tree_chain_major(G)
+            assertTrue(embedding_feasibility_filter(G, H), f"Atlas graph {i} with random tree chains")
+            H = random_split_major(G)
+            assertTrue(embedding_feasibility_filter(G, H), f"Atlas graph {i} with random split major")
 
 if __name__ == "__main__":
     unittest.main()
