@@ -145,6 +145,11 @@ class TestEmbeddings(unittest.TestCase):
         )
         # Check tetrahedron cannot be embedded on a graph with a triangle + 0,1,2 connectivity nodes.
 
+        self.assertTrue(
+            embedding_feasibility_filter(nx.empty_graph(), T),
+            "it's always feasible to embed the empty graph"
+        )
+
     def test_lattice_size_subgraph_upper_bound(self):
         L = np.random.randint(2) + 2
         T = dnx.zephyr_graph(L - 1)
