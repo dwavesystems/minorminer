@@ -24,7 +24,16 @@ from minorminer.utils.feasibility import (
     lattice_size_lower_bound,
 )
 
+def random_tree(n, seed = np.random):
+    # networkx used to have a quick function to make random trees, which
+    # was deprecated and is now gone in modern versions.  This way of making
+    # trees is highly nonuniform but that's really not an issue for us
 
+    if n <= 2:
+        return nx.complete_graph(n)
+
+    return nx.from_prufer_sequence(seed.choice(n, n-2))
+    
 def construct_chain_major(G, construct_chain):
     _random = np.random
     _shuffle = _random.shuffle
@@ -60,7 +69,7 @@ def random_tree_chain_major(G):
     def construct_chain(H, half_edge_label, v, nbrs):
         deg = len(nbrs)
         chain_length = _randint(1, deg)
-        tree = nx.random_tree(chain_length, seed=_random)
+        tree = random_tree(chain_length, seed=_random)
         H.add_edges_from(((i, v), (j, v)) for i, j in tree.edges)
 
         #now let's populate the tree with half-edges -- put at least one on
@@ -77,7 +86,7 @@ def random_split_major(G):
     _random = np.random
     _randint = _random.randint
     if len(G) <= 2:
-        return nx.random_tree(_randint(len(G), 4), _random)
+        return random_tree(_randint(len(G), 4), _random)
 
     #first, subdivide about half of nodes
     def construct_chain(H, half_edge_label, v, nbrs):
