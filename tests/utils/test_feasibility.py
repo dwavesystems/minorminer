@@ -57,7 +57,7 @@ def construct_chain_major(G, construct_chain):
 
 def random_linear_chain_major(G):
     def construct_chain(H, half_edge_label, v, nbrs):
-        nx.add_path(H, enumerate(nbrs))
+        nx.add_path(H, ((i, v) for i in range(len(nbrs))))
         half_edge_label.update(((v, u), (i, v)) for i, u in enumerate(nbrs))
 
     return construct_chain_major(G, construct_chain)
@@ -66,9 +66,10 @@ def random_linear_chain_major(G):
 def random_tree_chain_major(G):
     _random = np.random
     _choice = _random.choice
+    _randint = _random.randint
     def construct_chain(H, half_edge_label, v, nbrs):
         deg = len(nbrs)
-        chain_length = _randint(1, deg)
+        chain_length = 1 if deg == 1 else _randint(1, deg)
         tree = random_tree(chain_length, seed=_random)
         H.add_edges_from(((i, v), (j, v)) for i, j in tree.edges)
 
@@ -77,7 +78,7 @@ def random_tree_chain_major(G):
         index = [i for i, d in tree.degree if d == 1]
         index.extend(_choice(chain_length, deg-len(index)))
 
-        half_label_edges.update(((v, u), (i, v)) for i, u in zip(index, nbrs))
+        half_edge_label.update(((v, u), (i, v)) for i, u in zip(index, nbrs))
 
     return construct_chain_major(G, construct_chain)
 
