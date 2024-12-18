@@ -212,7 +212,7 @@ If you're interested in adding or modifying parameters of the ``find_embedding``
 primary utility function, please see the `<parameter_checklist.txt>`_ file.
 
 Release Notes
-~~~~~~~~~~~~~
+-------------
 
 ``minorminer`` makes use of `reno <https://docs.openstack.org/reno/>`_
 to manage its release notes.
