@@ -20,11 +20,24 @@ import dwave_networkx as dnx
 from minorminer import find_embedding
 
 from minorminer.utils.parallel_embeddings import (
+    lattice_size,
     shuffle_graph,
     embeddings_to_array,
     find_multiple_embeddings,
     find_sublattice_embeddings,
 )
+
+
+class TestLatticeSize(unittest.TestCase):
+    # This is a very basic helper function
+    def test_lattice_size(self):
+        L = np.random.randint(2) + 2
+        T = dnx.zephyr_graph(L - 1)
+        self.assertEqual(L - 1, lattice_size(T=T))
+        T = dnx.pegasus_graph(L)
+        self.assertEqual(L, lattice_size(T=T))
+        T = dnx.chimera_graph(L, L - 1, 1)
+        self.assertEqual(L, lattice_size(T=T))
 
 
 class TestEmbeddings(unittest.TestCase):
@@ -129,9 +142,9 @@ class TestEmbeddings(unittest.TestCase):
             for e in square
         }
         T = nx.from_edgelist(squares)  # Room for 4!
-        embs = find_multiple_embeddings(S, T, max_num_emb=float("inf"))
-
-        self.assertLess(len(embs), 5, "Impossibly many")
+        for max_num_emb in [None, 6]:  # None means unbounded
+            embs = find_multiple_embeddings(S, T, max_num_emb=max_num_emb)
+            self.assertLess(len(embs), 5, "Impossibly many")
         self.assertTrue(
             all(set(emb.keys()) == set(S.nodes()) for emb in embs),
             "bad keys in embedding(s)",
@@ -249,7 +262,7 @@ class TestEmbeddings(unittest.TestCase):
             self.assertEqual(len(embs), 1, "mismatched number of embeddings")
 
             embs = find_sublattice_embeddings(
-                S, T, sublattice_size=min_sublattice_size, max_num_emb=float("Inf")
+                S, T, sublattice_size=min_sublattice_size, max_num_emb=None
             )
             self.assertEqual(len(embs), num_emb, "mismatched number of embeddings")
             self.assertTrue(
@@ -275,7 +288,7 @@ class TestEmbeddings(unittest.TestCase):
             S,
             T,
             sublattice_size=min_sublattice_size,
-            max_num_emb=float("Inf"),
+            max_num_emb=None,
             tile=tile,
         )
         self.assertEqual(len(embs), 4)
@@ -289,7 +302,7 @@ class TestEmbeddings(unittest.TestCase):
             S,
             T,
             sublattice_size=min_sublattice_size,
-            max_num_emb=float("Inf"),
+            max_num_emb=None,
             tile=tile5,
         )
         self.assertEqual(len(embs), 0, "Tile is too small")
@@ -299,7 +312,7 @@ class TestEmbeddings(unittest.TestCase):
             S,
             T,
             sublattice_size=min_sublattice_size,
-            max_num_emb=float("Inf"),
+            max_num_emb=None,
             tile=tile,
             embedder=lambda x: "without S=tile trigger error",
         )
