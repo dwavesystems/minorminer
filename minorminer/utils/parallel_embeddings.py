@@ -20,7 +20,7 @@ import warnings
 import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
-from typing import Union
+from typing import Union, Optional
 
 from minorminer.subgraph import find_subgraph
 
@@ -105,7 +105,7 @@ def find_multiple_embeddings(
     S: nx.Graph,
     T: nx.Graph,
     *,
-    max_num_emb: int = 1,
+    max_num_emb: Optional[int] = 1,
     use_filter: bool = False,
     embedder: callable = None,
     embedder_kwargs: dict = None,
@@ -128,7 +128,7 @@ def find_multiple_embeddings(
         S: The source graph to embed.
         T: The target graph in which to embed.
         max_num_emb: Maximum number of embeddings to find.
-            Defaults to 1, set to float('Inf') to find the maximum possible
+            Defaults to 1, set to None to find the maximum possible
             number.
         use_filter: Specifies whether to check feasibility
             of embedding arguments independently of the embedder method.
@@ -166,8 +166,10 @@ def find_multiple_embeddings(
         _T = shuffle_graph(T, seed=prng)
     else:
         _T = T
-
-    max_num_emb = min(int(T.number_of_nodes() / S.number_of_nodes()), max_num_emb)
+    if max_num_emb is None:
+        max_num_emb = T.number_of_nodes() // S.number_of_nodes()
+    else:
+        max_num_emb = min(T.number_of_nodes() // S.number_of_nodes(), max_num_emb)
 
     if shuffle_all_graphs:
         _S = shuffle_graph(S, seed=prng)
@@ -197,13 +199,33 @@ def find_multiple_embeddings(
     return embs
 
 
+def lattice_size(T: nx.Graph = None) -> int:
+    """Determines the cellular (square) dimension of a dwave_networkx lattice
+
+    The lattice size is the parameter ``m`` of a dwave_networkx graph, also
+    called number of rows, or in the case of a chimera graph max(m,n). This
+    upper bounds the ``sublattice_size`` for ``find_sublattice_embeddings``.
+
+    Args:
+        T: The target graph in which to embed. The graph must be of type
+            zephyr, pegasus or chimera and constructed by dwave_networkx.
+    Returns:
+        int: The maximum possible size of a tile
+    """
+    # Possible feature enhancement, determine a stronger upper bound akin
+    # to lattice_size_lower_bound, accounting for defects, the
+    # degree distribution and other simple properties.
+
+    return max(T.graph.get("rows"), T.graph.get("columns"))
+
+
 def find_sublattice_embeddings(
     S: nx.Graph,
     T: nx.Graph,
     *,
     tile: nx.Graph = None,
     sublattice_size: int = None,
-    max_num_emb: int = 1,
+    max_num_emb: Optional[int] = 1,
     use_filter: bool = False,
     seed: Union[int, np.random.RandomState, np.random.Generator] = None,
     embedder: callable = None,
@@ -246,7 +268,8 @@ def find_sublattice_embeddings(
            family matching T). ``lattice_size_lower_bound()``
            provides a lower bound based on a fast feasibility filter.
         max_num_emb: Maximum number of embeddings to find.
-            Defaults to inf (unbounded).
+            Defaults to 1, set to None for unbounded (try unlimited search on
+            all lattice offsets).
         use_filter: Specifies whether to check feasibility of arguments for
             embedding independently of the embedder routine. Defaults to False.
         embedder: Specifies the embedding search method, a callable taking ``S``, ``T`` as
@@ -333,7 +356,10 @@ def find_sublattice_embeddings(
             "source graphs must a graph constructed by "
             "dwave_networkx as chimera, pegasus or zephyr type"
         )
-
+    if max_num_emb is None:
+        max_num_emb = T.number_of_nodes() // S.number_of_nodes()
+    else:
+        max_num_emb = min(T.number_of_nodes() // S.number_of_nodes(), max_num_emb)
     tiling = tile == S
     embs = []
     if max_num_emb == 1 and seed is None:

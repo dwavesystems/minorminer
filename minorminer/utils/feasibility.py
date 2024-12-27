@@ -110,26 +110,6 @@ def embedding_feasibility_filter(
         return True
 
 
-def lattice_size(T: nx.Graph = None) -> int:
-    """Determines the cellular (square) dimension of a lattice
-
-    The lattice size is the parameter ``m`` of a dwave_networkx graph, also
-    called number of rows, or in the case of a chimera graph max(m,n). This
-    upper bounds the ``sublattice_size`` for ``find_sublattice_embeddings``.
-
-    Args:
-        T: The target graph in which to embed. The graph must be of type
-            zephyr, pegasus or chimera and constructed by dwave_networkx.
-    Returns:
-        int: The maximum possible size of a tile
-    """
-    # Possible feature enhancement, determine a stronger upper bound akin
-    # to lattice_size_lower_bound, accounting for defects, the
-    # degree distribution and other simple properties.
-
-    return max(T.graph.get("rows"), T.graph.get("columns"))
-
-
 def lattice_size_lower_bound(
     S: nx.Graph,
     T: nx.Graph = None,
