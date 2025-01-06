@@ -199,7 +199,7 @@ def find_multiple_embeddings(
     return embs
 
 
-def lattice_size(T: nx.Graph = None) -> int:
+def lattice_size(T: Optional[nx.Graph] = None) -> int:
     """Determines the cellular (square) dimension of a dwave_networkx lattice
 
     The lattice size is the parameter ``m`` of a dwave_networkx graph, also
