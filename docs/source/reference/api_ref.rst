@@ -1,8 +1,8 @@
 .. _reference_minorminer:
 
-=======================
-Reference Documentation
-=======================
+=============
+API Reference
+=============
 
 .. toctree::
    :maxdepth: 2
