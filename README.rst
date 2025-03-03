@@ -13,18 +13,17 @@
 .. image:: https://img.shields.io/badge/arXiv-1507.04774-b31b1b.svg
     :target: https://arxiv.org/abs/1507.04774
 
-.. index-start-marker
 
 ==========
 minorminer
 ==========
 
+.. start_minorminer_about
+
 `minorminer` is a heuristic tool for minor embedding: given a minor and target
 graph, it tries to find a mapping that embeds the minor into the target.
 
-.. index-end-marker
-
-.. general-embedding-start-marker
+.. start_minorminer_about_general_embedding
 
 The primary utility function, ``find_embedding()``, is an implementation of
 the heuristic algorithm described in [1]. It accepts various optional parameters
@@ -43,15 +42,13 @@ biclique embeddings as well.
 
 [2] https://arxiv.org/abs/1507.04774
 
-.. general-embedding-end-marker
+.. end_minorminer_about
 
 Python
 ======
 
 Installation
 ------------
-
-.. install-python-start
 
 pip installation is recommended for platforms with precompiled wheels posted to
 pypi. Source distributions are provided as well.
@@ -77,10 +74,10 @@ and then run the `setuptools` script.
     python -m pytest .
 
 
-.. install-python-end
-
 Examples
 --------
+
+.. start_minorminer_examples_python
 
 .. code-block:: python
 
@@ -142,14 +139,13 @@ A more fleshed out example can be found under `examples/fourcolor.py`
     pip install -r requirements.txt
     python fourcolor.py
 
+.. end_minorminer_examples_python
 
 C++
 ===
 
 Installation
 ------------
-
-.. install-c-start
 
 The `CMakeLists.txt` in the root of this repo will build the library and
 optionally run a series of tests. On Linux, the commands would be something like
@@ -179,8 +175,6 @@ to add the following lines to your `CMakeLists.txt`
     # After your target is defined
     target_link_libraries(your_target minorminer pthread)
 
-.. install-c-end
-
 Examples
 --------
 
@@ -204,6 +198,8 @@ Released under the Apache License 2.0. See `<LICENSE>`_ file.
 
 Contributing
 ============
+
+.. todo:: update links
 
 Ocean's `contributing guide <https://docs.ocean.dwavesys.com/en/stable/contributing.html>`_
 has guidelines for contributing to Ocean packages.
