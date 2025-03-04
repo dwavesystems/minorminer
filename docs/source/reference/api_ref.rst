@@ -1,4 +1,4 @@
-.. _reference_minorminer:
+.. _minorminer_api_ref:
 
 =============
 API Reference

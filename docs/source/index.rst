@@ -67,3 +67,15 @@ Once an embedding has been found, D-Wave's Problem Inspector tool can be used to
 evaluate its quality. See
 :std:doc:`Using the Problem Inspector <oceandocs:examples/inspector_graph_partitioning>`
 for more information.
+
+Usage Information
+=================
+
+.. todo:: add the intersphinx prefix to enable these links for self builds
+
+*   :ref:`index_concepts` for terminology
+*   :ref:`qpu_embedding_intro` for an introduction to minor embedding
+*   :ref:`qpu_embedding_guidance` provides advanced guidance
+*   Examples in the :ref:`qpu_example_and`, :ref:`qpu_example_multigate`,
+    and :ref:`qpu_example_inspector_graph_partitioning` sections show through
+    some simple examples how to embed and set chain strength.
