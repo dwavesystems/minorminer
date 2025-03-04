@@ -1,4 +1,4 @@
-.. index_minorminer:
+.. _index_minorminer:
 
 ==========
 minorminer
