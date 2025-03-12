@@ -1,0 +1,6 @@
+---
+features:
+  - Add support for generating multiple disjoint embeddings of a source graph onto D-Wave graph topologies.
+  - Add efficient methods and heuristics for determining embedding feasibility.
+fixes:
+  - Fixed bug in the layout module to correctly work for some edge cases.
