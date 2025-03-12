@@ -17,10 +17,13 @@ onto a target graph or provide supporting functionality.
 """
 import warnings
 
+from time import perf_counter
+import time
 import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
-from typing import Union, Optional
+from typing import Union, Optional, Callable
+from dwave.embedding import is_valid_embedding
 
 from minorminer.subgraph import find_subgraph
 
@@ -101,17 +104,46 @@ def embeddings_to_array(embs: list, node_order=None, as_ndarray=False):
         return [[emb[v] for v in node_order] for emb in embs]
 
 
+def array_to_embeddings(embs: list, node_order=None):
+    """Convert list of embedding lists (values) to dictionary
+
+    Args:
+        embs: A list of embeddings, each embedding is a list where values are
+            chains in node order.
+        node_order: An iterable giving the ordering of
+            variables in each row. When not provided variables are ordered to
+            match the first embedding :code:``embs[0].keys()``. node_order
+            can define any subset of the source graph nodes (embedding
+            keys).
+
+    Returns:
+        An embedding dictionary
+    """
+    if len(embs) is None:
+        return []
+
+    if node_order is None:
+        node_order = range(len(embs[0]))
+
+    if len(embs) == len(node_order):
+        embs = [{node_order[idx]: v for idx, v in enumerate(embs)}]
+    else:
+        embs = [{node_order[idx]: v for idx, v in enumerate(emb)} for emb in embs]
+    return embs
+
+
 def find_multiple_embeddings(
     S: nx.Graph,
     T: nx.Graph,
     *,
     max_num_emb: Optional[int] = 1,
-    use_filter: bool = False,
+    use_filter: bool = True,
     embedder: callable = None,
     embedder_kwargs: dict = None,
     one_to_iterable: bool = False,
     shuffle_all_graphs: bool = False,
     seed: Union[int, np.random.RandomState, np.random.Generator] = None,
+    timeout: float = float("Inf"),
 ) -> list:
     """Finds multiple disjoint embeddings of a source graph onto a target graph
 
@@ -120,9 +152,9 @@ def find_multiple_embeddings(
     after each successful embedding.
 
     Embedding multiple times on a large graph can take significant time.
-    It is recommended the user adjust embedder_kwargs appropriately such
-    as timeout, and also consider bounding the number of embeddings
-    returned (with max_num_emb).
+    It is recommended the user adjust both the timeout parameter and
+    embedder_kwargs appropriately (incl. timeout), and also consider bounding
+    the number of embeddings returned (with max_num_emb).
 
     Args:
         S: The source graph to embed.
@@ -131,7 +163,8 @@ def find_multiple_embeddings(
             Defaults to 1, set to None to find the maximum possible
             number.
         use_filter: Specifies whether to check feasibility
-            of embedding arguments independently of the embedder method.
+            of embedding arguments independently of the embedder method. In some
+            easy to embed cases use of a filter can slow down operation.
         embedder: Specifies the embedding search method,
             a callable taking ``S``, ``T``, as the first two parameters. Defaults to
             ``minorminer.subgraph.find_subgraph``.
@@ -147,6 +180,9 @@ def find_multiple_embeddings(
             diversification of the embeddings found.
         seed: seed for the ``numpy.random.Generator`` controlling shuffling (if
             invoked).
+        timeout: total time allowed across all embeddings in seconds. Time elapsed is
+            checked before each call to embedder. The total runtime is thereby bounded
+            by timeout plus the time required by one call to embedder.
 
     Returns:
         list: A list of disjoint embeddings. Each embedding follows the format
@@ -154,6 +190,7 @@ def find_multiple_embeddings(
         map from the source to the target graph as a dictionary without
         reusing target variables.
     """
+    timeout = perf_counter() + timeout
     embs = []
     if embedder is None:
         embedder = find_subgraph
@@ -183,7 +220,12 @@ def find_multiple_embeddings(
         ):
             emb = []
         else:
-            emb = embedder(_S, _T, **embedder_kwargs)
+            if perf_counter() >= timeout:
+                emb = []
+            else:
+                if timeout == 0:
+                    raise ValueError()
+                emb = embedder(_S, _T, **embedder_kwargs)
 
         if len(emb) == 0:
             break
@@ -219,6 +261,21 @@ def lattice_size(T: Optional[nx.Graph] = None) -> int:
     return max(T.graph.get("rows"), T.graph.get("columns"))
 
 
+def _is_valid_embedding(emb: dict, S: dict, T: dict, one_to_iterable: bool = True):
+    """Special handling of 1:1 mappings"""
+    if one_to_iterable:
+        return is_valid_embedding(emb, S, T)
+    else:
+        return is_valid_embedding({k: (v,) for k, v in emb.items()}, S, T)
+
+
+def _mapped_proposal(emb: dict, f: Callable, one_to_iterable: bool = True):
+    if one_to_iterable:
+        return {k: tuple(f(n) for n in c) for k, c in emb.items()}
+    else:
+        return {k: f(n) for k, n in emb.items()}
+
+
 def find_sublattice_embeddings(
     S: nx.Graph,
     T: nx.Graph,
@@ -226,13 +283,16 @@ def find_sublattice_embeddings(
     tile: nx.Graph = None,
     sublattice_size: int = None,
     max_num_emb: Optional[int] = 1,
-    use_filter: bool = False,
+    use_filter: bool = True,
+    use_tile_embedding: Optional[bool] = None,
+    tile_embedding: Optional[dict] = None,
     seed: Union[int, np.random.RandomState, np.random.Generator] = None,
     embedder: callable = None,
     embedder_kwargs: dict = None,
     one_to_iterable: bool = False,
     shuffle_all_graphs: bool = False,
     shuffle_sublattice_order: bool = False,
+    timeout: float = float("Inf"),
 ) -> list:
     """Searches for embeddings on sublattices of the target graph.
 
@@ -271,13 +331,22 @@ def find_sublattice_embeddings(
             Defaults to 1, set to None for unbounded (try unlimited search on
             all lattice offsets).
         use_filter: Specifies whether to check feasibility of arguments for
-            embedding independently of the embedder routine. Defaults to False.
+            embedding independently of the embedder routine.  In some
+            easy to embed cases use of a filter can slow down operation.
+        use_tile_embedding: A single embedding for a tile is generated, and then
+            reused for a maximum number of sublattices. If, due to defects or
+            overlap with an existing assignment, the embedding fails at a particular
+            offset embedder is not invoked.
+        tile_embedding: When provided, this should be an embedding from the source
+            to the tile. If not provided it is generated by the embedder method. Note
+            that `one_to_iterable` should be adjusted to match the value type.
         embedder: Specifies the embedding search method, a callable taking ``S``, ``T`` as
-            the first two arguments. Defaults to minorminer.subgraph.find_subgraph.
+            the first two arguments. Defaults to minorminer.subgraph.find_subgraph. Note
+            that if `one_to_iterable` should be adjusted to match the return type.
         embedder_kwargs: Dictionary specifying arguments for the embedder
             other than ``S``, ``T``.
-        one_to_iterable: Specifies whether the embedder returns a dict with
-            iterable values. Defaults to False to match find_subgraph.
+        one_to_iterable: Specifies whether the embedder returns (and/or tile_embedding is)
+            a dict with iterable values (True), or a 1:1 mapping (False).
         shuffle_all_graphs: If True, the tile-masked target graph and source graph are
             shuffled on each embedding attempt. Note that, if the embedder supports
             randomization this should be preferred by use of embedder_kwargs. If an
@@ -288,13 +357,20 @@ def find_sublattice_embeddings(
             for diversification of the embeddings found.
         seed: seed for the `numpy.random.Generator` controlling shuffling (if
             invoked).
+        timeout: total time allowed across all embeddings in seconds. Time elapsed is
+            checked before each sublattice search begins, and before each call of the
+            embedder function. The total runtime is thereby bounded by timeout plus the
+            time required by one call to embedder.
 
     Raises:
         ValueError: If the target graph ``T`` is not of type zephyr, pegasus, or chimera.
+            If the tile_embedding is incompatible with the source graph and tile.
 
     Returns:
         list: A list of disjoint embeddings.
     """
+
+    timeout = perf_counter() + timeout
     if sublattice_size is None and tile is None:
         return find_multiple_embeddings(
             S=S,
@@ -356,11 +432,52 @@ def find_sublattice_embeddings(
             "source graphs must a graph constructed by "
             "dwave_networkx as chimera, pegasus or zephyr type"
         )
+    if tile_embedding is not None:
+        if not _is_valid_embedding(tile_embedding, S, tile, one_to_iterable):
+            raise ValueError("tile_embedding is invalid for S and tile")
+        else:
+            use_filter = False  # Unnecessary
+
+    if use_tile_embedding is None:
+        use_tile_embedding = tile == S  # Trivial 1:1
+        if use_tile_embedding and tile_embedding is None:
+            tile_embedding = {i: i for i in tile.nodes}
+            use_filter = False  # Unnecessary
+
+    if use_filter or (use_tile_embedding and tile_embedding is None):
+        # Check defect-free tile embedding is viable
+
+        # With respect to filter:
+        # * This assumes that an embedder that returns on a graph G
+        # will also return an embedding for any graph where G is
+        # a subgraph. Can be violated given heuristic search
+        defect_free_embs = find_multiple_embeddings(
+            S,
+            tile,
+            max_num_emb=1,
+            use_filter=False,
+            seed=seed,
+            embedder=embedder,
+            embedder_kwargs=embedder_kwargs,
+            timeout=timeout - perf_counter(),
+        )
+        if len(defect_free_embs) == 0:
+            # If embedding is infeasible on the tile*, it will be infeasible
+            # on all subgraphs thereof (assuming sufficient time was provided
+            # in embedder_kwargs)
+            return []
+        if use_tile_embedding:
+            tile_embedding = defect_free_embs[0]
+            # Apply sufficient restriction on the tile
+            if one_to_iterable:
+                tile = tile.subgraph({v for c in tile_embedding.values() for v in c})
+            else:
+                tile = tile.subgraph({v for v in tile_embedding.values()})
     if max_num_emb is None:
         max_num_emb = T.number_of_nodes() // S.number_of_nodes()
     else:
         max_num_emb = min(T.number_of_nodes() // S.number_of_nodes(), max_num_emb)
-    tiling = tile == S
+
     embs = []
     if max_num_emb == 1 and seed is None:
         _T = T
@@ -376,22 +493,25 @@ def find_sublattice_embeddings(
         sublattice_iter = sublattice_mappings(tile, _T)
 
     for f in sublattice_iter:
-        Tr = _T.subgraph([f(n) for n in tile])
-        if tiling:
-            if Tr.number_of_edges() == S.number_of_edges():
-                sub_embs = [{k: v for k, v in zip(S.nodes, Tr.nodes)}]
+        if perf_counter() > timeout:
+            break
+        if use_tile_embedding:
+            proposal = _mapped_proposal(tile_embedding, f, one_to_iterable)
+            if _is_valid_embedding(proposal, S, T, one_to_iterable):
+                sub_embs = [proposal]
             else:
                 sub_embs = []
-
         else:
+            Tr = _T.subgraph([f(n) for n in tile])
             sub_embs = find_multiple_embeddings(
                 S,
                 Tr,
-                max_num_emb=max_num_emb,
+                max_num_emb=max_num_emb - len(embs),
                 use_filter=use_filter,
                 seed=seed,
                 embedder=embedder,
                 embedder_kwargs=embedder_kwargs,
+                timeout=timeout - perf_counter(),
             )
         embs += sub_embs
         if len(embs) >= max_num_emb:
@@ -405,5 +525,4 @@ def find_sublattice_embeddings(
                 _T.remove_nodes_from([v for c in emb.values() for v in c])
             else:
                 _T.remove_nodes_from(emb.values())
-
     return embs
