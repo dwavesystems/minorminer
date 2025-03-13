@@ -15,9 +15,8 @@
 # ================================================================================================
 
 
-
-from tests.utils.zephyr.test_zephyr_base import ZephyrBaseTest
 from minorminer.utils.zephyr.survey import ZSurvey
+from tests.utils.zephyr.test_zephyr_base import ZephyrBaseTest
 
 
 class TestZephyrSurvey(ZephyrBaseTest):
@@ -37,7 +36,6 @@ class TestZephyrSurvey(ZephyrBaseTest):
                 for v in z_sampler.nodelist:
                     self.assertTrue(isinstance(v, tuple))
 
-
     def test_get_zephyr_shape_coord_graph(self) -> None:
         for G_dict in self.graphs:
             z_graph = G_dict["G"]
@@ -47,13 +45,14 @@ class TestZephyrSurvey(ZephyrBaseTest):
             self.assertTrue(t, G_info.get("tile"))
             self.assertTrue(coord, G_info.get("labels"))
 
-
     def test_zephyr_survey_runs_sampler(self) -> None:
         for z_sampler in self.samplers:
             try:
                 ZSurvey(z_sampler)
             except Exception as e:
-                self.fail(f"ZephyrSurvey raised an exception {e} when running with sampler = {z_sampler}")
+                self.fail(
+                    f"ZephyrSurvey raised an exception {e} when running with sampler = {z_sampler}"
+                )
 
     def test_zephyr_survey_runs_graph(self) -> None:
         for G_dict in self.graphs:
@@ -61,8 +60,10 @@ class TestZephyrSurvey(ZephyrBaseTest):
             try:
                 ZSurvey(z_graph)
             except Exception as e:
-                self.fail(f"ZephyrSurvey raised an exception {e} when running with graph = {z_graph}")
-            
+                self.fail(
+                    f"ZephyrSurvey raised an exception {e} when running with graph = {z_graph}"
+                )
+
     def test_num_nodes(self) -> None:
         for z_sampler in self.samplers:
             num_nodes = len(z_sampler.nodelist)

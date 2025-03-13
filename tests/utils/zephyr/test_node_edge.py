@@ -17,10 +17,10 @@
 
 import unittest
 from itertools import product
-from minorminer.utils.zephyr.node_edge import ZNode, ZEdge, Edge, ZShape
-from minorminer.utils.zephyr.plane_shift import PlaneShift
-from minorminer.utils.zephyr.coordinate_systems import ZephyrCoord, CartesianCoord
 
+from minorminer.utils.zephyr.coordinate_systems import CartesianCoord, ZephyrCoord
+from minorminer.utils.zephyr.node_edge import Edge, ZEdge, ZNode, ZShape
+from minorminer.utils.zephyr.plane_shift import PlaneShift
 
 
 class TestEdge(unittest.TestCase):
@@ -30,12 +30,11 @@ class TestEdge(unittest.TestCase):
 
     def test_invalid_input_raises_error(self) -> None:
         with self.assertRaises(TypeError):
-            Edge(2, 'string')
+            Edge(2, "string")
             Edge(2, ZNode(ZephyrCoord(0, 10, 3, 1, 3), ZShape(t=4)))
 
     def test_equal(self) -> None:
         self.assertEqual(Edge(2, 4), Edge(4, 2))
-
 
 
 class TestZEdge(unittest.TestCase):
@@ -43,23 +42,24 @@ class TestZEdge(unittest.TestCase):
         valid_edges = [
             (
                 ZNode(coord=ZephyrCoord(0, 10, 3, 1, 3), shape=ZShape(6, 4)),
-                ZNode(coord=ZephyrCoord(0, 10, 3, 1, 2), shape=ZShape(6, 4))
-                ),
+                ZNode(coord=ZephyrCoord(0, 10, 3, 1, 2), shape=ZShape(6, 4)),
+            ),
             (
                 ZNode(coord=CartesianCoord(4, 3, 2), shape=(6, 3)),
-                ZNode(coord=CartesianCoord(4, 1, 2), shape=(6, 3))    
-                ),
+                ZNode(coord=CartesianCoord(4, 1, 2), shape=(6, 3)),
+            ),
             (ZNode(coord=(1, 6)), ZNode(coord=(5, 6))),
-            ]
+        ]
         for x, y in valid_edges:
             ZEdge(x, y)
 
     def test_invalid_input_raises_error(self):
         with self.assertRaises((TypeError, ValueError)):
             ZEdge(2, 4)
-            ZEdge(ZNode(coord=CartesianCoord(4, 3, 2), shape=(6, 3)), ZNode(coord=CartesianCoord(4, 3, 2), shape=(6, 3)))
-
-
+            ZEdge(
+                ZNode(coord=CartesianCoord(4, 3, 2), shape=(6, 3)),
+                ZNode(coord=CartesianCoord(4, 3, 2), shape=(6, 3)),
+            )
 
 
 class TestZNode(unittest.TestCase):
@@ -75,10 +75,15 @@ class TestZNode(unittest.TestCase):
         self.invalid_t_vals = [0, 2.5, -2]
         self.invalid_z_vals = [-1, None]
         xym_vals = [
-            ((0, 3), 1), ((5, 2), 6), ((16, 1), 4),
-            ((1, 12), 3), ((3, 0), 4), ((5, 4), 6),
-            ((0, 3), 6), ((6, 3), 5),
-            ]
+            ((0, 3), 1),
+            ((5, 2), 6),
+            ((16, 1), 4),
+            ((1, 12), 3),
+            ((3, 0), 4),
+            ((5, 4), 6),
+            ((0, 3), 6),
+            ((6, 3), 5),
+        ]
         self.xyms = xym_vals + [(xy, None) for xy, _ in xym_vals]
         self.left_up_xyms = [((0, 3), 6), ((0, 3), None), ((11, 0), None), ((0, 5), 8)]
         self.right_down_xyms = [((1, 12), 3), ((16, 1), 4)]
@@ -92,7 +97,7 @@ class TestZNode(unittest.TestCase):
         for u in self.u_vals:
             for j in self.j_vals:
                 for m in self.m_vals:
-                    w_vals = range(2*m+1)
+                    w_vals = range(2 * m + 1)
                     z_vals = range(m)
                     for w in w_vals:
                         for z in z_vals:
@@ -112,7 +117,7 @@ class TestZNode(unittest.TestCase):
             ((0, 17), 4),
             ((0, 0, 0), 1),
             ((-1, 2), None),
-            ]
+        ]
         for xy, m in invalid_xyms:
             with self.assertRaises((ValueError, TypeError)):
                 ZNode(coord=xy, shape=ZShape(m=m))
@@ -120,7 +125,7 @@ class TestZNode(unittest.TestCase):
         for u in self.invalid_u_vals:
             for j in self.j_vals:
                 for m in self.m_vals:
-                    w_vals = range(2*m+1)
+                    w_vals = range(2 * m + 1)
                     z_vals = range(m)
                     for w in w_vals:
                         for z in z_vals:
@@ -147,21 +152,21 @@ class TestZNode(unittest.TestCase):
         for u in self.u_vals:
             for j in self.j_vals:
                 for m in self.m_vals:
-                    w_vals = range(2*m+1)
+                    w_vals = range(2 * m + 1)
                     z_vals = range(m)
                     for w in w_vals:
                         for z in z_vals:
                             for t in self.t_vals:
                                 invalid_k_vals = [-1, t, 2.5, None]
                                 for k in invalid_k_vals:
-                                    with self.assertRaises((ValueError, TypeError)):                                        
+                                    with self.assertRaises((ValueError, TypeError)):
                                         ZNode(coord=(u, w, k, j, z), shape=(m, t))
 
         # All good except j_vals
         for u in self.u_vals:
             for j in self.invalid_j_vals:
                 for m in self.m_vals:
-                    w_vals = range(2*m+1)
+                    w_vals = range(2 * m + 1)
                     z_vals = range(m)
                     for w in w_vals:
                         for z in z_vals:
@@ -174,7 +179,7 @@ class TestZNode(unittest.TestCase):
         for u in self.u_vals:
             for j in self.j_vals:
                 for m in self.m_vals:
-                    w_vals = range(2*m+1)
+                    w_vals = range(2 * m + 1)
                     invalid_z_vals = [None, -1, m, 1.5]
                     for w in w_vals:
                         for z in invalid_z_vals:
@@ -234,7 +239,7 @@ class TestZNode(unittest.TestCase):
         left_up_pcs = [ZNode(xy, ZShape(m=m)) for xy, m in self.left_up_xyms]
 
         for pc in midgrid_pcs + right_down_pcs + left_up_pcs:
-            self.assertEqual(pc+PlaneShift(0, 0), pc)
+            self.assertEqual(pc + PlaneShift(0, 0), pc)
 
     def test_neighbors_generator_runs(self) -> None:
         for _ in ZNode((1, 12, 4), ZShape(t=6)).neighbors_generator():
@@ -249,7 +254,7 @@ class TestZNode(unittest.TestCase):
         for u in self.u_vals:
             for j in self.j_vals:
                 for m in self.m_vals:
-                    w_vals = range(2*m+1)
+                    w_vals = range(2 * m + 1)
                     z_vals = range(m)
                     for w in w_vals:
                         for z in z_vals:
@@ -271,8 +276,8 @@ class TestZNode(unittest.TestCase):
         self.assertTrue(zn.neighbor_kind(ZNode((1, 2))) == "internal")
         self.assertTrue(zn.neighbor_kind(ZNode((0, 3))) == "odd")
         self.assertTrue(zn.neighbor_kind(ZNode((0, 5))) == "external")
-        self.assertTrue(zn.neighbor_kind(ZNode((0, 7)))is None)
-        self.assertTrue(zn.neighbor_kind(ZNode((1, 6)))is None)
+        self.assertTrue(zn.neighbor_kind(ZNode((0, 7))) is None)
+        self.assertTrue(zn.neighbor_kind(ZNode((1, 6))) is None)
 
     def test_internal_generator(self) -> None:
         zn1 = ZNode((0, 1))
@@ -282,7 +287,9 @@ class TestZNode(unittest.TestCase):
 
         zn2 = ZNode((0, 1, 0), ZShape(t=4))
         set_internal2 = {x for x in zn2.internal_neighbors_generator()}
-        expected2 = {ZNode((1, 0, k), ZShape(t=4)) for k in range(4)} | {ZNode((1, 2, k), ZShape(t=4)) for k in range(4)}
+        expected2 = {ZNode((1, 0, k), ZShape(t=4)) for k in range(4)} | {
+            ZNode((1, 2, k), ZShape(t=4)) for k in range(4)
+        }
         self.assertEqual(set_internal2, expected2)
 
     def test_external_generator(self) -> None:
@@ -290,7 +297,7 @@ class TestZNode(unittest.TestCase):
         set_external = {x for x in zn.external_neighbors_generator()}
         expected = {ZNode((0, 5))}
         self.assertEqual(set_external, expected)
-        
+
         zn2 = ZNode((0, 1, 2), ZShape(t=4))
         set_external2 = {x for x in zn2.external_neighbors_generator()}
         expected2 = {ZNode((0, 5, 2), ZShape(t=4))}
@@ -317,8 +324,8 @@ class TestZNode(unittest.TestCase):
             self.assertEqual(qzn1.degree(nbr_kind="odd"), 2)
             for t in [1, 4, 6]:
                 zn1 = ZNode(coord=(x, y, 0), shape=ZShape(m=m, t=t))
-                self.assertEqual(zn1.degree(), 4*t+4)
-                self.assertEqual(zn1.degree(nbr_kind="internal"), 4*t)
+                self.assertEqual(zn1.degree(), 4 * t + 4)
+                self.assertEqual(zn1.degree(nbr_kind="internal"), 4 * t)
                 self.assertEqual(zn1.degree(nbr_kind="external"), 2)
                 self.assertEqual(zn1.degree(nbr_kind="odd"), 2)
 
@@ -328,9 +335,9 @@ class TestZNode(unittest.TestCase):
         self.assertEqual(qzn2.degree(nbr_kind="external"), 1)
         self.assertEqual(qzn2.degree(nbr_kind="odd"), 1)
         for t in [1, 4, 6]:
-            zn2 =  ZNode(coord=(0, 1, 0), shape=ZShape(t=t))
-            self.assertEqual(zn2.degree(), 2*t+2)
-            self.assertEqual(zn2.degree(nbr_kind="internal"), 2*t)
+            zn2 = ZNode(coord=(0, 1, 0), shape=ZShape(t=t))
+            self.assertEqual(zn2.degree(), 2 * t + 2)
+            self.assertEqual(zn2.degree(nbr_kind="internal"), 2 * t)
             self.assertEqual(zn2.degree(nbr_kind="external"), 1)
             self.assertEqual(zn2.degree(nbr_kind="odd"), 1)
 
@@ -341,8 +348,8 @@ class TestZNode(unittest.TestCase):
         self.assertEqual(qzn3.degree(nbr_kind="odd"), 2)
         for t in [1, 5, 6]:
             zn3 = ZNode((24, 5, 0), ZShape(m=6, t=t))
-            self.assertEqual(zn3.degree(), 2*t+4)
-            self.assertEqual(zn3.degree(nbr_kind="internal"), 2*t)
+            self.assertEqual(zn3.degree(), 2 * t + 4)
+            self.assertEqual(zn3.degree(nbr_kind="internal"), 2 * t)
             self.assertEqual(zn3.degree(nbr_kind="external"), 2)
             self.assertEqual(zn3.degree(nbr_kind="odd"), 2)
 
@@ -353,9 +360,7 @@ class TestZNode(unittest.TestCase):
         self.assertEqual(qzn4.degree(nbr_kind="odd"), 2)
         for t in [1, 5, 6]:
             zn4 = ZNode((24, 5, 0), ZShape(t=t))
-            self.assertEqual(zn4.degree(), 4*t+4)
-            self.assertEqual(zn4.degree(nbr_kind="internal"), 4*t)
+            self.assertEqual(zn4.degree(), 4 * t + 4)
+            self.assertEqual(zn4.degree(nbr_kind="internal"), 4 * t)
             self.assertEqual(zn4.degree(nbr_kind="external"), 2)
             self.assertEqual(zn4.degree(nbr_kind="odd"), 2)
-
-

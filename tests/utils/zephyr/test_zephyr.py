@@ -17,12 +17,11 @@
 import unittest
 from random import shuffle
 
-from dwave_networkx.generators.zephyr import zephyr_graph
 import networkx as nx
-from parameterized import parameterized
-
+from dwave_networkx.generators.zephyr import zephyr_graph
 from minorminer.utils.diagnostic import is_valid_embedding
-from minorminer.utils.zephyr import find_clique_embedding, find_biclique_embedding
+from minorminer.utils.zephyr import find_biclique_embedding, find_clique_embedding
+from parameterized import parameterized
 
 
 class Test_find_clique_embedding(unittest.TestCase):
@@ -37,7 +36,7 @@ class Test_find_clique_embedding(unittest.TestCase):
         self.assertTrue(is_valid_embedding(embedding, nx.complete_graph(k_int), ze))
 
     def test_k_parameter_list(self):
-        k_nodes = ['one', 'two', 'three']
+        k_nodes = ["one", "two", "three"]
         m = 4
 
         # Find embedding
@@ -148,9 +147,9 @@ class Test_find_clique_embedding(unittest.TestCase):
 
 
 class Test_find_biclique_embedding(unittest.TestCase):
-    ABC_DE = (['a', 'b', 'c'], ['d', 'e'], 2)
-    ABC_P = (['a', 'b', 'c'], 7, 2)
-    N_DE = (4, ['d', 'e'], 2)
+    ABC_DE = (["a", "b", "c"], ["d", "e"], 2)
+    ABC_P = (["a", "b", "c"], 7, 2)
+    N_DE = (4, ["d", "e"], 2)
 
     @parameterized.expand(((6, 6, 2), (16, 16, 3), (4, 5, 1), ABC_DE, ABC_P, N_DE))
     def test_success(self, a, b, m):
@@ -171,7 +170,7 @@ class Test_find_biclique_embedding(unittest.TestCase):
         biclique = nx.complete_bipartite_graph(left, right)
         self.assertTrue(is_valid_embedding({**left, **right}, biclique, ze))
 
-    @parameterized.expand((((1, 2), (2, 3)), ((1, 2), 2), (3, (2, 3)), (('a', 'b'), ('b', 'c'))))
+    @parameterized.expand((((1, 2), (2, 3)), ((1, 2), 2), (3, (2, 3)), (("a", "b"), ("b", "c"))))
     def test_overlapping_labels(self, a, b):
         m = 2
 

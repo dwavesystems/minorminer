@@ -17,10 +17,12 @@
 
 import unittest
 from itertools import product
+
+import dwave_networkx as dnx
 import numpy as np
 from dwave.cloud import Client
 from dwave.system import DWaveSampler
-import dwave_networkx as dnx
+
 
 class ZephyrBaseTest(unittest.TestCase):
     def setUp(self):
@@ -35,7 +37,7 @@ class ZephyrBaseTest(unittest.TestCase):
         with Client.from_config(client="qpu") as client:
             zeph_solvers = client.get_solvers(
                 topology__type__eq="zephyr",
-                )
+            )
         self.samplers = [DWaveSampler(solver=z_solver.id) for z_solver in zeph_solvers]
 
     def initialize_rngs(self):
@@ -43,17 +45,15 @@ class ZephyrBaseTest(unittest.TestCase):
             np.random.default_rng(seed=1),
             np.random.default_rng(seed=10),
         ]
-        
+
     def initialize_zeph_ms(self):
         self.zeph_ms = [3, 6]
 
     def initialize_node_del_percents(self):
         self.node_del_percents = [0, 0.03]
 
-
     def initialize_edge_del_percents(self):
         self.edge_del_percents = [0, 0.02]
-
 
     def initialize_graphs(self):
         self.graphs = list()
@@ -61,19 +61,16 @@ class ZephyrBaseTest(unittest.TestCase):
             for m in self.zeph_ms:
                 for node_del_per, edge_del_per in product(
                     self.node_del_percents, self.edge_del_percents
-                    ):
+                ):
                     G = dnx.zephyr_graph(m=m, coordinates=True)
                     num_nodes_to_remove = int(node_del_per * G.number_of_nodes())
-                    nodes_to_remove = [
-                        tuple(v)
-                        for v in rng.choice(G.nodes(), num_nodes_to_remove)
-                        ]
+                    nodes_to_remove = [tuple(v) for v in rng.choice(G.nodes(), num_nodes_to_remove)]
                     G.remove_nodes_from(nodes_to_remove)
                     num_edges_to_remove = int(edge_del_per * G.number_of_edges())
                     edges_to_remove = [
                         (tuple(u), tuple(v))
                         for (u, v) in rng.choice(G.edges(), num_edges_to_remove)
-                        ]
+                    ]
                     G.remove_edges_from(edges_to_remove)
                     G_dict = {
                         "G": G,
@@ -81,7 +78,8 @@ class ZephyrBaseTest(unittest.TestCase):
                         "num_nodes": G.number_of_nodes(),
                         "num_edges": G.number_of_edges(),
                         "num_missing_nodes": num_nodes_to_remove,
-                        "num_missing_edges": dnx.zephyr_graph(m=m).number_of_edges()-G.number_of_edges(),
+                        "num_missing_edges": dnx.zephyr_graph(m=m).number_of_edges()
+                        - G.number_of_edges(),
                         "num_extra_missing_edges": num_edges_to_remove,
-                        }
+                    }
                     self.graphs.append(G_dict)

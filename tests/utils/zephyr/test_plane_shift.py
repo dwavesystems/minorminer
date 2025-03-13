@@ -15,29 +15,32 @@
 # ================================================================================================
 
 
-
-from itertools import combinations
 import unittest
+from itertools import combinations
+
 from minorminer.utils.zephyr.plane_shift import PlaneShift
-
-
 
 
 class TestPlaneShift(unittest.TestCase):
     def setUp(self) -> None:
         shifts = [
-            (0, 2), (-3, -1), (-2, 0), (1, 1),
-            (1, -3), (-4, 6), (10, 4), (0, 0),
-            ]
+            (0, 2),
+            (-3, -1),
+            (-2, 0),
+            (1, 1),
+            (1, -3),
+            (-4, 6),
+            (10, 4),
+            (0, 0),
+        ]
         self.shifts = shifts
-    
 
     def test_valid_input_runs(self) -> None:
         for shift in self.shifts:
             PlaneShift(*shift)
 
     def test_invalid_input_gives_error(self) -> None:
-        invalid_input_types = [5, "NE", (0, 2, None), (2, 0.5), (-4, 6.)]
+        invalid_input_types = [5, "NE", (0, 2, None), (2, 0.5), (-4, 6.0)]
         with self.assertRaises(TypeError):
             for invalid_type_ in invalid_input_types:
                 PlaneShift(*invalid_type_)
@@ -51,25 +54,22 @@ class TestPlaneShift(unittest.TestCase):
         for shift in self.shifts:
             for scale in [0, 1, 2, 5, 10, -3]:
                 self.assertEqual(
-                    PlaneShift(shift[0]*scale, shift[1]*scale),
-                    PlaneShift(*shift)*scale
-                    )
+                    PlaneShift(shift[0] * scale, shift[1] * scale), PlaneShift(*shift) * scale
+                )
                 self.assertEqual(
-                    PlaneShift(shift[0]*scale, shift[1]*scale),
-                    scale*PlaneShift(*shift)
-                    )
+                    PlaneShift(shift[0] * scale, shift[1] * scale), scale * PlaneShift(*shift)
+                )
 
     def test_add(self) -> None:
         for s0, s1 in combinations(self.shifts, 2):
             self.assertEqual(
-                PlaneShift(*s0)+PlaneShift(*s1),
-                PlaneShift(s0[0]+s1[0], s0[1]+s1[1])
-                )
+                PlaneShift(*s0) + PlaneShift(*s1), PlaneShift(s0[0] + s1[0], s0[1] + s1[1])
+            )
 
     def test_mul(self) -> None:
-        self.assertEqual(1.5* PlaneShift(0, -4), PlaneShift(0, -6))
+        self.assertEqual(1.5 * PlaneShift(0, -4), PlaneShift(0, -6))
         with self.assertRaises(ValueError):
-            0.5*PlaneShift(0, -6)
-            PlaneShift(0, -4)*0.75
+            0.5 * PlaneShift(0, -6)
+            PlaneShift(0, -4) * 0.75
         with self.assertRaises(TypeError):
-            "hello"*PlaneShift(0, -4)
+            "hello" * PlaneShift(0, -4)
