@@ -15,17 +15,16 @@
 # ================================================================================================
 
 
-
 from __future__ import annotations
-from typing import Iterator
+
 from collections import namedtuple
+from typing import Iterator
 
 Shift = namedtuple("Shift", ["x", "y"])
 
 
-
 class PlaneShift:
-    """ Initializes PlaneShift with an x_shift, y_shift.
+    """Initializes PlaneShift with an x_shift, y_shift.
 
     Args:
         x_shift (int): The displacement in the x-direction of a CartesianCoord.
@@ -41,18 +40,19 @@ class PlaneShift:
     >>> ps2 = PlaneShift(2, -4)
     >>> print(f"{ps1 + ps2  = }, {2*ps1 = }")
     """
+
     def __init__(
         self,
         x_shift: int,
         y_shift: int,
-        ) -> None:
+    ) -> None:
         for shift in [x_shift, y_shift]:
             if not isinstance(shift, int):
                 raise TypeError(f"Expected {shift} to be 'int', got {type(shift)}")
-        if x_shift%2 != y_shift%2:
+        if x_shift % 2 != y_shift % 2:
             raise ValueError(
                 f"Expected x_shift, y_shift to have the same parity, got {x_shift, y_shift}"
-                )
+            )
         self._shift = Shift(x_shift, y_shift)
 
     @property
@@ -80,8 +80,8 @@ class PlaneShift:
         """
         if not isinstance(scale, (int, float)):
             raise TypeError(f"Expected scale to be int or float, got {type(scale)}")
-        new_shift_x = scale*self._shift.x
-        new_shift_y = scale*self._shift.y
+        new_shift_x = scale * self._shift.x
+        new_shift_y = scale * self._shift.y
         if int(new_shift_x) != new_shift_x or int(new_shift_y) != new_shift_y:
             raise ValueError(f"{scale} cannot be multiplied by {self}")
         return PlaneShift(int(new_shift_x), int(new_shift_y))
@@ -115,7 +115,7 @@ class PlaneShift:
         """
         if not isinstance(other, PlaneShift):
             raise TypeError(f"Expected other to be PlaneShift, got {type(other)}")
-        return PlaneShift(self._shift.x+other._shift.x, self._shift.y+other._shift.y)
+        return PlaneShift(self._shift.x + other._shift.x, self._shift.y + other._shift.y)
 
     def __iter__(self) -> Iterator[int]:
         return self._shift.__iter__()

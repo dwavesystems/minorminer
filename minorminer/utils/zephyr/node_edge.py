@@ -15,16 +15,18 @@
 # ================================================================================================
 
 
-
-
 from __future__ import annotations
-from typing import Generator, Iterable, Callable
-from itertools import product
+
 from collections import namedtuple
-from minorminer.utils.zephyr.coordinate_systems import ZephyrCoord, CartesianCoord, zephyr_to_cartesian, cartesian_to_zephyr
+from itertools import product
+from typing import Callable, Generator, Iterable
+
+from minorminer.utils.zephyr.coordinate_systems import (CartesianCoord, ZephyrCoord,
+                                                        cartesian_to_zephyr, zephyr_to_cartesian)
 from minorminer.utils.zephyr.plane_shift import PlaneShift
 
 ZShape = namedtuple("ZShape", ["m", "t"], defaults=(None, None))
+
 
 class Edge:
     """Initializes an Edge with 'int' nodes x, y.
@@ -36,16 +38,15 @@ class Edge:
     Raises:
         TypeError: If either of x or y is not 'int'.
     """
+
     def __init__(
         self,
         x: int,
         y: int,
-        ) -> None:
+    ) -> None:
 
         if not all(isinstance(var, int) for var in (x, y)):
-            raise TypeError(
-                f"Expected x, y to be 'int', got {type(x), type(y)}"
-                )
+            raise TypeError(f"Expected x, y to be 'int', got {type(x), type(y)}")
         if x < y:
             self._edge = (x, y)
         else:
@@ -67,7 +68,6 @@ class Edge:
         return f"{type(self).__name__}{self._edge}"
 
 
-
 class ZEdge(Edge):
     """Initializes a ZEdge with 'ZNode' nodes x, y
 
@@ -80,7 +80,7 @@ class ZEdge(Edge):
         ValueError: If x, y do not have the same shape.
         ValueError: If x, y are not neighbours in a perfect yield (quotient)
         Zephyr graph.
-    
+
     Example 1:
     >>> from minorminer.utils.zephyr.node_edge import ZNode, ZEdge
     >>> e = ZEdge(ZNode((3, 2)), ZNode((7, 2)))
@@ -90,19 +90,16 @@ class ZEdge(Edge):
     >>> from minorminer.utils.zephyr.node_edge import ZNode, ZEdge
     >>> ZEdge(ZNode((2, 3)), ZNode((6, 3))) # raises error, since the two are not neighbors
     """
+
     def __init__(
         self,
         x: ZNode,
         y: ZNode,
-        ) -> None:
+    ) -> None:
         if not isinstance(x, ZNode) or not isinstance(y, ZNode):
-            raise TypeError(
-                f"Expected x, y to be ZNode, got {type(x), type(y)}"
-                )
+            raise TypeError(f"Expected x, y to be ZNode, got {type(x), type(y)}")
         if x.shape != y.shape:
-            raise ValueError(
-                f"Expected x, y to have the same shape, got {x.shape, y.shape}"
-                )
+            raise ValueError(f"Expected x, y to have the same shape, got {x.shape, y.shape}")
         self._kind = None
         for kind in ("internal", "external", "odd"):
             if x.is_neighbor(y, nbr_kind=kind):
@@ -116,8 +113,6 @@ class ZEdge(Edge):
             self._edge = (y, x)
 
 
-
-
 class ZNode:
     """Initializes 'ZNode' with coord and optional shape.
 
@@ -128,11 +123,11 @@ class ZNode:
         Defaults to None.
         convert_to_z (bool | None, optional): Whether to express the coordinates in ZephyrCoordinates.
         Defaults to None.
-    
+
     Note: If the given coord has non-None k value (in either Cartesian or Zephyr coordinates),
         shape = None raises ValueError. In this case the tile size of Zephyr, t,
         must be provided.
-    
+
     Example:
     >>> from minorminer.utils.zephyr.node_edge import ZNode, ZShape
     >>> zn1 = ZNode((5, 2), ZShape(m=5))
@@ -151,12 +146,13 @@ class ZNode:
     [ZNode(CartesianCoord(x=3, y=2, k=None), shape=ZShape(m=5, t=None)),
         ZNode(CartesianCoord(x=7, y=2, k=None), shape=ZShape(m=5, t=None))]
     """
+
     def __init__(
         self,
         coord: CartesianCoord | ZephyrCoord | tuple[int],
-        shape: ZShape | tuple[int | None] | None=None,
-        convert_to_z: bool | None=None,
-        ) -> None:
+        shape: ZShape | tuple[int | None] | None = None,
+        convert_to_z: bool | None = None,
+    ) -> None:
         self.shape = shape
 
         if convert_to_z is None:
@@ -189,17 +185,15 @@ class ZNode:
         if not isinstance(new_shape, ZShape):
             raise TypeError(
                 f"Expected shape to be tuple[int | None] or ZShape or None, got {type(new_shape)}"
-                )
+            )
         if hasattr(self, "_ccoord"):
             if (self._ccoord.k is None) != (new_shape.t is None):
                 raise ValueError(
                     f"ccoord, shape must be both quotient or non-quotient, got {self._ccoord, new_shape}"
-                    )
+                )
         for var, val in {"m": new_shape.m, "t": new_shape.t}.items():
             if (val is not None) and (not isinstance(val, int)):
-                raise TypeError(
-                    f"Expected {var} to be None or 'int', got {type(val)}"
-                    )
+                raise TypeError(f"Expected {var} to be None or 'int', got {type(val)}")
         self._shape = new_shape
 
     @property
@@ -215,16 +209,12 @@ class ZNode:
         if not isinstance(new_ccoord, CartesianCoord):
             raise TypeError(
                 f"Expected ccoord to be CartesianCoord or tuple[int], got {type(new_ccoord)}"
-                )
+            )
         for c in (new_ccoord.x, new_ccoord.y):
             if not isinstance(c, int):
-                raise TypeError(
-                    f"Expected ccoord.x and ccoord.y to be 'int', got {type(c)}"
-                    )
+                raise TypeError(f"Expected ccoord.x and ccoord.y to be 'int', got {type(c)}")
             if c < 0:
-                raise ValueError(
-                    f"Expected ccoord.x and ccoord.y to be non-negative, got {c}"
-                )
+                raise ValueError(f"Expected ccoord.x and ccoord.y to be non-negative, got {c}")
         if new_ccoord.x % 2 == new_ccoord.y % 2:
             raise ValueError(
                 f"Expected ccoord.x and ccoord.y to differ in parity, got {new_ccoord.x, new_ccoord.y}"
@@ -234,52 +224,45 @@ class ZNode:
             if (self._shape.t is None) != (new_ccoord.k is None):
                 raise ValueError(
                     f"shape and ccoord must be both quotient or non-quotient, got {self._shape}, {new_ccoord}"
-                    )
+                )
             if (self._shape.t is not None) and (new_ccoord.k not in range(self._shape.t)):
-                raise ValueError(
-                    f"Expected k to be in {range(self._shape.t)}, got {new_ccoord.k}"
-                    )
+                raise ValueError(f"Expected k to be in {range(self._shape.t)}, got {new_ccoord.k}")
 
             # check x, y value of CartesianCoord is consistent with m
             if self._shape.m is not None:
-                if (all(val in range(4*self._shape.m+1) for val in (new_ccoord.x, new_ccoord.y))):
+                if all(val in range(4 * self._shape.m + 1) for val in (new_ccoord.x, new_ccoord.y)):
                     self._ccoord = new_ccoord
                 else:
                     raise ValueError(
                         f"Expected ccoord.x and ccoord.y to be in {range(4*self._shape.m+1)}, got {new_ccoord.x, new_ccoord.y}"
-                        )
+                    )
         self._ccoord = new_ccoord
 
     @staticmethod
     def get_coord(coord: tuple[int]) -> CartesianCoord | ZephyrCoord:
         """Takes a tuple[int] and returns the corresponding CartesianCoord
         or ZephyrCoord"""
-        if (not isinstance(coord, tuple)) or (
-            not all(isinstance(c, int) for c in coord)):
-            raise TypeError(
-                f"Expected {coord} to be a tuple[int], got {coord}"
-                )
+        if (not isinstance(coord, tuple)) or (not all(isinstance(c, int) for c in coord)):
+            raise TypeError(f"Expected {coord} to be a tuple[int], got {coord}")
         if any(c < 0 for c in coord):
             raise ValueError(f"Expected elements of coord to be non-negative, got {coord}")
         len_coord = len(coord)
         if len_coord in (2, 3):
             x, y, *k = coord
             if x % 2 == y % 2:
-                raise ValueError(
-                    f"Expected x, y to differ in parity, got {x, y}"
-                )
+                raise ValueError(f"Expected x, y to differ in parity, got {x, y}")
             return CartesianCoord(x=x, y=y) if len(k) == 0 else CartesianCoord(x=x, y=y, k=k[0])
         if len_coord in (4, 5):
             u, w, *k, j, z = coord
             for var, val in {"u": u, "j": j}.items():
                 if not val in [0, 1]:
-                    raise ValueError(
-                        f"Expected {var} to be in [0, 1], got {val}"
-                        )
-            return ZephyrCoord(u=u, w=w, j=j, z=z) if len(k) == 0 else ZephyrCoord(u=u, w=w, k=k[0], j=j, z=z)
-        raise ValueError(
-            f"coord can have length 2, 3, 4 or 5, got {len_coord}"
+                    raise ValueError(f"Expected {var} to be in [0, 1], got {val}")
+            return (
+                ZephyrCoord(u=u, w=w, j=j, z=z)
+                if len(k) == 0
+                else ZephyrCoord(u=u, w=w, k=k[0], j=j, z=z)
             )
+        raise ValueError(f"coord can have length 2, 3, 4 or 5, got {len_coord}")
 
     @property
     def zcoord(self) -> ZephyrCoord:
@@ -294,11 +277,7 @@ class ZNode:
         """Returns the quotient ZNode corresponding to self"""
         qshape = ZShape(m=self._shape.m)
         qccoord = CartesianCoord(x=self._ccoord, y=self._ccoord)
-        return ZNode(
-            coord=qccoord,
-            shape=qshape,
-            convert_to_z=self.convert_to_z
-            )
+        return ZNode(coord=qccoord, shape=qshape, convert_to_z=self.convert_to_z)
 
     @property
     def direction(self) -> int:
@@ -320,7 +299,7 @@ class ZNode:
     def neighbor_kind(
         self,
         other: ZNode,
-        ) -> str | None:
+    ) -> str | None:
         """Returns the kind of coupler between self and other,
         'internal', 'external', 'odd', or None."""
         if not isinstance(other, ZNode):
@@ -331,33 +310,33 @@ class ZNode:
         coord2 = other._ccoord
         x1, y1 = coord1.x, coord1.y
         x2, y2 = coord2.x, coord2.y
-        if abs(x1-x2) == abs(y1-y2) == 1:
+        if abs(x1 - x2) == abs(y1 - y2) == 1:
             return "internal"
-        if x1 % 2 != x2 % 2: 
+        if x1 % 2 != x2 % 2:
             return
-        if coord1.k != coord2.k: # odd, external neighbors only on the same k
+        if coord1.k != coord2.k:  # odd, external neighbors only on the same k
             return
-        if self.is_vertical(): # self vertical
-            if x1 != x2: # odd, external neighbors only on the same vertical lines
+        if self.is_vertical():  # self vertical
+            if x1 != x2:  # odd, external neighbors only on the same vertical lines
                 return
-            diff_y = abs(y1-y2)
+            diff_y = abs(y1 - y2)
             return "odd" if diff_y == 2 else "external" if diff_y == 4 else None
         else:
             if y1 != y2:  # odd, external neighbors only on the same horizontal lines
                 return
-            diff_x = abs(x1-x2)
+            diff_x = abs(x1 - x2)
             return "odd" if diff_x == 2 else "external" if diff_x == 4 else None
 
     def internal_neighbors_generator(
         self,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> Generator[ZNode]:
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> Generator[ZNode]:
         """Generator of internal neighbors"""
         x, y, _ = self._ccoord
         convert = self.convert_to_z
         k_vals = [None] if self._shape.t is None else range(self._shape.t)
         for i, j, k in product((-1, 1), (-1, 1), k_vals):
-            ccoord = CartesianCoord(x=x+i, y=y+j, k=k)
+            ccoord = CartesianCoord(x=x + i, y=y + j, k=k)
             coord = ccoord if not convert else cartesian_to_zephyr(ccoord)
             if not where(coord):
                 continue
@@ -366,7 +345,7 @@ class ZNode:
                     coord=ccoord,
                     shape=self._shape,
                     convert_to_z=convert,
-                    )
+                )
             except GeneratorExit:
                 raise
             except Exception:
@@ -374,12 +353,12 @@ class ZNode:
 
     def external_neighbors_generator(
         self,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> Generator[ZNode]:
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> Generator[ZNode]:
         """Generator of external neighbors"""
         x, y, k = self._ccoord
         convert = self.convert_to_z
-        changing_index = 1 if x%2 == 0 else 0
+        changing_index = 1 if x % 2 == 0 else 0
         for s in [-4, 4]:
             new_x = x + s if changing_index == 0 else x
             new_y = y + s if changing_index == 1 else y
@@ -392,7 +371,7 @@ class ZNode:
                     coord=ccoord,
                     shape=self._shape,
                     convert_to_z=convert,
-                    )
+                )
             except GeneratorExit:
                 raise
             except Exception:
@@ -400,12 +379,12 @@ class ZNode:
 
     def odd_neighbors_generator(
         self,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> Generator[ZNode]:
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> Generator[ZNode]:
         """Generator of odd neighbors"""
         x, y, k = self._ccoord
         convert = self.convert_to_z
-        changing_index = 1 if x%2 == 0 else 0
+        changing_index = 1 if x % 2 == 0 else 0
         for s in [-2, 2]:
             new_x = x + s if changing_index == 0 else x
             new_y = y + s if changing_index == 1 else y
@@ -418,7 +397,7 @@ class ZNode:
                     coord=ccoord,
                     shape=self._shape,
                     convert_to_z=convert,
-                    )
+                )
             except GeneratorExit:
                 raise
             except Exception:
@@ -426,9 +405,9 @@ class ZNode:
 
     def neighbors_generator(
         self,
-        nbr_kind: str | Iterable[str] | None=None,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> Generator[ZNode]:
+        nbr_kind: str | Iterable[str] | None = None,
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> Generator[ZNode]:
         if nbr_kind is None:
             kinds = {"internal", "external", "odd"}
         else:
@@ -437,9 +416,7 @@ class ZNode:
             elif isinstance(nbr_kind, Iterable):
                 kinds = set(nbr_kind)
             else:
-                raise TypeError(
-                    f"Expected 'str' or Iterable[str] or None for nbr_kind"
-                    )
+                raise TypeError(f"Expected 'str' or Iterable[str] or None for nbr_kind")
             kinds = kinds.intersection({"internal", "external", "odd"})
         if "internal" in kinds:
             for cc in self.internal_neighbors_generator(where=where):
@@ -451,86 +428,83 @@ class ZNode:
             for cc in self.odd_neighbors_generator(where=where):
                 yield cc
 
-    def neighbors(self,
-        nbr_kind: str | Iterable[str] | None=None,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> set[ZNode]:
+    def neighbors(
+        self,
+        nbr_kind: str | Iterable[str] | None = None,
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> set[ZNode]:
         """Returns neighbors when restricted to nbr_kind and where"""
         return set(self.neighbors_generator(nbr_kind=nbr_kind, where=where))
 
     def internal_neighbors(
         self,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> set[ZNode]:
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> set[ZNode]:
         """Returns internal neighbors when restricted to where"""
         return set(self.neighbors_generator(nbr_kind="internal", where=where))
 
     def external_neighbors(
         self,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> set[ZNode]:
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> set[ZNode]:
         """Returns external neighbors when restricted to where"""
         return set(self.neighbors_generator(nbr_kind="external", where=where))
 
     def odd_neighbors(
         self,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> set[ZNode]:
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> set[ZNode]:
         """Returns odd neighbors when restricted to where"""
         return set(self.neighbors_generator(nbr_kind="odd", where=where))
 
     def is_internal_neighbor(
-        self, other: ZNode,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> bool:
+        self,
+        other: ZNode,
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> bool:
         """Tells if another ZNode is an internal neighbor when restricted to where"""
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be ZNode, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be ZNode, got {type(other)}")
         for nbr in self.internal_neighbors_generator(where=where):
             if other == nbr:
                 return True
         return False
 
     def is_external_neighbor(
-        self, other: ZNode,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> bool:
+        self,
+        other: ZNode,
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> bool:
         """Tells if another ZNode is an external neighbor when restricted to where"""
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be ZNode, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be ZNode, got {type(other)}")
         for nbr in self.external_neighbors_generator(where=where):
             if other == nbr:
                 return True
         return False
 
     def is_odd_neighbor(
-        self, other: ZNode,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> bool:
+        self,
+        other: ZNode,
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> bool:
         """Tells if another ZNode is an odd neighbor when restricted to where"""
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be ZNode, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be ZNode, got {type(other)}")
         for nbr in self.odd_neighbors_generator(where=where):
             if other == nbr:
                 return True
         return False
 
     def is_neighbor(
-        self, other: ZNode,
-        nbr_kind: str | Iterable[str] | None=None,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> bool:
+        self,
+        other: ZNode,
+        nbr_kind: str | Iterable[str] | None = None,
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> bool:
         """Tells if another ZNode is a neighbor when restricted to nbr_kind and where"""
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be ZNode, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be ZNode, got {type(other)}")
         for nbr in self.neighbors_generator(nbr_kind=nbr_kind, where=where):
             if other == nbr:
                 return True
@@ -538,121 +512,102 @@ class ZNode:
 
     def incident_edges(
         self,
-        nbr_kind: str | Iterable[str] | None=None,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> list[ZEdge]:
+        nbr_kind: str | Iterable[str] | None = None,
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> list[ZEdge]:
         """Returns incident edges when restricted to nbr_kind and where"""
-        return [
-            ZEdge(self, v)
-            for v in self.neighbors(nbr_kind=nbr_kind, where=where)
-            ]
+        return [ZEdge(self, v) for v in self.neighbors(nbr_kind=nbr_kind, where=where)]
 
     def degree(
         self,
-        nbr_kind: str | Iterable[str] | None=None,
-        where: Callable[[CartesianCoord | ZephyrCoord], bool]=lambda coord: True,
-        ) -> int:
+        nbr_kind: str | Iterable[str] | None = None,
+        where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
+    ) -> int:
         """Returns degree when restricted to nbr_kind and where"""
         return len(self.neighbors(nbr_kind=nbr_kind, where=where))
 
     def __eq__(self, other: ZNode) -> bool:
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be {type(self).__name__}, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be {type(self).__name__}, got {type(other)}")
         if self._shape != other._shape:
             raise ValueError(
                 f"Expected {self, other} to have the same shape, got {self._shape, other._shape}"
-                )
+            )
         return self._ccoord == other._ccoord
 
     def __ne__(self, other: ZNode) -> bool:
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be {type(self).__name__}, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be {type(self).__name__}, got {type(other)}")
         if self._shape != other._shape:
             raise ValueError(
                 f"Expected {self, other} to have the same shape, got {self._shape, other._shape}"
-                )
+            )
         return self._ccoord != other._ccoord
 
     def __gt__(self, other: ZNode) -> bool:
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be {type(self).__name__}, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be {type(self).__name__}, got {type(other)}")
         if self._shape != other._shape:
             raise ValueError(
                 f"Expected {self, other} to have the same shape, got {self._shape, other._shape}"
-                )
+            )
         return self._ccoord > other._ccoord
 
     def __ge__(self, other: ZNode) -> bool:
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be {type(self).__name__}, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be {type(self).__name__}, got {type(other)}")
         if self._shape != other._shape:
             raise ValueError(
                 f"Expected {self, other} to have the same shape, got {self._shape, other._shape}"
-                )
+            )
         return self._ccoord >= other._ccoord
 
     def __lt__(self, other: ZNode) -> bool:
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be {type(self).__name__}, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be {type(self).__name__}, got {type(other)}")
         if self._shape != other._shape:
             raise ValueError(
                 f"Expected {self, other} to have the same shape, got {self._shape, other._shape}"
-                )
+            )
         return self._ccoord < other._ccoord
 
     def __le__(self, other: ZNode) -> bool:
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be {type(self).__name__}, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be {type(self).__name__}, got {type(other)}")
         if self._shape != other._shape:
             raise ValueError(
                 f"Expected {self, other} to have the same shape, got {self._shape, other._shape}"
-                )
+            )
         return self._ccoord <= other._ccoord
 
     def __add__(
         self,
         shift: PlaneShift | tuple[int],
-        ) -> ZNode:
+    ) -> ZNode:
         if not isinstance(shift, PlaneShift):
             shift = PlaneShift(*shift)
         x, y, k = self._ccoord
         new_x = x + shift[0]
         new_y = y + shift[1]
-        
+
         return ZNode(coord=CartesianCoord(x=new_x, y=new_y, k=k), shape=self._shape)
 
     def __sub__(
         self,
         other: ZNode,
-        ) -> PlaneShift:
+    ) -> PlaneShift:
         if not isinstance(other, ZNode):
-            raise TypeError(
-                f"Expected {other} to be {type(self).__name__}, got {type(other)}"
-                )
+            raise TypeError(f"Expected {other} to be {type(self).__name__}, got {type(other)}")
         if self._shape != other._shape:
             raise ValueError(
                 f"Expected {self, other} to have the same shape, got {self._shape, other._shape}"
-                )
+            )
         x_shift: int = self._ccoord.x - other._ccoord.x
         y_shift: int = self._ccoord.y - other._ccoord.y
         try:
             return PlaneShift(x_shift=x_shift, y_shift=y_shift)
         except:
-            raise ValueError(
-                f"{other} cannot be subtracted from {self}"
-                )
+            raise ValueError(f"{other} cannot be subtracted from {self}")
 
     def __hash__(self) -> int:
         return (self._ccoord, self._shape).__hash__()
@@ -668,4 +623,4 @@ class ZNode:
             shape_str = ""
         else:
             shape_str = f", shape={self._shape.m, self._shape.t!r}"
-        return f"{type(self).__name__}("+coord_str+shape_str+")"
+        return f"{type(self).__name__}(" + coord_str + shape_str + ")"

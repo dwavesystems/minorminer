@@ -15,17 +15,16 @@
 # ================================================================================================
 
 
-
 from __future__ import annotations
+
 from collections import namedtuple
 
-
-
-zephyr_fields =  ["u", "w", "k", "j", "z"]
-ZephyrCoord = namedtuple("ZephyrCoord", zephyr_fields, defaults=(None,)*len(zephyr_fields))
+zephyr_fields = ["u", "w", "k", "j", "z"]
+ZephyrCoord = namedtuple("ZephyrCoord", zephyr_fields, defaults=(None,) * len(zephyr_fields))
 cartesian_fields = ["x", "y", "k"]
-CartesianCoord = namedtuple("CartesianCoord", cartesian_fields, defaults=(None,)*len(cartesian_fields))
-
+CartesianCoord = namedtuple(
+    "CartesianCoord", cartesian_fields, defaults=(None,) * len(cartesian_fields)
+)
 
 
 def cartesian_to_zephyr(ccoord: CartesianCoord) -> ZephyrCoord:
@@ -41,13 +40,13 @@ def cartesian_to_zephyr(ccoord: CartesianCoord) -> ZephyrCoord:
     x, y, k = ccoord
     if x % 2 == 0:
         u: int = 0
-        w: int = x //2
-        j: int = ((y-1)%4) // 2
+        w: int = x // 2
+        j: int = ((y - 1) % 4) // 2
         z: int = y // 4
     else:
         u: int = 1
         w: int = y // 2
-        j: int = ((x-1)%4) // 2
+        j: int = ((x - 1) % 4) // 2
         z: int = x // 4
     return ZephyrCoord(u=u, w=w, k=k, j=j, z=z)
 
@@ -64,9 +63,9 @@ def zephyr_to_cartesian(zcoord: ZephyrCoord) -> CartesianCoord:
     """
     u, w, k, j, z = zcoord
     if u == 0:
-        x = 2*w
-        y = 4*z + 2*j + 1
+        x = 2 * w
+        y = 4 * z + 2 * j + 1
     else:
-        x = 4*z + 2*j + 1
+        x = 4 * z + 2 * j + 1
         y = 2 * w
     return CartesianCoord(x=x, y=y, k=k)

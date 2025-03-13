@@ -14,12 +14,11 @@
 #
 # ================================================================================================
 
-from dwave_networkx.generators.zephyr import zephyr_graph
 import networkx as nx
-
+from dwave_networkx.generators.zephyr import zephyr_graph
 from minorminer.busclique import busgraph_cache
 
-__all__ = ['find_clique_embedding', 'find_biclique_embedding']
+__all__ = ["find_clique_embedding", "find_biclique_embedding"]
 
 
 def _get_target_graph(m=None, target_graph=None):
@@ -130,5 +129,7 @@ def find_biclique_embedding(a, b, m=None, target_graph=None):
     if not embedding:
         raise ValueError("No biclique embedding found")
 
-    return ({x: embedding[anodes.index(x)] for x in anodes},
-            {y: embedding[bnodes.index(y) + len(anodes)] for y in bnodes})
+    return (
+        {x: embedding[anodes.index(x)] for x in anodes},
+        {y: embedding[bnodes.index(y) + len(anodes)] for y in bnodes},
+    )
