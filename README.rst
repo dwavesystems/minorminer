@@ -35,10 +35,10 @@ block in research.
 
 [1] https://arxiv.org/abs/1406.2741
 
-Another function, ``find_clique_embedding()``, can be used to find clique embeddings
-for Chimera, Pegasus, and Zephyr graphs in polynomial time. It is an implementation
-of the algorithm described in [2]. There are additional utilities for finding
-biclique embeddings as well.
+Another function, ``find_clique_embedding()``, can be used to find clique
+embeddings for Chimera, Pegasus, and Zephyr graphs in polynomial time. It is an
+implementation of the algorithm described in [2]. There are additional utilities
+for finding biclique embeddings as well.
 
 [2] https://arxiv.org/abs/1507.04774
 
@@ -201,7 +201,7 @@ Contributing
 
 .. todo:: update links
 
-Ocean's `contributing guide <https://docs.ocean.dwavesys.com/en/stable/contributing.html>`_
+Ocean's `contributing guide <https://docs.dwavequantum.com/en/latest/ocean/contribute.html>`_
 has guidelines for contributing to Ocean packages.
 
 If you're interested in adding or modifying parameters of the ``find_embedding``
