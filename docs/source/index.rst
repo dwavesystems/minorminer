@@ -8,7 +8,7 @@ minorminer
     :caption: Reference documentation for minorminer:
     :maxdepth: 1
 
-    reference/api_ref
+    api_ref
 
 About minorminer
 ================

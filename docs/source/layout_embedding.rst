@@ -1,15 +1,16 @@
-.. _layout_embedding:
+.. _minorminer_layout_embedding:
 
 ================
 Layout Embedding
 ================
 
-:meth:`minorminer.layout.find_embedding()` offers a more specialized approach to
-find an embedding through the use of the :class:`~minorminer.layout.layout.Layout` 
-and :class:`~minorminer.layout.placement.Placement` classes. This kind of 
-embedding may be useful when the underlying data of your source graph is `spatial
-<https://en.wikipedia.org/wiki/Spatial_network>`_. It can also be useful for 
-embedding graphs with nodes of a low degree (i.e., a cubic graph).
+the :meth:`minorminer.layout.find_embedding()` method offers a more specialized
+approach to find an embedding through the use of the
+:class:`~minorminer.layout.layout.Layout` and
+:class:`~minorminer.layout.placement.Placement` classes. This kind of embedding
+may be useful when the underlying data of your source graph is
+`spatial <https://en.wikipedia.org/wiki/Spatial_network>`_. It can also be
+useful for embedding graphs with nodes of a low degree (i.e., a cubic graph).
 
 .. autofunction:: minorminer.layout.find_embedding
 
@@ -36,15 +37,16 @@ This example minor embeds a 3x3 grid graph onto a Chimera graph.
     # One run returned the following embedding:
     {(0, 0): [13], (1, 0): [0, 8], (0, 1): [9], (1, 1): [12], (0, 2): [14], (1, 2): [10], (2, 0): [7], (2, 1): [11, 3], (2, 2): [15]}
 
-.. figure:: ../_images/grid_chimera.png
+.. figure:: _images/grid_chimera.png
     :name: 2DGrid_Chimera
     :width: 800
     :alt: Source 2-dimensional 3x3 grid graph and a target Chimera graph
 
-.. figure:: ../_images/Layout_Embedding.png
+.. figure:: _images/Layout_Embedding.png
     :name: Layout_Embedding_2DGrid_Chimera
     :width: 800
-    :alt: Embedding a source 2-dimensional 3x3 grid graph onto a target Chimera graph
+    :alt: Embedding a source 2-dimensional 3x3 grid graph onto a target Chimera
+        graph
 
 ....
 
