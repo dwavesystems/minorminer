@@ -277,10 +277,11 @@ def find_embedding(S, T, **params):
 
             We accomplish this through the following problem transformation
             for each iterable `blob_j` in ``suspend_chains[i]``,
-                * Add an auxiliary node `Zij` to both source and target graphs
-                * Set `fixed_chains[Zij]` = `[Zij]`
-                * Add the edge `(i,Zij)` to the source graph
-                * Add the edges `(q,Zij)` to the target graph for each `q` in `blob_j`
+
+            *   Add an auxiliary node `Zij` to both source and target graphs
+            *   Set `fixed_chains[Zij]` = `[Zij]`
+            *   Add the edge `(i,Zij)` to the source graph
+            *   Add the edges `(q,Zij)` to the target graph for each `q` in `blob_j`
     """
     cdef _input_parser _in
     try:
