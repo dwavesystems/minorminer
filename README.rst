@@ -199,8 +199,6 @@ Released under the Apache License 2.0. See `<LICENSE>`_ file.
 Contributing
 ============
 
-.. todo:: update links
-
 Ocean's `contributing guide <https://docs.dwavequantum.com/en/latest/ocean/contribute.html>`_
 has guidelines for contributing to Ocean packages.
 
