@@ -1,4 +1,4 @@
-.. _general_embedding:
+.. _minorminer_general_embedding:
 
 =================
 General Embedding
@@ -6,9 +6,9 @@ General Embedding
 
 General embedding refers to embedding that may be useful for any type of graph.
 
-.. include:: ../README.rst
-  :start-after: general-embedding-start-marker
-  :end-before: general-embedding-end-marker
+.. include:: README.rst
+    :start-after: start_minorminer_about_general_embedding
+    :end-before: end_minorminer_about
 
 .. autofunction:: minorminer.find_embedding
 
@@ -17,7 +17,8 @@ General embedding refers to embedding that may be useful for any type of graph.
 Examples
 ========
 
-This example minor embeds a triangular source K3 graph onto a square target graph.
+This example minor embeds a triangular source K3 graph onto a square target
+graph.
 
 .. code-block:: python
 
@@ -36,13 +37,13 @@ This example minor embeds a triangular source K3 graph onto a square target grap
     # [[0, 1], [2], [3]]
     # [[3], [1, 0], [2]]
 
-.. figure:: ../_images/Embedding_TriangularSquare.png
+.. figure:: _images/Embedding_TriangularSquare.png
     :name: Embedding_TriangularSquare
     :scale: 60 %
     :alt: Embedding a triangular source graph into a square target graph
 
-    Embedding a :math:`K_3` source graph into a square target graph by chaining two
-    target nodes to represent one source node.
+    Embedding a :math:`K_3` source graph into a square target graph by chaining
+    two target nodes to represent one source node.
 
 ....
 
@@ -95,13 +96,14 @@ regular graph of degree 3.
     4: [11, 24, 13],
     5: [2, 14, 26, 5, 3]}
 
-.. figure:: ../_images/Embedding_K6Random3.png
+.. figure:: _images/Embedding_K6Random3.png
     :name: Embedding_K6Random3
     :scale: 80 %
     :alt: Embedding a K6 graph into a 30-node random graph
 
-    Embedding a :math:`K_6` source graph (upper left) into a 30-node random target graph of
-    degree 3 (upper right) by chaining several target nodes to represent one source node (bottom).
-    The graphic of the embedding clusters chains representing nodes in the source graph: the
-    cluster of red nodes is a chain of target nodes that represent source node 0, the orange
-    nodes represent source node 1, and so on.
+    Embedding a :math:`K_6` source graph (upper left) into a 30-node random
+    target graph of degree 3 (upper right) by chaining several target nodes to
+    represent one source node (bottom). The graphic of the embedding clusters
+    chains representing nodes in the source graph: the cluster of red nodes is a
+    chain of target nodes that represent source node 0, the orange nodes
+    represent source node 1, and so on.
