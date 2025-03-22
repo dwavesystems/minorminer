@@ -69,6 +69,7 @@ class ZSurvey:
             ZEdge(
                 ZNode(coord=ZephyrCoord(*self._input_coord_to_coord(u)), shape=self.shape),
                 ZNode(coord=ZephyrCoord(*self._input_coord_to_coord(v)), shape=self.shape),
+                check_edge_valid=False,
             )
             for (u, v) in G_edges
         }
