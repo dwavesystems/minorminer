@@ -21,36 +21,37 @@ from collections import namedtuple
 from itertools import product
 from typing import Callable, Generator, Iterable
 
-from minorminer.utils.zephyr.coordinate_systems import (CartesianCoord, ZephyrCoord,
-                                                        cartesian_to_zephyr, zephyr_to_cartesian)
+from minorminer.utils.zephyr.coordinate_systems import (
+    CartesianCoord,
+    ZephyrCoord,
+    cartesian_to_zephyr,
+    zephyr_to_cartesian,
+)
 from minorminer.utils.zephyr.plane_shift import PlaneShift
 
 ZShape = namedtuple("ZShape", ["m", "t"], defaults=(None, None))
 
 
 class Edge:
-    """Initializes an Edge with 'int' nodes x, y.
+    """Initializes an Edge with nodes x, y.
 
     Args:
-        x (int): One endpoint of edge.
-        y (int): Another endpoint of edge.
-
-    Raises:
-        TypeError: If either of x or y is not 'int'.
+        x : One endpoint of edge.
+        y : Another endpoint of edge.
     """
 
     def __init__(
         self,
-        x: int,
-        y: int,
+        x,
+        y,
     ) -> None:
+        self._edge = self._set_edge(x, y)
 
-        if not all(isinstance(var, int) for var in (x, y)):
-            raise TypeError(f"Expected x, y to be 'int', got {type(x), type(y)}")
+    def _set_edge(self, x, y):
         if x < y:
-            self._edge = (x, y)
+            return (x, y)
         else:
-            self._edge = (y, x)
+            return (y, x)
 
     def __hash__(self):
         return hash(self._edge)
@@ -74,6 +75,8 @@ class ZEdge(Edge):
     Args:
         x (ZNode): One endpoint of edge.
         y (ZNode): Another endpoint of edge.
+        check_edge_valid (bool, optional): Flag to whether check the validity of values and types of x, y.
+        Defaults to True.
 
     Raises:
         TypeError: If either of x or y is not 'ZNode'.
@@ -82,12 +85,12 @@ class ZEdge(Edge):
         Zephyr graph.
 
     Example 1:
-    >>> from minorminer.utils.zephyr.node_edge import ZNode, ZEdge
+    >>> from zephyr_utils.node_edge import ZNode, ZEdge
     >>> e = ZEdge(ZNode((3, 2)), ZNode((7, 2)))
     >>> print(e)
     ZEdge(ZNode(CartesianCoord(x=3, y=2, k=None)), ZNode(CartesianCoord(x=7, y=2, k=None)))
     Example 2:
-    >>> from minorminer.utils.zephyr.node_edge import ZNode, ZEdge
+    >>> from zephyr_utils.node_edge import ZNode, ZEdge
     >>> ZEdge(ZNode((2, 3)), ZNode((6, 3))) # raises error, since the two are not neighbors
     """
 
@@ -95,22 +98,22 @@ class ZEdge(Edge):
         self,
         x: ZNode,
         y: ZNode,
+        check_edge_valid: bool = True,
     ) -> None:
-        if not isinstance(x, ZNode) or not isinstance(y, ZNode):
-            raise TypeError(f"Expected x, y to be ZNode, got {type(x), type(y)}")
-        if x.shape != y.shape:
-            raise ValueError(f"Expected x, y to have the same shape, got {x.shape, y.shape}")
-        self._kind = None
-        for kind in ("internal", "external", "odd"):
-            if x.is_neighbor(y, nbr_kind=kind):
-                self._kind = kind
-                break
-        if self._kind is None:
-            raise ValueError(f"Expected x, y to be neighbours, got {x, y}")
-        if x < y:
-            self._edge = (x, y)
-        else:
-            self._edge = (y, x)
+        if check_edge_valid:
+            if not isinstance(x, ZNode) or not isinstance(y, ZNode):
+                raise TypeError(f"Expected x, y to be ZNode, got {type(x), type(y)}")
+            if x.shape != y.shape:
+                raise ValueError(f"Expected x, y to have the same shape, got {x.shape, y.shape}")
+            kind_found = False
+            for kind in ("internal", "external", "odd"):
+                if x.is_neighbor(y, nbr_kind=kind):
+                    kind_found = True
+                    break
+            if not kind_found:
+                raise ValueError(f"Expected x, y to be neighbours, got {x, y}")
+
+        self._edge = self._set_edge(x, y)
 
 
 class ZNode:
@@ -129,7 +132,7 @@ class ZNode:
         must be provided.
 
     Example:
-    >>> from minorminer.utils.zephyr.node_edge import ZNode, ZShape
+    >>> from zephyr_utils.node_edge import ZNode, ZShape
     >>> zn1 = ZNode((5, 2), ZShape(m=5))
     >>> zn1.neighbors()
     [ZNode(CartesianCoord(x=4, y=1, k=None), shape=ZShape(m=5, t=None)),
@@ -140,7 +143,7 @@ class ZNode:
         ZNode(CartesianCoord(x=9, y=2, k=None), shape=ZShape(m=5, t=None)),
         ZNode(CartesianCoord(x=3, y=2, k=None), shape=ZShape(m=5, t=None)),
         ZNode(CartesianCoord(x=7, y=2, k=None), shape=ZShape(m=5, t=None))]
-    >>> from minorminer.utils.zephyr.node_edge import ZNode, ZShape
+    >>> from zephyr_utils.node_edge import ZNode, ZShape
     >>> zn1 = ZNode((5, 2), ZShape(m=5))
     >>> zn1.neighbors(nbr_kind="odd")
     [ZNode(CartesianCoord(x=3, y=2, k=None), shape=ZShape(m=5, t=None)),
@@ -615,10 +618,16 @@ class ZNode:
     def __repr__(self) -> str:
         if self.convert_to_z:
             coord = self.zcoord
-            coord_str = f"{coord.u, coord.w, coord.k, coord.j, coord.z}"
+            if coord.k is None:
+                coord_str = f"{coord.u, coord.w, coord.j, coord.z}"
+            else:
+                coord_str = f"{coord.u, coord.w, coord.k, coord.j, coord.z}"
         else:
             coord = self._ccoord
-            coord_str = f"{coord.x, coord.y, coord.k}"
+            if coord.k is None:
+                coord_str = f"{coord.x, coord.y}"
+            else:
+                coord_str = f"{coord.x, coord.y, coord.k}"
         if self._shape == ZShape():
             shape_str = ""
         else:
