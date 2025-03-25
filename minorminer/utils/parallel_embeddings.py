@@ -103,7 +103,9 @@ def embeddings_to_array(embs: list, node_order=None, as_ndarray=False):
         return [[emb[v] for v in node_order] for emb in embs]
 
 
-def array_to_embeddings(embs: list, node_order: Optional[Iterable] = None) -> list[dict]:
+def array_to_embeddings(
+    embs: list, node_order: Optional[Iterable] = None
+) -> list[dict]:
     """Convert list of embedding lists (values) to dictionary
 
     Args:
@@ -116,7 +118,7 @@ def array_to_embeddings(embs: list, node_order: Optional[Iterable] = None) -> li
             keys).
 
     Returns:
-        An embedding dictionary
+        A list of embedding dictionaries
     """
     if not embs:
         return []
@@ -135,7 +137,7 @@ def find_multiple_embeddings(
     S: nx.Graph,
     T: nx.Graph,
     *,
-    max_num_emb: Optional[int] = 1,
+    max_num_emb: Union[None, int, float] = 1,
     use_filter: bool = True,
     embedder: callable = None,
     embedder_kwargs: dict = None,
@@ -160,7 +162,8 @@ def find_multiple_embeddings(
         T: The target graph in which to embed.
         max_num_emb: Maximum number of embeddings to find.
             Defaults to 1, set to None to find the maximum possible
-            number.
+            number. Use of float('Inf') is deprecated and gives equivalent
+            behaviour to None.
         use_filter: Specifies whether to check feasibility
             of embedding arguments independently of the embedder method. In some
             easy to embed cases use of a filter can slow down operation.
@@ -202,10 +205,20 @@ def find_multiple_embeddings(
         _T = shuffle_graph(T, seed=prng)
     else:
         _T = T
+    if max_num_emb == float("inf"):
+        warnings.warn(
+            'Use of Inf for "max_num_emb" has been deprecated in favor of "None".',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        max_num_emb = None
+
     if max_num_emb is None:
         max_num_emb = T.number_of_nodes() // S.number_of_nodes()
     else:
-        max_num_emb = min(T.number_of_nodes() // S.number_of_nodes(), max_num_emb)
+        max_num_emb = min(
+            T.number_of_nodes() // S.number_of_nodes(), round(max_num_emb)
+        )
 
     if shuffle_all_graphs:
         _S = shuffle_graph(S, seed=prng)
@@ -259,6 +272,7 @@ def lattice_size(T: nx.Graph) -> int:
 
     return max(T.graph.get("rows"), T.graph.get("columns"))
 
+
 def _is_valid_embedding_import_failover(emb: dict, source: dict, target: dict):
     """Diagnose a minor embedding.
 
@@ -266,9 +280,9 @@ def _is_valid_embedding_import_failover(emb: dict, source: dict, target: dict):
     import unavailable.
     """
 
-    if not hasattr(source, 'edges'):
+    if not hasattr(source, "edges"):
         source = nx.Graph(source)
-    if not hasattr(target, 'edges'):
+    if not hasattr(target, "edges"):
         target = nx.Graph(target)
 
     labels = {}
@@ -309,16 +323,18 @@ def _is_valid_embedding_import_failover(emb: dict, source: dict, target: dict):
             return False
     return True
 
+
 def _is_valid_embedding(emb: dict, S: dict, T: dict, one_to_iterable: bool = True):
-    """If dwave.embedding module available check embedding validity. 
+    """If dwave.embedding module available check embedding validity.
 
     With special handling of 1:1 mappings."""
     from minorminer.utils.diagnostic import is_valid_embedding
+
     if one_to_iterable:
         return is_valid_embedding(emb, S, T)
     else:
         return is_valid_embedding({k: (v,) for k, v in emb.items()}, S, T)
-    
+
 
 def _mapped_proposal(emb: dict, f: Callable, one_to_iterable: bool = True):
     if one_to_iterable:
@@ -510,7 +526,7 @@ def find_sublattice_embeddings(
             seed=seed,
             embedder=embedder,
             embedder_kwargs=embedder_kwargs,
-            timeout=timeout - perf_counter(),
+            timeout=timeout_at - perf_counter(),
         )
         if len(defect_free_embs) == 0:
             # If embedding is infeasible on the tile*, it will be infeasible
@@ -544,7 +560,7 @@ def find_sublattice_embeddings(
         sublattice_iter = sublattice_mappings(tile, _T)
 
     for f in sublattice_iter:
-        if perf_counter() > timeout:
+        if perf_counter() > timeout_at:
             break
         if use_tile_embedding:
             proposal = _mapped_proposal(tile_embedding, f, one_to_iterable)
@@ -562,7 +578,7 @@ def find_sublattice_embeddings(
                 seed=seed,
                 embedder=embedder,
                 embedder_kwargs=embedder_kwargs,
-                timeout=timeout - perf_counter(),
+                timeout=timeout_at - perf_counter(),
             )
         embs += sub_embs
         if len(embs) >= max_num_emb:
