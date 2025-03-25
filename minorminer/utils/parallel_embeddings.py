@@ -23,7 +23,6 @@ import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
 from typing import Union, Optional, Callable
-from dwave.embedding import is_valid_embedding
 
 from minorminer.subgraph import find_subgraph
 
@@ -262,12 +261,18 @@ def lattice_size(T: Optional[nx.Graph] = None) -> int:
 
 
 def _is_valid_embedding(emb: dict, S: dict, T: dict, one_to_iterable: bool = True):
-    """Special handling of 1:1 mappings"""
+    """If dwave.embedding module available check embedding validity. 
+
+    With special handling of 1:1 mappings."""
+    try:
+        from dwave.embedding import is_valid_embedding
+    except ImportError:
+        return True
     if one_to_iterable:
         return is_valid_embedding(emb, S, T)
     else:
         return is_valid_embedding({k: (v,) for k, v in emb.items()}, S, T)
-
+    
 
 def _mapped_proposal(emb: dict, f: Callable, one_to_iterable: bool = True):
     if one_to_iterable:
