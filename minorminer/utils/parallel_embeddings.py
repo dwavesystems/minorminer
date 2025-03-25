@@ -118,7 +118,7 @@ def array_to_embeddings(embs: list, node_order: Optional[Iterable] = None) -> li
     Returns:
         An embedding dictionary
     """
-    if len(embs) is None:
+    if not embs:
         return []
 
     if node_order is None:
@@ -240,7 +240,7 @@ def find_multiple_embeddings(
     return embs
 
 
-def lattice_size(T: Optional[nx.Graph] = None) -> int:
+def lattice_size(T: nx.Graph) -> int:
     """Determines the cellular (square) dimension of a dwave_networkx lattice
 
     The lattice size is the parameter ``m`` of a dwave_networkx graph, also
@@ -313,10 +313,7 @@ def _is_valid_embedding(emb: dict, S: dict, T: dict, one_to_iterable: bool = Tru
     """If dwave.embedding module available check embedding validity. 
 
     With special handling of 1:1 mappings."""
-    try:
-        from dwave.embedding import is_valid_embedding
-    except ImportError:
-        is_valid_embedding = _is_valid_embedding_import_failover
+    from minorminer.utils.diagnostic import is_valid_embedding
     if one_to_iterable:
         return is_valid_embedding(emb, S, T)
     else:
@@ -424,7 +421,7 @@ def find_sublattice_embeddings(
         list: A list of disjoint embeddings.
     """
 
-    timeout = perf_counter() + timeout
+    timeout_at = perf_counter() + timeout
     if sublattice_size is None and tile is None:
         return find_multiple_embeddings(
             S=S,
