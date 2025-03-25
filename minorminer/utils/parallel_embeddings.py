@@ -16,13 +16,13 @@ These methods sequentially generate disjoint embeddings of a source graph
 onto a target graph or provide supporting functionality.
 """
 import warnings
-
-from time import perf_counter
 import time
+from time import perf_counter
+from typing import Union, Optional, Callable, Iterable, List
+
 import dwave_networkx as dnx
 import networkx as nx
 import numpy as np
-from typing import Union, Optional, Callable
 
 from minorminer.subgraph import find_subgraph
 
