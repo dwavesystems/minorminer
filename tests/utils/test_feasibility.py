@@ -20,7 +20,6 @@ import dwave_networkx as dnx
 
 from minorminer.utils.feasibility import (
     embedding_feasibility_filter,
-    lattice_size,
     lattice_size_lower_bound,
 )
 
@@ -153,15 +152,6 @@ class TestEmbeddings(unittest.TestCase):
             embedding_feasibility_filter(S, nx.empty_graph()),
             "it's always infeasible to embed into an empty graph",
         )
-
-    def test_lattice_size_subgraph_upper_bound(self):
-        L = np.random.randint(2) + 2
-        T = dnx.zephyr_graph(L - 1)
-        self.assertEqual(L - 1, lattice_size(T=T))
-        T = dnx.pegasus_graph(L)
-        self.assertEqual(L, lattice_size(T=T))
-        T = dnx.chimera_graph(L, L - 1, 1)
-        self.assertEqual(L, lattice_size(T=T))
 
     def test_lattice_size_lower_bound(self):
         L = np.random.randint(2) + 2

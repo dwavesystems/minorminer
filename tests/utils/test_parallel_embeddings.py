@@ -20,11 +20,25 @@ import dwave_networkx as dnx
 from minorminer import find_embedding
 
 from minorminer.utils.parallel_embeddings import (
+    lattice_size,
     shuffle_graph,
     embeddings_to_array,
+    array_to_embeddings,
     find_multiple_embeddings,
     find_sublattice_embeddings,
 )
+
+
+class TestLatticeSize(unittest.TestCase):
+    # This is a very basic helper function
+    def test_lattice_size(self):
+        L = np.random.randint(2) + 2
+        T = dnx.zephyr_graph(L - 1)
+        self.assertEqual(L - 1, lattice_size(T=T))
+        T = dnx.pegasus_graph(L)
+        self.assertEqual(L, lattice_size(T=T))
+        T = dnx.chimera_graph(L, L - 1, 1)
+        self.assertEqual(L, lattice_size(T=T))
 
 
 class TestEmbeddings(unittest.TestCase):
@@ -103,6 +117,16 @@ class TestEmbeddings(unittest.TestCase):
         with self.assertRaises(KeyError):
             embeddings_to_array(embs, node_order=node_order)
 
+    def test_array_to_embeddings(self):
+        embs = [{0: 0, 1: 1, "a": 2}, {0: 2, 1: 3, "a": 5}]
+        node_order = [1, 0, "a"]
+        arr = embeddings_to_array(embs, node_order=node_order)
+        embs_out = array_to_embeddings(arr, node_order)
+        self.assertTrue(
+            all(embs[i] == embs_out[i] for i in range(len(embs))),
+            "array_to_embeddings should invert embeddings_to_array",
+        )
+
     def test_find_multiple_embeddings_basic(self):
         square = {
             ((0, 0), (0, 1)),
@@ -129,9 +153,9 @@ class TestEmbeddings(unittest.TestCase):
             for e in square
         }
         T = nx.from_edgelist(squares)  # Room for 4!
-        embs = find_multiple_embeddings(S, T, max_num_emb=float("inf"))
-
-        self.assertLess(len(embs), 5, "Impossibly many")
+        for max_num_emb in [None, 6]:  # None means unbounded
+            embs = find_multiple_embeddings(S, T, max_num_emb=max_num_emb)
+            self.assertLess(len(embs), 5, "Impossibly many")
         self.assertTrue(
             all(set(emb.keys()) == set(S.nodes()) for emb in embs),
             "bad keys in embedding(s)",
@@ -180,6 +204,14 @@ class TestEmbeddings(unittest.TestCase):
                     embs[i - 1][idx] == emb[idx] for idx, emb in enumerate(embss[i])
                 )
 
+        # timeout
+        embs = find_multiple_embeddings(
+            S, T, timeout=float("Inf")
+        )  # Inf is current default ..
+        self.assertLess(0, len(embs), "embeddings with large timeout")
+        embs = find_multiple_embeddings(S, T, timeout=0)
+        self.assertEqual(0, len(embs), "no embeddings with timeout of 0")
+        # randomization
         seed = 42
         embs_run1 = find_multiple_embeddings(
             S, T, max_num_emb=4, seed=seed, shuffle_all_graphs=True
@@ -249,7 +281,7 @@ class TestEmbeddings(unittest.TestCase):
             self.assertEqual(len(embs), 1, "mismatched number of embeddings")
 
             embs = find_sublattice_embeddings(
-                S, T, sublattice_size=min_sublattice_size, max_num_emb=float("Inf")
+                S, T, sublattice_size=min_sublattice_size, max_num_emb=None
             )
             self.assertEqual(len(embs), num_emb, "mismatched number of embeddings")
             self.assertTrue(
@@ -275,7 +307,7 @@ class TestEmbeddings(unittest.TestCase):
             S,
             T,
             sublattice_size=min_sublattice_size,
-            max_num_emb=float("Inf"),
+            max_num_emb=None,
             tile=tile,
         )
         self.assertEqual(len(embs), 4)
@@ -289,8 +321,9 @@ class TestEmbeddings(unittest.TestCase):
             S,
             T,
             sublattice_size=min_sublattice_size,
-            max_num_emb=float("Inf"),
+            max_num_emb=None,
             tile=tile5,
+            use_filter=False,  # Easiest way to suppress warnings
         )
         self.assertEqual(len(embs), 0, "Tile is too small")
 
@@ -299,7 +332,7 @@ class TestEmbeddings(unittest.TestCase):
             S,
             T,
             sublattice_size=min_sublattice_size,
-            max_num_emb=float("Inf"),
+            max_num_emb=None,
             tile=tile,
             embedder=lambda x: "without S=tile trigger error",
         )
@@ -308,11 +341,11 @@ class TestEmbeddings(unittest.TestCase):
         self.assertEqual(len(nodes_used), S.number_of_nodes() * len(embs))
 
         invalid_T = nx.complete_graph(5)  # Complete graph is not a valid topology
+
         with self.assertRaises(ValueError):
             find_sublattice_embeddings(
                 S, invalid_T, sublattice_size=min_sublattice_size, tile=tile
             )
-
         small_T = dnx.chimera_graph(m=2, n=2)
         small_S = dnx.chimera_graph(m=2, n=1)
         sublattice_size = 1  # Too small
@@ -324,6 +357,97 @@ class TestEmbeddings(unittest.TestCase):
         with self.assertWarns(Warning):
             find_sublattice_embeddings(small_S, small_T, tile=tile, use_filter=True)
 
+    def test_find_sublattice_embeddings_tile_embedding(self):
+        # SUBGRAPHS #
+        S = nx.from_edgelist({(i, i + 1) for i in range(3)})  # 4 node path
+        T = dnx.chimera_graph(2, t=2)
+        tile_embedding = {0: 0, 1: 2, 2: 1, 3: 3}
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=False,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 1)
 
-if __name__ == "__main__":
-    unittest.main()
+        T = dnx.chimera_graph(2, t=2, edge_list=[(0, 2), (1, 2), (1, 3)])  # Valid
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=False,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 1)
+        T = dnx.chimera_graph(2, t=2, edge_list=[(0, 2), (1, 2), (0, 3)])
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=False,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 0)
+        with self.assertRaises(ValueError):
+            # No connection (0,1) or (2,3), invalid tile_embedding on target tile.
+            tile_embedding = {i: i for i in range(4)}
+            embs = find_sublattice_embeddings(
+                S,
+                T,
+                sublattice_size=1,
+                one_to_iterable=False,
+                use_tile_embedding=True,
+                tile_embedding=tile_embedding,
+            )
+
+        # MINORS (CHAIN LENGTH <=2) #
+        S = nx.from_edgelist([(0, 1)])
+        T = dnx.chimera_graph(2, t=2)
+        tile_embedding = {0: (0,), 1: (1, 3)}
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=True,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 1)
+        T = dnx.chimera_graph(2, t=2, edge_list=[(0, 3), (1, 3)])
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=True,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 1, "Embedding succeeds")
+        T = dnx.chimera_graph(2, t=2, edge_list=[(1, 3), (1, 2)])
+        for use_tile_embedding in [True, False]:
+            embs = find_sublattice_embeddings(
+                S,
+                T,
+                sublattice_size=1,
+                one_to_iterable=True,
+                use_tile_embedding=use_tile_embedding,
+                tile_embedding=tile_embedding,
+            )
+            self.assertEqual(
+                len(embs),
+                1 - int(use_tile_embedding),
+                "Embedding should fail due to use_tile_embedding=True",
+            )
+
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=True,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
