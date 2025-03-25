@@ -169,7 +169,8 @@ def find_multiple_embeddings(
             easy to embed cases use of a filter can slow down operation.
         embedder: Specifies the embedding search method,
             a callable taking ``S``, ``T``, as the first two parameters. Defaults to
-            ``minorminer.subgraph.find_subgraph``.
+            ``minorminer.subgraph.find_subgraph``. When the embedder fails it is
+            expected to return an empty dictionary.
         embedder_kwargs: Additional arguments for the embedder
             beyond ``S`` and ``T``.
         one_to_iterable: Determines how embedding mappings are
@@ -192,8 +193,12 @@ def find_multiple_embeddings(
         map from the source to the target graph as a dictionary without
         reusing target variables.
     """
-    timeout = perf_counter() + timeout
     embs = []
+    if timeout <= 0:
+        return embs
+
+    timeout_at = perf_counter() + timeout
+
     if embedder is None:
         embedder = find_subgraph
     if embedder_kwargs is None:
@@ -231,13 +236,11 @@ def find_multiple_embeddings(
             use_filter
             and embedding_feasibility_filter(_S, _T, not one_to_iterable) is False
         ):
-            emb = []
+            emb = {}
         else:
-            if perf_counter() >= timeout:
+            if perf_counter() >= timeout_at:
                 break
             else:
-                if timeout == 0:
-                    raise ValueError()
                 emb = embedder(_S, _T, **embedder_kwargs)
 
         if len(emb) == 0:
@@ -272,7 +275,6 @@ def lattice_size(T: nx.Graph) -> int:
     # degree distribution and other simple properties.
 
     return max(T.graph.get("rows"), T.graph.get("columns"))
-
 
 
 def _is_valid_embedding(emb: dict, S: dict, T: dict, one_to_iterable: bool = True):
@@ -361,6 +363,7 @@ def find_sublattice_embeddings(
         embedder: Specifies the embedding search method, a callable taking ``S``, ``T`` as
             the first two arguments. Defaults to minorminer.subgraph.find_subgraph. Note
             that if `one_to_iterable` should be adjusted to match the return type.
+            When the embedder fails it is expected to return an empty dictionary.
         embedder_kwargs: Dictionary specifying arguments for the embedder
             other than ``S``, ``T``.
         one_to_iterable: Specifies whether the embedder returns (and/or tile_embedding is)
@@ -387,7 +390,8 @@ def find_sublattice_embeddings(
     Returns:
         list: A list of disjoint embeddings.
     """
-
+    if timeout <= 0:
+        return []
     timeout_at = perf_counter() + timeout
     if sublattice_size is None and tile is None:
         return find_multiple_embeddings(
