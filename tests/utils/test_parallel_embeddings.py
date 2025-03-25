@@ -193,6 +193,14 @@ class TestEmbeddings(unittest.TestCase):
                     embs[i - 1][idx] == emb[idx] for idx, emb in enumerate(embss[i])
                 )
 
+        # timeout
+        embs = find_multiple_embeddings(
+            S, T, timeout=float("Inf")
+        )  # Inf is current default ..
+        self.assertLess(0, len(embs), "embeddings with large timeout")
+        embs = find_multiple_embeddings(S, T, timeout=0)
+        self.assertEqual(0, len(embs), "no embeddings with timeout of 0")
+        # randomization
         seed = 42
         embs_run1 = find_multiple_embeddings(
             S, T, max_num_emb=4, seed=seed, shuffle_all_graphs=True
@@ -304,6 +312,7 @@ class TestEmbeddings(unittest.TestCase):
             sublattice_size=min_sublattice_size,
             max_num_emb=None,
             tile=tile5,
+            use_filter=False,  # Easiest way to suppress warnings
         )
         self.assertEqual(len(embs), 0, "Tile is too small")
 
@@ -321,11 +330,11 @@ class TestEmbeddings(unittest.TestCase):
         self.assertEqual(len(nodes_used), S.number_of_nodes() * len(embs))
 
         invalid_T = nx.complete_graph(5)  # Complete graph is not a valid topology
+
         with self.assertRaises(ValueError):
             find_sublattice_embeddings(
                 S, invalid_T, sublattice_size=min_sublattice_size, tile=tile
             )
-
         small_T = dnx.chimera_graph(m=2, n=2)
         small_S = dnx.chimera_graph(m=2, n=1)
         sublattice_size = 1  # Too small
@@ -336,6 +345,101 @@ class TestEmbeddings(unittest.TestCase):
         tile = dnx.chimera_graph(m=1)  # Too small
         with self.assertWarns(Warning):
             find_sublattice_embeddings(small_S, small_T, tile=tile, use_filter=True)
+
+    def test_find_sublattice_embeddings_tile_embedding(self):
+        # SUBGRAPHS #
+        S = nx.from_edgelist({(i, i + 1) for i in range(3)})  # 4 node path
+        T = dnx.chimera_graph(2, t=2)
+        tile_embedding = {0: 0, 1: 2, 2: 1, 3: 3}
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=False,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 1)
+
+        T = dnx.chimera_graph(2, t=2, edge_list=[(0, 2), (1, 2), (1, 3)])  # Valid
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=False,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 1)
+        T = dnx.chimera_graph(2, t=2, edge_list=[(0, 2), (1, 2), (0, 3)])
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=False,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 0)
+        with self.assertRaises(ValueError):
+            # No connection (0,1) or (2,3), invalid tile_embedding on target tile.
+            tile_embedding = {i: i for i in range(4)}
+            embs = find_sublattice_embeddings(
+                S,
+                T,
+                sublattice_size=1,
+                one_to_iterable=False,
+                use_tile_embedding=True,
+                tile_embedding=tile_embedding,
+            )
+
+        # MINORS (CHAIN LENGTH <=2) #
+        S = nx.from_edgelist([(0, 1)])
+        T = dnx.chimera_graph(2, t=2)
+        tile_embedding = {0: (0,), 1: (1, 3)}
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=True,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 1)
+        T = dnx.chimera_graph(2, t=2, edge_list=[(0, 3), (1, 3)])
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=True,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
+        self.assertEqual(len(embs), 1, "Embedding succeeds")
+        T = dnx.chimera_graph(2, t=2, edge_list=[(1, 3), (1, 2)])
+        for use_tile_embedding in [True, False]:
+            embs = find_sublattice_embeddings(
+                S,
+                T,
+                sublattice_size=1,
+                one_to_iterable=True,
+                use_tile_embedding=use_tile_embedding,
+                tile_embedding=tile_embedding,
+            )
+            self.assertEqual(
+                len(embs),
+                1 - int(use_tile_embedding),
+                "Embedding should fail due to use_tile_embedding=True",
+            )
+
+        embs = find_sublattice_embeddings(
+            S,
+            T,
+            sublattice_size=1,
+            one_to_iterable=True,
+            use_tile_embedding=True,
+            tile_embedding=tile_embedding,
+        )
 
 
 if __name__ == "__main__":
