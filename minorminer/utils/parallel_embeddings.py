@@ -259,7 +259,7 @@ def lattice_size(T: Optional[nx.Graph] = None) -> int:
 
     return max(T.graph.get("rows"), T.graph.get("columns"))
 
-def _is_valid_embedding_import_failover(emb: dict, S: dict, T: dict):
+def _is_valid_embedding_import_failover(emb: dict, source: dict, target: dict):
     """Diagnose a minor embedding.
 
     Simplified version of dwave.embedding.is_valid_embedding for case that
