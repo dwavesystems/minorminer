@@ -103,7 +103,7 @@ def embeddings_to_array(embs: list, node_order=None, as_ndarray=False):
         return [[emb[v] for v in node_order] for emb in embs]
 
 
-def array_to_embeddings(embs: list, node_order=None):
+def array_to_embeddings(embs: list, node_order: Optional[Iterable] = None) -> list[dict]:
     """Convert list of embedding lists (values) to dictionary
 
     Args:
