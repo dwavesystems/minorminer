@@ -23,6 +23,7 @@ from minorminer.utils.parallel_embeddings import (
     lattice_size,
     shuffle_graph,
     embeddings_to_array,
+    array_to_embeddings,
     find_multiple_embeddings,
     find_sublattice_embeddings,
 )
@@ -115,6 +116,16 @@ class TestEmbeddings(unittest.TestCase):
         node_order = [2, 0]
         with self.assertRaises(KeyError):
             embeddings_to_array(embs, node_order=node_order)
+
+    def test_array_to_embeddings(self):
+        embs = [{0: 0, 1: 1, "a": 2}, {0: 2, 1: 3, "a": 5}]
+        node_order = [1, 0, "a"]
+        arr = embeddings_to_array(embs, node_order=node_order)
+        embs_out = array_to_embeddings(arr, node_order)
+        self.assertTrue(
+            all(embs[i] == embs_out[i] for i in range(len(embs))),
+            "array_to_embeddings should invert embeddings_to_array",
+        )
 
     def test_find_multiple_embeddings_basic(self):
         square = {
