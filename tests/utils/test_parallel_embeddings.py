@@ -440,7 +440,3 @@ class TestEmbeddings(unittest.TestCase):
             use_tile_embedding=True,
             tile_embedding=tile_embedding,
         )
-
-
-if __name__ == "__main__":
-    unittest.main()
