@@ -182,7 +182,7 @@ def find_multiple_embeddings(
             diversification of the embeddings found.
         seed: seed for the ``numpy.random.Generator`` controlling shuffling (if
             invoked).
-        timeout: total time allowed across all embeddings in seconds. Time elapsed is
+        timeout: Total time allowed across all embeddings in seconds. Time elapsed is
             checked before each call to embedder. The total runtime is thereby bounded
             by timeout plus the time required by one call to embedder.
 
@@ -205,6 +205,7 @@ def find_multiple_embeddings(
         _T = shuffle_graph(T, seed=prng)
     else:
         _T = T
+
     if max_num_emb == float("inf"):
         warnings.warn(
             'Use of Inf for "max_num_emb" has been deprecated in favor of "None".',
@@ -233,7 +234,7 @@ def find_multiple_embeddings(
             emb = []
         else:
             if perf_counter() >= timeout:
-                emb = []
+                break
             else:
                 if timeout == 0:
                     raise ValueError()
@@ -264,7 +265,7 @@ def lattice_size(T: nx.Graph) -> int:
         T: The target graph in which to embed. The graph must be of type
             zephyr, pegasus or chimera and constructed by dwave_networkx.
     Returns:
-        int: The maximum possible size of a tile
+        int: The maximum possible size of a tile.
     """
     # Possible feature enhancement, determine a stronger upper bound akin
     # to lattice_size_lower_bound, accounting for defects, the
@@ -275,7 +276,7 @@ def lattice_size(T: nx.Graph) -> int:
 
 
 def _is_valid_embedding(emb: dict, S: dict, T: dict, one_to_iterable: bool = True):
-    """If dwave.embedding module available check embedding validity.
+    """Check embedding validity.
 
     With special handling of 1:1 mappings."""
     from minorminer.utils.diagnostic import is_valid_embedding
@@ -374,7 +375,7 @@ def find_sublattice_embeddings(
             for diversification of the embeddings found.
         seed: seed for the `numpy.random.Generator` controlling shuffling (if
             invoked).
-        timeout: total time allowed across all embeddings in seconds. Time elapsed is
+        timeout: Total time allowed across all embeddings in seconds. Time elapsed is
             checked before each sublattice search begins, and before each call of the
             embedder function. The total runtime is thereby bounded by timeout plus the
             time required by one call to embedder.
@@ -452,8 +453,8 @@ def find_sublattice_embeddings(
     if tile_embedding is not None:
         if not _is_valid_embedding(tile_embedding, S, tile, one_to_iterable):
             raise ValueError("tile_embedding is invalid for S and tile")
-        else:
-            use_filter = False  # Unnecessary
+
+        use_filter = False  # Unnecessary
 
     if use_tile_embedding is None:
         use_tile_embedding = tile == S  # Trivial 1:1
@@ -483,6 +484,7 @@ def find_sublattice_embeddings(
             # on all subgraphs thereof (assuming sufficient time was provided
             # in embedder_kwargs)
             return []
+
         if use_tile_embedding:
             tile_embedding = defect_free_embs[0]
             # Apply sufficient restriction on the tile
