@@ -273,56 +273,6 @@ def lattice_size(T: nx.Graph) -> int:
     return max(T.graph.get("rows"), T.graph.get("columns"))
 
 
-def _is_valid_embedding_import_failover(emb: dict, source: dict, target: dict):
-    """Diagnose a minor embedding.
-
-    Simplified version of dwave.embedding.is_valid_embedding for case that
-    import unavailable.
-    """
-
-    if not hasattr(source, "edges"):
-        source = nx.Graph(source)
-    if not hasattr(target, "edges"):
-        target = nx.Graph(target)
-
-    labels = {}
-    embedded = set()
-    overlaps = set()
-    for x in source:
-        try:
-            embx = emb[x]
-            if len(embx) == 0:
-                return False
-        except KeyError:
-            return False
-        for q in embx:
-            if q not in target:
-                return False
-            elif x not in labels.setdefault(q, {x}):
-                labels[q].add(x)
-                overlaps.add(q)
-
-        embedded.add(x)
-        if not nx.is_connected(target.subgraph(embx)):
-            return False
-
-    for q in overlaps:
-        nodes = list(labels[q])
-        root = nodes[0]
-        for x in nodes[1:]:
-            return False
-
-    yielded = nx.Graph()
-    for p, q in target.subgraph(labels).edges():
-        yielded.add_edges_from((x, y) for x in labels[p] for y in labels[q])
-
-    for x, y in source.edges():
-        if x == y:
-            continue
-        if x in embedded and y in embedded and not yielded.has_edge(x, y):
-            return False
-    return True
-
 
 def _is_valid_embedding(emb: dict, S: dict, T: dict, one_to_iterable: bool = True):
     """If dwave.embedding module available check embedding validity.
