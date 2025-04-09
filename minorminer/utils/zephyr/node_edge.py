@@ -135,7 +135,7 @@ class ZNode:
         m: grid size, t: tile size
         Defaults to None.
         convert_to_z (bool | None, optional): Whether to express the coordinates in ZephyrCoordinates.
-        Defaults to None.
+            Defaults to None.
 
     Note: If the given coord has non-None k value (in either Cartesian or Zephyr coordinates),
         shape = None raises ValueError. In this case the tile size of Zephyr, t,
