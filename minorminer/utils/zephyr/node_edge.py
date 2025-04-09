@@ -270,7 +270,7 @@ class ZNode:
             return CartesianCoord(x=x, y=y) if len(k) == 0 else CartesianCoord(x=x, y=y, k=k[0])
         if len_coord in (4, 5):
             u, w, *k, j, z = coord
-            for var, val in {"u": u, "j": j}.items():
+            for var, val in [("u", u), ("j", j)]:
                 if not val in [0, 1]:
                     raise ValueError(f"Expected {var} to be in [0, 1], got {val}")
             return (
