@@ -18,18 +18,27 @@
 from __future__ import annotations
 
 from collections import namedtuple
+from enum import Enum
+from functools import cached_property
 from itertools import product
 from typing import Callable, Generator, Iterable
 
-from minorminer.utils.zephyr.coordinate_systems import (
-    CartesianCoord,
-    ZephyrCoord,
-    cartesian_to_zephyr,
-    zephyr_to_cartesian,
-)
+from minorminer.utils.zephyr.coordinate_systems import (CartesianCoord, ZephyrCoord,
+                                                        cartesian_to_zephyr, zephyr_to_cartesian)
 from minorminer.utils.zephyr.plane_shift import PlaneShift
 
 ZShape = namedtuple("ZShape", ["m", "t"], defaults=(None, None))
+
+
+class EdgeKind(Enum):
+    INTERNAL = 1
+    EXTERNAL = 2
+    ODD = 3
+
+
+class NodeKind(Enum):
+    VERTICAL = 0
+    HORIZONTAL = 1
 
 
 class Edge:
@@ -48,6 +57,7 @@ class Edge:
         self._edge = self._set_edge(x, y)
 
     def _set_edge(self, x, y):
+        """Reutrns ordered tuple corresponding to the set {x, y}."""
         if x < y:
             return (x, y)
         else:
@@ -70,19 +80,19 @@ class Edge:
 
 
 class ZEdge(Edge):
-    """Initializes a ZEdge with 'ZNode' nodes x, y
+    """Initializes a ZEdge with 'ZNode' nodes x, y.
 
     Args:
         x (ZNode): One endpoint of edge.
         y (ZNode): Another endpoint of edge.
-        check_edge_valid (bool, optional): Flag to whether check the validity of values and types of x, y.
-        Defaults to True.
+        check_edge_valid (bool, optional): Flag to whether check the validity of values and types of ``x``, ``y``.
+            Defaults to True.
 
     Raises:
         TypeError: If either of x or y is not 'ZNode'.
         ValueError: If x, y do not have the same shape.
-        ValueError: If x, y are not neighbours in a perfect yield (quotient)
-        Zephyr graph.
+        ValueError: If x, y are not neighbors in a perfect yield (quotient)
+            Zephyr graph.
 
     Example 1:
     >>> from zephyr_utils.node_edge import ZNode, ZEdge
@@ -106,12 +116,12 @@ class ZEdge(Edge):
             if x.shape != y.shape:
                 raise ValueError(f"Expected x, y to have the same shape, got {x.shape, y.shape}")
             kind_found = False
-            for kind in ("internal", "external", "odd"):
+            for kind in EdgeKind:
                 if x.is_neighbor(y, nbr_kind=kind):
                     kind_found = True
                     break
             if not kind_found:
-                raise ValueError(f"Expected x, y to be neighbours, got {x, y}")
+                raise ValueError(f"Expected x, y to be neighbors, got {x, y}")
 
         self._edge = self._set_edge(x, y)
 
@@ -145,7 +155,7 @@ class ZNode:
         ZNode(CartesianCoord(x=7, y=2, k=None), shape=ZShape(m=5, t=None))]
     >>> from zephyr_utils.node_edge import ZNode, ZShape
     >>> zn1 = ZNode((5, 2), ZShape(m=5))
-    >>> zn1.neighbors(nbr_kind="odd")
+    >>> zn1.neighbors(nbr_kind=EdgeKind.ODD)
     [ZNode(CartesianCoord(x=3, y=2, k=None), shape=ZShape(m=5, t=None)),
         ZNode(CartesianCoord(x=7, y=2, k=None), shape=ZShape(m=5, t=None))]
     """
@@ -272,6 +282,18 @@ class ZNode:
         """Returns ZephyrCoordinate corresponding to ccoord"""
         return cartesian_to_zephyr(self._ccoord)
 
+    @cached_property
+    def node_kind(self) -> NodeKind:
+        """Returns the node kind of self"""
+        if self._ccoord.x % 2 == 0:
+            return NodeKind.VERTICAL
+        return NodeKind.HORIZONTAL
+
+    @property
+    def direction(self) -> int:
+        """Returns direction, 0 or 1"""
+        return self.node_kind.value
+
     def is_quo(self) -> bool:
         """Decides if the ZNode object is quotient"""
         return (self._ccoord.k is None) and (self._shape.t is None)
@@ -282,29 +304,27 @@ class ZNode:
         qccoord = CartesianCoord(x=self._ccoord, y=self._ccoord)
         return ZNode(coord=qccoord, shape=qshape, convert_to_z=self.convert_to_z)
 
-    @property
-    def direction(self) -> int:
-        """Returns direction, 0 or 1"""
-        return self._ccoord.x % 2
-
     def is_vertical(self) -> bool:
         """Decides whether self is a vertical qubit"""
-        return self.direction == 0
+        return self.node_kind is NodeKind.VERTICAL
 
     def is_horizontal(self) -> bool:
         """Decides whether self is a horizontal qubit"""
-        return self.direction == 1
-
-    def node_kind(self) -> str:
-        """Returns the node kind, vertical or horizontal"""
-        return "vertical" if self.is_vertical() else "horizontal"
+        return self.node_kind is NodeKind.HORIZONTAL
 
     def neighbor_kind(
         self,
         other: ZNode,
-    ) -> str | None:
-        """Returns the kind of coupler between self and other,
-        'internal', 'external', 'odd', or None."""
+    ) -> EdgeKind | None:
+        """Returns the kind of edge between self and other;
+        EdgeKind if there is an edge in perfect Zephyr between them or None.
+
+        Args:
+            other (ZNode): a ZNode
+
+        Returns:
+            EdgeKind | None: The edge kind between self and other in perfect Zephyr or None if there is no edge between in perfect Zephyr.
+        """
         if not isinstance(other, ZNode):
             other = ZNode(other)
         if self._shape != other._shape:
@@ -314,27 +334,37 @@ class ZNode:
         x1, y1 = coord1.x, coord1.y
         x2, y2 = coord2.x, coord2.y
         if abs(x1 - x2) == abs(y1 - y2) == 1:
-            return "internal"
+            return EdgeKind.INTERNAL
         if x1 % 2 != x2 % 2:
             return
         if coord1.k != coord2.k:  # odd, external neighbors only on the same k
             return
-        if self.is_vertical():  # self vertical
+        if self.node_kind is NodeKind.VERTICAL:  # self vertical
             if x1 != x2:  # odd, external neighbors only on the same vertical lines
                 return
             diff_y = abs(y1 - y2)
-            return "odd" if diff_y == 2 else "external" if diff_y == 4 else None
-        else:
-            if y1 != y2:  # odd, external neighbors only on the same horizontal lines
-                return
-            diff_x = abs(x1 - x2)
-            return "odd" if diff_x == 2 else "external" if diff_x == 4 else None
+            return EdgeKind.ODD if diff_y == 2 else EdgeKind.EXTERNAL if diff_y == 4 else None
+
+        # else, self is horizontal
+        if y1 != y2:  # odd, external neighbors only on the same horizontal lines
+            return
+        diff_x = abs(x1 - x2)
+        return EdgeKind.ODD if diff_x == 2 else EdgeKind.EXTERNAL if diff_x == 4 else None
 
     def internal_neighbors_generator(
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> Generator[ZNode]:
-        """Generator of internal neighbors"""
+        """Generator of internal neighbors of self when restricted by `where`.
+
+        Args:
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Yields:
+            ZNode: Internal neighbors of self when restricted by `where`.
+        """
         x, y, _ = self._ccoord
         convert = self.convert_to_z
         k_vals = [None] if self._shape.t is None else range(self._shape.t)
@@ -351,14 +381,23 @@ class ZNode:
                 )
             except GeneratorExit:
                 raise
-            except Exception:
+            except (TypeError, ValueError):
                 pass
 
     def external_neighbors_generator(
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> Generator[ZNode]:
-        """Generator of external neighbors"""
+        """Generator of external neighbors of self when restricted by `where`.
+
+        Args:
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Yields:
+            ZNode: External neighbors of self when restricted by `where`.
+        """
         x, y, k = self._ccoord
         convert = self.convert_to_z
         changing_index = 1 if x % 2 == 0 else 0
@@ -377,14 +416,23 @@ class ZNode:
                 )
             except GeneratorExit:
                 raise
-            except Exception:
+            except (TypeError, ValueError):
                 pass
 
     def odd_neighbors_generator(
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> Generator[ZNode]:
-        """Generator of odd neighbors"""
+        """Generator of odd neighbors of self when restricted by `where`.
+
+        Args:
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Yields:
+            ZNode: Odd neighbors of self when restricted by `where`.
+        """
         x, y, k = self._ccoord
         convert = self.convert_to_z
         changing_index = 1 if x % 2 == 0 else 0
@@ -403,71 +451,123 @@ class ZNode:
                 )
             except GeneratorExit:
                 raise
-            except Exception:
+            except (TypeError, ValueError):
                 pass
 
     def neighbors_generator(
         self,
-        nbr_kind: str | Iterable[str] | None = None,
+        nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> Generator[ZNode]:
+        """Generator of neighbors of self when restricted by `nbr_kind` and `where`.
+
+        Args:
+            nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
+                Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
+                If None, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Yields:
+            ZNode: Neighbors of self when restricted by `nbr_kind` and `where`.
+        """
         if nbr_kind is None:
-            kinds = {"internal", "external", "odd"}
+            kinds = {kind for kind in EdgeKind}
+        elif isinstance(nbr_kind, EdgeKind):
+            kinds = {nbr_kind}
         else:
-            if isinstance(nbr_kind, str):
-                kinds = {nbr_kind}
-            elif isinstance(nbr_kind, Iterable):
-                kinds = set(nbr_kind)
-            else:
-                raise TypeError(f"Expected 'str' or Iterable[str] or None for nbr_kind")
-            kinds = kinds.intersection({"internal", "external", "odd"})
-        if "internal" in kinds:
+            kinds = set(nbr_kind)
+        if EdgeKind.INTERNAL in kinds:
             for cc in self.internal_neighbors_generator(where=where):
                 yield cc
-        if "external" in kinds:
+        if EdgeKind.EXTERNAL in kinds:
             for cc in self.external_neighbors_generator(where=where):
                 yield cc
-        if "odd" in kinds:
+        if EdgeKind.ODD in kinds:
             for cc in self.odd_neighbors_generator(where=where):
                 yield cc
 
     def neighbors(
         self,
-        nbr_kind: str | Iterable[str] | None = None,
+        nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> set[ZNode]:
-        """Returns neighbors when restricted to nbr_kind and where"""
+        """Returns set of neighbors of self when restricted by `nbr_kind` and `where`.
+
+        Args:
+            nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
+                Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
+                If None, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+        Returns:
+            set[ZNode]: Set of neighbors of self when restricted by `nbr_kind` and `where`.
+        """
         return set(self.neighbors_generator(nbr_kind=nbr_kind, where=where))
 
     def internal_neighbors(
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> set[ZNode]:
-        """Returns internal neighbors when restricted to where"""
-        return set(self.neighbors_generator(nbr_kind="internal", where=where))
+        """Returns the set of internal neighbors of self when restricted by `where`.
+
+        Args:
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+        Returns:
+            set[ZNode]: Set of internal neighbors of self when restricted by `where`.
+        """
+        return set(self.neighbors_generator(nbr_kind=EdgeKind.INTERNAL, where=where))
 
     def external_neighbors(
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> set[ZNode]:
-        """Returns external neighbors when restricted to where"""
-        return set(self.neighbors_generator(nbr_kind="external", where=where))
+        """Returns the set of external neighbors of self when restricted by `where`.
+
+        Args:
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+        Returns:
+            set[ZNode]: Set of external neighbors of self when restricted by `where`.
+        """
+        return set(self.neighbors_generator(nbr_kind=EdgeKind.EXTERNAL, where=where))
 
     def odd_neighbors(
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> set[ZNode]:
-        """Returns odd neighbors when restricted to where"""
-        return set(self.neighbors_generator(nbr_kind="odd", where=where))
+        """Returns the set of odd neighbors of self when restricted by `where`.
+
+        Args:
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+        Returns:
+            set[ZNode]: Set of odd neighbors of self when restricted by `where`.
+        """
+        return set(self.neighbors_generator(nbr_kind=EdgeKind.ODD, where=where))
 
     def is_internal_neighbor(
         self,
         other: ZNode,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> bool:
-        """Tells if another ZNode is an internal neighbor when restricted to where"""
-        if not isinstance(other, ZNode):
-            raise TypeError(f"Expected {other} to be ZNode, got {type(other)}")
+        """Returns whether other is an internal neighbor of self when restricted by `where`.
+
+        Args:
+            other (ZNode): Another instance to compare with self.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Returns:
+            bool: Whether other is an internal neighbor of self when restricted by `where`.
+        """
         for nbr in self.internal_neighbors_generator(where=where):
             if other == nbr:
                 return True
@@ -478,9 +578,17 @@ class ZNode:
         other: ZNode,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> bool:
-        """Tells if another ZNode is an external neighbor when restricted to where"""
-        if not isinstance(other, ZNode):
-            raise TypeError(f"Expected {other} to be ZNode, got {type(other)}")
+        """Returns whether other is an external neighbor of self when restricted by `where`.
+
+        Args:
+            other (ZNode): Another instance to compare with self.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Returns:
+            bool: Whether other is an external neighbor of self when restricted by `where`.
+        """
         for nbr in self.external_neighbors_generator(where=where):
             if other == nbr:
                 return True
@@ -491,9 +599,17 @@ class ZNode:
         other: ZNode,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> bool:
-        """Tells if another ZNode is an odd neighbor when restricted to where"""
-        if not isinstance(other, ZNode):
-            raise TypeError(f"Expected {other} to be ZNode, got {type(other)}")
+        """Returns whether other is an odd neighbor of self when restricted by `where`.
+
+        Args:
+            other (ZNode): Another instance to compare with self.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Returns:
+            bool: Whether other is an odd neighbor of self when restricted by `where`.
+        """
         for nbr in self.odd_neighbors_generator(where=where):
             if other == nbr:
                 return True
@@ -502,12 +618,23 @@ class ZNode:
     def is_neighbor(
         self,
         other: ZNode,
-        nbr_kind: str | Iterable[str] | None = None,
+        nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> bool:
-        """Tells if another ZNode is a neighbor when restricted to nbr_kind and where"""
-        if not isinstance(other, ZNode):
-            raise TypeError(f"Expected {other} to be ZNode, got {type(other)}")
+        """Returns whether other is a neighbor of self when restricted by `nbr_kind` and `where`.
+
+        Args:
+            other (ZNode): Another instance to compare with self.
+            nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
+                Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
+                If None, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Returns:
+            bool: Whether other is a neighbor of self when restricted by `nbr_kind` and `where`.
+        """
         for nbr in self.neighbors_generator(nbr_kind=nbr_kind, where=where):
             if other == nbr:
                 return True
@@ -515,18 +642,42 @@ class ZNode:
 
     def incident_edges(
         self,
-        nbr_kind: str | Iterable[str] | None = None,
+        nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> list[ZEdge]:
-        """Returns incident edges when restricted to nbr_kind and where"""
+        """Returns incident edges with self when restricted by `nbr_kind` and `where`.
+
+        Args:
+            nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
+                Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
+                If None, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Returns:
+            list[ZEdge]: list edges incident with self when restricted by `nbr_kind` and `where`.
+        """
         return [ZEdge(self, v) for v in self.neighbors(nbr_kind=nbr_kind, where=where)]
 
     def degree(
         self,
-        nbr_kind: str | Iterable[str] | None = None,
+        nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> int:
-        """Returns degree when restricted to nbr_kind and where"""
+        """Returns degree of self when restricted by `nbr_kind` and `where`.
+
+        Args:
+            nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
+                Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
+                If None, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Returns:
+            int: degree of self when restricted by `nbr_kind` and `where`.
+        """
         return len(self.neighbors(nbr_kind=nbr_kind, where=where))
 
     def __eq__(self, other: ZNode) -> bool:

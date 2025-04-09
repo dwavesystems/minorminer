@@ -19,7 +19,7 @@ import unittest
 from itertools import product
 
 from minorminer.utils.zephyr.coordinate_systems import CartesianCoord, ZephyrCoord
-from minorminer.utils.zephyr.node_edge import Edge, ZEdge, ZNode, ZShape
+from minorminer.utils.zephyr.node_edge import Edge, EdgeKind, NodeKind, ZEdge, ZNode, ZShape
 from minorminer.utils.zephyr.plane_shift import PlaneShift
 
 
@@ -265,17 +265,17 @@ class TestZNode(unittest.TestCase):
                                     self.assertEqual(zn.direction, u)
                                     if u == 0:
                                         self.assertTrue(zn.is_vertical())
-                                        self.assertEqual(zn.node_kind(), "vertical")
+                                        self.assertEqual(zn.node_kind, NodeKind.VERTICAL)
                                     else:
                                         self.assertTrue(zn.is_horizontal())
-                                        self.assertEqual(zn.node_kind(), "horizontal")
+                                        self.assertEqual(zn.node_kind, NodeKind.HORIZONTAL)
 
     def test_neighbor_kind(self) -> None:
         zn = ZNode((0, 1))
-        self.assertTrue(zn.neighbor_kind(ZNode((1, 0))) == "internal")
-        self.assertTrue(zn.neighbor_kind(ZNode((1, 2))) == "internal")
-        self.assertTrue(zn.neighbor_kind(ZNode((0, 3))) == "odd")
-        self.assertTrue(zn.neighbor_kind(ZNode((0, 5))) == "external")
+        self.assertTrue(zn.neighbor_kind(ZNode((1, 0))) is EdgeKind.INTERNAL)
+        self.assertTrue(zn.neighbor_kind(ZNode((1, 2))) is EdgeKind.INTERNAL)
+        self.assertTrue(zn.neighbor_kind(ZNode((0, 3))) is EdgeKind.ODD)
+        self.assertTrue(zn.neighbor_kind(ZNode((0, 5))) is EdgeKind.EXTERNAL)
         self.assertTrue(zn.neighbor_kind(ZNode((0, 7))) is None)
         self.assertTrue(zn.neighbor_kind(ZNode((1, 6))) is None)
 
@@ -319,48 +319,48 @@ class TestZNode(unittest.TestCase):
             qzn1 = ZNode(coord=(x, y), shape=ZShape(m=m))
             self.assertEqual(len(qzn1.neighbors()), 8)
             self.assertEqual(qzn1.degree(), 8)
-            self.assertEqual(qzn1.degree(nbr_kind="internal"), 4)
-            self.assertEqual(qzn1.degree(nbr_kind="external"), 2)
-            self.assertEqual(qzn1.degree(nbr_kind="odd"), 2)
+            self.assertEqual(qzn1.degree(nbr_kind=EdgeKind.INTERNAL), 4)
+            self.assertEqual(qzn1.degree(nbr_kind=EdgeKind.EXTERNAL), 2)
+            self.assertEqual(qzn1.degree(nbr_kind=EdgeKind.ODD), 2)
             for t in [1, 4, 6]:
                 zn1 = ZNode(coord=(x, y, 0), shape=ZShape(m=m, t=t))
                 self.assertEqual(zn1.degree(), 4 * t + 4)
-                self.assertEqual(zn1.degree(nbr_kind="internal"), 4 * t)
-                self.assertEqual(zn1.degree(nbr_kind="external"), 2)
-                self.assertEqual(zn1.degree(nbr_kind="odd"), 2)
+                self.assertEqual(zn1.degree(nbr_kind=EdgeKind.INTERNAL), 4 * t)
+                self.assertEqual(zn1.degree(nbr_kind=EdgeKind.EXTERNAL), 2)
+                self.assertEqual(zn1.degree(nbr_kind=EdgeKind.ODD), 2)
 
         qzn2 = ZNode(coord=(0, 1))
         self.assertEqual(qzn2.degree(), 4)
-        self.assertEqual(qzn2.degree(nbr_kind="internal"), 2)
-        self.assertEqual(qzn2.degree(nbr_kind="external"), 1)
-        self.assertEqual(qzn2.degree(nbr_kind="odd"), 1)
+        self.assertEqual(qzn2.degree(nbr_kind=EdgeKind.INTERNAL), 2)
+        self.assertEqual(qzn2.degree(nbr_kind=EdgeKind.EXTERNAL), 1)
+        self.assertEqual(qzn2.degree(nbr_kind=EdgeKind.ODD), 1)
         for t in [1, 4, 6]:
             zn2 = ZNode(coord=(0, 1, 0), shape=ZShape(t=t))
             self.assertEqual(zn2.degree(), 2 * t + 2)
-            self.assertEqual(zn2.degree(nbr_kind="internal"), 2 * t)
-            self.assertEqual(zn2.degree(nbr_kind="external"), 1)
-            self.assertEqual(zn2.degree(nbr_kind="odd"), 1)
+            self.assertEqual(zn2.degree(nbr_kind=EdgeKind.INTERNAL), 2 * t)
+            self.assertEqual(zn2.degree(nbr_kind=EdgeKind.EXTERNAL), 1)
+            self.assertEqual(zn2.degree(nbr_kind=EdgeKind.ODD), 1)
 
         qzn3 = ZNode((24, 5), ZShape(m=6))
         self.assertEqual(qzn3.degree(), 6)
-        self.assertEqual(qzn3.degree(nbr_kind="internal"), 2)
-        self.assertEqual(qzn3.degree(nbr_kind="external"), 2)
-        self.assertEqual(qzn3.degree(nbr_kind="odd"), 2)
+        self.assertEqual(qzn3.degree(nbr_kind=EdgeKind.INTERNAL), 2)
+        self.assertEqual(qzn3.degree(nbr_kind=EdgeKind.EXTERNAL), 2)
+        self.assertEqual(qzn3.degree(nbr_kind=EdgeKind.ODD), 2)
         for t in [1, 5, 6]:
             zn3 = ZNode((24, 5, 0), ZShape(m=6, t=t))
             self.assertEqual(zn3.degree(), 2 * t + 4)
-            self.assertEqual(zn3.degree(nbr_kind="internal"), 2 * t)
-            self.assertEqual(zn3.degree(nbr_kind="external"), 2)
-            self.assertEqual(zn3.degree(nbr_kind="odd"), 2)
+            self.assertEqual(zn3.degree(nbr_kind=EdgeKind.INTERNAL), 2 * t)
+            self.assertEqual(zn3.degree(nbr_kind=EdgeKind.EXTERNAL), 2)
+            self.assertEqual(zn3.degree(nbr_kind=EdgeKind.ODD), 2)
 
         qzn4 = ZNode((24, 5))
         self.assertEqual(qzn4.degree(), 8)
-        self.assertEqual(qzn4.degree(nbr_kind="internal"), 4)
-        self.assertEqual(qzn4.degree(nbr_kind="external"), 2)
-        self.assertEqual(qzn4.degree(nbr_kind="odd"), 2)
+        self.assertEqual(qzn4.degree(nbr_kind=EdgeKind.INTERNAL), 4)
+        self.assertEqual(qzn4.degree(nbr_kind=EdgeKind.EXTERNAL), 2)
+        self.assertEqual(qzn4.degree(nbr_kind=EdgeKind.ODD), 2)
         for t in [1, 5, 6]:
             zn4 = ZNode((24, 5, 0), ZShape(t=t))
             self.assertEqual(zn4.degree(), 4 * t + 4)
-            self.assertEqual(zn4.degree(nbr_kind="internal"), 4 * t)
-            self.assertEqual(zn4.degree(nbr_kind="external"), 2)
-            self.assertEqual(zn4.degree(nbr_kind="odd"), 2)
+            self.assertEqual(zn4.degree(nbr_kind=EdgeKind.INTERNAL), 4 * t)
+            self.assertEqual(zn4.degree(nbr_kind=EdgeKind.EXTERNAL), 2)
+            self.assertEqual(zn4.degree(nbr_kind=EdgeKind.ODD), 2)
