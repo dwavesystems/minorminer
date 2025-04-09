@@ -227,7 +227,7 @@ class ZNode:
             raise TypeError(
                 f"Expected ccoord to be CartesianCoord or tuple[int], got {type(new_ccoord)}"
             )
-        for c in (new_ccoord.x, new_ccoord.y):
+        for c in new_ccoord:
             if not isinstance(c, int):
                 raise TypeError(f"Expected ccoord.x and ccoord.y to be 'int', got {type(c)}")
             if c < 0:
