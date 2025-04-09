@@ -17,8 +17,12 @@
 
 import unittest
 
-from minorminer.utils.zephyr.coordinate_systems import (CartesianCoord, ZephyrCoord,
-                                                        cartesian_to_zephyr, zephyr_to_cartesian)
+from minorminer.utils.zephyr.coordinate_systems import (
+    CartesianCoord,
+    ZephyrCoord,
+    cartesian_to_zephyr,
+    zephyr_to_cartesian,
+)
 
 
 class TestCoordinateSystems(unittest.TestCase):
