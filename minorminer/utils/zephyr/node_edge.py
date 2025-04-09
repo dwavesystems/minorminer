@@ -113,14 +113,14 @@ class ZEdge(Edge):
         if check_edge_valid:
             if not isinstance(x, ZNode) or not isinstance(y, ZNode):
                 raise TypeError(f"Expected x, y to be ZNode, got {type(x), type(y)}")
+
             if x.shape != y.shape:
                 raise ValueError(f"Expected x, y to have the same shape, got {x.shape, y.shape}")
-            kind_found = False
+
             for kind in EdgeKind:
                 if x.is_neighbor(y, nbr_kind=kind):
-                    kind_found = True
                     break
-            if not kind_found:
+            else:
                 raise ValueError(f"Expected x, y to be neighbors, got {x, y}")
 
         self._edge = self._set_edge(x, y)
