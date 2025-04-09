@@ -195,18 +195,22 @@ class ZNode:
             new_shape = ZShape()
         elif isinstance(new_shape, tuple):
             new_shape = ZShape(*new_shape)
+
         if not isinstance(new_shape, ZShape):
             raise TypeError(
                 f"Expected shape to be tuple[int | None] or ZShape or None, got {type(new_shape)}"
             )
+
         if hasattr(self, "_ccoord"):
             if (self._ccoord.k is None) != (new_shape.t is None):
                 raise ValueError(
                     f"ccoord, shape must be both quotient or non-quotient, got {self._ccoord, new_shape}"
                 )
+
         for var, val in {"m": new_shape.m, "t": new_shape.t}.items():
             if (val is not None) and (not isinstance(val, int)):
                 raise TypeError(f"Expected {var} to be None or 'int', got {type(val)}")
+
         self._shape = new_shape
 
     @property
