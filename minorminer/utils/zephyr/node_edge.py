@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from collections import namedtuple
 from enum import Enum
-from functools import cached_property
 from itertools import product
 from typing import Callable, Generator, Iterable
 
@@ -31,14 +30,16 @@ ZShape = namedtuple("ZShape", ["m", "t"], defaults=(None, None))
 
 
 class EdgeKind(Enum):
+    """Kinds of an edge (coupler) between two nodes in a Zephyr graph."""
     INTERNAL = 1
     EXTERNAL = 2
     ODD = 3
 
 
 class NodeKind(Enum):
-    VERTICAL = 0
-    HORIZONTAL = 1
+    """Kinds of a node (qubit) in a Zephyr graph."""
+    VERTICAL = 0    # The `u` coordinate of a Zephyr coordinate of a vertical node (qubit) is zero.
+    HORIZONTAL = 1  # The `u` coordinate of a Zephyr coordinate of a horizontal node (qubit) is one.
 
 
 class Edge:
@@ -179,7 +180,7 @@ class ZNode:
 
         # convert coord to CartesianCoord or ZephyrCoord
         if not isinstance(coord, (CartesianCoord, ZephyrCoord)):
-            coord = self.get_coord(coord)
+            coord = self.tuple_to_coord(coord)
 
         # convert coord to CartesianCoord
         if isinstance(coord, ZephyrCoord):
@@ -189,7 +190,7 @@ class ZNode:
 
     @property
     def shape(self) -> ZShape | None:
-        """Returns the shape of the Zephyr graph ZNode belongs to."""
+        """Returns the shape of the Zephyr graph the node belongs to."""
         return self._shape
 
     @shape.setter
@@ -258,7 +259,7 @@ class ZNode:
         self._ccoord = new_ccoord
 
     @staticmethod
-    def get_coord(coord: tuple[int]) -> CartesianCoord | ZephyrCoord:
+    def tuple_to_coord(coord: tuple[int]) -> CartesianCoord | ZephyrCoord:
         """Takes a tuple[int] and returns the corresponding ``CartesianCoord`` or ``ZephyrCoord``"""
         if (not isinstance(coord, tuple)) or (not all(isinstance(c, int) for c in coord)):
             raise TypeError(f"Expected {coord} to be a tuple[int], got {coord}")
@@ -275,11 +276,10 @@ class ZNode:
             for var, val in [("u", u), ("j", j)]:
                 if not val in [0, 1]:
                     raise ValueError(f"Expected {var} to be in [0, 1], got {val}")
-            return (
-                ZephyrCoord(u=u, w=w, j=j, z=z)
-                if len(k) == 0
-                else ZephyrCoord(u=u, w=w, k=k[0], j=j, z=z)
-            )
+            if len(k) == 0:
+                return ZephyrCoord(u=u, w=w, j=j, z=z)    
+            return ZephyrCoord(u=u, w=w, k=k[0], j=j, z=z)
+            
         raise ValueError(f"coord can have length 2, 3, 4 or 5, got {len_coord}")
 
     @property
@@ -287,7 +287,7 @@ class ZNode:
         """Returns ZephyrCoordinate corresponding to ccoord"""
         return cartesian_to_zephyr(self._ccoord)
 
-    @cached_property
+    @property
     def node_kind(self) -> NodeKind:
         """Returns the node kind of self"""
         if self._ccoord.x % 2 == 0:
@@ -296,7 +296,7 @@ class ZNode:
 
     @property
     def direction(self) -> int:
-        """Returns direction, 0 or 1"""
+        """Returns the direction of node, i.e. its `u` coordinate in Zephyr coordinates."""
         return self.node_kind.value
 
     def is_quo(self) -> bool:
@@ -310,11 +310,11 @@ class ZNode:
         return ZNode(coord=qccoord, shape=qshape, convert_to_z=self.convert_to_z)
 
     def is_vertical(self) -> bool:
-        """Decides whether self is a vertical qubit"""
+        """Returns True if the node represents a vertical qubit (i.e., its `u` coordinate in Zephyr coordinates is 0)."""
         return self.node_kind is NodeKind.VERTICAL
 
     def is_horizontal(self) -> bool:
-        """Decides whether self is a horizontal qubit"""
+        """Returns True if the node represents a horizontal qubit (i.e., its `u` coordinate in Zephyr coordinates is 1)."""
         return self.node_kind is NodeKind.HORIZONTAL
 
     def neighbor_kind(
