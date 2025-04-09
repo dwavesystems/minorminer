@@ -257,8 +257,7 @@ class ZNode:
 
     @staticmethod
     def get_coord(coord: tuple[int]) -> CartesianCoord | ZephyrCoord:
-        """Takes a tuple[int] and returns the corresponding CartesianCoord
-        or ZephyrCoord"""
+        """Takes a tuple[int] and returns the corresponding ``CartesianCoord`` or ``ZephyrCoord``"""
         if (not isinstance(coord, tuple)) or (not all(isinstance(c, int) for c in coord)):
             raise TypeError(f"Expected {coord} to be a tuple[int], got {coord}")
         if any(c < 0 for c in coord):
