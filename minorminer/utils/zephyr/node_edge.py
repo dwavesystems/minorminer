@@ -84,7 +84,7 @@ class ZEdge(Edge):
 
     Args:
         x (ZNode): Endpoint of edge. Must have same shape as ``y``.
-        y (ZNode): Endpoint of edge. Must have same shape as ``x``
+        y (ZNode): Endpoint of edge. Must have same shape as ``x``.
         check_edge_valid (bool, optional): Flag to whether check the validity of values and types of ``x``, ``y``.
             Defaults to True.
 
@@ -131,15 +131,16 @@ class ZNode:
 
     Args:
         coord (CartesianCoord | ZephyrCoord | tuple[int]): Coordinate in (quotient) Zephyr or (quotient) Cartesian
-        shape (ZShape | tuple[int | None] | None, optional): shape of Zephyr graph containing ZNode.
-        m: grid size, t: tile size
+        shape (ZShape | tuple[int | None] | None, optional): Shape of the Zephyr graph containing this ZNode.
+            If a ZShape is passed, it should be a namedtuple with fields `m` (grid size of the Zephyr graph) and `t` (tile size of the Zephyr graph).
         Defaults to None.
         convert_to_z (bool | None, optional): Whether to express the coordinates in ZephyrCoordinates.
             Defaults to None.
 
-    Note: If the given coord has non-None k value (in either Cartesian or Zephyr coordinates),
-        shape = None raises ValueError. In this case the tile size of Zephyr, t,
-        must be provided.
+    Note: 
+        If the `k` field of the given `coord` (whether a `CartesianCoord` or `ZephyrCoord`) is not `None`,
+        then `shape` must be provided and its `t` field (the tile size of the Zephyr graph) must not be `None`.
+        Otherwise, a `ValueError` will be raised.
 
     Example:
     >>> from zephyr_utils.node_edge import ZNode, ZShape
@@ -166,7 +167,10 @@ class ZNode:
         shape: ZShape | tuple[int | None] | None = None,
         convert_to_z: bool | None = None,
     ) -> None:
-        self.shape = shape
+        if shape:
+            self.shape = shape
+        else:
+            self.shape = ZShape()
 
         if convert_to_z is None:
             self.convert_to_z = len(coord) in (4, 5)
@@ -189,11 +193,9 @@ class ZNode:
         return self._shape
 
     @shape.setter
-    def shape(self, new_shape) -> None:
+    def shape(self, new_shape: ZShape | tuple[int | None]) -> None:
         """Sets a new value for shape"""
-        if new_shape is None:
-            new_shape = ZShape()
-        elif isinstance(new_shape, tuple):
+        if isinstance(new_shape, tuple):
             new_shape = ZShape(*new_shape)
 
         if not isinstance(new_shape, ZShape):
@@ -207,7 +209,7 @@ class ZNode:
                     f"ccoord, shape must be both quotient or non-quotient, got {self._ccoord, new_shape}"
                 )
 
-        for var, val in {"m": new_shape.m, "t": new_shape.t}.items():
+        for var, val in new_shape._asdict().items():
             if (val is not None) and (not isinstance(val, int)):
                 raise TypeError(f"Expected {var} to be None or 'int', got {type(val)}")
 
