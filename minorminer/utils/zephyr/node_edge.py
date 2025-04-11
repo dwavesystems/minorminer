@@ -502,7 +502,7 @@ class ZNode:
 
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
-                Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
+                Edge kind filter. Restricts returned neighbors to those connected by the given edge kind(s).
                 If None, no filtering is applied. Defaults to None.
             where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
                 A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
@@ -631,7 +631,7 @@ class ZNode:
         Args:
             other (ZNode): Another instance to compare with self.
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
-                Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
+                Edge kind filter. Restricts neighbors to those connected by the given edge kind(s).
                 If None, no filtering is applied. Defaults to None.
             where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
                 A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
@@ -654,7 +654,7 @@ class ZNode:
 
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
-                Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
+                Edge kind filter. Restricts returned edges to those having the given edge kind(s).
                 If None, no filtering is applied. Defaults to None.
             where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
                 A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
@@ -674,7 +674,7 @@ class ZNode:
 
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
-                Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
+                Edge kind filter. Restricts counting the neighbors to those connected by the given edge kind(s).
                 If None, no filtering is applied. Defaults to None.
             where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
                 A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
