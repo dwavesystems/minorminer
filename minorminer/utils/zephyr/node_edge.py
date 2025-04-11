@@ -58,7 +58,7 @@ class Edge:
         self._edge = self._set_edge(x, y)
 
     def _set_edge(self, x, y):
-        """Reutrns ordered tuple corresponding to the set {x, y}."""
+        """Returns ordered tuple corresponding to the set {x, y}."""
         if x < y:
             return (x, y)
         else:
@@ -120,11 +120,16 @@ class ZEdge(Edge):
 
             for kind in EdgeKind:
                 if x.is_neighbor(y, nbr_kind=kind):
+                    self._edge_kind = kind
                     break
             else:
                 raise ValueError(f"Expected x, y to be neighbors, got {x, y}")
 
         self._edge = self._set_edge(x, y)
+
+    @property
+    def edge_kind(self) -> EdgeKind:
+        return self._edge_kind
 
 
 class ZNode:
