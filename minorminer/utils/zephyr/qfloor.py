@@ -22,7 +22,7 @@ from itertools import product
 from typing import Callable, Iterable, Iterator
 
 from minorminer.utils.zephyr.coordinate_systems import *
-from minorminer.utils.zephyr.node_edge import ZEdge, ZNode, ZShape
+from minorminer.utils.zephyr.node_edge import ZEdge, ZNode, ZShape, EdgeKind
 from minorminer.utils.zephyr.plane_shift import PlaneShift
 
 Dim = namedtuple("Dim", ["Lx", "Ly"])
@@ -115,11 +115,23 @@ class QuoTile:
 
     def edges(
         self,
+        nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
-        nbr_kind: str | Iterable[str] | None = None,
     ) -> list[ZEdge]:
-        """Returns the list of edges of the graph induced on the tile,
-        when resticted to nbr_kind and where."""
+        """Returns the list of edges of the graph induced on the tile, when restricted by `nbr_kind` and `where`.
+
+        Args:
+            nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
+                Edge kind filter. Restricts returned edges to those having the given edge kind(s).
+                If None, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
+                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+
+        Returns:
+            list[ZEdge]: List of edges of the graph induced on the tile, when restricted by `nbr_kind` and `where`.
+        """
+
         zns = self._zns
         tile_coords = [zn.zcoord for zn in zns] if self.convert_to_z else [zn.ccoord for zn in zns]
         where_tile = lambda coord: where(coord) and coord in tile_coords
