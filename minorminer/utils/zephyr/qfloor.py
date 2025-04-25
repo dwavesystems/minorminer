@@ -19,13 +19,14 @@ from __future__ import annotations
 
 from collections import defaultdict, namedtuple
 from itertools import product
+from functools import cached_property
 from typing import Callable, Iterable, Iterator
 
 from minorminer.utils.zephyr.coordinate_systems import *
 from minorminer.utils.zephyr.node_edge import ZEdge, ZNode, ZShape, EdgeKind
 from minorminer.utils.zephyr.plane_shift import PlaneShift
 
-Dim = namedtuple("Dim", ["Lx", "Ly"])
+Dim_2D = namedtuple("Dim_2D", ["Lx", "Ly"])
 UWJ = namedtuple("UWJ", ["u", "w", "j"])
 ZSE = namedtuple("ZSE", ["z_start", "z_end"])
 
@@ -50,65 +51,64 @@ class QuoTile:
         self,
         zns: Iterable[ZNode],
     ) -> None:
-        self.zns = zns
+        if len(zns) == 0:
+            raise ValueError(f"Expected zns to be non-empty, got {zns}")
+        for zn in zns:
+            if not zn.is_quo():
+                raise ValueError(f"Expected elements of {zns} to be quotient, got {zn}")
+        zns_shape = {zn.shape for zn in zns}
+        if len(zns_shape) != 1:
+            raise ValueError(
+                f"Expected all elements of zns to have the same shape, got {zns_shape}"
+            )
+        temp_zns = sorted(list(set(zns)))
+        seed_convert = temp_zns[0].convert_to_z
+        zns_result = []
+        for zn in temp_zns:
+            zn.convert_to_z = seed_convert
+            zns_result.append(zn)
+        self._zns: list[ZNode] = zns_result
 
     @property
     def zns(self) -> list[ZNode]:
         """Returns the sorted list of ZNodes the tile contains"""
         return self._zns
 
-    @zns.setter
-    def zns(self, new_zns: Iterable[ZNode]) -> None:
-        """Sets the zns"""
-        if not isinstance(new_zns, Iterable):
-            raise TypeError(f"Expected {new_zns} to be Iterable[ZNode], got {type(new_zns)}")
-        for zn in new_zns:
-            if not isinstance(zn, ZNode):
-                raise TypeError(f"Expected elements of {new_zns} to be ZNode, got {type(zn)}")
-            if not zn.is_quo():
-                raise ValueError(f"Expected elements of {new_zns} to be quotient, got {zn}")
-        new_zns_shape = {zn.shape for zn in new_zns}
-        if len(new_zns_shape) != 1:
-            raise ValueError(
-                f"Expected all elements of zns to have the same shape, got {new_zns_shape}"
-            )
-        temp_zns = sorted(list(set(new_zns)))
-        if len(temp_zns) == 0:
-            return temp_zns
-        seed_convert = temp_zns[0].convert_to_z
-        result = []
-        for zn in temp_zns:
-            zn.convert_to_z = seed_convert
-            result.append(zn)
-        self._zns = result
+    @cached_property
+    def index_zns(self) -> dict[int, ZNode]:
+        return {i: zn for i, zn in enumerate(self._zns)}
 
     @property
     def seed(self) -> ZNode:
         """Returns the smallest ZNode in Zns"""
         return self._zns[0]
 
-    @property
+    @cached_property
     def shifts(self) -> list[PlaneShift]:
         """Returns the list of shift of each ZNode in zns from seed"""
         seed = self.seed
         return [zn - seed for zn in self._zns]
 
-    @property
+    @cached_property
+    def index_shifts(self) -> dict[int, PlaneShift]:
+        return {i: ps for i, ps in enumerate(self.shifts)}
+
+    @cached_property
     def shape(self) -> ZShape:
         """Returns the shape of the Zephyr graph the tile belongs to."""
         return self.seed.shape
 
-    @property
+    @cached_property
     def convert_to_z(self) -> bool:
         """Returns the convert_to_z attribute of the ZNodes of the tile"""
         return self.seed.convert_to_z
 
-    @property
+    @cached_property
     def ver_zns(self) -> list[ZNode]:
         """Returns the list of vertical ZNodes of the tile"""
         return [zn for zn in self._zns if zn.is_vertical()]
 
-    @property
+    @cached_property
     def hor_zns(self) -> list[ZNode]:
         """Returns the list of horizontal ZNodes of the tile"""
         return [zn for zn in self._zns if zn.is_horizontal()]
@@ -198,7 +198,7 @@ class QuoFloor:
     def __init__(
         self,
         corner_qtile: QuoTile | Iterable[ZNode],
-        dim: Dim | tuple[int],
+        dim: Dim_2D | tuple[int],
         tile_connector: dict[tuple[int], PlaneShift] = tile_connector0,
     ) -> None:
         self.tile_connector = tile_connector
@@ -228,7 +228,7 @@ class QuoFloor:
 
     def check_dim_corner_qtile_compatibility(
         self,
-        dim: Dim,
+        dim: Dim_2D,
         corner_qtile: QuoTile,
     ) -> None:
         """Checks whether dimension and corner tile are compatible, i.e.
@@ -246,21 +246,21 @@ class QuoFloor:
             raise ValueError(f"{dim, corner_qtile} are not compatible")
 
     @property
-    def dim(self) -> Dim:
+    def dim(self) -> Dim_2D:
         """Returns dimension of the floor"""
         return self._dim
 
     @dim.setter
-    def dim(self, new_dim: Dim | tuple[int]) -> None:
+    def dim(self, new_dim: Dim_2D | tuple[int]) -> None:
         """Sets dimension of the floor"""
         if isinstance(new_dim, tuple):
-            new_dim = Dim(*new_dim)
-        if not isinstance(new_dim, Dim):
+            new_dim = Dim_2D(*new_dim)
+        if not isinstance(new_dim, Dim_2D):
             raise TypeError(f"Expected dim to be Dim or tuple[int], got {type(new_dim)}")
         if not all(isinstance(x, int) for x in new_dim):
             raise TypeError(f"Expected Dim elements to be int, got {new_dim}")
         if any(x <= 0 for x in new_dim):
-            raise ValueError(f"Expected elements of Dim to be positive integers, got {Dim}")
+            raise ValueError(f"Expected elements of Dim to be positive integers, got {Dim_2D}")
         if hasattr(self, "_corner_qtile"):
             self.check_dim_corner_qtile_compatibility(dim=new_dim, corner_qtile=self._corner_qtile)
         self._dim = new_dim
