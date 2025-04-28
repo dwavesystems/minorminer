@@ -334,11 +334,12 @@ def find_sublattice_embeddings(
         T: The target graph in which to embed. If
             raster_embedding is not None, the graph must be of type zephyr,
             pegasus, or chimera and constructed by dwave_networkx.
-        tile: A mask applied to the target graph ``T`` defining a restricted
-            space in which to search for embeddings; the tile family
-            should match that of ``T``. If the tile is not
-            provided, it is generated as a fully yielded square sublattice
-            of ``T``, with ``m=sublattice_size``.
+        tile: A dwave_networkx compatible mask applied to the target graph ``T``
+            defining a sublattice in which to search for embeddings.
+            If the tile is not provided, it is generated as a fully yielded square
+            sublattice of ``T`` of the same family (chimera, pegasus or zephyr), with
+            ``m=sublattice_size``. Aside from same-family tiles, chimera tiles
+            can be embedded on pegasus and zephyr target graphs.
             If ``tile==S``, ``embedder`` can be ignored since a 1:1 mapping is
             necessary on each subgraph and easily verified by checking the
             mask is complete.
@@ -520,7 +521,7 @@ def find_sublattice_embeddings(
             break
         if use_tile_embedding:
             proposal = _mapped_proposal(tile_embedding, f, one_to_iterable)
-            if _is_valid_embedding(proposal, S, T, one_to_iterable):
+            if _is_valid_embedding(proposal, S, _T, one_to_iterable):
                 sub_embs = [proposal]
             else:
                 sub_embs = []
