@@ -781,7 +781,7 @@ class ZNode:
             raise ValueError(f"{other} cannot be subtracted from {self}") from e
 
     def __hash__(self) -> int:
-        return (self._ccoord, self._shape).__hash__()
+        return hash((self._ccoord, self._shape))
 
     def __repr__(self) -> str:
         if self.convert_to_z:
