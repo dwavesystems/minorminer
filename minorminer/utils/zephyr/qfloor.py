@@ -80,7 +80,7 @@ class QuoTile:
 
     @property
     def seed(self) -> ZNode:
-        """Returns the smallest ZNode in Zns"""
+        """Returns the smallest ZNode in Zns."""
         return self._zns[0]
 
     @cached_property
