@@ -178,15 +178,17 @@ class QuoFloor:
         tile_connector (dict[tuple[int], PlaneShift], optional):
         Determines how to get the tiles (x+1, y) and (x, y+1) from tile (x, y).
         Defaults to tile_connector0.
+
     Example:
     .. code-block:: python
-    >>> from minorminer.utils.zephyr.node_edge import ZNode
-    >>> from minorminer.utils.zephyr.qfloor import QuoFloor
-    >>> coords = [(k, k+1) for k in range(4)] + [(k+1, k) for k in range(4)]
-    >>> zns = [ZNode(coord=c) for c in coords]
-    >>> floor = QuoFloor(corner_qtile=zns, dim=(3, 5))
-    >>> print(f"{floor.qtile_xy(2, 3) = }")
-    floor.qtile_xy(2, 3) = QuoTile[ZNode(CartesianCoord(x=8, y=13, k=None)), ZNode(CartesianCoord(x=9, y=12, k=None)), ZNode(CartesianCoord(x=9, y=14, k=None)), ZNode(CartesianCoord(x=10, y=13, k=None)), ZNode(CartesianCoord(x=10, y=15, k=None)), ZNode(CartesianCoord(x=11, y=14, k=None)), ZNode(CartesianCoord(x=11, y=16, k=None)), ZNode(CartesianCoord(x=12, y=15, k=None))]
+
+        >>> from minorminer.utils.zephyr.node_edge import ZNode
+        >>> from minorminer.utils.zephyr.qfloor import QuoFloor
+        >>> coords = [(k, k+1) for k in range(4)] + [(k+1, k) for k in range(4)]
+        >>> zns = [ZNode(coord=c) for c in coords]
+        >>> floor = QuoFloor(corner_qtile=zns, dim=(3, 5))
+        >>> print(f"{floor.qtile_xy(2, 3) = }")
+        floor.qtile_xy(2, 3) = QuoTile[ZNode(CartesianCoord(x=8, y=13, k=None)), ZNode(CartesianCoord(x=9, y=12, k=None)), ZNode(CartesianCoord(x=9, y=14, k=None)), ZNode(CartesianCoord(x=10, y=13, k=None)), ZNode(CartesianCoord(x=10, y=15, k=None)), ZNode(CartesianCoord(x=11, y=14, k=None)), ZNode(CartesianCoord(x=11, y=16, k=None)), ZNode(CartesianCoord(x=12, y=15, k=None))]
 
     """
 
