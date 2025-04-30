@@ -125,6 +125,7 @@ class ZEdge(Edge):
 
     @property
     def edge_kind(self) -> EdgeKind:
+        """Returns the :class:`EdgeKind` of ``self``."""
         return self._edge_kind
 
 
@@ -191,12 +192,12 @@ class ZNode:
 
     @property
     def shape(self) -> ZShape | None:
-        """Returns the shape of the Zephyr graph the node belongs to."""
+        """Returns the :class:`ZShape` of the Zephyr graph the node belongs to."""
         return self._shape
 
     @shape.setter
     def shape(self, new_shape: ZShape | tuple[int | None]) -> None:
-        """Sets a new value for shape"""
+        """Sets a new value for shape."""
         if isinstance(new_shape, tuple):
             new_shape = ZShape(*new_shape)
 
@@ -219,12 +220,16 @@ class ZNode:
 
     @property
     def ccoord(self) -> CartesianCoord:
-        """Returns the CartesianCoord of self, ccoord"""
+        """Returns the :class:`CartesianCoord` of ``self``."""
         return self._ccoord
 
     @ccoord.setter
     def ccoord(self, new_ccoord: CartesianCoord | tuple[int]):
-        """Sets a new value for ccoord"""
+        """Sets a new value for the ``ccoord`` attribute.
+
+        Args:
+            new_ccoord (CartesianCoord or tuple[int]): The new Cartesian coordinate to set.
+        """
         if isinstance(new_ccoord, tuple):
             new_ccoord = CartesianCoord(*new_ccoord)
         if not isinstance(new_ccoord, CartesianCoord):
@@ -291,27 +296,27 @@ class ZNode:
 
     @property
     def zcoord(self) -> ZephyrCoord:
-        """Returns ZephyrCoordinate corresponding to ccoord"""
+        """Returns :class:`ZephyrCoord` corresponding to ccoord."""
         return cartesian_to_zephyr(self._ccoord)
 
     @property
     def node_kind(self) -> NodeKind:
-        """Returns the node kind of self"""
+        """Returns the :class:`NodeKind` of ``self``."""
         if self._ccoord.x % 2 == 0:
             return NodeKind.VERTICAL
         return NodeKind.HORIZONTAL
 
     @property
     def direction(self) -> int:
-        """Returns the direction of node, i.e. its `u` coordinate in Zephyr coordinates."""
+        """Returns the direction of node, i.e. its ``u`` coordinate in Zephyr coordinates."""
         return self.node_kind.value
 
     def is_quo(self) -> bool:
-        """Decides if the ZNode object is quotient"""
+        """Decides if the class:`ZNode` object is quotient."""
         return (self._ccoord.k is None) and (self._shape.t is None)
 
     def to_quo(self) -> ZNode:
-        """Returns the quotient ZNode corresponding to self"""
+        """Returns the quotient class:`ZNode` corresponding to self"""
         qshape = ZShape(m=self._shape.m)
         qccoord = CartesianCoord(x=self._ccoord, y=self._ccoord)
         return ZNode(coord=qccoord, shape=qshape, convert_to_z=self.convert_to_z)
@@ -665,7 +670,7 @@ class ZNode:
         nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> list[ZEdge]:
-        """Returns incident edges with self when restricted by `nbr_kind` and `where`.
+        """Returns incident edges with self when restricted by ``nbr_kind`` and ``where``.
 
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
@@ -676,7 +681,7 @@ class ZNode:
                 or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
 
         Returns:
-            list[ZEdge]: list edges incident with self when restricted by `nbr_kind` and `where`.
+            list[ZEdge]: List of edges incident with self when restricted by ``nbr_kind`` and ``where``.
         """
         return [ZEdge(self, v) for v in self.neighbors(nbr_kind=nbr_kind, where=where)]
 
@@ -685,7 +690,7 @@ class ZNode:
         nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> int:
-        """Returns degree of self when restricted by `nbr_kind` and `where`.
+        """Returns degree of self when restricted by ``nbr_kind`` and ``where``.
 
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
