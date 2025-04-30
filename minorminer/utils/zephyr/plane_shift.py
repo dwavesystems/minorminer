@@ -89,7 +89,7 @@ class PlaneShift:
         return PlaneShift(int(new_shift_x), int(new_shift_y))
 
     def __rmul__(self, scale: int | float) -> PlaneShift:
-        """Multiplies the self from right by the number value``scale``.
+        """Multiplies the self from right by the number value ``scale``.
 
         Args:
             scale (int | float): The scale for right-multiplying self with.
