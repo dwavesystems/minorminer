@@ -71,46 +71,48 @@ class QuoTile:
 
     @property
     def zns(self) -> list[ZNode]:
-        """Returns the sorted list of ZNodes the tile contains"""
+        """Returns the sorted list of :class:`ZNode`s the tile contains."""
         return self._zns
 
     @cached_property
     def index_zns(self) -> dict[int, ZNode]:
+        """Returns a dictionary mapping the index of a node in the tile to its corresponding :class:`ZNode`."""
         return {i: zn for i, zn in enumerate(self._zns)}
 
     @property
     def seed(self) -> ZNode:
-        """Returns the smallest ZNode in Zns."""
+        """Returns the smallest :class:`ZNode` in zns."""
         return self._zns[0]
 
     @cached_property
     def shifts(self) -> list[PlaneShift]:
-        """Returns the list of shift of each ZNode in zns from seed"""
+        """Returns a list of :class:`PlaneShift` values, one for each :class:`ZNode` in :py:attr:`self.zns`, measured relative to the :py:attr:`self.seed`."""
         seed = self.seed
         return [zn - seed for zn in self._zns]
 
     @cached_property
     def index_shifts(self) -> dict[int, PlaneShift]:
+        """Returns a dictionary mapping the index of a node in the tile to its corresponding :class:`PlaneShift` in the tile."""
         return {i: ps for i, ps in enumerate(self.shifts)}
 
     @cached_property
     def shape(self) -> ZShape:
-        """Returns the shape of the Zephyr graph the tile belongs to."""
+        """Returns the :class:`ZShape` of the Zephyr graph the tile belongs to."""
         return self.seed.shape
 
     @cached_property
     def convert_to_z(self) -> bool:
-        """Returns the convert_to_z attribute of the ZNodes of the tile"""
+        """Returns the convert_to_z attribute of the ``ZNode``s of the tile."""
         return self.seed.convert_to_z
 
     @cached_property
     def ver_zns(self) -> list[ZNode]:
-        """Returns the list of vertical ZNodes of the tile"""
+        """Returns the list of vertical ``ZNode``s of the tile."""
         return [zn for zn in self._zns if zn.is_vertical()]
 
     @cached_property
     def hor_zns(self) -> list[ZNode]:
-        """Returns the list of horizontal ZNodes of the tile"""
+        """Returns the list of horizontal ``ZNode``s of the tile."""
         return [zn for zn in self._zns if zn.is_horizontal()]
 
     def edges(
@@ -118,20 +120,19 @@ class QuoTile:
         nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> list[ZEdge]:
-        """Returns the list of edges of the graph induced on the tile, when restricted by `nbr_kind` and `where`.
+        """Returns the list of edges of the graph induced on the tile, when restricted by ``nbr_kind`` and ``where``.
 
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
                 Edge kind filter. Restricts returned edges to those having the given edge kind(s).
                 If None, no filtering is applied. Defaults to None.
             where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+                A coordinate filter. Applies to ``ccoord`` if ``self.convert_to_z`` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
 
         Returns:
-            list[ZEdge]: List of edges of the graph induced on the tile, when restricted by `nbr_kind` and `where`.
+            list[ZEdge]: List of edges of the graph induced on the tile, when restricted by ``nbr_kind`` and ``where``.
         """
-
         zns = self._zns
         tile_coords = [zn.zcoord for zn in zns] if self.convert_to_z else [zn.ccoord for zn in zns]
         where_tile = lambda coord: where(coord) and coord in tile_coords
@@ -167,7 +168,7 @@ class QuoTile:
 
 
 class QuoFloor:
-    """Initializes QuoFloor object with a corner tile and dimension and
+    """Initializes 'QuoFloor' object with a corner tile and dimension and
     optional tile connector.
 
     Args:
@@ -209,12 +210,12 @@ class QuoFloor:
 
     @property
     def tile_connector(self) -> dict[tuple[int], PlaneShift] | None:
-        """Returns the tile connector"""
+        """Returns the tile connector."""
         return self.tile_connector
 
     @tile_connector.setter
     def tile_connector(self, new_connector: dict[tuple[int], PlaneShift]) -> None:
-        """Sets the tile connector"""
+        """Sets the tile connector."""
         if not isinstance(new_connector, dict):
             raise TypeError(f"Expected tile_connector to be dict, got {type(new_connector)}")
         if not new_connector in self.IMPLEMENTED_CONNECTORS:
@@ -228,14 +229,22 @@ class QuoFloor:
             )
         self._tile_connector = new_connector
 
-    def check_dim_corner_qtile_compatibility(
+    def _check_dim_corner_qtile_compatibility(
         self,
         dim: Dim_2D,
         corner_qtile: QuoTile,
     ) -> None:
-        """Checks whether dimension and corner tile are compatible, i.e.
-        whether given the tile connector, the floor can be
+        """Checks whether dimension of floor and corner tile are compatible.
+        
+        Checks whether given the tile connector, the floor can be
         constructed with the provided corner tile and dimensions.
+       
+        Args:
+            dim (Dim_2D): The dimension of the floor
+            corner_qtile (QuoTile): The upper left corner tile of the floor.
+
+        Raises:
+            ValueError: If the floor cannot be constructed with the provided corner tile and dimensions.
         """
         if any(par is None for par in (dim, corner_qtile, self._tile_connector)):
             return
@@ -249,12 +258,12 @@ class QuoFloor:
 
     @property
     def dim(self) -> Dim_2D:
-        """Returns dimension of the floor"""
+        """Returns dimension of the floor."""
         return self._dim
 
     @dim.setter
     def dim(self, new_dim: Dim_2D | tuple[int]) -> None:
-        """Sets dimension of the floor"""
+        """Sets dimension of the floor."""
         if isinstance(new_dim, tuple):
             new_dim = Dim_2D(*new_dim)
         if not isinstance(new_dim, Dim_2D):
@@ -264,17 +273,17 @@ class QuoFloor:
         if any(x <= 0 for x in new_dim):
             raise ValueError(f"Expected elements of Dim to be positive integers, got {Dim_2D}")
         if hasattr(self, "_corner_qtile"):
-            self.check_dim_corner_qtile_compatibility(dim=new_dim, corner_qtile=self._corner_qtile)
+            self._check_dim_corner_qtile_compatibility(dim=new_dim, corner_qtile=self._corner_qtile)
         self._dim = new_dim
 
     @property
     def corner_qtile(self) -> QuoTile:
-        """Returns the corner tile of floor"""
+        """Returns the corner tile of floor."""
         return self._corner_qtile
 
     @corner_qtile.setter
     def corner_qtile(self, new_qtile: QuoTile) -> None:
-        """Sets corner tile of the floor"""
+        """Sets corner tile of the floor."""
         if isinstance(new_qtile, Iterable):
             new_qtile = QuoTile(zns=new_qtile)
         if not isinstance(new_qtile, QuoTile):
@@ -297,11 +306,22 @@ class QuoFloor:
             if abs(ydiff) >= x_jump:
                 raise ValueError(f"This tile may overlap other tiles on {x = }")
         if hasattr(self, "_dim"):
-            self.check_dim_corner_qtile_compatibility(dim=self._dim, corner_qtile=new_qtile)
+            self._check_dim_corner_qtile_compatibility(dim=self._dim, corner_qtile=new_qtile)
         self._corner_qtile = new_qtile
 
     def qtile_xy(self, x: int, y: int) -> QuoTile:
-        """Returns the tile at the position x, y of floor, i.e. column x, row y."""
+        """Returns the :class:`QuoTile` located at column ``x`` and row ``y`` of the floor.
+
+        Args:
+            x (int): The column number.
+            y (int): The row number.
+
+        Raises:
+            ValueError: If the floor does not have a tile at position (x, y).
+
+        Returns:
+            QuoTile: The tile at the position (x, y) of the floor.
+        """
         if (x, y) not in product(range(self._dim.Lx), range(self._dim.Ly)):
             raise ValueError(
                 f"Expected x to be in {range(self._dim.Lx)} and y to be in {range(self._dim.Ly)}. "
@@ -327,21 +347,21 @@ class QuoFloor:
     @property
     def zns(self) -> dict[tuple[int], list[ZNode]]:
         """Returns the dictionary where the keys are positions of floor,
-        and the values are the ZNodes the tile corresponding to the position
+        and the values are the ``ZNode``s the tile corresponding to the position
         contains."""
         return {xy: xy_tile.zns for xy, xy_tile in self.qtiles.items()}
 
     @property
     def ver_zns(self) -> dict[tuple[int], list[ZNode]]:
         """Returns the dictionary where the keys are positions of floor,
-        and the values are the vertical ZNodes the tile corresponding to
+        and the values are the vertical ``ZNode``s the tile corresponding to
         the position contains."""
         return {xy: xy_tile.ver_zns for xy, xy_tile in self.qtiles.items()}
 
     @property
     def hor_zns(self) -> dict[tuple[int], list[ZNode]]:
         """Returns the dictionary where the keys are positions of floor,
-        and the values are the horizontal ZNodes the tile corresponding to
+        and the values are the horizontal ``ZNode``s the tile corresponding to
         the position contains."""
         return {xy: xy_tile.hor_zns for xy, xy_tile in self.qtiles.items()}
 
