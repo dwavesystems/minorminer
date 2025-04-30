@@ -334,14 +334,13 @@ def find_sublattice_embeddings(
         T: The target graph in which to embed. If
             raster_embedding is not None, the graph must be of type zephyr,
             pegasus, or chimera and constructed by dwave_networkx.
-        tile: A dwave_networkx compatible mask applied to the target graph ``T``
-            defining a sublattice in which to search for embeddings.
+        tile: A graph constructed by dwave_networkx applied as a displaceable mask
+            to the target graph ``T``. The embedding search is limited to the mask.
             If the tile is not provided, it is generated as a fully yielded square
-            sublattice of ``T`` of the same family (chimera, pegasus or zephyr), with
-            ``m=sublattice_size``. See minorminer
-            documentation for sublattice mappings (zephyr, pegasus, or chimera) for
-            details on compatible combinations. For example, chimera tiles can be used
-            in combination with pegasus and zephyr target graphs.
+            sublattice of ``T`` of the same type (chimera, pegasus or zephyr), with
+            ``m=sublattice_size``. See minorminer sublattice mapping documentation
+            for details on compatible combinations. For example, chimera tiles
+            can be used in combination with pegasus and zephyr target graphs.
         sublattice_size: Parameterizes the tile when it is not provided
            as an input argument: defines the number of rows and columns
            of a square sublattice (parameter m of the dwave_networkx graph
