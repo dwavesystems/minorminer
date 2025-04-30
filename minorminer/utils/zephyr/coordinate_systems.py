@@ -53,7 +53,8 @@ def cartesian_to_zephyr(ccoord: CartesianCoord) -> ZephyrCoord:
 
 
 def zephyr_to_cartesian(zcoord: ZephyrCoord) -> CartesianCoord:
-    """Converts a ZephyrCoord to its corresponding CartesianCoord.
+    """Converts a ``ZephyrCoord``` to its corresponding ``CartesianCoord``.
+
     Note: It assumes the given ZephyrCoord is valid.
 
     Args:
