@@ -19,13 +19,13 @@ from __future__ import annotations
 
 from collections import namedtuple
 from functools import cached_property
-from typing import Callable
+from typing import Callable, Literal
 
 import dwave_networkx as dnx
 import networkx as nx
 from dwave.system import DWaveSampler
 from minorminer.utils.zephyr.coordinate_systems import ZephyrCoord
-from minorminer.utils.zephyr.node_edge import ZEdge, ZNode, ZShape
+from minorminer.utils.zephyr.node_edge import ZEdge, ZNode, ZShape, EdgeKind
 
 UWKJ = namedtuple("UWKJ", ["u", "w", "k", "j"])
 ZSE = namedtuple("ZSE", ["z_start", "z_end"])
@@ -75,12 +75,31 @@ class ZSurvey:
         }
 
     @staticmethod
-    def get_shape_coord(G: nx.Graph | DWaveSampler) -> dict[str, ZShape | str]:
-        """Returns the shape, coordinates of G, which must be a zephyr graph or
-        DWaveSampler with zephyr topology.
+    def get_shape_coord(G: nx.Graph | DWaveSampler) -> tuple[ZShape, Literal["int", "coordinate"]]:
         """
+        Returns the shape and coordinates of G, which must be a zephyr graph or
+        DWaveSampler with zephyr topology.
 
-        def graph_shape_coord(G: nx.Graph) -> dict[str, int | str]:
+        Args:
+            G (nx.Graph | DWaveSampler): A zephyr graph or DWaveSampler with zephyr topology.
+            
+        Returns:
+            tuple[ZShape, Literal["int", "coordinate"]]:
+                - 0-th index indicates the :class:`ZShape` of ``G``.
+                - 1-st index is 'int' if the node lables of ``G`` are integers; and is 'coordinate' if the node lables of ``G`` are Zephyr coordinates.
+        """
+        def _graph_shape_coord(G: nx.Graph) -> tuple[ZShape, Literal["int", "coordinate"]]:
+            """
+            Returns the shape and coordinates of G, which must be a zephyr graph.
+
+            Args:
+                G (nx.Graph): A zephyr graph with zephyr topology.
+                
+            Returns:
+                tuple[ZShape, Literal["int", "coordinate"]]:
+                    - 0-th index indicates the :class:`ZShape` of ``G``.
+                    - 1-st index is 'int' if the node lables of ``G`` are integers; and is 'coordinate' if the node lables of ``G`` are Zephyr coordinates.
+            """
             G_info = G.graph
             G_top = G_info.get("family")
             if G_top != "zephyr":
@@ -89,7 +108,18 @@ class ZSurvey:
             m, t, coord = G_info.get("rows"), G_info.get("tile"), G_info.get("labels")
             return ZShape(m=m, t=t), coord
 
-        def sampler_shape_coord(sampler: DWaveSampler) -> dict[str, int | str]:
+        def _sampler_shape_coord(sampler: DWaveSampler) -> tuple[ZShape, Literal["int", "coordinate"]]:
+            """
+            Returns the shape and coordinates of G, which must be a DWaveSampler with zephyr topology.
+
+            Args:
+                G (DWaveSampler): A DWaveSampler with zephyr topology.
+                
+            Returns:
+                tuple[ZShape, Literal["int", "coordinate"]]:
+                    - 0-th index indicates the :class:`ZShape` of ``G``.
+                    - 1-st index is 'int' if the node lables of ``G`` are integers; and is 'coordinate' if the node lables of ``G`` are Zephyr coordinates.
+            """
             sampler_top: dict[str, str | int] = sampler.properties.get("topology")
             if sampler_top.get("type") != "zephyr":
                 raise ValueError(f"Expected a sampler with zephyr topology, got {sampler_top}")
@@ -115,11 +145,10 @@ class ZSurvey:
             return ZShape(*sampler_top.get("shape")), coord
 
         if isinstance(G, nx.Graph):
-            return graph_shape_coord(G)
+            return _graph_shape_coord(G)
         if isinstance(G, DWaveSampler):
-            return sampler_shape_coord(G)
+            return _sampler_shape_coord(G)
 
-        raise TypeError(f"Expected G to be networkx.Graph or DWaveSampler, got {type(G)}")
 
     @cached_property
     def _input_coord_to_coord(self) -> Callable[[int | tuple[int]], tuple[int]]:
@@ -136,7 +165,7 @@ class ZSurvey:
 
     @property
     def shape(self) -> ZShape:
-        """Returns the ZShape of G"""
+        """Returns the :class:`ZShape` of ``G``."""
         return self._shape
 
     @property
@@ -208,21 +237,37 @@ class ZSurvey:
     def neighbors(
         self,
         v: ZNode,
-        nbr_kind: str | None = None,
+        nbr_kind: EdgeKind | None = None,
     ) -> set[ZNode]:
-        """Returns the neighbours of v when restricted to nbr_kind"""
-        if not isinstance(v, ZNode):
-            raise TypeError(f"Expected v to be ZNode, got {v}")
+        """Returns the neighbours of ``v`` when restricted to ``nbr_kind``.
+
+        Args:
+            v (ZNode): Node to retrieve its neighbors.
+            nbr_kind (EdgeKind | None, optional):
+                Edge kind filter. Restricts returned neighbors to those connected by the given edge kind(s).
+                If None, no filtering is applied. Defaults to None.
+
+        Returns:
+            set[ZNode]: Set of neighbors of self when restricted by ``nbr_kind``.
+        """
         if v in self.missing_nodes:
-            return {}
+            return set()
         return {v_nbr for v_nbr in v.neighbors(nbr_kind=nbr_kind) if ZEdge(v, v_nbr) in self._edges}
 
     def incident_edges(
         self,
         v: ZNode,
-        nbr_kind: str | None = None,
+        nbr_kind: EdgeKind | None = None,
     ) -> set[ZEdge]:
-        """Returns the edges incident with v when restricted to nbr_kind"""
+        """Returns the edges incident with ``v`` when restricted to ``nbr_kind``.
+
+        Args:
+            v (ZNode): Node to retrieve its incident edges.
+            nbr_kind (EdgeKind | None, optional): _description_. Defaults to None.
+
+        Returns:
+            set[ZEdge]: Set of edges incident with ``v`` when restricted by ``nbr_kind``.
+        """
         nbrs = self.neighbors(v, nbr_kind=nbr_kind)
         if len(nbrs) == 0:
             return set()
@@ -231,12 +276,22 @@ class ZSurvey:
     def degree(
         self,
         v: ZNode,
-        nbr_kind: str | None = None,
+        nbr_kind: EdgeKind | None = None,
     ) -> int:
-        """Returns the degree of v when restricted to nbr_kind"""
+        """Returns degree of ``v`` when restricted by ``nbr_kind``.
+
+        Args:
+            v (ZNode): Node to calculate its degree.
+            
+            nbr_kind (EdgeKind | None, optional):
+                Edge kind filter. Restricts counting the neighbors to those connected by the given edge kind.
+                If None, no filtering is applied. Defaults to None.
+        Returns:
+            int: Degree of ``v``.
+        """
         return len(self.neighbors(v, nbr_kind=nbr_kind))
 
-    def _ext_path(self, uwkj: UWKJ) -> set[ZSE]:
+    def _ext_path(self, uwkj: UWKJ) -> list[ZSE]:
         """Returns uwkj_sur, where uwkj_sur contains ZSE(z_start, z_end)
         for each non-overlapping external path segment of uwkj.
         """
@@ -269,22 +324,26 @@ class ZSurvey:
 
             return ZSE(z_start, is_extensible.z_end)
 
-        uwkj_sur: set[ZSE] = set()
+        uwkj_sur: list[ZSE] = []
         while z_vals:
             z_start = z_vals[0]
             seg = _ext_seg(z_start=z_start)
             if seg is None:
                 z_vals.remove(z_start)
             else:
-                uwkj_sur.add(seg)
+                uwkj_sur.append(seg)
                 for i in range(seg.z_start, seg.z_end + 1):
                     z_vals.remove(i)
 
         return uwkj_sur
 
-    def calculate_external_paths_stretch(self) -> dict[UWKJ, set[ZSE]]:
-        """
-        Returns {uwkj: set of connected segments (z_start, z_end)}
+    def calculate_external_paths_stretch(self) -> dict[UWKJ, list[ZSE]]:
+        """Calculates the maximal connected z-segments of external paths (expressed as :class:`UWKJ`) of ``G``.
+
+        Returns:
+            dict[UWKJ, list[ZSE]]: A dictionary in the form of {uwkj: list of maximal connected z-segments (z_start, z_end)}, where
+                - keys correspond to external paths (expressed as :class:`UWKJ`) of ``G``,
+                - values correspond to list of maximal connected z-segments (z_start, z_end) of uwkj.
         """
         uwkj_vals = [
             UWKJ(u=u, w=w, k=k, j=j)
