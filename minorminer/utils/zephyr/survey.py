@@ -243,8 +243,7 @@ class ZSurvey:
         z_vals = list(range(self.shape.m))  # As in zephyr coordinates
 
         def _ext_seg(z_start: int) -> ZSE | None:
-            """
-            If (u, w, k, j, z_start) does not exist, returns None.
+            """If (u, w, k, j, z_start) does not exist, returns None.
             Else, finds the external path segment starting at z_start going to right, and
             returns the endpoints of the segment (z_start, z_end).
             """
