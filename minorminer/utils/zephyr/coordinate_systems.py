@@ -28,8 +28,9 @@ CartesianCoord = namedtuple(
 
 
 def cartesian_to_zephyr(ccoord: CartesianCoord) -> ZephyrCoord:
-    """Converts a CartesianCoord to its corresponding ZephyrCoord.
-    Note: It assumes the given CartesianCoord is valid.
+    """Converts a ``CartesianCoord`` to its corresponding ``ZephyrCoord``.
+
+    Note: It assumes the given ``CartesianCoord`` is valid.
 
     Args:
         ccoord (CartesianCoord): The coodinate in Cartesian system to be converted.
