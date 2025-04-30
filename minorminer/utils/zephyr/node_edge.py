@@ -132,10 +132,10 @@ class ZNode:
     """Initializes 'ZNode' with coord and optional shape.
 
     Args:
-        coord (CartesianCoord | ZephyrCoord | tuple[int]): Coordinate in (quotient) Zephyr or (quotient) Cartesian
+        coord (CartesianCoord | ZephyrCoord | tuple[int]): Coordinate in (quotient) Zephyr or (quotient) Cartesian.
         shape (ZShape | tuple[int | None] | None, optional): Shape of the Zephyr graph containing this ZNode.
-            If a ZShape is passed, it should be a namedtuple with fields `m` (grid size of the Zephyr graph) and `t` (tile size of the Zephyr graph).
-        Defaults to None.
+            If a ZShape is passed, it should be a namedtuple with fields `m` (grid size of the Zephyr graph) 
+            and `t` (tile size of the Zephyr graph). Defaults to None.
         convert_to_z (bool | None, optional): Whether to express the coordinates in ZephyrCoordinates.
             Defaults to None.
 
