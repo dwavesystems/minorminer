@@ -46,8 +46,8 @@ class Edge:
     """Initializes an Edge with nodes x, y.
 
     Args:
-        x : One endpoint of edge.
-        y : Another endpoint of edge.
+        x: One endpoint of edge.
+        y: Another endpoint of edge.
     """
 
     def __init__(self, x: int , y: int) -> None:
