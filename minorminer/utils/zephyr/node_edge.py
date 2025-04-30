@@ -66,7 +66,7 @@ class Edge:
     def __getitem__(self, index: int) -> int:
         return self._edge[index]
 
-    def __eq__(self, other: Edge):
+    def __eq__(self, other: Edge) -> bool:
         return self._edge == other._edge
 
     def __str__(self) -> str:
