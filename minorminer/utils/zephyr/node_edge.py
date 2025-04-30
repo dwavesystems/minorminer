@@ -170,7 +170,7 @@ class ZNode:
         convert_to_z: bool | None = None,
     ) -> None:
         if shape:
-            self.shape = shape
+            self.shape = ZShape(*shape)
         else:
             self.shape = ZShape()
 
