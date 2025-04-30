@@ -709,14 +709,6 @@ class ZNode:
             )
         return self._ccoord == other._ccoord
 
-    def __ne__(self, other: ZNode) -> bool:
-        if not isinstance(other, ZNode):
-            raise TypeError(f"Expected {other} to be {type(self).__name__}, got {type(other)}")
-        if self._shape != other._shape:
-            raise ValueError(
-                f"Expected {self, other} to have the same shape, got {self._shape, other._shape}"
-            )
-        return self._ccoord != other._ccoord
 
     def __gt__(self, other: ZNode) -> bool:
         if not isinstance(other, ZNode):
