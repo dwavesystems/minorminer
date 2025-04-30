@@ -85,6 +85,7 @@ class ZSurvey:
             G_top = G_info.get("family")
             if G_top != "zephyr":
                 raise ValueError(f"Expected a graph with zephyr topology, got {G_top}")
+
             m, t, coord = G_info.get("rows"), G_info.get("tile"), G_info.get("labels")
             return ZShape(m=m, t=t), coord
 
