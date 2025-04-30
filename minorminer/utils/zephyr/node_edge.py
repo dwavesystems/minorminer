@@ -328,8 +328,9 @@ class ZNode:
         self,
         other: ZNode,
     ) -> EdgeKind | None:
-        """Returns the kind of edge between self and other;
-        EdgeKind if there is an edge in perfect Zephyr between them or None.
+        """Returns the kind of edge between two ZNodes.
+
+        :class:`EdgeKind` if there is an edge in perfect Zephyr between them or ``None``.
 
         Args:
             other (ZNode): a ZNode
