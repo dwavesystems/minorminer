@@ -333,7 +333,7 @@ class ZNode:
         :class:`EdgeKind` if there is an edge in perfect Zephyr between them or ``None``.
 
         Args:
-            other (ZNode): a ZNode
+            other (ZNode): The neigboring :class:`ZNode`.
 
         Returns:
             EdgeKind | None: The edge kind between self and other in perfect Zephyr or None if there is no edge between in perfect Zephyr.
