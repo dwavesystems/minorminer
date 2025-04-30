@@ -126,7 +126,7 @@ class QuoTile:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
                 Edge kind filter. Restricts returned edges to those having the given edge kind(s).
                 If None, no filtering is applied. Defaults to None.
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
                 A coordinate filter. Applies to ``ccoord`` if ``self.convert_to_z`` is ``False``,
                 or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
 

@@ -38,8 +38,8 @@ class EdgeKind(Enum):
 
 class NodeKind(Enum):
     """Kinds of a node (qubit) in a Zephyr graph."""
-    VERTICAL = 0    # The `u` coordinate of a Zephyr coordinate of a vertical node (qubit) is zero.
-    HORIZONTAL = 1  # The `u` coordinate of a Zephyr coordinate of a horizontal node (qubit) is one.
+    VERTICAL = 0    # The ``u`` coordinate of a Zephyr coordinate of a vertical node (qubit) is zero.
+    HORIZONTAL = 1  # The ``u`` coordinate of a Zephyr coordinate of a horizontal node (qubit) is one.
 
 
 class Edge:
@@ -135,15 +135,15 @@ class ZNode:
     Args:
         coord (CartesianCoord | ZephyrCoord | tuple[int]): Coordinate in (quotient) Zephyr or (quotient) Cartesian.
         shape (ZShape | tuple[int | None] | None, optional): Shape of the Zephyr graph containing this ZNode.
-            If a ZShape is passed, it should be a namedtuple with fields `m` (grid size of the Zephyr graph) 
-            and `t` (tile size of the Zephyr graph). Defaults to None.
+            If a ZShape is passed, it should be a namedtuple with fields ``m`` (grid size of the Zephyr graph) 
+            and ``t`` (tile size of the Zephyr graph). Defaults to None.
         convert_to_z (bool | None, optional): Whether to express the coordinates in ZephyrCoordinates.
             Defaults to None.
 
     Note: 
-        If the `k` field of the given `coord` (whether a `CartesianCoord` or `ZephyrCoord`) is not `None`,
-        then `shape` must be provided and its `t` field (the tile size of the Zephyr graph) must not be `None`.
-        Otherwise, a `ValueError` will be raised.
+        If the ``k`` field of the given ``coord`` (whether a :class:`CartesianCoord` or :class:`ZephyrCoord`) is not ``None``,
+        then ``shape`` must be provided and its ``t`` field (the tile size of the Zephyr graph) must not be ``None``.
+        Otherwise, a ``ValueError`` will be raised.
 
     Example:
     >>> from zephyr_utils.node_edge import ZNode, ZShape
@@ -318,11 +318,11 @@ class ZNode:
         return ZNode(coord=qccoord, shape=qshape, convert_to_z=self.convert_to_z)
 
     def is_vertical(self) -> bool:
-        """Returns True if the node represents a vertical qubit (i.e., its `u` coordinate in Zephyr coordinates is 0)."""
+        """Returns True if the node represents a vertical qubit (i.e., its ``u`` coordinate in Zephyr coordinates is 0)."""
         return self.node_kind is NodeKind.VERTICAL
 
     def is_horizontal(self) -> bool:
-        """Returns True if the node represents a horizontal qubit (i.e., its `u` coordinate in Zephyr coordinates is 1)."""
+        """Returns True if the node represents a horizontal qubit (i.e., its ``u`` coordinate in Zephyr coordinates is 1)."""
         return self.node_kind is NodeKind.HORIZONTAL
 
     def neighbor_kind(

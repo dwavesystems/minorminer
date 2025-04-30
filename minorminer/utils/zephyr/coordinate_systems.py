@@ -28,15 +28,15 @@ CartesianCoord = namedtuple(
 
 
 def cartesian_to_zephyr(ccoord: CartesianCoord) -> ZephyrCoord:
-    """Converts a ``CartesianCoord`` to its corresponding ``ZephyrCoord``.
+    """Converts a :class:`CartesianCoord` to its corresponding :class:`ZephyrCoord`.
 
-    Note: It assumes the given ``CartesianCoord`` is valid.
+    Note: It assumes the given :class:`CartesianCoord` is valid.
 
     Args:
         ccoord (CartesianCoord): The coodinate in Cartesian system to be converted.
 
     Returns:
-        ZephyrCoord: The coordinate of the ccoord in Zephyr system.
+        ZephyrCoord: The coordinate of the ``ccoord`` in Zephyr system.
     """
     x, y, k = ccoord
     if x % 2 == 0:
@@ -53,15 +53,15 @@ def cartesian_to_zephyr(ccoord: CartesianCoord) -> ZephyrCoord:
 
 
 def zephyr_to_cartesian(zcoord: ZephyrCoord) -> CartesianCoord:
-    """Converts a ``ZephyrCoord``` to its corresponding ``CartesianCoord``.
+    """Converts a :class:`ZephyrCoord` to its corresponding :class:`CartesianCoord`.
 
-    Note: It assumes the given ZephyrCoord is valid.
+    Note: It assumes the given ``zcoord`` is a valid Zephyr coordinate.
 
     Args:
         zcoord (ZephyrCoord): The coodinate in Zephyr system to be converted.
 
     Returns:
-        CartesianCoord: The coordinate of the ccoord in Cartesian system.
+        CartesianCoord: The coordinate of the ``ccoord`` in Cartesian system.
     """
     u, w, k, j, z = zcoord
     if u == 0:
