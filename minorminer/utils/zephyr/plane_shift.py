@@ -130,7 +130,7 @@ class PlaneShift:
         return hash(self._shift)
 
     def __getitem__(self, key) -> int:
-        return self._shift.__getitem__(key)
+        return self._shift[key]
 
     def __eq__(self, other: PlaneShift) -> bool:
         if not isinstance(other, PlaneShift):
