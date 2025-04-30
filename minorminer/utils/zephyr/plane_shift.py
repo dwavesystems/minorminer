@@ -72,7 +72,7 @@ class PlaneShift:
             scale (int): The scale for left-multiplying self with.
 
         Returns:
-            PlaneShift: The result of left-multiplying self by scale.
+            PlaneShift: The result of left-multiplying self by ``scale``.
         """
 
         new_shift_x = scale * self._shift.x
@@ -80,17 +80,17 @@ class PlaneShift:
         return PlaneShift(new_shift_x, new_shift_y)
 
     def __rmul__(self, scale: int | float) -> PlaneShift:
-        """Multiplies the self from right by the number value ``scale``.
+        """Multiplies the ``self`` from right by the number value ``scale``.
 
         Args:
-            scale (int | float): The scale for right-multiplying self with.
+            scale (int | float): The scale for right-multiplying ``self`` with.
 
         Raises:
             TypeError: If scale is not 'int' or 'float'.
             ValueError: If the resulting PlaneShift has non-whole values.
 
         Returns:
-            PlaneShift: The result of right-multiplying self by scale.
+            PlaneShift: The result of right-multiplying ``self`` by ``scale``.
         """
         return self * scale
 
