@@ -127,7 +127,7 @@ class PlaneShift:
         return len(self._shift)
 
     def __hash__(self) -> int:
-        return self._shift.__hash__()
+        return hash(self._shift)
 
     def __getitem__(self, key) -> int:
         return self._shift.__getitem__(key)
