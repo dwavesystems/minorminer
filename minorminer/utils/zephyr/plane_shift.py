@@ -137,10 +137,6 @@ class PlaneShift:
             raise TypeError(f"Expected other to be PlaneShift, got {type(other)}")
         return self._shift == other._shift
 
-    def __ne__(self, other: PlaneShift) -> bool:
-        if not isinstance(other, PlaneShift):
-            raise TypeError(f"Expected other to be PlaneShift, got {type(other)}")
-        return not self._shift == other._shift
 
     def __lt__(self, other: PlaneShift) -> bool:
         if not isinstance(other, PlaneShift):
