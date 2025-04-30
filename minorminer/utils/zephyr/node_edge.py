@@ -167,13 +167,13 @@ class ZNode:
     def __init__(
         self,
         coord: CartesianCoord | ZephyrCoord | tuple[int],
-        shape: ZShape | tuple[int | None] | None = None,
+        shape: ZShape | None = None,
         convert_to_z: bool | None = None,
     ) -> None:
         if shape:
-            self.shape = ZShape(*shape)
+            self._shape = self._set_shape(shape)
         else:
-            self.shape = ZShape()
+            self._shape = ZShape()
 
         if convert_to_z is None:
             self.convert_to_z = len(coord) in (4, 5)
@@ -188,81 +188,77 @@ class ZNode:
         if isinstance(coord, ZephyrCoord):
             coord = zephyr_to_cartesian(coord)
 
-        self.ccoord = coord
+        self._ccoord = self._set_ccoord(coord)
 
     @property
-    def shape(self) -> ZShape | None:
+    def shape(self) -> ZShape:
         """Returns the :class:`ZShape` of the Zephyr graph the node belongs to."""
         return self._shape
 
-    @shape.setter
-    def shape(self, new_shape: ZShape | tuple[int | None]) -> None:
-        """Sets a new value for shape."""
-        if isinstance(new_shape, tuple):
-            new_shape = ZShape(*new_shape)
+    def _set_shape(self, shape: ZShape | tuple[int | None]) -> ZShape:
+        """Returns the :class:`Zshape` corresponding to ``shape``.
+        
+        Args:
+            shape (ZShape | tuple[int | None]): The shape to set.
+        """
+        if isinstance(shape, tuple):
+            shape = ZShape(*shape)
 
-        if not isinstance(new_shape, ZShape):
-            raise TypeError(
-                f"Expected shape to be tuple[int | None] or ZShape or None, got {type(new_shape)}"
-            )
-
-        if hasattr(self, "_ccoord"):
-            if (self._ccoord.k is None) != (new_shape.t is None):
-                raise ValueError(
-                    f"ccoord, shape must be both quotient or non-quotient, got {self._ccoord, new_shape}"
-                )
-
-        for var, val in new_shape._asdict().items():
+        for var, val in shape._asdict().items():
             if (val is not None) and (not isinstance(val, int)):
                 raise TypeError(f"Expected {var} to be None or 'int', got {type(val)}")
-
-        self._shape = new_shape
+        return shape
 
     @property
     def ccoord(self) -> CartesianCoord:
         """Returns the :class:`CartesianCoord` of ``self``."""
         return self._ccoord
 
-    @ccoord.setter
-    def ccoord(self, new_ccoord: CartesianCoord | tuple[int]):
-        """Sets a new value for the ``ccoord`` attribute.
-
-        Args:
-            new_ccoord (CartesianCoord or tuple[int]): The new Cartesian coordinate to set.
-        """
-        if isinstance(new_ccoord, tuple):
-            new_ccoord = CartesianCoord(*new_ccoord)
-        if not isinstance(new_ccoord, CartesianCoord):
-            raise TypeError(
-                f"Expected ccoord to be CartesianCoord or tuple[int], got {type(new_ccoord)}"
-            )
-        for c in new_ccoord:
-            if not isinstance(c, int):
-                raise TypeError(f"Expected ccoord.x and ccoord.y to be 'int', got {type(c)}")
+    def _check_ccoord_val(self, coord: CartesianCoord):
+        for c in coord:
             if c < 0:
                 raise ValueError(f"Expected ccoord.x and ccoord.y to be non-negative, got {c}")
-        if new_ccoord.x % 2 == new_ccoord.y % 2:
-            raise ValueError(
-                f"Expected ccoord.x and ccoord.y to differ in parity, got {new_ccoord.x, new_ccoord.y}"
-            )
-        # check k value of CartesianCoord is consistent with t
-        if hasattr(self, "_shape"):
-            if (self._shape.t is None) != (new_ccoord.k is None):
-                raise ValueError(
-                    f"shape and ccoord must be both quotient or non-quotient, got {self._shape}, {new_ccoord}"
-                )
-            if (self._shape.t is not None) and (new_ccoord.k not in range(self._shape.t)):
-                raise ValueError(f"Expected k to be in {range(self._shape.t)}, got {new_ccoord.k}")
 
-            # check x, y value of CartesianCoord is consistent with m
-            if self._shape.m is not None:
-                if all(val in range(4 * self._shape.m + 1) for val in (new_ccoord.x, new_ccoord.y)):
-                    self._ccoord = new_ccoord
-                else:
-                    raise ValueError(
-                        f"Expected ccoord.x and ccoord.y to be in {range(4*self._shape.m+1)}, got {new_ccoord.x, new_ccoord.y}"
-                    )
-        self._ccoord = new_ccoord
+        if coord.x % 2 == coord.y % 2:
+            raise ValueError(
+                f"Expected ccoord.x and ccoord.y to differ in parity, got {coord.x, coord.y}"
+            )
+    
+    def _check_ccoord_shape(self, coord: CartesianCoord) -> None:
+        """Check value of ``coord`` is consistent with ``t``."""
+
+        # k value of coord is consistent with t
+        if (self._shape.t is None) != (coord.k is None):
+            raise ValueError(
+                f"shape and ccoord must be both quotient or non-quotient, got {self._shape}, {coord}"
+            )
+        if (self._shape.t is not None) and (coord.k not in range(self._shape.t)):
+            raise ValueError(f"Expected k to be in {range(self._shape.t)}, got {coord.k}")
+
+        # check x, y value of coord is consistent with m
+        if self._shape.m is not None:
+            if not all(val in range(4 * self._shape.m + 1) for val in (coord.x, coord.y)):
+                raise ValueError(
+                    f"Expected ccoord.x and ccoord.y to be in {range(4*self._shape.m+1)}, got {coord.x, coord.y}"
+                )
+
+    def _set_ccoord(self, coord: CartesianCoord | tuple[int]) -> CartesianCoord:
+        """Returns the :class:`CartesianCoord` corresponding to ``coord``.
+
+        Args:
+            coord (CartesianCoord or tuple[int]): The Cartesian coordinate to set.
+        """
+        if isinstance(coord, tuple):
+            coord = CartesianCoord(*coord)
+
+        for c in coord:
+            if not isinstance(c, int):
+                raise TypeError(f"Expected ccoord.x and ccoord.y to be 'int', got {type(c)}")
+            
+        self._check_ccoord_val(coord)
+        self._check_ccoord_shape(coord)
+        
+        return coord
 
     @staticmethod
     def tuple_to_coord(coord: tuple[int]) -> CartesianCoord | ZephyrCoord:
@@ -312,11 +308,11 @@ class ZNode:
         return self.node_kind.value
 
     def is_quo(self) -> bool:
-        """Decides if the class:`ZNode` object is quotient."""
+        """Decides if the :class:`ZNode` object is quotient."""
         return (self._ccoord.k is None) and (self._shape.t is None)
 
     def to_quo(self) -> ZNode:
-        """Returns the quotient class:`ZNode` corresponding to self"""
+        """Returns the quotient :class:`ZNode` corresponding to self"""
         qshape = ZShape(m=self._shape.m)
         qccoord = CartesianCoord(x=self._ccoord, y=self._ccoord)
         return ZNode(coord=qccoord, shape=qshape, convert_to_z=self.convert_to_z)
@@ -382,30 +378,33 @@ class ZNode:
     ) -> Generator[ZNode]:
         """Generator of internal neighbors of self when restricted by ``where``.
         Args:
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
                 A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
-                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always 
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
         Yields:
-            ZNode: Internal neighbors of self when restricted by `where`.
+            ZNode: Internal neighbors of self when restricted by ``where``.
         """
         x, y, _ = self._ccoord
         convert = self.convert_to_z
         k_vals = [None] if self._shape.t is None else range(self._shape.t)
         for i, j, k in product((-1, 1), (-1, 1), k_vals):
             ccoord = CartesianCoord(x=x + i, y=y + j, k=k)
+            
+            # Check ccoord is valid. If not valid, ignore this ccoord
+            try:
+                self._check_ccoord_val(ccoord)
+            except ValueError:
+                continue
+            
             coord = ccoord if not convert else cartesian_to_zephyr(ccoord)
             if not where(coord):
                 continue
-            try:
-                yield ZNode(
-                    coord=ccoord,
-                    shape=self._shape,
-                    convert_to_z=convert,
-                )
-            except GeneratorExit:
-                raise
-            except (TypeError, ValueError):
-                pass
+
+            yield ZNode(
+                coord=ccoord,
+                shape=self._shape,
+                convert_to_z=convert,
+            )
 
     def external_neighbors_generator(
         self,
@@ -413,11 +412,11 @@ class ZNode:
     ) -> Generator[ZNode]:
         """Generator of external neighbors of self when restricted by ``where``.
         Args:
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
                 A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
-                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always 
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
         Yields:
-            ZNode: External neighbors of self when restricted by `where`.
+            ZNode: External neighbors of self when restricted by ``where``.
         """
         x, y, k = self._ccoord
         convert = self.convert_to_z
@@ -426,19 +425,22 @@ class ZNode:
             new_x = x + s if changing_index == 0 else x
             new_y = y + s if changing_index == 1 else y
             ccoord = CartesianCoord(x=new_x, y=new_y, k=k)
+
+            # Check ccoord is valid. If not valid, ignore this ccoord
+            try:
+                self._check_ccoord_val(ccoord)
+            except ValueError:
+                continue
+            
             coord = ccoord if not convert else cartesian_to_zephyr(ccoord)
             if not where(coord):
                 continue
-            try:
-                yield ZNode(
-                    coord=ccoord,
-                    shape=self._shape,
-                    convert_to_z=convert,
-                )
-            except GeneratorExit:
-                raise
-            except (TypeError, ValueError):
-                pass
+
+            yield ZNode(
+                coord=ccoord,
+                shape=self._shape,
+                convert_to_z=convert,
+            )
 
     def odd_neighbors_generator(
         self,
@@ -446,11 +448,11 @@ class ZNode:
     ) -> Generator[ZNode]:
         """Generator of odd neighbors of self when restricted by ``where``.
         Args:
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
                 A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
-                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always 
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
         Yields:
-            ZNode: Odd neighbors of self when restricted by `where`.
+            ZNode: Odd neighbors of self when restricted by ``where``.
         """
         x, y, k = self._ccoord
         convert = self.convert_to_z
@@ -459,37 +461,40 @@ class ZNode:
             new_x = x + s if changing_index == 0 else x
             new_y = y + s if changing_index == 1 else y
             ccoord = CartesianCoord(x=new_x, y=new_y, k=k)
+
+            # Check ccoord is valid. If not valid, ignore this ccoord
+            try:
+                self._check_ccoord_val(ccoord)
+            except ValueError:
+                continue
+            
             coord = ccoord if not convert else cartesian_to_zephyr(ccoord)
             if not where(coord):
                 continue
-            try:
-                yield ZNode(
-                    coord=ccoord,
-                    shape=self._shape,
-                    convert_to_z=convert,
-                )
-            except GeneratorExit:
-                raise
-            except (TypeError, ValueError):
-                pass
+
+            yield ZNode(
+                coord=ccoord,
+                shape=self._shape,
+                convert_to_z=convert,
+            )
 
     def neighbors_generator(
         self,
         nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> Generator[ZNode]:
-        """Generator of neighbors of self when restricted by `nbr_kind` and `where`.
+        """Generator of neighbors of self when restricted by ``nbr_kind`` and ``where``.
 
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
                 Edge kind filter. Restricts yielded neighbors to those connected by the given edge kind(s).
-                If None, no filtering is applied. Defaults to None.
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+                If ``None``, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
 
         Yields:
-            ZNode: Neighbors of self when restricted by `nbr_kind` and `where`.
+            ZNode: Neighbors of self when restricted by ``nbr_kind`` and ``where``.
         """
         if nbr_kind is None:
             kinds = {kind for kind in EdgeKind}
@@ -512,17 +517,17 @@ class ZNode:
         nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> set[ZNode]:
-        """Returns set of neighbors of self when restricted by `nbr_kind` and `where`.
+        """Returns set of neighbors of self when restricted by ``nbr_kind`` and ``where``.
 
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
                 Edge kind filter. Restricts returned neighbors to those connected by the given edge kind(s).
-                If None, no filtering is applied. Defaults to None.
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+                If ``None``, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
         Returns:
-            set[ZNode]: Set of neighbors of self when restricted by `nbr_kind` and `where`.
+            set[ZNode]: Set of neighbors of self when restricted by ``nbr_kind`` and ``where``.
         """
         return set(self.neighbors_generator(nbr_kind=nbr_kind, where=where))
 
@@ -530,14 +535,14 @@ class ZNode:
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> set[ZNode]:
-        """Returns the set of internal neighbors of self when restricted by `where`.
+        """Returns the set of internal neighbors of self when restricted by ``where``.
 
         Args:
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
         Returns:
-            set[ZNode]: Set of internal neighbors of self when restricted by `where`.
+            set[ZNode]: Set of internal neighbors of self when restricted by ``where``.
         """
         return set(self.neighbors_generator(nbr_kind=EdgeKind.INTERNAL, where=where))
 
@@ -545,14 +550,14 @@ class ZNode:
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> set[ZNode]:
-        """Returns the set of external neighbors of self when restricted by `where`.
+        """Returns the set of external neighbors of self when restricted by ``where``.
 
         Args:
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
         Returns:
-            set[ZNode]: Set of external neighbors of self when restricted by `where`.
+            set[ZNode]: Set of external neighbors of self when restricted by ``where``.
         """
         return set(self.neighbors_generator(nbr_kind=EdgeKind.EXTERNAL, where=where))
 
@@ -560,14 +565,14 @@ class ZNode:
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> set[ZNode]:
-        """Returns the set of odd neighbors of self when restricted by `where`.
+        """Returns the set of odd neighbors of self when restricted by ``where``.
 
         Args:
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
         Returns:
-            set[ZNode]: Set of odd neighbors of self when restricted by `where`.
+            set[ZNode]: Set of odd neighbors of self when restricted by ``where``.
         """
         return set(self.neighbors_generator(nbr_kind=EdgeKind.ODD, where=where))
 
@@ -576,16 +581,16 @@ class ZNode:
         other: ZNode,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> bool:
-        """Returns whether other is an internal neighbor of self when restricted by `where`.
+        """Returns whether other is an internal neighbor of self when restricted by ``where``.
 
         Args:
             other (ZNode): Another instance to compare with self.
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
 
         Returns:
-            bool: Whether other is an internal neighbor of self when restricted by `where`.
+            bool: Whether other is an internal neighbor of self when restricted by ``where``.
         """
         for nbr in self.internal_neighbors_generator(where=where):
             if other == nbr:
@@ -597,16 +602,16 @@ class ZNode:
         other: ZNode,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> bool:
-        """Returns whether other is an external neighbor of self when restricted by `where`.
+        """Returns whether other is an external neighbor of self when restricted by ``where``.
 
         Args:
             other (ZNode): Another instance to compare with self.
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
 
         Returns:
-            bool: Whether other is an external neighbor of self when restricted by `where`.
+            bool: Whether other is an external neighbor of self when restricted by ``where``.
         """
         for nbr in self.external_neighbors_generator(where=where):
             if other == nbr:
@@ -618,16 +623,16 @@ class ZNode:
         other: ZNode,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> bool:
-        """Returns whether other is an odd neighbor of self when restricted by `where`.
+        """Returns whether other is an odd neighbor of self when restricted by ``where``.
 
         Args:
             other (ZNode): Another instance to compare with self.
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
 
         Returns:
-            bool: Whether other is an odd neighbor of self when restricted by `where`.
+            bool: Whether other is an odd neighbor of self when restricted by ``where``.
         """
         for nbr in self.odd_neighbors_generator(where=where):
             if other == nbr:
@@ -640,19 +645,19 @@ class ZNode:
         nbr_kind: EdgeKind | Iterable[EdgeKind] | None = None,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> bool:
-        """Returns whether other is a neighbor of self when restricted by `nbr_kind` and `where`.
+        """Returns whether other is a neighbor of self when restricted by ``nbr_kind`` and ``where``.
 
         Args:
             other (ZNode): Another instance to compare with self.
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
                 Edge kind filter. Restricts neighbors to those connected by the given edge kind(s).
-                If None, no filtering is applied. Defaults to None.
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+                If ``None``, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
 
         Returns:
-            bool: Whether other is a neighbor of self when restricted by `nbr_kind` and `where`.
+            bool: Whether other is a neighbor of self when restricted by ``nbr_kind`` and ``where``.
         """
         for nbr in self.neighbors_generator(nbr_kind=nbr_kind, where=where):
             if other == nbr:
@@ -669,10 +674,10 @@ class ZNode:
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
                 Edge kind filter. Restricts returned edges to those having the given edge kind(s).
-                If None, no filtering is applied. Defaults to None.
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+                If ``None``, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
 
         Returns:
             list[ZEdge]: List of edges incident with self when restricted by ``nbr_kind`` and ``where``.
@@ -689,13 +694,13 @@ class ZNode:
         Args:
             nbr_kind (EdgeKind | Iterable[EdgeKind] | None, optional):
                 Edge kind filter. Restricts counting the neighbors to those connected by the given edge kind(s).
-                If None, no filtering is applied. Defaults to None.
-            where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
+                If ``None``, no filtering is applied. Defaults to None.
+            where (Callable[[CartesianCoord | ZephyrCoord], bool]):
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always.
 
         Returns:
-            int: degree of self when restricted by `nbr_kind` and `where`.
+            int: degree of self when restricted by ``nbr_kind`` and ``where``.
         """
         return len(self.neighbors(nbr_kind=nbr_kind, where=where))
 
