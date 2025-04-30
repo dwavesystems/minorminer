@@ -80,10 +80,12 @@ class PlaneShift:
         """
         if not isinstance(scale, (int, float)):
             raise TypeError(f"Expected scale to be int or float, got {type(scale)}")
+
         new_shift_x = scale * self._shift.x
         new_shift_y = scale * self._shift.y
         if int(new_shift_x) != new_shift_x or int(new_shift_y) != new_shift_y:
             raise ValueError(f"{scale} cannot be multiplied by {self}")
+
         return PlaneShift(int(new_shift_x), int(new_shift_y))
 
     def __rmul__(self, scale: int | float) -> PlaneShift:
