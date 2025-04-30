@@ -340,27 +340,34 @@ class ZNode:
         """
         if not isinstance(other, ZNode):
             other = ZNode(other)
+
         if self._shape != other._shape:
             return None
+
         coord1 = self._ccoord
         coord2 = other._ccoord
         x1, y1 = coord1.x, coord1.y
         x2, y2 = coord2.x, coord2.y
         if abs(x1 - x2) == abs(y1 - y2) == 1:
             return EdgeKind.INTERNAL
+
         if x1 % 2 != x2 % 2:
             return None
+
         if coord1.k != coord2.k:  # odd, external neighbors only on the same k
             return None
+
         if self.node_kind is NodeKind.VERTICAL:  # self vertical
             if x1 != x2:  # odd, external neighbors only on the same vertical lines
                 return None
+    
             diff_y = abs(y1 - y2)
             return EdgeKind.ODD if diff_y == 2 else EdgeKind.EXTERNAL if diff_y == 4 else None
 
         # else, self is horizontal
         if y1 != y2:  # odd, external neighbors only on the same horizontal lines
             return None
+
         diff_x = abs(x1 - x2)
         return EdgeKind.ODD if diff_x == 2 else EdgeKind.EXTERNAL if diff_x == 4 else None
 
