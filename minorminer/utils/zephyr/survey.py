@@ -141,7 +141,7 @@ class ZSurvey:
 
     @property
     def nodes(self) -> set[ZNode]:
-        """Returns the ZNodes of the sampler/graph"""
+        """Returns the ``ZNode``s of the sampler/graph."""
         return self._nodes
 
     @cached_property
