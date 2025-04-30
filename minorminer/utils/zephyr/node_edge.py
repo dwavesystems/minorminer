@@ -380,13 +380,11 @@ class ZNode:
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> Generator[ZNode]:
-        """Generator of internal neighbors of self when restricted by `where`.
-
+        """Generator of internal neighbors of self when restricted by ``where``.
         Args:
             where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
-
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always 
         Yields:
             ZNode: Internal neighbors of self when restricted by `where`.
         """
@@ -413,13 +411,11 @@ class ZNode:
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> Generator[ZNode]:
-        """Generator of external neighbors of self when restricted by `where`.
-
+        """Generator of external neighbors of self when restricted by ``where``.
         Args:
             where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
-
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always 
         Yields:
             ZNode: External neighbors of self when restricted by `where`.
         """
@@ -448,13 +444,11 @@ class ZNode:
         self,
         where: Callable[[CartesianCoord | ZephyrCoord], bool] = lambda coord: True,
     ) -> Generator[ZNode]:
-        """Generator of odd neighbors of self when restricted by `where`.
-
+        """Generator of odd neighbors of self when restricted by ``where``.
         Args:
             where (Callable[[CartesianCoord | ZephyrCoord], bool], optional):
-                A coordinate filter. Applies to `ccoord` if `self.convert_to_z` is False,
-                or to `zcoord` if `self.convert_to_z` is True. Defaults to `lambda coord: True`.
-
+                A coordinate filter. Applies to ``ccoord`` if :py:attr:`self.convert_to_z` is ``False``,
+                or to ``zcoord`` if :py:attr:`self.convert_to_z` is ``True``. Defaults to always 
         Yields:
             ZNode: Odd neighbors of self when restricted by `where`.
         """
