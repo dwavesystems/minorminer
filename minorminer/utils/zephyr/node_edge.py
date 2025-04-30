@@ -50,11 +50,7 @@ class Edge:
         y : Another endpoint of edge.
     """
 
-    def __init__(
-        self,
-        x,
-        y,
-    ) -> None:
+    def __init__(self, x: int , y: int) -> None:
         self._edge = self._set_edge(x, y)
 
     def _set_edge(self, x, y):
