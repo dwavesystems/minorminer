@@ -237,8 +237,7 @@ class ZSurvey:
         return len(self.neighbors(v, nbr_kind=nbr_kind))
 
     def _ext_path(self, uwkj: UWKJ) -> set[ZSE]:
-        """
-        Returns uwkj_sur, where uwkj_sur contains ZSE(z_start, z_end)
+        """Returns uwkj_sur, where uwkj_sur contains ZSE(z_start, z_end)
         for each non-overlapping external path segment of uwkj.
         """
         z_vals = list(range(self.shape.m))  # As in zephyr coordinates
