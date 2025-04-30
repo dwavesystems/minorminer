@@ -118,8 +118,8 @@ class ZSurvey:
             return graph_shape_coord(G)
         if isinstance(G, DWaveSampler):
             return sampler_shape_coord(G)
-        else:
-            raise TypeError(f"Expected G to be networkx.Graph or DWaveSampler, got {type(G)}")
+
+        raise TypeError(f"Expected G to be networkx.Graph or DWaveSampler, got {type(G)}")
 
     @cached_property
     def _input_coord_to_coord(self) -> Callable[[int | tuple[int]], tuple[int]]:
