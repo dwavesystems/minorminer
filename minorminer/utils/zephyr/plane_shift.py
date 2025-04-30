@@ -66,7 +66,7 @@ class PlaneShift:
         return self._shift.y
 
     def __mul__(self, scale: int | float) -> PlaneShift:
-        """Multiplies the self from left by the number value``scale``.
+        """Multiplies the self from left by the number value ``scale``.
 
         Args:
             scale (int | float): The scale for left-multiplying self with.
