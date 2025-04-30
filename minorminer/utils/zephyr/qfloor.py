@@ -32,10 +32,10 @@ ZSE = namedtuple("ZSE", ["z_start", "z_end"])
 
 
 class QuoTile:
-    """Initializes a 'QuoTile' object with zns.
+    """Initializes a 'QuoTile' instance from a collection of ``ZNode`` objects.
 
     Args:
-        zns (Iterable[ZNode]): The ZNodes the tile contains
+        zns (Iterable[ZNode]): The ``ZNode``s the tile contains.
 
     Example:
     .. code-block:: python
