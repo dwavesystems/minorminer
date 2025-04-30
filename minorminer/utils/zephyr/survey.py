@@ -250,18 +250,23 @@ class ZSurvey:
             cur: ZNode = ZNode(coord=ZephyrCoord(*uwkj, z_start), shape=self.shape)
             if cur in self.missing_nodes:
                 return None
+
             upper_z: int = z_vals[-1]
             if z_start > upper_z:
                 return None
+
             if z_start == upper_z:
                 return ZSE(z_start, z_start)
+
             next_ext = ZNode(coord=ZephyrCoord(*uwkj, z_start + 1), shape=self.shape)
             ext_edge = ZEdge(cur, next_ext)
             if ext_edge in self.missing_edges:
                 return ZSE(z_start, z_start)
+
             is_extensible = _ext_seg(z_start + 1)
             if is_extensible is None:
                 return ZSE(z_start, z_start)
+
             return ZSE(z_start, is_extensible.z_end)
 
         uwkj_sur: set[ZSE] = set()
