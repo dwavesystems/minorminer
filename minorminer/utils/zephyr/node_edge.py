@@ -772,8 +772,8 @@ class ZNode:
         y_shift: int = self._ccoord.y - other._ccoord.y
         try:
             return PlaneShift(x_shift=x_shift, y_shift=y_shift)
-        except:
-            raise ValueError(f"{other} cannot be subtracted from {self}")
+        except ValueError as e:
+            raise ValueError(f"{other} cannot be subtracted from {self}") from e
 
     def __hash__(self) -> int:
         return (self._ccoord, self._shape).__hash__()
