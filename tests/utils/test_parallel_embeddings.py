@@ -451,3 +451,26 @@ class TestEmbeddings(unittest.TestCase):
             use_tile_embedding=True,
             tile_embedding=tile_embedding,
         )
+
+    def test_chimera_on_pegasus(self):
+        # see test_composite_multi_cell associated to the TilingComposite.
+        # I plan to replace this composite with a ParallelEmbeddingComposite shortly.
+
+        # Embedding Chimera[m=2, n=3, t=4] chimera over a Pegasus[m=8] should be supported
+        # This is more challenging than other tests because candidate subgraphs are not disjointed
+        # and cannot make use of all target nodes.
+        m = 8
+        T = dnx.pegasus_graph(m)
+        m_sub = 2
+        n_sub = 3
+        tile = S = dnx.chimera_graph(m=m_sub, n=n_sub)
+        embedder_kwargs = {
+            "tile": tile,
+            "max_num_emb": None,
+            "use_tile_embedding": True,
+        }
+        embeddings = find_sublattice_embeddings(S, T, **embedder_kwargs)
+
+        m_nice = n_nice = m - 1  # A nice subgraph is relevant to Chimera sublattices:
+        expected_number_of_cells = (m_nice // m_sub) * (n_nice // 3) * 3
+        self.assertEqual(len(embeddings), expected_number_of_cells)
