@@ -106,6 +106,7 @@ class PlaneShift:
     def __add__(self, other: PlaneShift) -> PlaneShift:
         """
         Adds another PlaneShift object to self.
+
         Args:
             other (PlaneShift): The object to add self by.
 
