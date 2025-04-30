@@ -264,21 +264,27 @@ class ZNode:
         """Takes a tuple[int] and returns the corresponding ``CartesianCoord`` or ``ZephyrCoord``"""
         if (not isinstance(coord, tuple)) or (not all(isinstance(c, int) for c in coord)):
             raise TypeError(f"Expected {coord} to be a tuple[int], got {coord}")
+
         if any(c < 0 for c in coord):
             raise ValueError(f"Expected elements of coord to be non-negative, got {coord}")
+
         len_coord = len(coord)
         if len_coord in (2, 3):
             x, y, *k = coord
             if x % 2 == y % 2:
                 raise ValueError(f"Expected x, y to differ in parity, got {x, y}")
+
             return CartesianCoord(x=x, y=y) if len(k) == 0 else CartesianCoord(x=x, y=y, k=k[0])
+
         if len_coord in (4, 5):
             u, w, *k, j, z = coord
             for var, val in [("u", u), ("j", j)]:
                 if not val in [0, 1]:
                     raise ValueError(f"Expected {var} to be in [0, 1], got {val}")
+
             if len(k) == 0:
-                return ZephyrCoord(u=u, w=w, j=j, z=z)    
+                return ZephyrCoord(u=u, w=w, j=j, z=z)
+
             return ZephyrCoord(u=u, w=w, k=k[0], j=j, z=z)
             
         raise ValueError(f"coord can have length 2, 3, 4 or 5, got {len_coord}")
