@@ -192,10 +192,10 @@ class QuoFloor:
 
     """
 
-    implemented_connectors: tuple[dict[tuple[int], PlaneShift]] = (
+    IMPLEMENTED_CONNECTORS: tuple[dict[tuple[int], PlaneShift]] = (
         {(1, 0): PlaneShift(4, 0), (0, 1): PlaneShift(0, 4)},
     )
-    tile_connector0 = implemented_connectors[0]
+    tile_connector0 = IMPLEMENTED_CONNECTORS[0]
 
     def __init__(
         self,
@@ -217,10 +217,10 @@ class QuoFloor:
         """Sets the tile connector"""
         if not isinstance(new_connector, dict):
             raise TypeError(f"Expected tile_connector to be dict, got {type(new_connector)}")
-        if not new_connector in self.implemented_connectors:
+        if not new_connector in self.IMPLEMENTED_CONNECTORS:
             raise NotImplementedError(
                 f"{new_connector} not implemented. "
-                f"Availabale options are {self.implemented_connectors}"
+                f"Availabale options are {self.IMPLEMENTED_CONNECTORS}"
             )
         if any(dir_con not in new_connector.keys() for dir_con in ((1, 0), (0, 1))):
             raise ValueError(
