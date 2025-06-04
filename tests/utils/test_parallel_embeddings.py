@@ -477,13 +477,11 @@ class TestEmbeddings(unittest.TestCase):
         expected_number_of_cells = (m_nice // m_sub) * (n_nice // 3) * 3
         self.assertEqual(len(embeddings), expected_number_of_cells)
 
-    def test_T_family_T_kwargs(self):
+    @parameterized.expand(
+        product(["chimera", "pegasus", "zephyr"], [False, True], [False, True])
+    )
+    def test_T_family_T_kwargs(self, topology, with_T, with_Tfamily):
         # Like test basic, but pass family information
-        with_Ts = [True, False]
-        with_Tfamily = [True, False]
-        for topology, with_T, with_Tfamily in product(
-            ["chimera", "pegasus", "zephyr"], with_Ts, with_Tfamily
-        ):
             T_family = topology
             if topology == "chimera":
                 min_sublattice_size = 1
@@ -517,7 +515,7 @@ class TestEmbeddings(unittest.TestCase):
                 # Cast T as standard nx.Graph; make sure propagation is correct:
                 T_kwargs["m"] = T.graph.get("rows")
                 T = nx.from_edgelist(T.edges)
-            if with_Ts is False:
+            if with_T is False:
                 T = None
 
             if T is None and T_family is None:

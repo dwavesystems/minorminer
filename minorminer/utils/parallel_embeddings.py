@@ -104,7 +104,7 @@ def embeddings_to_array(embs: list, node_order=None, as_ndarray=False):
 
 
 def array_to_embeddings(
-    embs: Iterable, node_order: Optional[Iterable] = None
+    embs: Iterable[list], node_order: Optional[Iterable] = None
 ) -> list[dict]:
     """Convert list of embedding lists (values) to dictionary
 
@@ -318,7 +318,7 @@ def _local_graph(T=None, T_family=None, T_kwargs=None):
 
 def find_sublattice_embeddings(
     S: nx.Graph,
-    T: Optional[nx.Graph],
+    T: Optional[nx.Graph] = None,
     *,
     tile: nx.Graph = None,
     sublattice_size: int = None,
