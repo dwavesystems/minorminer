@@ -104,12 +104,12 @@ def embeddings_to_array(embs: list, node_order=None, as_ndarray=False):
 
 
 def array_to_embeddings(
-    embs: list, node_order: Optional[Iterable] = None
+    embs: Iterable, node_order: Optional[Iterable] = None
 ) -> list[dict]:
     """Convert list of embedding lists (values) to dictionary
 
     Args:
-        embs: A list of embeddings, each embedding is a list where values are
+        embs: An iterable of embeddings, each embedding is a list where values are
             chains in node order.
         node_order: An iterable giving the ordering of
             variables in each row. When not provided variables are ordered to
@@ -120,8 +120,6 @@ def array_to_embeddings(
     Returns:
         A list of embedding dictionaries
     """
-    if not embs:
-        return []
 
     if node_order is None:
         node_order = range(len(embs[0]))
