@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import unittest
-import numpy as np
+from itertools import product
+from parameterized import parameterized
 
+import numpy as np
 import networkx as nx
 
 import dwave_networkx as dnx
@@ -260,6 +262,7 @@ class TestEmbeddings(unittest.TestCase):
 
     def test_find_sublattice_embeddings_basic(self):
         # defaults and basic arguments
+        use_Ts = [True, False]
         for topology in ["chimera", "pegasus", "zephyr"]:
             if topology == "chimera":
                 min_sublattice_size = 1
@@ -474,3 +477,65 @@ class TestEmbeddings(unittest.TestCase):
         m_nice = n_nice = m - 1  # A nice subgraph is relevant to Chimera sublattices:
         expected_number_of_cells = (m_nice // m_sub) * (n_nice // 3) * 3
         self.assertEqual(len(embeddings), expected_number_of_cells)
+
+    @parameterized.expand(
+        product(["chimera", "pegasus", "zephyr"], [False, True], [False, True])
+    )
+    def test_T_family_T_kwargs(self, topology, with_T, with_Tfamily):
+        # Like test basic, but pass family information
+        T_family = topology
+        if topology == "chimera":
+            min_sublattice_size = 1
+            S = dnx.chimera_graph(min_sublattice_size)
+            T = dnx.chimera_graph(min_sublattice_size + 1)
+            num_emb = 4
+            tile = None
+            T_kwargs = {}
+        elif topology == "pegasus":
+            min_sublattice_size = 2
+            S = dnx.pegasus_graph(min_sublattice_size, nice_coordinates=True)
+            tile = S
+            T = dnx.pegasus_graph(min_sublattice_size + 1, nice_coordinates=True)
+            num_emb = 2
+            T_kwargs = {
+                "nice_coordinates": True,
+                "edge_list": list(T.edges),
+                "node_list": list(T.nodes),
+            }
+        elif topology == "zephyr":
+            min_sublattice_size = 1
+            S = dnx.zephyr_graph(min_sublattice_size, coordinates=True)
+            tile = S
+            T = dnx.zephyr_graph(min_sublattice_size + 1, coordinates=True)
+            num_emb = 2
+            T_kwargs = {"coordinates": True}
+        if with_Tfamily is False:
+            T_family = None
+            T_kwargs = None  # Ignored in any case.
+        else:
+            # Cast T as standard nx.Graph; make sure propagation is correct:
+            T_kwargs["m"] = T.graph.get("rows")
+            T = nx.from_edgelist(T.edges)
+        if with_T is False:
+            T = None
+
+        if T is None and T_family is None:
+            with self.assertRaises(ValueError):
+                embs = find_sublattice_embeddings(
+                    S,
+                    T,
+                    sublattice_size=min_sublattice_size,
+                    T_family=T_family,
+                    T_kwargs=T_kwargs,
+                    tile=tile,
+                )
+        else:
+            embs = find_sublattice_embeddings(
+                S,
+                T,
+                sublattice_size=min_sublattice_size,
+                T_family=T_family,
+                T_kwargs=T_kwargs,
+                tile=tile,
+            )
+            self.assertEqual(len(embs), 1, "mismatched number of embeddings")
