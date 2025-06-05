@@ -33,7 +33,8 @@ from minorminer.utils.feasibility import (
 
 
 def shuffle_graph(
-    G: nx.Graph, seed: Union[int, np.random.RandomState, np.random.Generator] = None
+    G: nx.Graph,
+    seed: Optional[Union[int, np.random.RandomState, np.random.Generator]] = None,
 ) -> nx.Graph:
     """Shuffle the node and edge ordering of a networkx graph.
 
@@ -137,11 +138,11 @@ def find_multiple_embeddings(
     *,
     max_num_emb: Union[None, int, float] = 1,
     use_filter: bool = True,
-    embedder: callable = None,
-    embedder_kwargs: dict = None,
+    embedder: Optional[callable] = None,
+    embedder_kwargs: Optional[dict] = None,
     one_to_iterable: bool = False,
     shuffle_all_graphs: bool = False,
-    seed: Union[int, np.random.RandomState, np.random.Generator] = None,
+    seed: Optional[Union[int, np.random.RandomState, np.random.Generator]] = None,
     timeout: float = float("Inf"),
 ) -> list:
     """Finds multiple disjoint embeddings of a source graph onto a target graph
@@ -320,15 +321,15 @@ def find_sublattice_embeddings(
     S: nx.Graph,
     T: Optional[nx.Graph] = None,
     *,
-    tile: nx.Graph = None,
-    sublattice_size: int = None,
-    max_num_emb: Optional[int] = 1,
+    tile: Optional[nx.Graph] = None,
+    sublattice_size: Optional[int] = None,
+    max_num_emb: int = 1,
     use_filter: bool = True,
     use_tile_embedding: Optional[bool] = None,
     tile_embedding: Optional[dict] = None,
-    seed: Union[int, np.random.RandomState, np.random.Generator] = None,
-    embedder: callable = None,
-    embedder_kwargs: dict = None,
+    seed: Optional[Union[int, np.random.RandomState, np.random.Generator]] = None,
+    embedder: Optional[callable] = None,
+    embedder_kwargs: Optional[dict] = None,
     one_to_iterable: bool = False,
     shuffle_all_graphs: bool = False,
     shuffle_sublattice_order: bool = False,
@@ -433,11 +434,15 @@ def find_sublattice_embeddings(
             embedder=embedder,
             embedder_kwargs=embedder_kwargs,
         )
-    if T.graph.get("family", T_family) not in {"chimera", "pegasus", "zephyr"}:
+    if T is not None and T.graph.get("family", T_family) not in {
+        "chimera",
+        "pegasus",
+        "zephyr",
+    }:
         raise ValueError(
             "If T is not a dwave_networkx graph, T_family must be specified"
         )
-    if max_num_emb == 1 and seed is None and T_family is None:
+    if T is not None and max_num_emb == 1 and seed is None and T_family is None:
         _T = T  # Graph is unmodified.
     else:
         _T = _local_graph(T, T_family, T_kwargs)
