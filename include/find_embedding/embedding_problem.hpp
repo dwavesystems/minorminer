@@ -237,7 +237,7 @@ class embedding_problem_base {
               num_r(n_r),
               qubit_nbrs(q_n),
               var_nbrs(v_n),
-              rand(0, 0xffffffff),
+              rand(0, std::numeric_limits<int>::max()),
               var_order_space(n_v),
               var_order_visited(n_v, 0),
               var_order_shuffle(n_v),
