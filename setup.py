@@ -40,7 +40,8 @@ if platform.system().lower() == "windows":
 
     extra_compile_args_glasgow.extend([
         '/external:W4',
-        '/external:I external',
+        '/external:I', 'external',
+        '/external:I', 'external/glasgow-subgraph-solver',
         '/DUSE_PORTABLE_SNIPPETS_BUILTIN',
         ])
 
@@ -61,8 +62,8 @@ else:  # Unix
         ])
 
     extra_compile_args_glasgow.extend([
-        '-isystem external',
-        '-isystemexternal/glasgow-subgraph-solver',
+        '-isystem', 'external',
+        '-isystem', 'external/glasgow-subgraph-solver',
         '-DUSE_PORTABLE_SNIPPETS_BUILTIN',
         ])
 
@@ -80,21 +81,21 @@ extra_compile_args_minorminer = list(filter(None, extra_compile_args_minorminer)
 glasgow_cc = [
     '/'.join(['external/glasgow-subgraph-solver/gss', f])
     for f in [
-        'innards/cheap_all_different.cc',
         'clique.cc',
         'configuration.cc',
-        'innards/graph_traits.cc',
         'homomorphism.cc',
+        'innards/proof.cc',
+        'restarts.cc',
+        'sip_decomposer.cc',
+        'timeout.cc',
+        'innards/cheap_all_different.cc',
+        'innards/graph_traits.cc',
         'innards/homomorphism_domain.cc',
         'innards/homomorphism_model.cc',
         'innards/homomorphism_searcher.cc',
         'innards/homomorphism_traits.cc',
         'innards/lackey.cc',
-        'innards/proof.cc',
-        'restarts.cc',
-        'sip_decomposer.cc',
         'innards/svo_bitset.cc',
-        'timeout.cc',
         'innards/thread_utils.cc',
         'innards/watches.cc',
         'formats/input_graph.cc',
@@ -124,7 +125,7 @@ extensions = [
                       './external/glasgow-subgraph-solver'
                       './external/glasgow-subgraph-solver/src'
                       './external/glasgow-subgraph-solver/gss'],
-        library_dirs=['./include', "./external/glasgow-subgraph-solver/gss/formats"],
+        library_dirs=['./include', './external', './external/glasgow-subgraph-solver/gss/formats'],
         language='c++',
         extra_compile_args=extra_compile_args + extra_compile_args_glasgow,
     ),
