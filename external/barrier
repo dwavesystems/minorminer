@@ -1,4 +1,4 @@
-// Copyright 2022-2023 D-Wave Systems Inc.
+// Copyright 2022-2025 D-Wave Systems Inc.
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
 //
 // Excerpted from and/or inspired by implementations found in the Boost Library
 // see external/boost/BOOST_LICENSE or https://www.boost.org/LICENSE_1_0.txt
+//
+// Modified to emulate c++20's barrier interface
 
 #pragma once
 
 #include <condition_variable>
 #include <mutex>
-namespace boost {
+namespace std {
 
 class barrier {
     std::mutex mtx;
@@ -29,7 +31,7 @@ class barrier {
     unsigned int generation;
   public:
     barrier(unsigned int m) : waiters(m), waiting(m), generation(0) {}
-    bool wait() {
+    bool arrive_and_wait() {
         std::unique_lock lk{mtx};
         unsigned int gen = generation;
         if (--waiting == 0) {

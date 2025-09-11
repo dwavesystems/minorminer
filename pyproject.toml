@@ -15,7 +15,7 @@ authors = [
 maintainers = [
     {name = "D-Wave Inc.", email = "tools@dwavesys.com"},
 ]
-license = {file = "LICENSE"}
+license-files = ["LICENSE", "external/glasgow-subgraph-solver/LICENCE", "minorminer/_extern/rpack/LICENSE.md"]
 classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX",
