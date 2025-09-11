@@ -1,8 +1,18 @@
 from minorminer import subgraph
 from minorminer.utils import verify_embedding
-from dwave_networkx import chimera_graph
 import unittest, random, itertools, dwave_networkx as dnx, networkx as nx, os
 
+def verify_homomorphism(emb, source, target, locallyinjective = False):
+    for s in source:
+        if s not in emb:
+            raise RuntimeError("homomorphism node fail")
+
+        nbrs = {emb[v] for v in source[s]}
+        if not nbrs.issuperset(target[emb[s]]):
+            raise RuntimeError("homomorphism edge fail")
+
+        if locallyinjective and len(source[s]) + 1 > len(nbrs | {s}):
+            rause RuntimeError("homomorphism locality fail")
 
 class TestSubgraph(unittest.TestCase):
     def test_smoketest(self):
@@ -58,11 +68,60 @@ class TestSubgraph(unittest.TestCase):
             self.assertEqual(edge_labels[0].get(uv[::-1]), edge_labels[1].get(pq[::-1]))
             
     def test_timeout(self):
-        source = chimera_graph(8)
-        target = chimera_graph(15, coordinates=True)
+        source = dnx.chimera_graph(8)
+        target = dnx.chimera_graph(15, coordinates=True)
         #pop out a vertex from the central tile to make a minimally-impossible
         #problem (no fully-yielded 8x8s) that GSS know how to reason about
         target.remove_node((7,7,0,0)) 
         emb = subgraph.find_subgraph(source, target, timeout=2)
         self.assertEqual(emb, {})
+
+    def test_noninjective(self):
+        # find a 2-coloring of Chimera!
+        source = dnx.chimera_graph(4)
+        target = nx.path_graph(2)
+        emb = subgraph.find_subgraph(source, target, injective='noninjective')
+        verify_homomorphism(emb, source, target)
+
+        # find a 4-coloring of zephyr!
+        source = dnx.zephyr_graph(4, t=1)
+        target = nx.complete_graph(4)
+        emb = subgraph.find_subgraph(source, target, injective='noninjective')
+        verify_homomorphism(emb, source, target)
+
+        # but not a 3-coloring!
+        target = nx.complete_graph(3)
+        emb = subgraph.find_subgraph(source, target, injective='noninjective')
+        self.assertEqual(emb, {})
+
+    def test_locally_injective(self):
+        # find a triple-cover of a 3-cycle by a 9-cycle
+        source = nx.cycle_graph(9)
+        target = nx.cycle_graph(3)
+        emb = subgraph.find_subgraph(source, target, injective='locally injective')
+        verify_homomorphism(emb, source, target, locallyinjective=True)
+
+        # can't find a locally injective homomorphism for a 10-cycle into a 3-cycle
+        source = nx.cycle_graph(10)
+        emb = subgraph.find_subgraph(source, target, injective='locally injective')
+        self.assertEqual(emb, {})
+
+    def test_isolated_nodes(self):
+        source = nx.cycle_graph(9)
+        target = nx.cycle_graph(9)
+        source.add_node('a')
+
+        emb = subgraph.find_subgraph(source, target)
+        self.assertEqual(emb, {})
+
+        emb = subgraph.find_subgraph(source, target, injective='locally injective')
+        verify_homomorphism(emb, source, target, locallyinjective=True)
+
+        target.add_node('a')
+        emb = subgraph.find_subgraph(source, target)
+        verify_embedding(emb, source, target)
+
+        target.add_edge('a', 0)
+        emb = subgraph.find_subgraph(source, target)
+        verify_embedding(emb, source, target)
 

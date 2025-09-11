@@ -133,6 +133,7 @@ cdef extern from "glasgow-subgraph-solver/gss/homomorphism.hh" namespace "gss" n
         bool triggered_restarts
         bool delay_thread_creation
         ValueOrdering value_ordering_heuristic
+        Injectivity injectivity
         bool clique_detection
         bool distance3
         bool k4
@@ -161,6 +162,7 @@ def find_subgraph(
     node_labels=None,
     edge_labels=None,
     as_embedding=False,
+    injectivity='injective',
     threads=1,
     triggered_restarts=_default_kwarg,
     delay_thread_creation=_default_kwarg,
@@ -298,8 +300,10 @@ def find_subgraph(
     cdef shared_ptr[InputGraph] source_g = make_shared[InputGraph](0, node_labels[0], edge_labels[0])
     cdef shared_ptr[InputGraph] target_g = make_shared[InputGraph](0, node_labels[1], edge_labels[1])
 
-    cdef _labeldict source_labels = _read_graph(deref(source_g), source, node_labels[0], edge_labels[0])
-    cdef _labeldict target_labels = _read_graph(deref(target_g), target, node_labels[1], edge_labels[1])
+    cdef _labeldict source_labels
+    cdef _labeldict target_labels
+    source_labels, source_isolated = _read_graph(deref(source_g), source, node_labels[0], edge_labels[0])
+    target_labels, target_isolated  = _read_graph(deref(target_g), target, node_labels[1], edge_labels[1])
     cdef HomomorphismParams params
 
     if triggered_restarts is _default_kwarg:
@@ -355,6 +359,15 @@ def find_subgraph(
     else:
         raise RuntimeError("unknown value ordering heuristic")
 
+    if injectivity == 'injective':
+        params.injectivity = _I_Injective
+    elif injectivity == 'locally injective':
+        params.injectivity = _I_LocallyInjective
+    elif injectivity == 'noninjective':
+        params.injectivity = _I_NonInjective
+    else:
+        raise RuntimeError("unrecognized injectivity option")
+
     if clique_detection is not _default_kwarg:
         params.clique_detection = clique_detection
     if distance3 is not _default_kwarg:
@@ -379,23 +392,41 @@ def find_subgraph(
     if check_kwargs:
         raise ValueError(f"unused parameters: {list(check_kwargs.keys())}")
 
-    cdef HomomorphismResult result = solve_sip_by_decomposition(deref(source_g), deref(target_g), params)
+    cdef HomomorphismResult result;
+    if len(source_labels) + len(source_isolated) <= len(target_labels) + len(target_isolated) or injectivity != 'injective':
+        result = solve_sip_by_decomposition(deref(source_g), deref(target_g), params)
+        emb = dict((source_labels.label(s), target_labels.label(t)) for s, t in result.mapping)
+    else:
+        emb = {}
 
-
+    if source_isolated and emb:
+        if injectivity == 'injective':
+            target_isolated.extend(set(target_labels.values())-set(emb.values()))
+            for s, t in zip(source_isolated, target_isolated):
+                emb[s] = t
+        else:
+            for t in target_labels or target_isolated:
+                for s in source_isolated:
+                    emb[s] = t
+                break
 
     if as_embedding:
-        return dict((source_labels.label(s), (target_labels.label(t),)) for s, t in result.mapping)
-    else:
-        return dict((source_labels.label(s), target_labels.label(t)) for s, t in result.mapping)
+        emb = {k: (v,) for k, v in emb.items()}
+
+    return emb
 
 cdef _read_graph(InputGraph &g, E, node_labels, edge_labels):
     cdef _labeldict L = _labeldict()
     cdef str label
+    isolated_nodes = []
     if hasattr(E, 'edges'):
         G = E
         E = E.edges()
-        for a in G.nodes():
-            L[a]
+        for a, d in G.degree():
+            if d:
+                L[a]
+            else:
+                isolated_nodes.append(a)
 
     if edge_labels is None:
         for a, b in E:
@@ -419,4 +450,4 @@ cdef _read_graph(InputGraph &g, E, node_labels, edge_labels):
                 g.set_vertex_label(i, bytes(label, "utf8"))
 
     g.resize(len(L))
-    return L
+    return L, isolated_nodes
