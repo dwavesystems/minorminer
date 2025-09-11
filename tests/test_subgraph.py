@@ -80,30 +80,30 @@ class TestSubgraph(unittest.TestCase):
         # find a 2-coloring of Chimera!
         source = dnx.chimera_graph(4)
         target = nx.path_graph(2)
-        emb = subgraph.find_subgraph(source, target, injective='noninjective')
+        emb = subgraph.find_subgraph(source, target, injectivity='noninjective')
         verify_homomorphism(emb, source, target)
 
         # find a 4-coloring of zephyr!
         source = dnx.zephyr_graph(4, t=1)
         target = nx.complete_graph(4)
-        emb = subgraph.find_subgraph(source, target, injective='noninjective')
+        emb = subgraph.find_subgraph(source, target, injectivity='noninjective')
         verify_homomorphism(emb, source, target)
 
         # but not a 3-coloring!
         target = nx.complete_graph(3)
-        emb = subgraph.find_subgraph(source, target, injective='noninjective')
+        emb = subgraph.find_subgraph(source, target, injectivity='noninjective')
         self.assertEqual(emb, {})
 
     def test_locally_injective(self):
         # find a triple-cover of a 3-cycle by a 9-cycle
         source = nx.cycle_graph(9)
         target = nx.cycle_graph(3)
-        emb = subgraph.find_subgraph(source, target, injective='locally injective')
+        emb = subgraph.find_subgraph(source, target, injectivity='locally injective')
         verify_homomorphism(emb, source, target, locallyinjective=True)
 
         # can't find a locally injective homomorphism for a 10-cycle into a 3-cycle
         source = nx.cycle_graph(10)
-        emb = subgraph.find_subgraph(source, target, injective='locally injective')
+        emb = subgraph.find_subgraph(source, target, injectivity='locally injective')
         self.assertEqual(emb, {})
 
     def test_isolated_nodes(self):
@@ -114,7 +114,7 @@ class TestSubgraph(unittest.TestCase):
         emb = subgraph.find_subgraph(source, target)
         self.assertEqual(emb, {})
 
-        emb = subgraph.find_subgraph(source, target, injective='locally injective')
+        emb = subgraph.find_subgraph(source, target, injectivity='locally injective')
         verify_homomorphism(emb, source, target, locallyinjective=True)
 
         target.add_node('a')
