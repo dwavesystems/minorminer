@@ -40,7 +40,8 @@ if platform.system().lower() == "windows":
 
     extra_compile_args_glasgow.extend([
         '/external:W4',
-        '/external:I external',
+        '/external:I', 'external',
+        '/external:I', 'external/glasgow-subgraph-solver',
         '/DUSE_PORTABLE_SNIPPETS_BUILTIN',
         ])
 
@@ -61,7 +62,8 @@ else:  # Unix
         ])
 
     extra_compile_args_glasgow.extend([
-        '-isystemexternal',
+        '-isystem', 'external',
+        '-isystem', 'external/glasgow-subgraph-solver',
         '-DUSE_PORTABLE_SNIPPETS_BUILTIN',
         ])
 
@@ -77,25 +79,25 @@ extra_compile_args_minorminer = list(filter(None, extra_compile_args_minorminer)
 
 # this is a subset of the total source files, so we can't just use glob or similar
 glasgow_cc = [
-    '/'.join(['external/glasgow-subgraph-solver/src', f])
+    '/'.join(['external/glasgow-subgraph-solver/gss', f])
     for f in [
-        'cheap_all_different.cc',
         'clique.cc',
         'configuration.cc',
-        'graph_traits.cc',
         'homomorphism.cc',
-        'homomorphism_domain.cc',
-        'homomorphism_model.cc',
-        'homomorphism_searcher.cc',
-        'homomorphism_traits.cc',
-        'lackey.cc',
-        'proof.cc',
+        'innards/proof.cc',
         'restarts.cc',
         'sip_decomposer.cc',
-        'svo_bitset.cc',
         'timeout.cc',
-        'thread_utils.cc',
-        'watches.cc',
+        'innards/cheap_all_different.cc',
+        'innards/graph_traits.cc',
+        'innards/homomorphism_domain.cc',
+        'innards/homomorphism_model.cc',
+        'innards/homomorphism_searcher.cc',
+        'innards/homomorphism_traits.cc',
+        'innards/lackey.cc',
+        'innards/svo_bitset.cc',
+        'innards/thread_utils.cc',
+        'innards/watches.cc',
         'formats/input_graph.cc',
         'formats/graph_file_error.cc',
     ]
@@ -120,8 +122,10 @@ extensions = [
         name="minorminer.subgraph",
         sources=["./minorminer/subgraph.pyx"] + glasgow_cc,
         include_dirs=['', './include', './external',
-                      './external/glasgow-subgraph-solver/src'],
-        library_dirs=['./include'],
+                      './external/glasgow-subgraph-solver'
+                      './external/glasgow-subgraph-solver/src'
+                      './external/glasgow-subgraph-solver/gss'],
+        library_dirs=['./include', './external', './external/glasgow-subgraph-solver/gss/formats'],
         language='c++',
         extra_compile_args=extra_compile_args + extra_compile_args_glasgow,
     ),
@@ -139,6 +143,7 @@ setup(
     packages=['minorminer',
               'minorminer.layout',
               'minorminer.utils',
+              'minorminer._extern',
               'minorminer._extern.rpack',
               ],
     include_package_data=True,

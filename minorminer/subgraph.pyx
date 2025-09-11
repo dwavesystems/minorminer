@@ -44,10 +44,10 @@ from libcpp.pair cimport pair
 from libc.stdint cimport uint8_t, uint64_t
 from libcpp.string cimport string
 
-cdef class labeldict(dict):
+cdef class _labeldict(dict):
     cdef list _label
     def __init__(self,*args,**kwargs):
-        super(labeldict,self).__init__(args,**kwargs)
+        super(_labeldict,self).__init__(args,**kwargs)
         self._label = []
     def __missing__(self,l):
         self[l] = k = len(self._label)
@@ -70,54 +70,56 @@ cdef extern from "<chrono>" namespace "std::chrono" nogil:
     cdef milliseconds make_milliseconds "std::chrono::milliseconds"(int)
     cdef time_point[steady_clock] steady_clock_now "std::chrono::steady_clock::now"()
 
-cdef extern from "glasgow-subgraph-solver/src/timeout.hh" nogil:
+cdef extern from "glasgow-subgraph-solver/gss/timeout.hh" namespace "gss" nogil:
     cppclass Timeout:
         Timeout(seconds)
 
-cdef extern from "glasgow-subgraph-solver/src/formats/input_graph.hh" nogil:
+cdef extern from "glasgow-subgraph-solver/gss/formats/input_graph.hh" nogil:
     cdef cppclass InputGraph:
         InputGraph(int, bool, bool)
         void add_edge(int, int)
+        void add_directed_edge(int, int, string)
         void resize(int)
+        void set_vertex_label(int, string)
 
-cdef extern from "glasgow-subgraph-solver/src/restarts.hh" nogil:
+cdef extern from "glasgow-subgraph-solver/gss/restarts.hh" namespace "gss" nogil:
     cdef cppclass RestartsSchedule:
         pass
         
-    cdef unsigned long long default_luby_multiplier "LubyRestartsSchedule::default_multiplier"
-    cdef milliseconds default_timed_duration "TimedRestartsSchedule::default_duration"
-    cdef unsigned long long default_timed_backtracks "TimedRestartsSchedule::default_minimum_backtracks"
-    cdef double default_geometric_constant "GeometricRestartsSchedule::default_initial_value"
-    cdef double default_geometric_multiplier "GeometricRestartsSchedule::default_multiplier"
+    cdef unsigned long long default_luby_multiplier "gss::LubyRestartsSchedule::default_multiplier"
+    cdef milliseconds default_timed_duration "gss::TimedRestartsSchedule::default_duration"
+    cdef unsigned long long default_timed_backtracks "gss::TimedRestartsSchedule::default_minimum_backtracks"
+    cdef double default_geometric_constant "gss::GeometricRestartsSchedule::default_initial_value"
+    cdef double default_geometric_multiplier "gss::GeometricRestartsSchedule::default_multiplier"
 
 cdef extern from "<memory>" namespace "std" nogil:
     cdef cppclass shared_ptr[T]:
         pass
     cdef cppclass unique_ptr[T]:
         pass
-    cdef shared_ptr[Timeout] make_shared_timeout "std::make_shared<Timeout>"(seconds)
+    cdef shared_ptr[Timeout] make_shared_timeout "std::make_shared<gss::Timeout>"(seconds)
     cdef shared_ptr[InputGraph] make_shared[InputGraph](int, bool, bool)
     cdef InputGraph deref "*"(shared_ptr[InputGraph])
-    cdef unique_ptr[RestartsSchedule] make_no_restarts_schedule "std::make_unique<NoRestartsSchedule>"()
-    cdef unique_ptr[RestartsSchedule] make_luby_restarts_schedule "std::make_unique<LubyRestartsSchedule>"(unsigned long long)
-    cdef unique_ptr[RestartsSchedule] make_geometric_restarts_schedule "std::make_unique<GeometricRestartsSchedule>"(double, double)
-    cdef unique_ptr[RestartsSchedule] make_timed_restarts_schedule "std::make_unique<TimedRestartsSchedule>"(milliseconds, unsigned long long)
+    cdef unique_ptr[RestartsSchedule] make_no_restarts_schedule "std::make_unique<gss::NoRestartsSchedule>"()
+    cdef unique_ptr[RestartsSchedule] make_luby_restarts_schedule "std::make_unique<gss::LubyRestartsSchedule>"(unsigned long long)
+    cdef unique_ptr[RestartsSchedule] make_geometric_restarts_schedule "std::make_unique<gss::GeometricRestartsSchedule>"(double, double)
+    cdef unique_ptr[RestartsSchedule] make_timed_restarts_schedule "std::make_unique<gss::TimedRestartsSchedule>"(milliseconds, unsigned long long)
 
 
-cdef extern from "glasgow-subgraph-solver/src/vertex_to_vertex_mapping.hh" nogil:
+cdef extern from "glasgow-subgraph-solver/gss/vertex_to_vertex_mapping.hh" namespace "gss" nogil:
     cdef cppclass VertexToVertexMapping:
         pass
 
-cdef extern from "glasgow-subgraph-solver/src/value_ordering.hh" nogil:
+cdef extern from "glasgow-subgraph-solver/gss/value_ordering.hh" namespace "gss" nogil:
     #this enum contains None
-    cdef enum ValueOrdering 'ValueOrdering':
-        _VO_None 'ValueOrdering::None'
-        _VO_Biased 'ValueOrdering::Biased'
-        _VO_Degree 'ValueOrdering::Degree'
-        _VO_AntiDegree 'ValueOrdering::AntiDegree'
-        _VO_Random 'ValueOrdering::Random'
+    cdef enum ValueOrdering 'gss::ValueOrdering':
+        _VO_None 'gss::ValueOrdering::None'
+        _VO_Biased 'gss::ValueOrdering::Biased'
+        _VO_Degree 'gss::ValueOrdering::Degree'
+        _VO_AntiDegree 'gss::ValueOrdering::AntiDegree'
+        _VO_Random 'gss::ValueOrdering::Random'
 
-cdef extern from "glasgow-subgraph-solver/src/homomorphism.hh" nogil:
+cdef extern from "glasgow-subgraph-solver/gss/homomorphism.hh" namespace "gss" nogil:
     cppclass HomomorphismParams:
         shared_ptr[Timeout] timeout
         time_point[steady_clock] start_time
@@ -138,7 +140,7 @@ cdef extern from "glasgow-subgraph-solver/src/homomorphism.hh" nogil:
     cppclass HomomorphismResult:
         map[int, int] mapping
 
-cdef extern from "glasgow-subgraph-solver/src/sip_decomposer.hh" nogil:
+cdef extern from "glasgow-subgraph-solver/gss/sip_decomposer.hh" namespace "gss" nogil:
     cdef HomomorphismResult solve_sip_by_decomposition(InputGraph, InputGraph, HomomorphismParams) except+
 
 def find_subgraph(source, target, **kwargs):
@@ -163,24 +165,38 @@ def find_subgraph(source, target, **kwargs):
 
     Args:
         S (iterable/NetworkX Graph): 
-            The source graph as an iterable of label pairs representing the 
+            The source graph as an iterable of node pairs representing the 
             edges, or a NetworkX Graph.
 
         T (iterable/NetworkX Graph):
-            The target graph as an iterable of label pairs representing the 
+            The target graph as an iterable of node pairs representing the 
             edges, or a NetworkX Graph.
 
         **params (optional): See below.
 
     Returns: 
-        A dict that maps labels in S to labels in T. If no isomorphism
-        is found, and empty dictionary is returned.
+        A dict that maps nodes in S to nodes in T. If no isomorphism is found,
+        an empty dictionary is returned.
 
     Optional Parameters:
         timeout  (int, optional, default=0)
             Abort after this many seconds
         parallel (bool, optional, default=False):
             Use auto-configured parallel search (highly nondeterministic runtimes)
+        node_labels (tuple, optional, default=None):
+            If not ``None``, a pair of dicts (``S_labels``, ``T_labels``) whose keys are
+            nodes and values are strings.  Unlabeled nodes are labeled with
+            the empty string "".
+        edge_labels (tuple, optional, default=None):
+            If not ``None``, a pair of dicts (``S_labels``, ``T_labels``) whose keys are
+            (source, dest) pairs of nodes corresponding to directed edges, and
+            values are strings.  Unlabeled directed edges are labeled with the
+            empty string "".  If the label on an edge (u, v) is intended to be
+            undirected, you must provide the same label for both directions
+            (u, v) and (v, u).
+        as_embedding (bool, optional, default=False):
+            If ``True``, the values of the returned dictionary will be singleton
+            tuples similar to the return type of ``find_embedding``.
 
     Advanced Parallelism Options
         threads (int, optional, default=1):
@@ -227,10 +243,14 @@ def find_subgraph(source, target, **kwargs):
             Use clique size constraints on supplemental graphs too
 
     """
-    cdef shared_ptr[InputGraph] source_g = make_shared[InputGraph](0, False, False)
-    cdef shared_ptr[InputGraph] target_g = make_shared[InputGraph](0, False, False)
-    cdef labeldict source_labels = _read_graph(deref(source_g), source)
-    cdef labeldict target_labels = _read_graph(deref(target_g), target)
+    node_labels = kwargs.pop("node_labels", (None, None))
+    edge_labels = kwargs.pop("edge_labels", (None, None))
+
+    cdef shared_ptr[InputGraph] source_g = make_shared[InputGraph](0, node_labels[0], edge_labels[0])
+    cdef shared_ptr[InputGraph] target_g = make_shared[InputGraph](0, node_labels[1], edge_labels[1])
+
+    cdef _labeldict source_labels = _read_graph(deref(source_g), source, node_labels[0], edge_labels[0])
+    cdef _labeldict target_labels = _read_graph(deref(target_g), target, node_labels[1], edge_labels[1])
     cdef HomomorphismParams params
 
     cdef bool parallel = kwargs.pop('parallel', False)
@@ -297,23 +317,47 @@ def find_subgraph(source, target, **kwargs):
     params.timeout = make_shared_timeout(make_seconds(kwargs.pop('timeout', 0)))
     params.start_time = steady_clock_now()
 
+    as_embedding = kwargs.pop("as_embedding", False)
+    
     if kwargs:
         raise ValueError("unknown/unused parameters: {list(kwargs.keys())}")
 
     cdef HomomorphismResult result = solve_sip_by_decomposition(deref(source_g), deref(target_g), params)
 
-    return dict((source_labels.label(s), target_labels.label(t)) for s, t in result.mapping)
+    if as_embedding:
+        return dict((source_labels.label(s), (target_labels.label(t),)) for s, t in result.mapping)
+    else:
+        return dict((source_labels.label(s), target_labels.label(t)) for s, t in result.mapping)
 
-cdef _read_graph(InputGraph &g, E):
-    cdef labeldict L = labeldict()
+cdef _read_graph(InputGraph &g, E, node_labels, edge_labels):
+    cdef _labeldict L = _labeldict()
+    cdef str label
     if hasattr(E, 'edges'):
         G = E
         E = E.edges()
         for a in G.nodes():
             L[a]
-        
-    for a, b in E:
-        g.add_edge(L[a],L[b])
+
+    if edge_labels is None:
+        for a, b in E:
+            g.add_edge(L[a],L[b])
+    else:
+        for a, b in E:
+            label = edge_labels.get((a, b), "")
+            g.add_directed_edge(L[a], L[b], bytes(label, "utf8"))
+            label = edge_labels.get((b, a), "")
+            g.add_directed_edge(L[b], L[a], bytes(label, "utf8"))
+
+    if node_labels is not None:
+        # performance note: we really wanna do this in order because as of
+        # writing, the Glasgow implementation of set_vertex_label uses vector
+        # erase/insert which can result in accidentally-quadratic runtime if
+        # we don't write at the end
+        for i, a in enumerate(L._label):
+            label = node_labels.get(a)
+            if label is not None:
+                g.resize(i+1)
+                g.set_vertex_label(i, bytes(label, "utf8"))
 
     g.resize(len(L))
     return L
