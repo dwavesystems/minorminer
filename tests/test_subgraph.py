@@ -8,7 +8,7 @@ def verify_homomorphism(emb, source, target, locallyinjective = False):
             raise RuntimeError("homomorphism node fail")
 
         nbrs = {emb[v] for v in source[s]}
-        if not nbrs.issuperset(target[emb[s]]):
+        if not nbrs.issubset(target[emb[s]]):
             raise RuntimeError("homomorphism edge fail")
 
         if locallyinjective and len(source[s]) + 1 > len(nbrs | {emb[s]}):
