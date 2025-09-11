@@ -143,7 +143,6 @@ cdef extern from "glasgow-subgraph-solver/gss/homomorphism.hh" namespace "gss" n
 cdef extern from "glasgow-subgraph-solver/gss/sip_decomposer.hh" namespace "gss" nogil:
     cdef HomomorphismResult solve_sip_by_decomposition(InputGraph, InputGraph, HomomorphismParams) except+
 
-_nolabel = (None, None)
 def find_subgraph(source, target, **kwargs):
     """
     Use the Glasgow Subgraph Solver to find a subgraph isomorphism from source
@@ -185,19 +184,19 @@ def find_subgraph(source, target, **kwargs):
         parallel (bool, optional, default=False):
             Use auto-configured parallel search (highly nondeterministic runtimes)
         node_labels (tuple, optional, default=None):
-            If not None, a pair of dicts (S_labels, T_labels) whose keys are
+            If not ``None``, a pair of dicts (``S_labels``, ``T_labels``) whose keys are
             nodes and values are strings.  Unlabeled nodes are labeled with
             the empty string "".
         edge_labels (tuple, optional, default=None):
-            If not None, a pair of dicts (S_labels, T_labels) whose keys are
+            If not ``None``, a pair of dicts (``S_labels``, ``T_labels``) whose keys are
             (source, dest) pairs of nodes corresponding to directed edges, and
             values are strings.  Unlabeled directed edges are labeled with the
             empty string "".  If the label on an edge (u, v) is intended to be
             undirected, you must provide the same label for both directions
             (u, v) and (v, u).
         as_embedding (bool, optional, default=False):
-            If True, the values of the returned dictionary will be singleton
-            tuples similar to the return type of find_embedding.
+            If ``True``, the values of the returned dictionary will be singleton
+            tuples similar to the return type of ``find_embedding``.
 
     Advanced Parallelism Options
         threads (int, optional, default=1):
@@ -244,8 +243,8 @@ def find_subgraph(source, target, **kwargs):
             Use clique size constraints on supplemental graphs too
 
     """
-    node_labels = kwargs.pop("node_labels", _nolabel)
-    edge_labels = kwargs.pop("edge_labels", _nolabel)
+    node_labels = kwargs.pop("node_labels", (None, None))
+    edge_labels = kwargs.pop("edge_labels", (None, None))
 
     cdef shared_ptr[InputGraph] source_g = make_shared[InputGraph](0, node_labels[0], edge_labels[0])
     cdef shared_ptr[InputGraph] target_g = make_shared[InputGraph](0, node_labels[1], edge_labels[1])

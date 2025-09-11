@@ -25,7 +25,6 @@ class TestSubgraph(unittest.TestCase):
         for v in path_5:
            self.assertEqual(node_labels[0].get(v), node_labels[1].get(emb[v]))
 
-
         node_labels = {0: "start", 4:"end"}, {5: "start", 0: "end"} #impossible
         emb = subgraph.find_subgraph(path_5, path_10, node_labels=node_labels)
         self.assertEqual(emb, {})
