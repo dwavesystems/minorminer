@@ -11,7 +11,7 @@ def verify_homomorphism(emb, source, target, locallyinjective = False):
         if not nbrs.issuperset(target[emb[s]]):
             raise RuntimeError("homomorphism edge fail")
 
-        if locallyinjective and len(source[s]) + 1 > len(nbrs | {s}):
+        if locallyinjective and len(source[s]) + 1 > len(nbrs | {emb[s]}):
             raise RuntimeError("homomorphism locality fail")
 
 class TestSubgraph(unittest.TestCase):
