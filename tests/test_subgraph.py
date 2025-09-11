@@ -1,5 +1,6 @@
 from minorminer import subgraph
 from minorminer.utils import verify_embedding
+from dwave_networkx import chimera_graph
 import unittest, random, itertools, dwave_networkx as dnx, networkx as nx, os
 
 
@@ -55,4 +56,13 @@ class TestSubgraph(unittest.TestCase):
             pq = emb[u], emb[v]
             self.assertEqual(edge_labels[0].get(uv), edge_labels[1].get(pq))
             self.assertEqual(edge_labels[0].get(uv[::-1]), edge_labels[1].get(pq[::-1]))
+            
+    def test_timeout(self):
+        source = chimera_graph(8)
+        target = chimera_graph(15, coordinates=True)
+        #pop out a vertex from the central tile to make a minimally-impossible
+        #problem (no fully-yielded 8x8s) that GSS know how to reason about
+        target.remove_node((7,7,0,0)) 
+        emb = subgraph.find_subgraph(source, target, timeout=2)
+        self.assertEqual(emb, {})
 
