@@ -120,6 +120,11 @@ cdef extern from "glasgow-subgraph-solver/gss/value_ordering.hh" namespace "gss"
         _VO_Random 'gss::ValueOrdering::Random'
 
 cdef extern from "glasgow-subgraph-solver/gss/homomorphism.hh" namespace "gss" nogil:
+    cdef enum Injectivity 'gss:Injectivity':
+        _I_Injective 'gss::Injectivity::Injective'
+        _I_LocallyInjective 'gss::Injectivity::LocallyInjective'
+        _I_NonInjective 'gss::Injectivity::NonInjective'
+
     cppclass HomomorphismParams:
         shared_ptr[Timeout] timeout
         time_point[steady_clock] start_time
@@ -228,6 +233,14 @@ def find_subgraph(
         as_embedding (bool, optional, default=False):
             If ``True``, the values of the returned dictionary will be singleton
             tuples similar to the return type of ``find_embedding``.
+        injectivity (string, optional, default='injective'):
+            Must be one of ('injective', 'locally injective', 'noninjective').
+            By default, this function searches for subgraphs by finding injective
+            homomorphisms.  That is, nodes of the target graph can only occur
+            once in the output of the mapping.  By providing the default value
+            'injective' to the `injectivity` parameter, that is true.  A mapping
+            can be said to be 'locally injective' if the mapping is injective
+            on the neighborhood of every node.
 
     Advanced Parallelism Options
         threads (int, optional, default=1):
@@ -275,6 +288,7 @@ def find_subgraph(
             Use clique size constraints
         cliques_on_supplementals (bool, optional, default=False):
             Use clique size constraints on supplemental graphs too
+
     """
     if node_labels is None:
         node_labels = (None, None)
@@ -366,6 +380,8 @@ def find_subgraph(
         raise ValueError(f"unused parameters: {list(check_kwargs.keys())}")
 
     cdef HomomorphismResult result = solve_sip_by_decomposition(deref(source_g), deref(target_g), params)
+
+
 
     if as_embedding:
         return dict((source_labels.label(s), (target_labels.label(t),)) for s, t in result.mapping)
