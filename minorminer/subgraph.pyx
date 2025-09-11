@@ -143,7 +143,38 @@ cdef extern from "glasgow-subgraph-solver/gss/homomorphism.hh" namespace "gss" n
 cdef extern from "glasgow-subgraph-solver/gss/sip_decomposer.hh" namespace "gss" nogil:
     cdef HomomorphismResult solve_sip_by_decomposition(InputGraph, InputGraph, HomomorphismParams) except+
 
-def find_subgraph(source, target, **kwargs):
+_default_kwarg = object()
+def _check_kwarg(kwargs, name, default):
+    value = kwargs.pop(name)
+    return default if value is _default_kwarg else value
+
+def find_subgraph(
+    source,
+    target,
+    timeout=0,
+    parallel=False,
+    node_labels=None,
+    edge_labels=None,
+    as_embedding=False,
+    threads=1,
+    triggered_restarts=_default_kwarg,
+    delay_thread_creation=_default_kwarg,
+    restarts_policy=_default_kwarg,
+    luby_constant=_default_kwarg,
+    geometric_constant=_default_kwarg,
+    geometric_multiplier=_default_kwarg,
+    restart_interval=_default_kwarg,
+    restart_minimum=_default_kwarg,
+    value_ordering='biased',
+    clique_detection=True,
+    no_supplementals=False,
+    no_nds=False,
+    distance3=False,
+    k4=False,
+    n_exact_path_graphs=4,
+    cliques=False,
+    cliques_on_supplementals=False,
+    ):
     """
     Use the Glasgow Subgraph Solver to find a subgraph isomorphism from source
     to target.
@@ -201,14 +232,17 @@ def find_subgraph(source, target, **kwargs):
     Advanced Parallelism Options
         threads (int, optional, default=1):
             Use threaded search, with this many threads (0 to auto-detect)
+            (this value is overridden to zero if ``paralell` is ``True``)
         triggered_restarts (bool, optional, default=False):
             Have one thread trigger restarts (more nondeterminism, better performance)
         delay_thread_creation (bool, optional, default=False):
             Do not create threads until after the first restart
+            (default is changed to ``True`` if ``parallel`` is ``True``
 
     Advanced Search Configuration Options:
         restarts_policy (string, optional, default='luby'):
             Specify restart policy ('luby', 'geometric', 'timed' or 'none')
+            (default policy is 'timed' with default parameters if ``parallel`` is ``True``)
         luby_constant (int, optional, default=666):
             Specify the starting constant / multiplier for Luby restarts
         geometric_constant (double, optional, 5400):
@@ -227,7 +261,7 @@ def find_subgraph(source, target, **kwargs):
             Enable clique / independent set detection
         no_supplementals (bool, optional, default=False):
             Do not use supplemental graphs
-        no_nds (bool, optional, default=false):
+        no_nds (bool, optional, default=False):
             Do not use neighbourhood degree sequences
 
     Hidden Options:
@@ -241,10 +275,11 @@ def find_subgraph(source, target, **kwargs):
             Use clique size constraints
         cliques_on_supplementals (bool, optional, default=False):
             Use clique size constraints on supplemental graphs too
-
     """
-    node_labels = kwargs.pop("node_labels", (None, None))
-    edge_labels = kwargs.pop("edge_labels", (None, None))
+    if node_labels is None:
+        node_labels = (None, None)
+    if edge_labels is None:
+        edge_labels = (None, None)
 
     cdef shared_ptr[InputGraph] source_g = make_shared[InputGraph](0, node_labels[0], edge_labels[0])
     cdef shared_ptr[InputGraph] target_g = make_shared[InputGraph](0, node_labels[1], edge_labels[1])
@@ -253,28 +288,33 @@ def find_subgraph(source, target, **kwargs):
     cdef _labeldict target_labels = _read_graph(deref(target_g), target, node_labels[1], edge_labels[1])
     cdef HomomorphismParams params
 
-    cdef bool parallel = kwargs.pop('parallel', False)
+    if triggered_restarts is _default_kwarg:
+        triggered_restarts = parallel
 
-    params.triggered_restarts = kwargs.pop('triggered_restarts', parallel)
-
-    restarts_policy = kwargs.pop('restarts_policy', None)
+    check_kwargs = {
+        'luby_constant': luby_constant,
+        'geometric_constant': geometric_constant,
+        'geometric_multiplier': geometric_multiplier,
+        'restart_interval': restart_interval,
+        'restart_minimum': restart_minimum,
+    }
     if restarts_policy == 'luby':
-        multiplier = kwargs.pop('luby_constant', default_luby_multiplier)
+        multiplier = _check_kwarg(check_kwargs, 'luby_constant', default_luby_multiplier)
         params.restarts_schedule = make_luby_restarts_schedule(multiplier)
     elif restarts_policy == 'geometric':
-        constant = kwargs.pop('geometric_constant', default_geometric_constant)
-        multiplier = kwargs.pop('geometric_multiplier', default_geometric_multiplier)
+        constant = _check_kwarg(check_kwargs, 'geometric_constant', default_geometric_constant)
+        multiplier = _check_kwarg(check_kwargs, 'geometric_multiplier', default_geometric_multiplier)
         params.restarts_schedule = make_geometric_restarts_schedule(constant, multiplier)
     elif restarts_policy == 'timed':
-        interval = kwargs.pop('restart_interval', None)
-        backtracks = kwargs.pop('restart_minimum', default_timed_backtracks)
+        interval = _check_kwarg(check_kwargs, 'restart_interval', None)
+        backtracks = _check_kwarg(check_kwargs, 'restart_minimum', default_timed_backtracks)
         params.restarts_schedule = make_timed_restarts_schedule(
             default_timed_duration if interval is None else make_milliseconds(interval),
             backtracks
         )
     elif restarts_policy == 'none':
         params.restarts_schedule = make_no_restarts_schedule()
-    elif restarts_policy is None:
+    elif restarts_policy is _default_kwarg:
         if parallel:
             params.restarts_schedule = make_timed_restarts_schedule(default_timed_duration, default_timed_backtracks)
         else:
@@ -282,13 +322,12 @@ def find_subgraph(source, target, **kwargs):
     else:
         raise ValueError(f"restarts_policy {restarts_policy} not recognized")
 
-    params.n_threads = kwargs.pop('threads', 1)
-    if parallel:
-        params.n_threads = 0
+    params.n_threads = 0 if parallel else threads
 
-    params.delay_thread_creation = kwargs.pop('delay_thread_creation', parallel)
+    if delay_thread_creation is _default_kwarg:
+        delay_thread_creation = parallel
+    params.delay_thread_creation = delay_thread_creation
 
-    value_ordering = kwargs.pop('value_ordering', 'biased')
     if value_ordering == 'none':
         params.value_ordering_heuristic = _VO_None
     elif value_ordering == 'biased':
@@ -302,25 +341,29 @@ def find_subgraph(source, target, **kwargs):
     else:
         raise RuntimeError("unknown value ordering heuristic")
 
-    params.clique_detection = kwargs.pop('clique_detection', params.clique_detection)
-    params.distance3 = kwargs.pop('distance3', params.distance3)
-    params.k4 = kwargs.pop('k4', params.k4)
-    params.number_of_exact_path_graphs = kwargs.pop('n_exact_path_graphs', params.number_of_exact_path_graphs)
-    params.no_supplementals = kwargs.pop('no_supplementals', params.no_supplementals)
-    params.no_nds = kwargs.pop('no_nds', params.no_nds)
-    params.clique_size_constraints = kwargs.pop('cliques', params.clique_size_constraints)
-    params.clique_size_constraints_on_supplementals = kwargs.pop(
-        'cliques_on_supplementals',
-        params.clique_size_constraints_on_supplementals
-    )
+    if clique_detection is not _default_kwarg:
+        params.clique_detection = clique_detection
+    if distance3 is not _default_kwarg:
+        params.distance3 = distance3
+    if k4 is not _default_kwarg:
+        params.k4 = k4
+    if n_exact_path_graphs is not _default_kwarg:
+        params.number_of_exact_path_graphs = n_exact_path_graphs
+    if n_exact_path_graphs is not _default_kwarg:
+        params.no_supplementals = no_supplementals
+    if no_nds is not _default_kwarg:
+        params.no_nds = no_nds
+    if cliques is not _default_kwarg:
+        params.clique_size_constraints = cliques
+    if cliques_on_supplementals is not _default_kwarg:
+        params.clique_size_constraints_on_supplementals = cliques_on_supplementals
 
-    params.timeout = make_shared_timeout(make_seconds(kwargs.pop('timeout', 0)))
+    params.timeout = make_shared_timeout(make_seconds(timeout))
     params.start_time = steady_clock_now()
 
-    as_embedding = kwargs.pop("as_embedding", False)
-    
-    if kwargs:
-        raise ValueError("unknown/unused parameters: {list(kwargs.keys())}")
+    check_kwargs = {k: v for k, v in check_kwargs.items() if v is not _default_kwarg}
+    if check_kwargs:
+        raise ValueError(f"unused parameters: {list(check_kwargs.keys())}")
 
     cdef HomomorphismResult result = solve_sip_by_decomposition(deref(source_g), deref(target_g), params)
 
