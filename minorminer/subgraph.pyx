@@ -180,7 +180,7 @@ def find_subgraph(source, target, **kwargs):
 
     Optional Parameters:
         timeout  (int, optional, default=0)
-            Abort after this many seconds (note: this does not seem to work)
+            Abort after this many seconds
         parallel (bool, optional, default=False):
             Use auto-configured parallel search (highly nondeterministic runtimes)
         node_labels (tuple, optional, default=None):
