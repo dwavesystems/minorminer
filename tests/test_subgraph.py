@@ -12,7 +12,7 @@ def verify_homomorphism(emb, source, target, locallyinjective = False):
             raise RuntimeError("homomorphism edge fail")
 
         if locallyinjective and len(source[s]) + 1 > len(nbrs | {s}):
-            rause RuntimeError("homomorphism locality fail")
+            raise RuntimeError("homomorphism locality fail")
 
 class TestSubgraph(unittest.TestCase):
     def test_smoketest(self):
