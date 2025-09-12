@@ -405,7 +405,7 @@ def find_subgraph(
             for s, t in zip(source_isolated, target_isolated):
                 emb[s] = t
         else:
-            for t in target_labels or target_isolated:
+            for t in target_isolated or target_labels.values():
                 for s in source_isolated:
                     emb[s] = t
                 break
