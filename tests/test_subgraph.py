@@ -63,8 +63,6 @@ class TestSubgraph(unittest.TestCase):
         emb = subgraph.find_subgraph(path_5, path_10, node_labels=node_labels)
         self.assertEqual(emb, {})
 
-        
-
     def test_edge_colors(self):
         path_5 = nx.path_graph('vwxyz')
         path_10 = nx.path_graph(10)
