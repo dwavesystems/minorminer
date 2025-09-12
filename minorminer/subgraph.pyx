@@ -43,6 +43,7 @@ from libcpp.map cimport map
 from libcpp.pair cimport pair
 from libc.stdint cimport uint8_t, uint64_t
 from libcpp.string cimport string
+import random as _random
 
 cdef class _labeldict(dict):
     cdef list _label
@@ -53,6 +54,10 @@ cdef class _labeldict(dict):
         self[l] = k = len(self._label)
         self._label.append(l)
         return k
+    def shuffle(self, random):
+        random.shuffle(self._label)
+        for i, l in enumerate(self._label):
+            self[l] = i
     def label(self,k):
         return self._label[k]
 
@@ -163,6 +168,7 @@ def find_subgraph(
     edge_labels=None,
     as_embedding=False,
     injectivity='injective',
+    seed=None,
     threads=1,
     triggered_restarts=_default_kwarg,
     delay_thread_creation=_default_kwarg,
@@ -243,6 +249,16 @@ def find_subgraph(
             'injective' to the `injectivity` parameter, that is true.  A mapping
             can be said to be 'locally injective' if the mapping is injective
             on the neighborhood of every node.
+        seed (int/object, optional, default=None):
+            If ``seed`` is an int, it will be used as a seed to a random number
+            generator to randomize the algorithm.  This randomization is
+            accomplished by shuffling the nodes and edges of the source and
+            target graphs.  If ``seed`` is an object with an attribute named
+            ``shuffle``, then that function will be called, with the expectation
+            that it is equivalent to ``random.shuffle``.
+
+            Note that the placement of nodes without incident edges is not
+            subject to explicit randomization.
 
     Advanced Parallelism Options
         threads (int, optional, default=1):
@@ -300,10 +316,17 @@ def find_subgraph(
     cdef shared_ptr[InputGraph] source_g = make_shared[InputGraph](0, node_labels[0], edge_labels[0])
     cdef shared_ptr[InputGraph] target_g = make_shared[InputGraph](0, node_labels[1], edge_labels[1])
 
+    if seed is None:
+        random = None
+    elif not hasattr(seed, 'shuffle'):
+        random = _random.Random(seed)
+    else:
+        random = seed
+
     cdef _labeldict source_labels
     cdef _labeldict target_labels
-    source_labels, source_isolated = _read_graph(deref(source_g), source, node_labels[0], edge_labels[0])
-    target_labels, target_isolated  = _read_graph(deref(target_g), target, node_labels[1], edge_labels[1])
+    source_labels, source_isolated = _read_graph(deref(source_g), source, node_labels[0], edge_labels[0], random)
+    target_labels, target_isolated  = _read_graph(deref(target_g), target, node_labels[1], edge_labels[1], random)
     cdef HomomorphismParams params
 
     if triggered_restarts is _default_kwarg:
@@ -401,7 +424,7 @@ def find_subgraph(
 
     if source_isolated and emb:
         if injectivity == 'injective':
-            target_isolated.extend(set(target_labels.values())-set(emb.values()))
+            target_isolated.extend(set(target_labels)-set(emb.values()))
             for s, t in zip(source_isolated, target_isolated):
                 emb[s] = t
         else:
@@ -415,28 +438,31 @@ def find_subgraph(
 
     return emb
 
-cdef _read_graph(InputGraph &g, E, node_labels, edge_labels):
+cdef _read_graph(InputGraph &g, E, node_labels, edge_labels, random):
     cdef _labeldict L = _labeldict()
     cdef str label
     isolated_nodes = []
     if hasattr(E, 'edges'):
         G = E
-        E = E.edges()
+        E = list(E.edges())
         for a, d in G.degree():
             if d:
                 L[a]
             else:
                 isolated_nodes.append(a)
-
-    if edge_labels is None:
-        for a, b in E:
-            g.add_edge(L[a],L[b])
     else:
-        for a, b in E:
-            label = edge_labels.get((a, b), "")
-            g.add_directed_edge(L[a], L[b], bytes(label, "utf8"))
-            label = edge_labels.get((b, a), "")
-            g.add_directed_edge(L[b], L[a], bytes(label, "utf8"))
+        G = None
+
+    if random is not None or node_labels is not None:
+        if G is None:
+            # E might be a generator... this is a silly-looking line but it
+            # walks over the edge-list, puts every node into L, and leaves E
+            # functionally unchanged
+            E = [(L[a], L[b]) and (a, b) for a, b in E]
+
+    if random is not None:
+        L.shuffle(random)
+        random.shuffle(E)
 
     if node_labels is not None:
         # performance note: we really wanna do this in order because as of
@@ -448,6 +474,16 @@ cdef _read_graph(InputGraph &g, E, node_labels, edge_labels):
             if label is not None:
                 g.resize(i+1)
                 g.set_vertex_label(i, bytes(label, "utf8"))
+
+    if edge_labels is None:
+        for a, b in E:
+            g.add_edge(L[a],L[b])
+    else:
+        for a, b in E:
+            label = edge_labels.get((a, b), "")
+            g.add_directed_edge(L[a], L[b], bytes(label, "utf8"))
+            label = edge_labels.get((b, a), "")
+            g.add_directed_edge(L[b], L[a], bytes(label, "utf8"))
 
     g.resize(len(L))
     return L, isolated_nodes
