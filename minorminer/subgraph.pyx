@@ -43,6 +43,7 @@ from libcpp.map cimport map
 from libcpp.pair cimport pair
 from libc.stdint cimport uint8_t, uint64_t
 from libcpp.string cimport string
+import random as _random
 
 cdef class _labeldict(dict):
     cdef list _label
@@ -53,6 +54,10 @@ cdef class _labeldict(dict):
         self[l] = k = len(self._label)
         self._label.append(l)
         return k
+    def shuffle(self, random):
+        random.shuffle(self._label)
+        for i, l in enumerate(self._label):
+            self[l] = i
     def label(self,k):
         return self._label[k]
 
@@ -120,6 +125,11 @@ cdef extern from "glasgow-subgraph-solver/gss/value_ordering.hh" namespace "gss"
         _VO_Random 'gss::ValueOrdering::Random'
 
 cdef extern from "glasgow-subgraph-solver/gss/homomorphism.hh" namespace "gss" nogil:
+    cdef enum Injectivity 'gss:Injectivity':
+        _I_Injective 'gss::Injectivity::Injective'
+        _I_LocallyInjective 'gss::Injectivity::LocallyInjective'
+        _I_NonInjective 'gss::Injectivity::NonInjective'
+
     cppclass HomomorphismParams:
         shared_ptr[Timeout] timeout
         time_point[steady_clock] start_time
@@ -128,6 +138,7 @@ cdef extern from "glasgow-subgraph-solver/gss/homomorphism.hh" namespace "gss" n
         bool triggered_restarts
         bool delay_thread_creation
         ValueOrdering value_ordering_heuristic
+        Injectivity injectivity
         bool clique_detection
         bool distance3
         bool k4
@@ -143,7 +154,40 @@ cdef extern from "glasgow-subgraph-solver/gss/homomorphism.hh" namespace "gss" n
 cdef extern from "glasgow-subgraph-solver/gss/sip_decomposer.hh" namespace "gss" nogil:
     cdef HomomorphismResult solve_sip_by_decomposition(InputGraph, InputGraph, HomomorphismParams) except+
 
-def find_subgraph(source, target, **kwargs):
+_default_kwarg = object()
+def _check_kwarg(kwargs, name, default):
+    value = kwargs.pop(name)
+    return default if value is _default_kwarg else value
+
+def find_subgraph(
+    source,
+    target,
+    timeout=0,
+    parallel=False,
+    node_labels=None,
+    edge_labels=None,
+    as_embedding=False,
+    injectivity='injective',
+    seed=None,
+    threads=1,
+    triggered_restarts=_default_kwarg,
+    delay_thread_creation=_default_kwarg,
+    restarts_policy=_default_kwarg,
+    luby_constant=_default_kwarg,
+    geometric_constant=_default_kwarg,
+    geometric_multiplier=_default_kwarg,
+    restart_interval=_default_kwarg,
+    restart_minimum=_default_kwarg,
+    value_ordering='biased',
+    clique_detection=True,
+    no_supplementals=False,
+    no_nds=False,
+    distance3=False,
+    k4=False,
+    n_exact_path_graphs=4,
+    cliques=False,
+    cliques_on_supplementals=False,
+    ):
     """
     Use the Glasgow Subgraph Solver to find a subgraph isomorphism from source
     to target.
@@ -197,18 +241,39 @@ def find_subgraph(source, target, **kwargs):
         as_embedding (bool, optional, default=False):
             If ``True``, the values of the returned dictionary will be singleton
             tuples similar to the return type of ``find_embedding``.
+        injectivity (string, optional, default='injective'):
+            Must be one of ('injective', 'locally injective', 'noninjective').
+            By default, this function searches for subgraphs by finding injective
+            homomorphisms.  That is, nodes of the target graph can only occur
+            once in the output of the mapping.  By providing the default value
+            'injective' to the `injectivity` parameter, that is true.  A mapping
+            can be said to be 'locally injective' if the mapping is injective
+            on the neighborhood of every node.
+        seed (int/object, optional, default=None):
+            If ``seed`` is an int, it will be used as a seed to a random number
+            generator to randomize the algorithm.  This randomization is
+            accomplished by shuffling the nodes and edges of the source and
+            target graphs.  If ``seed`` is an object with an attribute named
+            ``shuffle``, then that function will be called, with the expectation
+            that it is equivalent to ``random.shuffle``.
+
+            Note that the placement of nodes without incident edges is not
+            subject to explicit randomization.
 
     Advanced Parallelism Options
         threads (int, optional, default=1):
             Use threaded search, with this many threads (0 to auto-detect)
+            (this value is overridden to zero if ``paralell` is ``True``)
         triggered_restarts (bool, optional, default=False):
             Have one thread trigger restarts (more nondeterminism, better performance)
         delay_thread_creation (bool, optional, default=False):
             Do not create threads until after the first restart
+            (default is changed to ``True`` if ``parallel`` is ``True``
 
     Advanced Search Configuration Options:
         restarts_policy (string, optional, default='luby'):
             Specify restart policy ('luby', 'geometric', 'timed' or 'none')
+            (default policy is 'timed' with default parameters if ``parallel`` is ``True``)
         luby_constant (int, optional, default=666):
             Specify the starting constant / multiplier for Luby restarts
         geometric_constant (double, optional, 5400):
@@ -227,7 +292,7 @@ def find_subgraph(source, target, **kwargs):
             Enable clique / independent set detection
         no_supplementals (bool, optional, default=False):
             Do not use supplemental graphs
-        no_nds (bool, optional, default=false):
+        no_nds (bool, optional, default=False):
             Do not use neighbourhood degree sequences
 
     Hidden Options:
@@ -243,38 +308,54 @@ def find_subgraph(source, target, **kwargs):
             Use clique size constraints on supplemental graphs too
 
     """
-    node_labels = kwargs.pop("node_labels", (None, None))
-    edge_labels = kwargs.pop("edge_labels", (None, None))
+    if node_labels is None:
+        node_labels = (None, None)
+    if edge_labels is None:
+        edge_labels = (None, None)
 
     cdef shared_ptr[InputGraph] source_g = make_shared[InputGraph](0, node_labels[0], edge_labels[0])
     cdef shared_ptr[InputGraph] target_g = make_shared[InputGraph](0, node_labels[1], edge_labels[1])
 
-    cdef _labeldict source_labels = _read_graph(deref(source_g), source, node_labels[0], edge_labels[0])
-    cdef _labeldict target_labels = _read_graph(deref(target_g), target, node_labels[1], edge_labels[1])
+    if seed is None:
+        random = None
+    elif not hasattr(seed, 'shuffle'):
+        random = _random.Random(seed)
+    else:
+        random = seed
+
+    cdef _labeldict source_labels
+    cdef _labeldict target_labels
+    source_labels, source_isolated = _read_graph(deref(source_g), source, node_labels[0], edge_labels[0], random)
+    target_labels, target_isolated  = _read_graph(deref(target_g), target, node_labels[1], edge_labels[1], random)
     cdef HomomorphismParams params
 
-    cdef bool parallel = kwargs.pop('parallel', False)
+    if triggered_restarts is _default_kwarg:
+        triggered_restarts = parallel
 
-    params.triggered_restarts = kwargs.pop('triggered_restarts', parallel)
-
-    restarts_policy = kwargs.pop('restarts_policy', None)
+    check_kwargs = {
+        'luby_constant': luby_constant,
+        'geometric_constant': geometric_constant,
+        'geometric_multiplier': geometric_multiplier,
+        'restart_interval': restart_interval,
+        'restart_minimum': restart_minimum,
+    }
     if restarts_policy == 'luby':
-        multiplier = kwargs.pop('luby_constant', default_luby_multiplier)
+        multiplier = _check_kwarg(check_kwargs, 'luby_constant', default_luby_multiplier)
         params.restarts_schedule = make_luby_restarts_schedule(multiplier)
     elif restarts_policy == 'geometric':
-        constant = kwargs.pop('geometric_constant', default_geometric_constant)
-        multiplier = kwargs.pop('geometric_multiplier', default_geometric_multiplier)
+        constant = _check_kwarg(check_kwargs, 'geometric_constant', default_geometric_constant)
+        multiplier = _check_kwarg(check_kwargs, 'geometric_multiplier', default_geometric_multiplier)
         params.restarts_schedule = make_geometric_restarts_schedule(constant, multiplier)
     elif restarts_policy == 'timed':
-        interval = kwargs.pop('restart_interval', None)
-        backtracks = kwargs.pop('restart_minimum', default_timed_backtracks)
+        interval = _check_kwarg(check_kwargs, 'restart_interval', None)
+        backtracks = _check_kwarg(check_kwargs, 'restart_minimum', default_timed_backtracks)
         params.restarts_schedule = make_timed_restarts_schedule(
             default_timed_duration if interval is None else make_milliseconds(interval),
             backtracks
         )
     elif restarts_policy == 'none':
         params.restarts_schedule = make_no_restarts_schedule()
-    elif restarts_policy is None:
+    elif restarts_policy is _default_kwarg:
         if parallel:
             params.restarts_schedule = make_timed_restarts_schedule(default_timed_duration, default_timed_backtracks)
         else:
@@ -282,13 +363,12 @@ def find_subgraph(source, target, **kwargs):
     else:
         raise ValueError(f"restarts_policy {restarts_policy} not recognized")
 
-    params.n_threads = kwargs.pop('threads', 1)
-    if parallel:
-        params.n_threads = 0
+    params.n_threads = 0 if parallel else threads
 
-    params.delay_thread_creation = kwargs.pop('delay_thread_creation', parallel)
+    if delay_thread_creation is _default_kwarg:
+        delay_thread_creation = parallel
+    params.delay_thread_creation = delay_thread_creation
 
-    value_ordering = kwargs.pop('value_ordering', 'biased')
     if value_ordering == 'none':
         params.value_ordering_heuristic = _VO_None
     elif value_ordering == 'biased':
@@ -302,51 +382,87 @@ def find_subgraph(source, target, **kwargs):
     else:
         raise RuntimeError("unknown value ordering heuristic")
 
-    params.clique_detection = kwargs.pop('clique_detection', params.clique_detection)
-    params.distance3 = kwargs.pop('distance3', params.distance3)
-    params.k4 = kwargs.pop('k4', params.k4)
-    params.number_of_exact_path_graphs = kwargs.pop('n_exact_path_graphs', params.number_of_exact_path_graphs)
-    params.no_supplementals = kwargs.pop('no_supplementals', params.no_supplementals)
-    params.no_nds = kwargs.pop('no_nds', params.no_nds)
-    params.clique_size_constraints = kwargs.pop('cliques', params.clique_size_constraints)
-    params.clique_size_constraints_on_supplementals = kwargs.pop(
-        'cliques_on_supplementals',
-        params.clique_size_constraints_on_supplementals
-    )
+    if injectivity == 'injective':
+        params.injectivity = _I_Injective
+    elif injectivity == 'locally injective':
+        params.injectivity = _I_LocallyInjective
+    elif injectivity == 'noninjective':
+        params.injectivity = _I_NonInjective
+    else:
+        raise RuntimeError("unrecognized injectivity option")
 
-    params.timeout = make_shared_timeout(make_seconds(kwargs.pop('timeout', 0)))
+    if clique_detection is not _default_kwarg:
+        params.clique_detection = clique_detection
+    if distance3 is not _default_kwarg:
+        params.distance3 = distance3
+    if k4 is not _default_kwarg:
+        params.k4 = k4
+    if n_exact_path_graphs is not _default_kwarg:
+        params.number_of_exact_path_graphs = n_exact_path_graphs
+    if n_exact_path_graphs is not _default_kwarg:
+        params.no_supplementals = no_supplementals
+    if no_nds is not _default_kwarg:
+        params.no_nds = no_nds
+    if cliques is not _default_kwarg:
+        params.clique_size_constraints = cliques
+    if cliques_on_supplementals is not _default_kwarg:
+        params.clique_size_constraints_on_supplementals = cliques_on_supplementals
+
+    params.timeout = make_shared_timeout(make_seconds(timeout))
     params.start_time = steady_clock_now()
 
-    as_embedding = kwargs.pop("as_embedding", False)
-    
-    if kwargs:
-        raise ValueError("unknown/unused parameters: {list(kwargs.keys())}")
+    check_kwargs = {k: v for k, v in check_kwargs.items() if v is not _default_kwarg}
+    if check_kwargs:
+        raise ValueError(f"unused parameters: {list(check_kwargs.keys())}")
 
-    cdef HomomorphismResult result = solve_sip_by_decomposition(deref(source_g), deref(target_g), params)
+    cdef HomomorphismResult result;
+    if len(source_labels) + len(source_isolated) <= len(target_labels) + len(target_isolated) or injectivity != 'injective':
+        result = solve_sip_by_decomposition(deref(source_g), deref(target_g), params)
+        emb = dict((source_labels.label(s), target_labels.label(t)) for s, t in result.mapping)
+    else:
+        emb = {}
+
+    if source_isolated and (len(emb) == len(source_labels)):
+        if injectivity == 'injective':
+            target_isolated.extend(set(target_labels)-set(emb.values()))
+            if len(source_isolated) <= len(target_isolated):
+                for s, t in zip(source_isolated, target_isolated):
+                    emb[s] = t
+        elif target_isolated or target_labels:
+            t = next(iter(target_isolated or target_labels))
+            for s in source_isolated:
+                emb[s] = t
 
     if as_embedding:
-        return dict((source_labels.label(s), (target_labels.label(t),)) for s, t in result.mapping)
-    else:
-        return dict((source_labels.label(s), target_labels.label(t)) for s, t in result.mapping)
+        emb = {k: (v,) for k, v in emb.items()}
 
-cdef _read_graph(InputGraph &g, E, node_labels, edge_labels):
+    return emb
+
+cdef _read_graph(InputGraph &g, E, node_labels, edge_labels, random):
     cdef _labeldict L = _labeldict()
     cdef str label
+    isolated_nodes = []
     if hasattr(E, 'edges'):
         G = E
-        E = E.edges()
-        for a in G.nodes():
-            L[a]
-
-    if edge_labels is None:
-        for a, b in E:
-            g.add_edge(L[a],L[b])
+        E = list(E.edges())
+        for a, d in G.degree():
+            if d:
+                L[a]
+            else:
+                isolated_nodes.append(a)
     else:
-        for a, b in E:
-            label = edge_labels.get((a, b), "")
-            g.add_directed_edge(L[a], L[b], bytes(label, "utf8"))
-            label = edge_labels.get((b, a), "")
-            g.add_directed_edge(L[b], L[a], bytes(label, "utf8"))
+        G = None
+
+    if random is not None or node_labels is not None:
+        if G is None:
+            # E might be a generator... this is a silly-looking line but it
+            # walks over the edge-list, puts every node into L, and leaves E
+            # functionally unchanged
+            E = [(L[a], L[b]) and (a, b) for a, b in E]
+
+    if random is not None:
+        L.shuffle(random)
+        random.shuffle(E)
 
     if node_labels is not None:
         # performance note: we really wanna do this in order because as of
@@ -359,5 +475,15 @@ cdef _read_graph(InputGraph &g, E, node_labels, edge_labels):
                 g.resize(i+1)
                 g.set_vertex_label(i, bytes(label, "utf8"))
 
+    if edge_labels is None:
+        for a, b in E:
+            g.add_edge(L[a],L[b])
+    else:
+        for a, b in E:
+            label = edge_labels.get((a, b), "")
+            g.add_directed_edge(L[a], L[b], bytes(label, "utf8"))
+            label = edge_labels.get((b, a), "")
+            g.add_directed_edge(L[b], L[a], bytes(label, "utf8"))
+
     g.resize(len(L))
-    return L
+    return L, isolated_nodes
