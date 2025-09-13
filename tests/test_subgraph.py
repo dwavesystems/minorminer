@@ -142,6 +142,16 @@ class TestSubgraph(unittest.TestCase):
         emb = subgraph.find_subgraph(source, target, as_embedding=True)
         verify_embedding(emb, source, target)
 
+        #annoying edge case: the source graph is edgeless :eyeroll:
+        source = nx.empty_graph(5)
+        emb = subgraph.find_subgraph(source, target, as_embedding=True)
+        verify_embedding(emb, source, target)
+
+        target = nx.path_graph('ab')
+        target.add_node(0)
+        emb = subgraph.find_subgraph(source, target, injectivity='locally injective')
+        verify_homomorphism(emb, source, target, locallyinjective=True)
+
     def test_seed(self):
         g = dnx.chimera_graph(3, 3, 1, coordinates=True)
         emb = subgraph.find_subgraph(g, g, seed=54321, as_embedding=True)

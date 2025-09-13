@@ -422,16 +422,16 @@ def find_subgraph(
     else:
         emb = {}
 
-    if source_isolated and emb:
+    if source_isolated and (len(emb) == len(source_labels)):
         if injectivity == 'injective':
             target_isolated.extend(set(target_labels)-set(emb.values()))
-            for s, t in zip(source_isolated, target_isolated):
-                emb[s] = t
-        else:
-            for t in target_isolated or target_labels.values():
-                for s in source_isolated:
+            if len(source_isolated) <= len(target_isolated):
+                for s, t in zip(source_isolated, target_isolated):
                     emb[s] = t
-                break
+        elif target_isolated or target_labels:
+            t = next(iter(target_isolated or target_labels))
+            for s in source_isolated:
+                emb[s] = t
 
     if as_embedding:
         emb = {k: (v,) for k, v in emb.items()}
