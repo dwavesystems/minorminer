@@ -1,0 +1,7 @@
+---
+features:
+  - add ``seed`` argument to ``subgraph.find_subgraph`` to randomize algorithm (issue #243)
+  - add support for non-injective homomorphisms in ``subgraph.find_embedding`` through new ``injectivity`` argument
+fixes:
+  - argument list made explicit rather than over-reliance on ``kwargs`` (issue #255)
+  - proper support for nodes without incident edges (issue #254)
