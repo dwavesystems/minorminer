@@ -1,0 +1,3 @@
+---
+features:
+  - add the ability to interrupt subgraph.find_subgraph with ctrl-c
