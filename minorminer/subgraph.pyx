@@ -62,6 +62,20 @@ cdef class _labeldict(dict):
         return self._label[k]
 
 
+cdef extern from "<atomic>" namespace "std" nogil:
+    cdef cppclass atomic_bool "std::atomic<bool>":
+        void store(bool)
+
+ctypedef void(*sig_handler)(int) 
+
+cdef extern from "<csignal>" nogil:
+    cdef int SIGINT
+    cdef sig_handler signal(int, sig_handler)
+
+cdef atomic_bool _interrupt_find_subgraph_q
+cdef void _interrupt_find_subgraph(int _):
+    _interrupt_find_subgraph_q.store(True)
+
 cdef extern from "<chrono>" namespace "std::chrono" nogil:
     cdef cppclass time_point[T]:
         pass
@@ -102,7 +116,7 @@ cdef extern from "<memory>" namespace "std" nogil:
         pass
     cdef cppclass unique_ptr[T]:
         pass
-    cdef shared_ptr[Timeout] make_shared_timeout "std::make_shared<gss::Timeout>"(seconds)
+    cdef shared_ptr[Timeout] make_shared_timeout "std::make_shared<gss::Timeout>"(seconds, atomic_bool)
     cdef shared_ptr[InputGraph] make_shared[InputGraph](int, bool, bool)
     cdef InputGraph deref "*"(shared_ptr[InputGraph])
     cdef unique_ptr[RestartsSchedule] make_no_restarts_schedule "std::make_unique<gss::NoRestartsSchedule>"()
@@ -408,16 +422,22 @@ def find_subgraph(
     if cliques_on_supplementals is not _default_kwarg:
         params.clique_size_constraints_on_supplementals = cliques_on_supplementals
 
-    params.timeout = make_shared_timeout(make_seconds(timeout))
+    params.timeout = make_shared_timeout(make_seconds(timeout), _interrupt_find_subgraph_q)
     params.start_time = steady_clock_now()
 
     check_kwargs = {k: v for k, v in check_kwargs.items() if v is not _default_kwarg}
     if check_kwargs:
         raise ValueError(f"unused parameters: {list(check_kwargs.keys())}")
 
-    cdef HomomorphismResult result;
+    cdef HomomorphismResult result
+    cdef sig_handler prev_handler
     if len(source_labels) + len(source_isolated) <= len(target_labels) + len(target_isolated) or injectivity != 'injective':
-        result = solve_sip_by_decomposition(deref(source_g), deref(target_g), params)
+        _interrupt_find_subgraph_q.store(False)
+        prev_handler = signal(SIGINT, _interrupt_find_subgraph)
+        try:
+            result = solve_sip_by_decomposition(deref(source_g), deref(target_g), params)
+        finally:
+            signal(SIGINT, prev_handler)
         emb = dict((source_labels.label(s), target_labels.label(t)) for s, t in result.mapping)
     else:
         emb = {}
