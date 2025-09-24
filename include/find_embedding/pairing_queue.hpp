@@ -41,10 +41,10 @@ class pairing_node : public N {
     pairing_node *desc;
 
   public:
-    pairing_node<N>() {}
+    pairing_node() {}
 
     template <class... Args>
-    pairing_node<N>(Args... args) : N(args...), next(nullptr), desc(nullptr) {}
+    pairing_node(Args... args) : N(args...), next(nullptr), desc(nullptr) {}
 
     //! the basic operation of the pairing queue -- put `this` and `other`
     //! into heap-order
