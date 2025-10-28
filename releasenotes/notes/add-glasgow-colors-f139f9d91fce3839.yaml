@@ -1,6 +1,6 @@
 ---
 features:
   - new coloring features for subgraph matching (nodes or directed edges can be assigned labels with the `node_labels` and `edge_labels` arguments to `subgraph.find_subgraph`)
-  - `subgraph.find_subgraph` accepts an additional new argument `as_embedding` to return a dict with iterable values similar to other embedding tools
+  - add additional new argument `as_embedding` to `subgraph.find_subgraph` to return a dict with iterable values similar to other embedding tools
 issues:
   - the `timeout` argument in `subgraph.find_subgraph` seems to be broken
