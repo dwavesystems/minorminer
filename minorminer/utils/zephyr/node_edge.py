@@ -25,36 +25,39 @@ from typing import Callable, Generator, Iterable
 from minorminer.utils.zephyr.coordinate_systems import (CartesianCoord, ZephyrCoord,
                                                         cartesian_to_zephyr, zephyr_to_cartesian)
 from minorminer.utils.zephyr.plane_shift import PlaneShift
-
 ZShape = namedtuple("ZShape", ["m", "t"], defaults=(None, None))
 
 
+
 class EdgeKind(Enum):
-    """Kinds of an edge (coupler) between two nodes in a Zephyr graph."""
     INTERNAL = 1
     EXTERNAL = 2
     ODD = 3
 
 
 class NodeKind(Enum):
-    """Kinds of a node (qubit) in a Zephyr graph."""
-    VERTICAL = 0    # The ``u`` coordinate of a Zephyr coordinate of a vertical node (qubit) is zero.
-    HORIZONTAL = 1  # The ``u`` coordinate of a Zephyr coordinate of a horizontal node (qubit) is one.
+    VERTICAL = 0
+    HORIZONTAL = 1
+
 
 
 class Edge:
     """Initializes an Edge with nodes x, y.
 
     Args:
-        x: One endpoint of edge.
-        y: Another endpoint of edge.
+        x : One endpoint of edge.
+        y : Another endpoint of edge.
     """
 
-    def __init__(self, x: int , y: int) -> None:
+    def __init__(
+        self,
+        x,
+        y,
+    ) -> None:
         self._edge = self._set_edge(x, y)
 
-    def _set_edge(self, x: int, y: int) -> tuple[int, int]:
-        """Returns ordered tuple corresponding to the set {x, y}."""
+    def _set_edge(self, x, y):
+        """Reutrns ordered tuple corresponding to the set {x, y}."""
         if x < y:
             return (x, y)
         else:
@@ -66,7 +69,7 @@ class Edge:
     def __getitem__(self, index: int) -> int:
         return self._edge[index]
 
-    def __eq__(self, other: Edge) -> bool:
+    def __eq__(self, other: Edge):
         return self._edge == other._edge
 
     def __str__(self) -> str:
@@ -80,8 +83,8 @@ class ZEdge(Edge):
     """Initializes a ZEdge with 'ZNode' nodes x, y.
 
     Args:
-        x (ZNode): Endpoint of edge. Must have same shape as ``y``.
-        y (ZNode): Endpoint of edge. Must have same shape as ``x``.
+        x (ZNode): One endpoint of edge.
+        y (ZNode): Another endpoint of edge.
         check_edge_valid (bool, optional): Flag to whether check the validity of values and types of ``x``, ``y``.
             Defaults to True.
 
@@ -125,7 +128,6 @@ class ZEdge(Edge):
 
     @property
     def edge_kind(self) -> EdgeKind:
-        """Returns the :class:`EdgeKind` of ``self``."""
         if not hasattr(self, "_edge_kind"):
             x, y = self._edge
             for kind in EdgeKind:
@@ -138,21 +140,21 @@ class ZEdge(Edge):
             raise ValueError(f"{self._edge} is not an edge in Zephyr topology")
 
 
+
 class ZNode:
     """Initializes 'ZNode' with coord and optional shape.
 
     Args:
-        coord (CartesianCoord | ZephyrCoord | tuple[int]): Coordinate in (quotient) Zephyr or (quotient) Cartesian.
-        shape (ZShape | tuple[int | None] | None, optional): Shape of the Zephyr graph containing this ZNode.
-            If a ZShape is passed, it should be a namedtuple with fields ``m`` (grid size of the Zephyr graph) 
-            and ``t`` (tile size of the Zephyr graph). Defaults to None.
+        coord (CartesianCoord | ZephyrCoord | tuple[int]): coordinate in (quotient) Zephyr or (quotient) Cartesian
+        shape (ZShape | tuple[int | None] | None, optional): shape of Zephyr graph containing ZNode.
+        m: grid size, t: tile size
+        Defaults to None.
         convert_to_z (bool | None, optional): Whether to express the coordinates in ZephyrCoordinates.
-            Defaults to None.
+        Defaults to None.
 
-    Note: 
-        If the ``k`` field of the given ``coord`` (whether a :class:`CartesianCoord` or :class:`ZephyrCoord`) is not ``None``,
-        then ``shape`` must be provided and its ``t`` field (the tile size of the Zephyr graph) must not be ``None``.
-        Otherwise, a ``ValueError`` will be raised.
+    Note: If the given coord has non-None k value (in either Cartesian or Zephyr coordinates),
+        shape = None raises ValueError. In this case the tile size of Zephyr, t,
+        must be provided.
 
     Example:
     >>> from zephyr_utils.node_edge import ZNode, ZShape
@@ -172,12 +174,12 @@ class ZNode:
     [ZNode(CartesianCoord(x=3, y=2, k=None), shape=ZShape(m=5, t=None)),
         ZNode(CartesianCoord(x=7, y=2, k=None), shape=ZShape(m=5, t=None))]
     """
-
     def __init__(
         self,
         coord: CartesianCoord | ZephyrCoord | tuple[int],
         shape: ZShape | None = None,
         convert_to_z: bool | None = None,
+        check_node_valid: bool = True,
     ) -> None:
         if shape:
             self._shape = self._set_shape(shape)
@@ -197,7 +199,7 @@ class ZNode:
         if isinstance(coord, ZephyrCoord):
             coord = zephyr_to_cartesian(coord)
 
-        self._ccoord = self._set_ccoord(coord)
+        self._ccoord = self._set_ccoord(coord=coord, check_node_valid=check_node_valid)
 
     @property
     def shape(self) -> ZShape:
@@ -225,8 +227,8 @@ class ZNode:
 
     def _check_ccoord_val(self, coord: CartesianCoord):
         for c in coord:
-            if c < 0:
-                raise ValueError(f"Expected ccoord.x and ccoord.y to be non-negative, got {c}")
+            if c is not None and c < 0:
+                raise ValueError(f"Expected ccoord elements to be None or non-negative, got {c}")
 
         if coord.x % 2 == coord.y % 2:
             raise ValueError(
@@ -251,7 +253,7 @@ class ZNode:
                     f"Expected ccoord.x and ccoord.y to be in {range(4*self._shape.m+1)}, got {coord.x, coord.y}"
                 )
 
-    def _set_ccoord(self, coord: CartesianCoord | tuple[int]) -> CartesianCoord:
+    def _set_ccoord(self, coord: CartesianCoord | tuple[int], check_node_valid: bool) -> CartesianCoord:
         """Returns the :class:`CartesianCoord` corresponding to ``coord``.
 
         Args:
@@ -261,11 +263,12 @@ class ZNode:
             coord = CartesianCoord(*coord)
 
         for c in coord:
-            if not isinstance(c, int):
-                raise TypeError(f"Expected ccoord.x and ccoord.y to be 'int', got {type(c)}")
-            
-        self._check_ccoord_val(coord)
-        self._check_ccoord_shape(coord)
+            if (c is not None) and (not isinstance(c, int)):
+                raise TypeError(f"Expected elements of ccoord to be 'int' or None, got {type(c)}")
+
+        if check_node_valid:
+            self._check_ccoord_val(coord)
+            self._check_ccoord_shape(coord)
         
         return coord
 
@@ -402,6 +405,7 @@ class ZNode:
             # Check ccoord is valid. If not valid, ignore this ccoord
             try:
                 self._check_ccoord_val(ccoord)
+                self._check_ccoord_shape(ccoord)
             except ValueError:
                 continue
             
@@ -438,6 +442,7 @@ class ZNode:
             # Check ccoord is valid. If not valid, ignore this ccoord
             try:
                 self._check_ccoord_val(ccoord)
+                self._check_ccoord_shape(ccoord)
             except ValueError:
                 continue
             
@@ -474,6 +479,7 @@ class ZNode:
             # Check ccoord is valid. If not valid, ignore this ccoord
             try:
                 self._check_ccoord_val(ccoord)
+                self._check_ccoord_shape(ccoord)
             except ValueError:
                 continue
             

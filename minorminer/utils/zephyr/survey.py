@@ -62,13 +62,13 @@ class ZSurvey:
             G_nodes = G.nodelist
             G_edges = G.edgelist
         self._nodes: set[ZNode] = {
-            ZNode(coord=ZephyrCoord(*self._input_coord_to_coord(v)), shape=self.shape)
+            ZNode(coord=ZephyrCoord(*self._input_coord_to_coord(v)), shape=self.shape, check_node_valid=False)
             for v in G_nodes
         }
         self._edges: set[ZEdge] = {
             ZEdge(
-                ZNode(coord=ZephyrCoord(*self._input_coord_to_coord(u)), shape=self.shape),
-                ZNode(coord=ZephyrCoord(*self._input_coord_to_coord(v)), shape=self.shape),
+                ZNode(coord=ZephyrCoord(*self._input_coord_to_coord(u)), shape=self.shape, check_node_valid=False),
+                ZNode(coord=ZephyrCoord(*self._input_coord_to_coord(v)), shape=self.shape, check_node_valid=False),
                 check_edge_valid=False,
             )
             for (u, v) in G_edges
@@ -86,7 +86,8 @@ class ZSurvey:
         Returns:
             tuple[ZShape, Literal["int", "coordinate"]]:
                 - 0-th index indicates the :class:`ZShape` of ``G``.
-                - 1-st index is 'int' if the node lables of ``G`` are integers; and is 'coordinate' if the node lables of ``G`` are Zephyr coordinates.
+                - 1-st index is 'int' if the node lables of ``G`` are integers;
+                    it is 'coordinate' if the node lables of ``G`` are Zephyr coordinates.
         """
         def _graph_shape_coord(G: nx.Graph) -> tuple[ZShape, Literal["int", "coordinate"]]:
             """
@@ -179,7 +180,7 @@ class ZSurvey:
         Zephyr graph on the same shape.
         """
         parent_nodes = [
-            ZNode(coord=ZephyrCoord(*v), shape=self._shape)
+            ZNode(coord=ZephyrCoord(*v), shape=self._shape, check_node_valid=False)
             for v in dnx.zephyr_graph(m=self._shape.m, t=self._shape.t, coordinates=True).nodes()
         ]
         return {v for v in parent_nodes if not v in self._nodes}
@@ -194,7 +195,11 @@ class ZSurvey:
         """Returns the ZEdges of the sampler/graph which are missing compared to
         perfect yield Zephyr graph on the same shape."""
         parent_edges = [
-            ZEdge(ZNode(coord=u, shape=self.shape), ZNode(coord=v, shape=self.shape))
+            ZEdge(
+                ZNode(coord=u, shape=self.shape, check_node_valid=False),
+                ZNode(coord=v, shape=self.shape, check_node_valid=False),
+                check_edge_valid=False
+                )
             for (u, v) in dnx.zephyr_graph(
                 m=self._shape.m, t=self._shape.t, coordinates=True
             ).edges()
