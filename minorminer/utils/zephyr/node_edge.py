@@ -126,7 +126,16 @@ class ZEdge(Edge):
     @property
     def edge_kind(self) -> EdgeKind:
         """Returns the :class:`EdgeKind` of ``self``."""
-        return self._edge_kind
+        if not hasattr(self, "_edge_kind"):
+            x, y = self._edge
+            for kind in EdgeKind:
+                if x.is_neighbor(y, nbr_kind=kind):
+                    self._edge_kind = kind
+                    break
+        try:
+            return self._edge_kind
+        except AttributeError:
+            raise ValueError(f"{self._edge} is not an edge in Zephyr topology")
 
 
 class ZNode:
