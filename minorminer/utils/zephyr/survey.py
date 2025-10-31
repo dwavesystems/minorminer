@@ -39,14 +39,17 @@ class ZSurvey:
         Args:
             G (nx.Graph | DWaveSampler): A graph or DWaveSampler with Zephyr topology
     Example:
-    >>> from dwave.system import DWaveSampler
-    >>> from minorminer.utils.zephyr.zephyr_survey import Survey
-    >>> sampler = DWaveSampler(solver="Advantage2_prototype2.6", profile='defaults')
-    >>> survey = Survey(sampler)
-    >>> print(f"Number of missing nodes is {survey.num_missing_nodes}")
-    Number of missing nodes is 33
-    >>> print(f"Number of missing edges with both endpoints present is {survey.num_extra_missing_edges}")
-    Number of missing edges with both endpoints present is 18
+    >>> m, t = 3, 2
+    >>> G = zephyr_graph(m=m, t=t)
+    >>> G.remove_nodes_from ([0, 10, 100])
+    >>> G.remove_edges_from (list(G.edges())[:20])
+    >>> zsur = ZSurvey(G)
+    >>> print(f"Number of missing nodes is {zsur.num_missing_nodes}")
+    Number of missing nodes is 3
+    >>> print(f"Number of missing edges is {zsur.num_missing_edges}")
+    Number of missing edges is 46
+    >>> print(f"Number of missing edges with both endpoints present is {zsur.num_extra_missing_edges}")
+    Number of missing edges with both endpoints present is 20
     """
 
     def __init__(

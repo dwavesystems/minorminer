@@ -95,12 +95,12 @@ class ZEdge(Edge):
             Zephyr graph.
 
     Example 1:
-    >>> from zephyr_utils.node_edge import ZNode, ZEdge
+    >>> from minorminer.utils.zephyr.node_edge import ZNode, ZEdge
     >>> e = ZEdge(ZNode((3, 2)), ZNode((7, 2)))
     >>> print(e)
     ZEdge(ZNode(CartesianCoord(x=3, y=2, k=None)), ZNode(CartesianCoord(x=7, y=2, k=None)))
     Example 2:
-    >>> from zephyr_utils.node_edge import ZNode, ZEdge
+    >>> from minorminer.utils.zephyr.node_edge import ZNode, ZEdge
     >>> ZEdge(ZNode((2, 3)), ZNode((6, 3))) # raises error, since the two are not neighbors
     """
 
@@ -157,7 +157,7 @@ class ZNode:
         must be provided.
 
     Example:
-    >>> from zephyr_utils.node_edge import ZNode, ZShape
+    >>> from minorminer.utils.zephyr.node_edge import ZNode, ZShape
     >>> zn1 = ZNode((5, 2), ZShape(m=5))
     >>> zn1.neighbors()
     [ZNode(CartesianCoord(x=4, y=1, k=None), shape=ZShape(m=5, t=None)),
@@ -168,7 +168,7 @@ class ZNode:
         ZNode(CartesianCoord(x=9, y=2, k=None), shape=ZShape(m=5, t=None)),
         ZNode(CartesianCoord(x=3, y=2, k=None), shape=ZShape(m=5, t=None)),
         ZNode(CartesianCoord(x=7, y=2, k=None), shape=ZShape(m=5, t=None))]
-    >>> from zephyr_utils.node_edge import ZNode, ZShape
+    >>> from minorminer.utils.zephyr.node_edge import ZNode, ZShape
     >>> zn1 = ZNode((5, 2), ZShape(m=5))
     >>> zn1.neighbors(nbr_kind=EdgeKind.ODD)
     [ZNode(CartesianCoord(x=3, y=2, k=None), shape=ZShape(m=5, t=None)),
