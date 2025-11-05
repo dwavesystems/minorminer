@@ -24,7 +24,7 @@ from typing import Callable, Generator, Iterable
 
 from minorminer.utils.zephyr.coordinate_systems import (CartesianCoord, ZephyrCoord,
                                                         cartesian_to_zephyr, zephyr_to_cartesian)
-from minorminer.utils.zephyr.plane_shift import PlaneShift
+from minorminer.utils.zephyr.plane_shift import ZPlaneShift
 ZShape = namedtuple("ZShape", ["m", "t"], defaults=(None, None))
 
 
@@ -151,6 +151,8 @@ class ZNode:
         Defaults to None.
         convert_to_z (bool | None, optional): Whether to express the coordinates in ZephyrCoordinates.
         Defaults to None.
+        check_node_valid (bool, optional): Flag to whether check the validity of values and types of ``coord``, ``shape``.
+            Defaults to True.
 
     Note: If the given coord has non-None k value (in either Cartesian or Zephyr coordinates),
         shape = None raises ValueError. In this case the tile size of Zephyr, t,
@@ -326,7 +328,7 @@ class ZNode:
     def to_quo(self) -> ZNode:
         """Returns the quotient :class:`ZNode` corresponding to self"""
         qshape = ZShape(m=self._shape.m)
-        qccoord = CartesianCoord(x=self._ccoord, y=self._ccoord)
+        qccoord = CartesianCoord(x=self._ccoord.x, y=self._ccoord.y)
         return ZNode(coord=qccoord, shape=qshape, convert_to_z=self.convert_to_z)
 
     def is_vertical(self) -> bool:
@@ -767,10 +769,10 @@ class ZNode:
 
     def __add__(
         self,
-        shift: PlaneShift | tuple[int],
+        shift: ZPlaneShift | tuple[int],
     ) -> ZNode:
-        if not isinstance(shift, PlaneShift):
-            shift = PlaneShift(*shift)
+        if not isinstance(shift, ZPlaneShift):
+            shift = ZPlaneShift(*shift)
         x, y, k = self._ccoord
         new_x = x + shift[0]
         new_y = y + shift[1]
@@ -780,7 +782,7 @@ class ZNode:
     def __sub__(
         self,
         other: ZNode,
-    ) -> PlaneShift:
+    ) -> ZPlaneShift:
         if not isinstance(other, ZNode):
             raise TypeError(f"Expected {other} to be {type(self).__name__}, got {type(other)}")
         if self._shape != other._shape:
@@ -790,7 +792,7 @@ class ZNode:
         x_shift: int = self._ccoord.x - other._ccoord.x
         y_shift: int = self._ccoord.y - other._ccoord.y
         try:
-            return PlaneShift(x_shift=x_shift, y_shift=y_shift)
+            return ZPlaneShift(x=x_shift, y=y_shift)
         except ValueError as e:
             raise ValueError(f"{other} cannot be subtracted from {self}") from e
 

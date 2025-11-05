@@ -18,37 +18,23 @@
 import unittest
 from itertools import combinations
 
-from minorminer.utils.zephyr.plane_shift import PlaneShift
+from minorminer.utils.zephyr.plane_shift import PlaneShift, ZPlaneShift
 
 
 class TestPlaneShift(unittest.TestCase):
     def setUp(self) -> None:
-        shifts = [
-            (0, 2),
-            (-3, -1),
-            (-2, 0),
-            (1, 1),
-            (1, -3),
+        self.shifts = [
+            (0, 1),
+            (-1, 0),
+            (2, -1),
             (-4, 6),
             (10, 4),
             (0, 0),
         ]
-        self.shifts = shifts
 
     def test_valid_input_runs(self) -> None:
         for shift in self.shifts:
             PlaneShift(*shift)
-
-    def test_invalid_input_gives_error(self) -> None:
-        invalid_input_types = [5, "NE", (0, 2, None), (2, 0.5), (-4, 6.0)]
-        with self.assertRaises(TypeError):
-            for invalid_type_ in invalid_input_types:
-                PlaneShift(*invalid_type_)
-
-        invalid_input_vals = [(4, 1), (0, 1)]
-        with self.assertRaises(ValueError):
-            for invalid_val_ in invalid_input_vals:
-                PlaneShift(*invalid_val_)
 
     def test_multiply(self) -> None:
         for shift in self.shifts:
@@ -67,9 +53,43 @@ class TestPlaneShift(unittest.TestCase):
             )
 
     def test_mul(self) -> None:
-        self.assertEqual(1.5 * PlaneShift(0, -4), PlaneShift(0, -6))
-        with self.assertRaises(ValueError):
-            0.5 * PlaneShift(0, -6)
-            PlaneShift(0, -4) * 0.75
+        self.assertEqual(-1 * PlaneShift(0, -4), PlaneShift(0, 4))
+        self.assertEqual(3 * PlaneShift(2, 10), PlaneShift(6, 30))
+
+
+
+class TestZPlaneShift(TestPlaneShift):
+    def setUp(self) -> None:
+        self.shifts = [
+            (0, 2),
+            (-3, -1),
+            (-2, 0),
+            (1, 1),
+            (1, -3),
+            (-4, 6),
+            (10, 4),
+            (0, 0),
+        ]
+
+    def test_valid_input_runs(self) -> None:
+        for shift in self.shifts:
+            ZPlaneShift(*shift)
+
+    def test_invalid_input_gives_error(self) -> None:
+        invalid_input_types = [5, "NE", (0, 2, None), (2, 0.5), (-4, 6.0)]
         with self.assertRaises(TypeError):
-            "hello" * PlaneShift(0, -4)
+            for invalid_type_ in invalid_input_types:
+                ZPlaneShift(*invalid_type_)
+
+        invalid_input_vals = [(4, 1), (0, 1)]
+        with self.assertRaises(ValueError):
+            for invalid_val_ in invalid_input_vals:
+                ZPlaneShift(*invalid_val_)
+
+    def test_eq(self):
+        self.assertNotEqual(PlaneShift(0, 0), ZPlaneShift(0, 0))
+
+    def test_mul(self) -> None:
+        self.assertEqual(-1 * ZPlaneShift(0, 2), ZPlaneShift(0, -2))
+        self.assertEqual(3 * ZPlaneShift(2, 4), ZPlaneShift(6, 12))
+        

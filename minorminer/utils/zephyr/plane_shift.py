@@ -17,22 +17,16 @@
 
 from __future__ import annotations
 
-from collections import namedtuple
 from typing import Iterator
-
-Shift = namedtuple("Shift", ["x", "y"])
 
 
 class PlaneShift:
-    """Initializes PlaneShift with an x_shift, y_shift.
+    """Initializes PlaneShift with an x, y.
 
     Args:
-        x_shift (int): The displacement in the x-direction of a CartesianCoord.
-        y_shift (int): The displacement in the y-direction of a CartesianCoord.
+        x (int): The displacement in the x-direction of a Cartesian coordinate.
+        y (int): The displacement in the y-direction of a Cartesian coordinate.
 
-    Raises:
-        TypeError: If x_shift or y_shift is not 'int'.
-        ValueError: If x_shift and y_shift have different parity.
 
     Example:
     >>> from minorminer.utils.zephyr.plane_shift import PlaneShift
@@ -40,30 +34,18 @@ class PlaneShift:
     >>> ps2 = PlaneShift(2, -4)
     >>> print(f"{ps1 + ps2  = }, {2*ps1 = }")
     """
-
-    def __init__(
-        self,
-        x_shift: int,
-        y_shift: int,
-    ) -> None:
-        for shift in [x_shift, y_shift]:
-            if not isinstance(shift, int):
-                raise TypeError(f"Expected {shift} to be 'int', got {type(shift)}")
-        if x_shift % 2 != y_shift % 2:
-            raise ValueError(
-                f"Expected x_shift, y_shift to have the same parity, got {x_shift, y_shift}"
-            )
-        self._shift = Shift(x_shift, y_shift)
+    def __init__(self, x: int, y: int) -> None:
+        self._xy = (x, y)
 
     @property
     def x(self) -> int:
         """Returns the shift in x direction"""
-        return self._shift.x
+        return self._xy[0]
 
     @property
     def y(self) -> int:
         """Returns the shift in y direction"""
-        return self._shift.y
+        return self._xy[1]
 
     def __mul__(self, scale: int) -> PlaneShift:
         """Multiplies the self from left by the number value ``scale``.
@@ -74,20 +56,14 @@ class PlaneShift:
         Returns:
             PlaneShift: The result of left-multiplying self by ``scale``.
         """
+        return type(self)(scale * self.x, scale * self.y)
 
-        new_shift_x = scale * self._shift.x
-        new_shift_y = scale * self._shift.y
-        return PlaneShift(new_shift_x, new_shift_y)
 
-    def __rmul__(self, scale: int | float) -> PlaneShift:
+    def __rmul__(self, scale: int) -> PlaneShift:
         """Multiplies the ``self`` from right by the number value ``scale``.
 
         Args:
-            scale (int | float): The scale for right-multiplying ``self`` with.
-
-        Raises:
-            TypeError: If scale is not 'int' or 'float'.
-            ValueError: If the resulting PlaneShift has non-whole values.
+            scale (int): The scale for right-multiplying ``self`` with.
 
         Returns:
             PlaneShift: The result of right-multiplying ``self`` by ``scale``.
@@ -107,47 +83,55 @@ class PlaneShift:
         Returns:
             PlaneShift: The displacement in CartesianCoord by self followed by other.
         """
-        if not isinstance(other, PlaneShift):
-            raise TypeError(f"Expected other to be PlaneShift, got {type(other)}")
-        return PlaneShift(self._shift.x + other._shift.x, self._shift.y + other._shift.y)
+        if type(self) != type(other):
+            raise TypeError(f"Expected other to be {type(self).__name__}, got {type(other).__name__}")        
+        return type(self)(self.x + other.x, self.y + other.y)
 
     def __iter__(self) -> Iterator[int]:
-        return self._shift.__iter__()
+        return self._xy.__iter__()
 
     def __len__(self) -> int:
-        return len(self._shift)
+        return len(self._xy)
 
     def __hash__(self) -> int:
-        return hash(self._shift)
+        return hash(self._xy)
 
     def __getitem__(self, key) -> int:
-        return self._shift[key]
+        return self._xy[key]
 
     def __eq__(self, other: PlaneShift) -> bool:
-        if not isinstance(other, PlaneShift):
-            raise TypeError(f"Expected other to be PlaneShift, got {type(other)}")
-        return self._shift == other._shift
+        return type(self) == type(other) and self._xy == other._xy
 
 
-    def __lt__(self, other: PlaneShift) -> bool:
-        if not isinstance(other, PlaneShift):
-            raise TypeError(f"Expected other to be PlaneShift, got {type(other)}")
-        return self._shift < other._shift
 
-    def __le__(self, other: PlaneShift) -> bool:
-        if not isinstance(other, PlaneShift):
-            raise TypeError(f"Expected other to be PlaneShift, got {type(other)}")
-        return (self == other) or (self < other)
+class ZPlaneShift(PlaneShift):
+    """Initializes ZPlaneShift with an x, y.
 
-    def __gt__(self, other: PlaneShift) -> bool:
-        if not isinstance(other, PlaneShift):
-            raise TypeError(f"Expected other to be PlaneShift, got {type(other)}")
-        return self._shift > other._shift
+    Args:
+        x (int): The displacement in the x-direction of a Cartesian coordinate.
+        y (int): The displacement in the y-direction of a Cartesian coordinate.
 
-    def __ge__(self, other: PlaneShift) -> bool:
-        if not isinstance(other, PlaneShift):
-            raise TypeError(f"Expected other to be PlaneShift, got {type(other)}")
-        return (self == other) or (self > other)
+    Raises:
+        TypeError: If x or y is not 'int'.
+        ValueError: If x and y have different parity.
 
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}{self._shift.x, self._shift.y}"
+    Example:
+    >>> from minorminer.utils.zephyr.plane_shift import ZPlaneShift
+    >>> ps1 = ZPlaneShift(1, 3)
+    >>> ps2 = ZPlaneShift(2, -4)
+    >>> print(f"{ps1 + ps2  = }, {2*ps1 = }")
+    """
+
+    def __init__(
+        self,
+        x: int,
+        y: int,
+    ) -> None:
+        for shift in [x, y]:
+            if not isinstance(shift, int):
+                raise TypeError(f"Expected {shift} to be 'int', got {type(shift)}")
+        if x % 2 != y % 2:
+            raise ValueError(
+                f"Expected x, y to have the same parity, got {x, y}"
+            )
+        self._xy = (x, y)

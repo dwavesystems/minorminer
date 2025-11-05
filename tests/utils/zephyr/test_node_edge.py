@@ -20,7 +20,7 @@ from itertools import product
 
 from minorminer.utils.zephyr.coordinate_systems import CartesianCoord, ZephyrCoord
 from minorminer.utils.zephyr.node_edge import Edge, EdgeKind, NodeKind, ZEdge, ZNode, ZShape
-from minorminer.utils.zephyr.plane_shift import PlaneShift
+from minorminer.utils.zephyr.plane_shift import ZPlaneShift
 
 
 class TestEdge(unittest.TestCase):
@@ -219,13 +219,13 @@ class TestZNode(unittest.TestCase):
 
     def test_add_sub_runs(self) -> None:
         left_up_pcs = [ZNode(xy, ZShape(m=m)) for xy, m in self.left_up_xyms]
-        lu_qps = PlaneShift(-1, -1)
+        lu_qps = ZPlaneShift(-1, -1)
         right_down_pcs = [ZNode(xy, ZShape(m=m)) for xy, m in self.right_down_xyms]
-        rd_qps = PlaneShift(1, 1)
+        rd_qps = ZPlaneShift(1, 1)
         midgrid_pcs = [ZNode(xy, ZShape(m=m)) for xy, m in self.midgrid_xyms]
         for pc in midgrid_pcs:
             for s1, s2 in product((-2, 2), (-2, 2)):
-                pc + PlaneShift(s1, s2)
+                pc + ZPlaneShift(s1, s2)
         for pc in left_up_pcs:
             with self.assertRaises(ValueError):
                 pc + lu_qps
@@ -239,7 +239,7 @@ class TestZNode(unittest.TestCase):
         left_up_pcs = [ZNode(xy, ZShape(m=m)) for xy, m in self.left_up_xyms]
 
         for pc in midgrid_pcs + right_down_pcs + left_up_pcs:
-            self.assertEqual(pc + PlaneShift(0, 0), pc)
+            self.assertEqual(pc + ZPlaneShift(0, 0), pc)
 
     def test_neighbors_generator_runs(self) -> None:
         for _ in ZNode((1, 12, 4), ZShape(t=6)).neighbors_generator():
