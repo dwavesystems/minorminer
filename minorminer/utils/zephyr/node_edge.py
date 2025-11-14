@@ -144,7 +144,7 @@ class ZNode:
     """Initializes 'ZNode' with coord and optional shape.
 
     Args:
-        coord (CartesianCoord | ZephyrCoord | tuple[int]): coordinate in (quotient) Zephyr or (quotient) Cartesian
+        coord (CartesianCoord | ZephyrCoord | tuple[int]): Coordinate in (quotient) Zephyr or (quotient) Cartesian.
         shape (ZShape | tuple[int | None] | None, optional): shape of Zephyr graph containing ZNode.
         m: grid size, t: tile size
         Defaults to None.
