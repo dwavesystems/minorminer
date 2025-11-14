@@ -149,7 +149,7 @@ class ZNode:
         m: grid size, t: tile size
         Defaults to None.
         convert_to_z (bool | None, optional): Whether to express the coordinates in ZephyrCoordinates.
-        Defaults to None.
+            Defaults to None.
         check_node_valid (bool, optional): Flag to whether check the validity of values and types of ``coord``, ``shape``.
             Defaults to True.
 
