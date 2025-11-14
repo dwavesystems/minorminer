@@ -82,8 +82,8 @@ class ZEdge(Edge):
     """Initializes a ZEdge with 'ZNode' nodes x, y.
 
     Args:
-        x (ZNode): One endpoint of edge.
-        y (ZNode): Another endpoint of edge.
+        x (ZNode): Endpoint of edge. Must have same shape as ``y``.
+        y (ZNode): Endpoint of edge. Must have same shape as ``x``
         check_edge_valid (bool, optional): Flag to whether check the validity of values and types of ``x``, ``y``.
             Defaults to True.
 
