@@ -145,6 +145,7 @@ setup(
               'minorminer.utils',
               'minorminer._extern',
               'minorminer._extern.rpack',
+              'minorminer.utils.zephyr',
               ],
     include_package_data=True,
 )
