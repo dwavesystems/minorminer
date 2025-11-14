@@ -103,7 +103,6 @@ class PlaneShift:
         return type(self) == type(other) and self._xy == other._xy
 
 
-
 class ZPlaneShift(PlaneShift):
     """Initializes ZPlaneShift with an x, y.
 
