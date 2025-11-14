@@ -56,7 +56,7 @@ class Edge:
         self._edge = self._set_edge(x, y)
 
     def _set_edge(self, x, y):
-        """Reutrns ordered tuple corresponding to the set {x, y}."""
+        """Returns ordered tuple corresponding to the set {x, y}."""
         if x < y:
             return (x, y)
         else:
