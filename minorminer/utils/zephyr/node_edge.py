@@ -153,8 +153,10 @@ class ZNode:
         check_node_valid (bool, optional): Flag to whether check the validity of values and types of ``coord``, ``shape``.
             Defaults to True.
 
-    Note: If the given coord has non-None k value (in either Cartesian or Zephyr coordinates),
-        shape = None raises ValueError. In this case the tile size of Zephyr, t,
+    ..note::
+    
+        If the given coord has non-None k value (in either Cartesian or Zephyr coordinates),
+        ``shape = None`` raises ValueError. In this case the tile size of Zephyr, t,
         must be provided.
 
     Example:
