@@ -40,7 +40,6 @@ class NodeKind(Enum):
     HORIZONTAL = 1
 
 
-
 class Edge:
     """Initializes an Edge with nodes x, y.
 
