@@ -20,8 +20,10 @@ from __future__ import annotations
 from typing import Iterator
 
 
+__all__ = ["PlaneShift", "ZPlaneShift"]
+
 class PlaneShift:
-    """Initializes PlaneShift with an x, y.
+    """Represents a displacement in a Cartesian plane.
 
     Args:
         x (int): The displacement in the x-direction of a Cartesian coordinate.
@@ -32,7 +34,10 @@ class PlaneShift:
     >>> from minorminer.utils.zephyr.plane_shift import PlaneShift
     >>> ps1 = PlaneShift(1, 3)
     >>> ps2 = PlaneShift(2, -4)
-    >>> print(f"{ps1 + ps2  = }, {2*ps1 = }")
+    >>> print(f"{ps1 + ps2  = }")
+    >>> print(f"{2 * ps1 = }")
+    ps1 + ps2  = PlaneShift(3, -1)
+    2 * ps1 = PlaneShift(2, 6)
     """
     def __init__(self, x: int, y: int) -> None:
         self._xy = (x, y)
@@ -104,31 +109,17 @@ class PlaneShift:
 
 
 class ZPlaneShift(PlaneShift):
-    """Initializes ZPlaneShift with an x, y.
+    """Represents a displacement in the Zephyr quotient plane (expressed in Cartesian coordinates).
 
     Args:
         x (int): The displacement in the x-direction of a Cartesian coordinate.
         y (int): The displacement in the y-direction of a Cartesian coordinate.
 
     Raises:
-        TypeError: If x or y is not 'int'.
-        ValueError: If x and y have different parity.
-
-    Example:
-    >>> from minorminer.utils.zephyr.plane_shift import ZPlaneShift
-    >>> ps1 = ZPlaneShift(1, 3)
-    >>> ps2 = ZPlaneShift(2, -4)
-    >>> print(f"{ps1 + ps2  = }, {2*ps1 = }")
+        ValueError: If ``x`` and ``y`` have different parity.
     """
 
-    def __init__(
-        self,
-        x: int,
-        y: int,
-    ) -> None:
-        for shift in [x, y]:
-            if not isinstance(shift, int):
-                raise TypeError(f"Expected {shift} to be 'int', got {type(shift)}")
+    def __init__(self, x: int, y: int) -> None:
         if x % 2 != y % 2:
             raise ValueError(
                 f"Expected x, y to have the same parity, got {x, y}"

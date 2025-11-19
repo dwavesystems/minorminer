@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from collections import namedtuple
 
+__all__ = ["cartesian_to_zephyr", "zephyr_to_cartesian", "CartesianCoord", "ZephyrCoord"]
+
+
 zephyr_fields = ["u", "w", "k", "j", "z"]
 ZephyrCoord = namedtuple("ZephyrCoord", zephyr_fields, defaults=(None,) * len(zephyr_fields))
 cartesian_fields = ["x", "y", "k"]
@@ -30,7 +33,8 @@ CartesianCoord = namedtuple(
 def cartesian_to_zephyr(ccoord: CartesianCoord) -> ZephyrCoord:
     """Converts a :class:`CartesianCoord` to its corresponding :class:`ZephyrCoord`.
 
-    Note: It assumes the given :class:`CartesianCoord` is valid.
+    ..note::
+        It assumes the given :class:`CartesianCoord` is valid.
 
     Args:
         ccoord (CartesianCoord): The coodinate in Cartesian system to be converted.
@@ -55,7 +59,8 @@ def cartesian_to_zephyr(ccoord: CartesianCoord) -> ZephyrCoord:
 def zephyr_to_cartesian(zcoord: ZephyrCoord) -> CartesianCoord:
     """Converts a :class:`ZephyrCoord` to its corresponding :class:`CartesianCoord`.
 
-    Note: It assumes the given ``zcoord`` is a valid Zephyr coordinate.
+    ..note::
+        It assumes the given ``zcoord`` is a valid Zephyr coordinate.
 
     Args:
         zcoord (ZephyrCoord): The coodinate in Zephyr system to be converted.

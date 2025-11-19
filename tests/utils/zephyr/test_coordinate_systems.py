@@ -17,6 +17,8 @@
 
 import unittest
 
+from parameterized import parameterized
+
 from minorminer.utils.zephyr.coordinate_systems import (
     CartesianCoord,
     ZephyrCoord,
@@ -33,14 +35,18 @@ class TestCoordinateSystems(unittest.TestCase):
         for ccoord in ccoords:
             cartesian_to_zephyr(ccoord=ccoord)
 
-    def test_cartesian_to_zephyr(self):
-        self.assertEqual(
-            ZephyrCoord(0, 0, None, 0, 0), cartesian_to_zephyr(CartesianCoord(0, 1, None))
+    @parameterized.expand(
+        [
+            ((0, 0, None, 0, 0), (0, 1, None)),
+            ((1, 0, None, 0, 0), (1, 0, None)),
+            ((1, 6, 3, 0, 1), (5, 12, 3)),
+            ]
         )
+    def test_cartesian_to_zephyr(self, zcoord, ccoord):
         self.assertEqual(
-            ZephyrCoord(1, 0, None, 0, 0), cartesian_to_zephyr(CartesianCoord(1, 0, None))
+            ZephyrCoord(*zcoord), cartesian_to_zephyr(CartesianCoord(*ccoord))
         )
-        self.assertEqual(CartesianCoord(5, 12, 3), zephyr_to_cartesian(ZephyrCoord(1, 6, 3, 0, 1)))
+        self.assertEqual(CartesianCoord(*ccoord), zephyr_to_cartesian(ZephyrCoord(*zcoord)))
 
     def test_zephyr_to_cartesian_runs(self):
         uwkjzs = [(0, 2, 4, 1, 5), (1, 3, 3, 0, 0), (1, 2, None, 1, 5)]

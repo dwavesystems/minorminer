@@ -15,3 +15,6 @@
 # ================================================================================================
 
 from minorminer.utils.zephyr.zephyr import *
+from minorminer.utils.zephyr.coordinate_systems import *
+from minorminer.utils.zephyr.node_edge import *
+from minorminer.utils.zephyr.plane_shift import *

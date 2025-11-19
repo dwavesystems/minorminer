@@ -20,11 +20,16 @@ from __future__ import annotations
 from collections import namedtuple
 from enum import Enum
 from itertools import product
-from typing import Callable, Generator, Iterable
+from typing import Callable, Generator, Iterable, Any
 
 from minorminer.utils.zephyr.coordinate_systems import (CartesianCoord, ZephyrCoord,
                                                         cartesian_to_zephyr, zephyr_to_cartesian)
 from minorminer.utils.zephyr.plane_shift import ZPlaneShift
+
+
+__all__ = ["ZShape", "EdgeKind", "NodeKind", "Edge", "ZEdge", "ZNode"]
+
+
 ZShape = namedtuple("ZShape", ["m", "t"], defaults=(None, None))
 
 
@@ -41,28 +46,26 @@ class NodeKind(Enum):
 
 
 class Edge:
-    """Initializes an Edge with nodes x, y.
+    """Represents an edge of a graph in a canonical order.
 
     Args:
-        x : One endpoint of edge.
-        y : Another endpoint of edge.
+        x (Any): One endpoint of edge.
+        y (Any): Another endpoint of edge.
+
+    ..note:: ``x`` and ``y`` must be mutually comparable.
     """
 
-    def __init__(
-        self,
-        x,
-        y,
-    ) -> None:
+    def __init__(self, x: Any, y: Any) -> None:
         self._edge = self._set_edge(x, y)
 
-    def _set_edge(self, x, y):
+    def _set_edge(self, x: Any, y: Any):
         """Returns ordered tuple corresponding to the set {x, y}."""
         if x < y:
             return (x, y)
         else:
             return (y, x)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._edge)
 
     def __getitem__(self, index: int) -> int:
@@ -79,7 +82,7 @@ class Edge:
 
 
 class ZEdge(Edge):
-    """Initializes a ZEdge with 'ZNode' nodes x, y.
+    """Represents an edge in a graph with Zephyr topology.
 
     Args:
         x (ZNode): Endpoint of edge. Must have same shape as ``y``.
@@ -88,7 +91,7 @@ class ZEdge(Edge):
             Defaults to True.
 
     Raises:
-        TypeError: If either of x or y is not 'ZNode'.
+        TypeError: If either of x or y is not :class:`ZNode`.
         ValueError: If x, y do not have the same shape.
         ValueError: If x, y are not neighbors in a perfect yield (quotient)
             Zephyr graph.
@@ -141,7 +144,7 @@ class ZEdge(Edge):
 
 
 class ZNode:
-    """Initializes 'ZNode' with coord and optional shape.
+    """Represents a node of a graph with Zephyr topology with coordinate and optional shape.
 
     Args:
         coord (CartesianCoord | ZephyrCoord | tuple[int]): Coordinate in (quotient) Zephyr or (quotient) Cartesian.

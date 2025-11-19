@@ -18,6 +18,8 @@
 import unittest
 from itertools import combinations
 
+from parameterized import parameterized
+
 from minorminer.utils.zephyr.plane_shift import PlaneShift, ZPlaneShift
 
 
@@ -52,13 +54,18 @@ class TestPlaneShift(unittest.TestCase):
                 PlaneShift(*s0) + PlaneShift(*s1), PlaneShift(s0[0] + s1[0], s0[1] + s1[1])
             )
 
-    def test_mul(self) -> None:
-        self.assertEqual(-1 * PlaneShift(0, -4), PlaneShift(0, 4))
-        self.assertEqual(3 * PlaneShift(2, 10), PlaneShift(6, 30))
+    @parameterized.expand(
+        [
+            (-1, PlaneShift(0, -4), PlaneShift(0, 4)),
+            (3, PlaneShift(2, 10), PlaneShift(6, 30)),
+            ]
+        )
+    def test_mul(self, c, ps, expected) -> None:
+        self.assertEqual(c * ps, expected)
 
 
 
-class TestZPlaneShift(TestPlaneShift):
+class TestZPlaneShift(unittest.TestCase):
     def setUp(self) -> None:
         self.shifts = [
             (0, 2),
@@ -75,16 +82,19 @@ class TestZPlaneShift(TestPlaneShift):
         for shift in self.shifts:
             ZPlaneShift(*shift)
 
-    def test_invalid_input_gives_error(self) -> None:
-        invalid_input_types = [5, "NE", (0, 2, None), (2, 0.5), (-4, 6.0)]
-        with self.assertRaises(TypeError):
-            for invalid_type_ in invalid_input_types:
-                ZPlaneShift(*invalid_type_)
-
-        invalid_input_vals = [(4, 1), (0, 1)]
-        with self.assertRaises(ValueError):
-            for invalid_val_ in invalid_input_vals:
-                ZPlaneShift(*invalid_val_)
+    @parameterized.expand(
+        [
+            (5, TypeError),
+            ("NE", TypeError),
+            ((0, 2, None), TypeError),
+            ((2, 0.5), ValueError),
+            ((4, 1), ValueError),
+            ((0, 1), ValueError),
+            ]
+        )
+    def test_invalid_input_gives_error(self, invalid, expected_err) -> None:
+        with self.assertRaises(expected_err):
+            ZPlaneShift(*invalid)
 
     def test_eq(self):
         self.assertNotEqual(PlaneShift(0, 0), ZPlaneShift(0, 0))
