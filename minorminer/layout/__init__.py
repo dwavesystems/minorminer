@@ -52,10 +52,11 @@ def find_embedding(
             in the 2-tuple applies to S while the second applies to T.
 
             Note:
-                If ``layout`` is a single function and T is a D-Wave graph, then the 
-                function passed in is only applied to S and the ``graph_layout`` is
-                applied to T. To run a layout function explicitly on T, pass 
-                it in as a 2-tuple; i.e. (p_norm, p_norm).
+                If ``layout`` is a single function and ``T`` is a graph with
+                D-Wave topology (see :mod:`dwave.graphs.topologies`), then the
+                function passed in is only applied to ``S`` and the ``graph_layout``
+                is applied to ``T``. To run a layout function explicitly on ``T``,
+                pass it in as a 2-tuple; i.e. ``(p_norm, p_norm)``.
 
         placement (function/dict, optional, default=minorminer.placement.closest):
             A function that uses the layouts of S and T to map the vertices 

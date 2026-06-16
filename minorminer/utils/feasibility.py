@@ -15,8 +15,8 @@ r"""Determining embedding feasibility is NP-complete.
 Efficient methods and heuristics are collected together in this module,
 that provide necessary conditions and bounds on feasibility.
 This includes determination of a lower bound on the (square)
-lattice size required for chimera, pegasus and zephyr ``dwave-graphs`` graph
-types, and a feasibility filter for general graphs based on the degree
+lattice size required for Chimera, Pegasus and Zephyr topology graphs
+and a feasibility filter for general graphs based on the degree
 distributions of target and source graphs.
 """
 import dwave.graphs
@@ -209,8 +209,7 @@ def lattice_size_lower_bound(
 
     else:
         raise ValueError(
-            "source graphs must be a graph constructed by "
-            "dwave-graphs as chimera, pegasus or zephyr type"
+            "source graph with topology of Chimera, Pegasus or Zephyr required"
         )
 
     # Evaluate tile feasibility (defect free subgraphs)
