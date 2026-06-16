@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import warnings
 from collections import abc
 
 import dwave.graphs
@@ -296,7 +297,7 @@ def graph_layout(G, dim=None, center=None, scale=None, **kwargs):
         m, n = graph_data["rows"], graph_data["columns"]
         scale = max(n, m)/2
 
-    dnx_center, dnx_scale = _nx_to_dnx_layout(center, scale)
+    dnx_center, dnx_scale = _nx_to_graph_layout(center, scale)
 
     if family == "chimera":
         dnx_layout = dwave.graphs.chimera_layout(
@@ -327,11 +328,20 @@ def graph_layout(G, dim=None, center=None, scale=None, **kwargs):
 
 
 def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
-    """Alias for :func:`graph_layout`."""
+    """Alias for :func:`graph_layout`.
+
+    .. deprecated:: 0.2.22
+
+        This function will be removed in minorminer 0.3.0.
+    """
+    warnings.warn("'minorminer.layout.dnx_layout' is deprecated. "
+                  "Use 'minorminer.layout.graph_layout' instead",
+                  DeprecationWarning, stacklevel=2)
+
     return graph_layout(G, dim=dim, center=center, scale=scale, **kwargs)
 
 
-def _nx_to_dnx_layout(center, scale):
+def _nx_to_graph_layout(center, scale):
     r"""This function translates a center and a scale from the networkx convention, 
     :math:`[center - scale, center + scale]^{\dim}`, to the ``dwave-graphs`` 
     convention, :math:`[center, center-scale] x [center, center+scale]^{\(dim-1)}`.

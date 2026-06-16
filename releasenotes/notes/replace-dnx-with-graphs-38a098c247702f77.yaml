@@ -2,6 +2,7 @@
 fixes:
   - |
     Use ``dwave-graphs`` instead of the deprecated ``dwave-networkx``.
+upgrade:
   - |
-    Rename ``dnx_layout`` to ``graph_layout``, but keep it as an alias for
-    backwards compatibility.
+    Rename ``minorminer.layout.dnx_layout`` to ``minorminer.layout.graph_layout``
+    and deprecate it, but keep an alias for backwards compatibility.

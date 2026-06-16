@@ -281,3 +281,8 @@ class TestLayout(TestLayoutPlacement):
         G_dnx_layout_arr = np.array([G_dnx_layout[v] for v in G.nodes()])
         self.assertTrue(np.all((G_dnx_layout_arr >= -scale) & (G_dnx_layout_arr <= scale)),
                         msg=f"Values are not within [{-scale}, {scale}]^2")
+
+    def test_dnx_layout_deprecation(self):
+        G = dwave.graphs.zephyr_graph(2)
+        with self.assertWarns(DeprecationWarning):
+            mml.dnx_layout(G)
