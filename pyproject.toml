@@ -32,12 +32,12 @@ classifiers = [
 ]
 requires-python = ">= 3.10"
 dependencies = [
-    "dwave-graphs>=1",
+    "dwave-graphs>=1,<2",
     "fasteners>=0.15",
     "homebase>=1.0.1",
-    "networkx>=2.4",
-    "numpy>=1.21.6",
-    "scipy>=1.7.3",
+    "networkx>=3.2,<4", # oldest that supports numpy 2
+    "numpy>=2,<3",
+    "scipy>=1.13",      # oldest that supports numpy 2
 ]
 
 description = "Heuristic algorithm to find graph minor embeddings."

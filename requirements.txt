@@ -1,7 +1,8 @@
-numpy==2.1.3
+numpy==2.2.6; python_version < '3.11'       # latest that supports 3.10
+numpy==2.4.6; python_version >= '3.11'      # latest as of June 2026
 scipy==1.15.3; python_version < '3.11'
 scipy==1.16.2; python_version >= '3.11'
-networkx==3.2.1
+networkx==3.4.2         # latest that supports 3.10 (and numpy 2)
 dwave-graphs==1.0.0
 fasteners==0.19
 homebase==1.0.1

@@ -225,19 +225,17 @@ workflows:
           matrix:
             parameters:
               python-version: *python-versions
-              dependency-versions: ["dwave-graphs==1 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy scipy==1.7.3",  # oldest supported
+              dependency-versions: ["dwave-graphs==1 fasteners==0.15 homebase==1.0.1 networkx==3.2 numpy==2 scipy==1.13",  # oldest supported
                                     "dwave-graphs fasteners homebase networkx numpy scipy", # latest
                                     ]
             exclude:
-              # SciPy 1.7.3 doesn't support Python 3.11+
-              - python-version: 3.11.0
-                dependency-versions: "dwave-graphs==1 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy scipy==1.7.3"
+              # SciPy 1.13 doesn't support Python 3.12+
               - python-version: 3.12.0
-                dependency-versions: "dwave-graphs==1 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy scipy==1.7.3"
+                dependency-versions: "dwave-graphs==1 fasteners==0.15 homebase==1.0.1 networkx==3.2 numpy==2 scipy==1.13"
               - python-version: 3.13.0
-                dependency-versions: "dwave-graphs==1 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy scipy==1.7.3"
+                dependency-versions: "dwave-graphs==1 fasteners==0.15 homebase==1.0.1 networkx==3.2 numpy==2 scipy==1.13"
               - python-version: 3.14.0
-                dependency-versions: "dwave-graphs==1 fasteners==0.15 homebase==1.0.1 networkx==2.4 oldest-supported-numpy scipy==1.7.3"
+                dependency-versions: "dwave-graphs==1 fasteners==0.15 homebase==1.0.1 networkx==3.2 numpy==2 scipy==1.13"
 
   deploy:
     jobs:
