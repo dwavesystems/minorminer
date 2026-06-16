@@ -175,7 +175,7 @@ class eden_processor(object):
             yield q
 
     def vline_score(self, x, ymin, ymax):
-        """Returns the number of unbroken paths of qubits
+        r"""Returns the number of unbroken paths of qubits
 
         >>> [(x,y,1,k) for y in range(ymin,ymax+1)]
 
@@ -344,7 +344,7 @@ class eden_processor(object):
         return all(v in self for v in line) and all(u in self[v] for u, v in zip(line, line[1::]))
 
     def maximum_vline_bundle(self, x0, y0, y1):
-        """Compute a maximum set of vertical lines in the unit cells ``(x0,y)``
+        r"""Compute a maximum set of vertical lines in the unit cells ``(x0,y)``
         for :math:`y0 \leq y \leq y1`.
 
         INPUTS:
@@ -359,7 +359,7 @@ class eden_processor(object):
         return list(filter(self._contains_line, vlines))
 
     def maximum_hline_bundle(self, y0, x0, x1):
-        """Compute a maximum set of horizontal lines in the unit cells ``(x,y0)``
+        r"""Compute a maximum set of horizontal lines in the unit cells ``(x,y0)``
         for :math:`x0 \leq x \leq x1`.
 
         INPUTS:
@@ -373,7 +373,7 @@ class eden_processor(object):
         return list(filter(self._contains_line, hlines))
 
     def maximum_ell_bundle(self, ell):
-        """Return a maximum ell bundle in the rectangle bounded by
+        r"""Return a maximum ell bundle in the rectangle bounded by
 
             :math:`\{x0,x1\} \\times \{y0,y1\}`
 
@@ -613,7 +613,7 @@ class eden_processor(object):
         return None, []
 
     def largestNativeBiClique(self, chain_imbalance=0, max_chain_length=None):
-        """Returns a native embedding for the complete bipartite graph :math:`K_{n,m}`
+        r"""Returns a native embedding for the complete bipartite graph :math:`K_{n,m}`
         for :math:`n \leq m`; where :math:`n` is as large as possible and :math:`m` is as large as
         possible subject to :math:`n`.  The native embedding of a complete bipartite
         graph is a set of horizontally-aligned qubits connected in lines
