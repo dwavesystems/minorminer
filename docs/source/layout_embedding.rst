@@ -24,11 +24,11 @@ This example minor embeds a 3x3 grid graph onto a Chimera graph.
 .. code-block:: python
 
     import networkx as nx
-    import dwave_networkx as dnx
+    import dwave.graphs
     import minorminer.layout as mml
 
     grid_graph = nx.generators.lattice.grid_2d_graph(3, 3)
-    C = dnx.chimera_graph(2,1)
+    C = dwave.graphs.chimera_graph(2,1)
 
     embedding = mml.find_embedding(grid_graph, C)
     print(embedding)

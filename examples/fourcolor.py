@@ -41,16 +41,13 @@ with one additional requirement: the chain for each QUBO node
 must contain two blocks of the form (x1, y1, 0) and (x1, y1, 1).
 The function `embed_with_quotient` performs the reduction and
 supplies those additional requirements to `find_embedding`.
-
-
 """
 
-# before we get to anything else, let's get some imports out of the way.
-from past.builtins import xrange
-import networkx as nx
-import dwave_networkx as dnx
-from minorminer import find_embedding
 from time import clock
+
+import dwave.graphs
+import networkx as nx
+from minorminer import find_embedding
 
 
 def graph_coloring_qubo(graph, k):
@@ -87,10 +84,10 @@ def chimera_blocks(M=16, N=16, L=4):
     """
     Generator for blocks for a chimera block quotient
     """
-    for x in xrange(M):
-        for y in xrange(N):
+    for x in range(M):
+        for y in range(N):
             for u in (0, 1):
-                yield tuple((x, y, u, k) for k in xrange(L))
+                yield tuple((x, y, u, k) for k in range(L))
 
 
 def chimera_block_quotient(G, blocks):
@@ -217,7 +214,7 @@ def embed_with_quotient(source_graph, target_graph, M=16, N=16, L=4, **args):
 
 if __name__ == "__main__":
     # first, we construct a Chimera graph
-    G = dnx.chimera_graph(16)
+    G = dwave.graphs.chimera_graph(16)
     labs = nx.get_node_attributes(G, 'chimera_index')
     unlab = {d: i for i, d in labs.items()}
     H = nx.relabel_nodes(G, labs)

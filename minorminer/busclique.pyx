@@ -26,7 +26,7 @@ import gzip
 from pickle import dump, load
 from json import dumps, loads
 import networkx as nx
-import dwave_networkx as dnx
+import dwave.graphs
 from itertools import zip_longest
 from hashlib import sha256
 
@@ -74,8 +74,8 @@ def find_clique_embedding(nodes, g, seed = _no_seed, use_cache = True):
             iterable (specifying the node labels of the desired clique).
 
         g (NetworkX Graph):
-            The target graph that is either a :func:`dwave_networkx.chimera_graph`
-            or :func:`dwave_networkx.pegasus_graph`.
+            The target graph that is either a :func:`~dwave.graphs.chimera_graph`
+            or :func:`~dwave.graphs.pegasus_graph`.
 
         use_cache (bool, optional, default=True):
             Whether or not to compute/restore a cache of clique embeddings for
@@ -96,7 +96,7 @@ def find_clique_embedding(nodes, g, seed = _no_seed, use_cache = True):
 
     Note:
         Due to internal optimizations, not all Chimera graphs are supported by
-        this code. Specifically, the graphs :func:`dwave_networkx.chimera_graph(m, n, t)`
+        this code. Specifically, the graphs :func:`~dwave.graphs.chimera_graph`
         are only supported for :math:`t<=8`. The code currently supports D-Wave
         products, which have :math:`t=4`, but not all graphs. For graphs with
         :math:`t>8`, use the legacy chimera-embedding package.
@@ -118,9 +118,9 @@ def find_clique_embedding(nodes, g, seed = _no_seed, use_cache = True):
                     'chimera': _chimera_busgraph}[family]
     except (AttributeError, KeyError):
         raise ValueError(("input graph must either be a "
-                          "dwave_networkx.pegasus_graph, "
-                          "dwave_networkx.chimera_graph or "
-                          "dwave_networkx.zephyr_graph"))
+                          "dwave.graphs.pegasus_graph, "
+                          "dwave.graphs.chimera_graph or "
+                          "dwave.graphs.zephyr_graph"))
 
     if use_cache:
         if seed is _no_seed:
@@ -142,11 +142,11 @@ class busgraph_cache:
 
     Args:
         g (NetworkX Graph):
-            A :func:`dwave_networkx.pegasus_graph` or :func:`dwave_networkx.chimera_graph`.
-                or :func:`dwave_networkx.zephyr_graph`.
+            A :func:`~dwave.graphs.pegasus_graph` or :func:`~dwave.graphs.chimera_graph`.
+                or :func:`~dwave.graphs.zephyr_graph`.
     Note:
         Due to internal optimizations, not all Chimera graphs are supported by
-        this code. Specifically, the graphs :func:`dwave_networkx.chimera_graph(m, n, t)`
+        this code. Specifically, the graphs :func:`~dwave.graphs.chimera_graph`
         are only supported for :math:`t<=8`. The code currently supports D-Wave
         products, which have :math:`t=4`, but not all graphs. For graphs with
         :math:`t>8`, use the legacy chimera-embedding package.
@@ -159,9 +159,9 @@ class busgraph_cache:
                       'chimera': _chimera_busgraph}.get(self._family)
         if graphclass is None:
             raise ValueError(("input graph must either be a "
-                              "dwave_networkx.pegasus_graph, "
-                              "dwave_networkx.chimera_graph or "
-                              "dwave_networkx.zephyr_graph"))
+                              "dwave.graphs.pegasus_graph, "
+                              "dwave.graphs.chimera_graph or "
+                              "dwave.graphs.zephyr_graph"))
         self._graph = graphclass(g, seed=seed, compute_identifier=True)
         self._cliques = None
         self._bicliques = None
@@ -668,12 +668,12 @@ class busgraph_cache:
     def draw_fragment_embedding(self, emb, **kwargs):
         m, n, t, nodes, edges = self._graph.fragment_graph_spec()
 
-        f = dnx.chimera_graph(m, n=n, t=t, node_list=nodes, edge_list=edges)
+        f = dwave.graphs.chimera_graph(m, n=n, t=t, node_list=nodes, edge_list=edges)
         f_emb = {
             k : self._graph.fragment_nodes(c)
             for k, c in self._graph.delabel(emb).items()
         }
-        dnx.draw_chimera_embedding(f, f_emb, **kwargs)
+        dwave.graphs.draw_chimera_embedding(f, f_emb, **kwargs)
 
 cdef dict _make_clique_cache(vector[embedding_t] &embs):
     """
@@ -828,7 +828,7 @@ cdef class _zephyr_busgraph:
             internal_seed = seed
 
         cdef zephyr_spec *zep = new zephyr_spec(rows, tile, internal_seed)
-        coordinates = dnx.zephyr_coordinates(rows)
+        coordinates = dwave.graphs.zephyr_coordinates(rows)
         cdef edges_t edges
         if g.graph['labels'] == 'int':
             self.nodes = g.nodes()
@@ -936,7 +936,7 @@ cdef class _pegasus_busgraph:
             internal_seed = seed
 
         cdef pegasus_spec *peg = new pegasus_spec(rows, voff, hoff, internal_seed)
-        coordinates = dnx.pegasus_coordinates(rows)
+        coordinates = dwave.graphs.pegasus_coordinates(rows)
         cdef edges_t edges
         if g.graph['labels'] == 'int':
             self.nodes = g.nodes()
@@ -1030,7 +1030,7 @@ cdef class _chimera_busgraph:
 
     Note:
         Due to internal optimizations, not all Chimera graphs are supported by
-        this code. Specifically, the graphs :func:`dwave_networkx.chimera_graph(m, n, t)`
+        this code. Specifically, the graphs :func:`~dwave.graphs.chimera_graph`
         are only supported for :math:`t<=8`. The code currently supports D-Wave
         products, which have :math:`t=4`, but not all graphs. For graphs with
         :math:`t>8`, use the legacy chimera-embedding package.
@@ -1059,7 +1059,7 @@ cdef class _chimera_busgraph:
 
         cdef chimera_spec *chim = new chimera_spec(rows, cols, tile, internal_seed)
         cdef edges_t edges
-        coordinates = dnx.chimera_coordinates(rows, cols, tile)
+        coordinates = dwave.graphs.chimera_coordinates(rows, cols, tile)
         if g.graph['labels'] == 'int':
             self.nodes = g.nodes()
             edges = g.edges()

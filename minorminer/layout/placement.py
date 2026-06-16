@@ -16,7 +16,7 @@ import random
 from collections import Counter, abc, defaultdict
 
 import networkx as nx
-import dwave_networkx as dnx
+import dwave.graphs
 import numpy as np
 from scipy import spatial
 
@@ -42,12 +42,12 @@ def intersection(S_layout, T_layout, **kwargs):
         hexagonal lattice graph are mapped to a target Chimera graph.
 
         >>> import networkx as nx
-        >>> import dwave_networkx as dnx
+        >>> import dwave.graphs
         >>> import minorminer.layout as mml
         ...
         >>> G = nx.hexagonal_lattice_graph(2,2)
         >>> G_layout = mml.Layout(G, mml.p_norm)
-        >>> C = dnx.chimera_graph(2,2)
+        >>> C = dwave.graphs.chimera_graph(2,2)
         >>> C_layout = mml.Layout(C, mml.dnx_layout)
         >>> placement = mml.Placement(G_layout, C_layout, placement=mml.intersection)
 
@@ -57,11 +57,11 @@ def intersection(S_layout, T_layout, **kwargs):
         in the example below.
 
         >>> import networkx as nx
-        >>> import dwave_networkx as dnx
+        >>> import dwave.graphs
         >>> import minorminer.layout as mml
         ...
         >>> G = nx.hexagonal_lattice_graph(2,2)
-        >>> C = dnx.chimera_graph(2,2)
+        >>> C = dwave.graphs.chimera_graph(2,2)
         >>> embedding = mml.find_embedding(G, 
         ...                                C, 
         ...                                placement=mml.intersection)
@@ -73,7 +73,7 @@ def intersection(S_layout, T_layout, **kwargs):
     if T.graph.get("family") not in ("chimera", "pegasus", "zephyr"):
         raise NotImplementedError(
             "This strategy is currently only implemented for Chimera, Pegasus"
-            " and Zephyr graphs constructed by dwave_networkx`.")
+            " and Zephyr graphs constructed by dwave-graphs.")
 
     # Bin vertices of S and T into a grid graph G
     G = _intersection_binning(S_layout, T)
@@ -148,7 +148,7 @@ def _intersection_binning(S_layout, T):
 
 
 def _lookup_intersection_coordinates(G):
-    """For a dwave_networkx graph G, this returns a dictionary mapping the 
+    """For a ``dwave-graphs`` graph G, this returns a dictionary mapping the 
     lattice points to sets of vertices of G. 
     
     For Chimera, Pegasus and Zephyr, each lattice point corresponds to the 2
@@ -167,7 +167,7 @@ def _lookup_intersection_coordinates(G):
         elif graph_data["data"]:
             data_key = "chimera_index"
         else:
-            coords = dnx.chimera_coordinates(
+            coords = dwave.graphs.chimera_coordinates(
                 graph_data['rows'],
                 n=graph_data['columns'],
                 t=shore
@@ -183,7 +183,7 @@ def _lookup_intersection_coordinates(G):
         elif graph_data["data"]:
             data_key = "pegasus_index"
         else:
-            coords = dnx.pegasus_coordinates(graph_data['rows'])
+            coords = dwave.graphs.pegasus_coordinates(graph_data['rows'])
             if graph_data['labels'] == 'int':
                 get_coords = coords.linear_to_pegasus
             elif graph_data['labels'] == 'nice':
@@ -197,7 +197,7 @@ def _lookup_intersection_coordinates(G):
         elif graph_data["data"]:
             data_key = "zephyr_index"
         else:
-            coords = dnx.zephyr_coordinates(
+            coords = dwave.graphs.zephyr_coordinates(
                 graph_data['rows'],
                 t=shore
             )
@@ -300,12 +300,12 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
         hexagonal lattice graph are mapped to a target Chimera graph.
 
         >>> import networkx as nx
-        >>> import dwave_networkx as dnx
+        >>> import dwave.graphs
         >>> import minorminer.layout as mml
         ...
         >>> G = nx.hexagonal_lattice_graph(2,2)
         >>> G_layout = mml.Layout(G, mml.p_norm)
-        >>> C = dnx.chimera_graph(2,2)
+        >>> C = dwave.graphs.chimera_graph(2,2)
         >>> C_layout = mml.Layout(C, mml.dnx_layout)
         >>> placement = mml.Placement(G_layout, C_layout, placement=mml.closest)
 

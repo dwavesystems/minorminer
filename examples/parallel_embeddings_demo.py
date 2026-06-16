@@ -13,11 +13,12 @@ The demo performs the following steps:
     - It visualizes the embeddings if visualization is enabled.
     - It validates the embeddings and displays the results.
 
-This example demonstrates how to assess and visualize graph embeddings using D-Wave's `dwave_networkx` library.
+This example demonstrates how to assess and visualize graph embeddings using
+``dwave-graphs`` library.
 
 """
 
-import dwave_networkx as dnx
+import dwave.graphs
 
 from minorminer.utils.parallel_embeddings import (
     find_sublattice_embeddings,
@@ -41,9 +42,9 @@ def main():
         "zephyr": 1,
     }  # Minimum tile sizes for each topology
     generators = {
-        "chimera": dnx.chimera_graph,
-        "pegasus": dnx.pegasus_graph,
-        "zephyr": dnx.zephyr_graph,
+        "chimera": dwave.graphs.chimera_graph,
+        "pegasus": dwave.graphs.pegasus_graph,
+        "zephyr": dwave.graphs.zephyr_graph,
     }
 
     # Iterate over each source topology for embedding feasibility checks
@@ -117,7 +118,7 @@ def main():
             value_list
         ), "Duplicate target nodes in embeddings."
 
-        # Visualize embeddings if enabled (waiting for visualization function to be migrated to dwave networkx)
+        # Visualize embeddings if enabled (waiting for visualization function to be migrated to dwave-graphs)
         # if visualize:
         #     plt.figure(figsize=(12, 12))
         #     visualize_embeddings(T, embeddings=embs)

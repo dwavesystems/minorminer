@@ -12,20 +12,20 @@ In this example, a complete graph K_8 is embedded into a chimera_graph C_2.
 
 from minorminer import miner
 import networkx as nx
-import dwave_networkx as dnx
+import dwave.graphs
 import matplotlib.pyplot as plt
 
 
 # Parameters of the demo
 wait_for_input = False                   # wait for user input to advance to the next step
 G = nx.complete_graph(8)                # source graph
-C = dnx.generators.chimera_graph(2)     # target graph
+C = dwave.graphs.generators.chimera_graph(2)     # target graph
 
 
 def show_current_embedding(emb):
     # visualize overlaps.
     plt.clf()
-    dnx.draw_chimera_embedding(C, emb=emb, overlapped_embedding=True, show_labels=True)
+    dwave.graphs.draw_chimera_embedding(C, emb=emb, overlapped_embedding=True, show_labels=True)
     plt.show()
     if wait_for_input:
         plt.pause(0.001)

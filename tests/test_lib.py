@@ -19,7 +19,7 @@
 """
 from minorminer import find_embedding as find_embedding_orig
 import networkx as nx
-import dwave_networkx as dnx
+import dwave.graphs
 from warnings import warn
 import os
 import sys
@@ -144,7 +144,7 @@ def Biclique(n):
 
 
 def Chimera(n, l=4):
-    return dnx.chimera_graph(n, n, l, coordinates=True)
+    return dwave.graphs.chimera_graph(n, n, l, coordinates=True)
 
 
 def NAE3SAT(n):
@@ -518,7 +518,7 @@ class TestFindEmbedding(unittest.TestCase):
     @success_count(30)
     def test_suspend_example1():
         K3 = nx.Graph([('A', 'B'), ('B', 'C'), ('C', 'A')])
-        C = dnx.chimera_graph(1, 2, coordinates=False)
+        C = dwave.graphs.chimera_graph(1, 2, coordinates=False)
 
         # Example with one blob for one node. Source node will use at least one.
         blob = [4, 5, 12, 13]
@@ -529,7 +529,7 @@ class TestFindEmbedding(unittest.TestCase):
     @success_count(30)
     def test_suspend_example2():
         K3 = nx.Graph([('A', 'B'), ('B', 'C'), ('C', 'A')])
-        C = dnx.chimera_graph(1, 2, coordinates=False)
+        C = dwave.graphs.chimera_graph(1, 2, coordinates=False)
 
         # Example with one blob for one node, and two blobs for another.
         # Second source node is forced to use at least one in each blob.

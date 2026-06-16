@@ -17,7 +17,7 @@
 import unittest
 from random import shuffle
 
-from dwave_networkx.generators.zephyr import zephyr_graph
+from dwave.graphs.topologies.zephyr import zephyr_graph
 import networkx as nx
 from parameterized import parameterized
 

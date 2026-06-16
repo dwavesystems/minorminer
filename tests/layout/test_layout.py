@@ -16,7 +16,7 @@ import random
 import unittest
 from itertools import product
 
-import dwave_networkx as dnx
+import dwave.graphs
 import networkx as nx
 import numpy as np
 
@@ -109,7 +109,7 @@ class TestLayout(TestLayoutPlacement):
         self.assertArrayEqual(layout.center, center)
         self.assertAlmostEqual(layout.scale, scale)
 
-        # Test non-dnx_graph
+        # Test non-dwave-graph
         self.assertRaises(ValueError, mml.dnx_layout, self.S)
 
         # Test dim and center mismatch
@@ -272,7 +272,7 @@ class TestLayout(TestLayoutPlacement):
         self.assertTrue(np.array_equal(dist_mat, dist_mat.T), "The graph distance matrix is not symmetric")
         
     def test_dnx_layout(self):
-        G = dnx.zephyr_graph(2)
+        G = dwave.graphs.zephyr_graph(2)
         scale=10
         G_dnx_layout = dnx_layout(G, scale=scale)
         G_dnx_layout_arr = np.array([G_dnx_layout[v] for v in G.nodes()])

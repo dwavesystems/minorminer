@@ -50,9 +50,9 @@ This example minor embeds a source clique of size 5 into a target Chimera graph.
 .. code-block:: python
 
     from minorminer import busclique
-    import dwave_networkx as dnx
+    import dwave.graphs
 
-    C = dnx.chimera_graph(2, 2)
+    C = dwave.graphs.chimera_graph(2, 2)
     embedding = busclique.find_clique_embedding(5, C)
 
     print(embedding)

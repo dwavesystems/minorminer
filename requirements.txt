@@ -2,7 +2,7 @@ numpy==2.1.3
 scipy==1.15.3; python_version < '3.11'
 scipy==1.16.2; python_version >= '3.11'
 networkx==3.2.1
-dwave-networkx==0.8.15
+dwave-graphs==1.0.0
 fasteners==0.19
 homebase==1.0.1
 Cython==3.0.11

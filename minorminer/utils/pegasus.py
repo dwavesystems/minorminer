@@ -14,7 +14,7 @@
 #
 # ================================================================================================
 
-from dwave_networkx.generators.pegasus import pegasus_graph
+from dwave.graphs.topologies.pegasus import pegasus_graph
 import networkx as nx
 
 from minorminer.busclique import busgraph_cache
