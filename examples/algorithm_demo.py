@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 # Parameters of the demo
 wait_for_input = False                   # wait for user input to advance to the next step
 G = nx.complete_graph(8)                # source graph
-C = dwave.graphs.generators.chimera_graph(2)     # target graph
+C = dwave.graphs.topologies.chimera_graph(2)     # target graph
 
 
 def show_current_embedding(emb):

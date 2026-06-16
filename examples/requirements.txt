@@ -1,1 +1,2 @@
-dwave-graphs
+dwave-graphs>=1
+matplotlib>=3

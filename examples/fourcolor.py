@@ -43,7 +43,7 @@ The function `embed_with_quotient` performs the reduction and
 supplies those additional requirements to `find_embedding`.
 """
 
-from time import clock
+from time import perf_counter
 
 import dwave.graphs
 import networkx as nx
@@ -51,7 +51,7 @@ from minorminer import find_embedding
 
 
 def graph_coloring_qubo(graph, k):
-    """
+    r"""
     the QUBO for k-coloring a graph A is as follows:
 
     variables:
@@ -224,21 +224,21 @@ if __name__ == "__main__":
 
     # for a basis of comparison, let's try to embed this without the quotient
     graph4 = graph_coloring_qubo(graph, 4)
-    c = clock()
+    c = perf_counter()
     emb = find_embedding(graph4.edges(), H.edges(),
                          verbose=0, chainlength_patience=30)
     try:
-        print("raw embedding %d seconds, " % (clock() - c), end='')
+        print("raw embedding %d seconds, " % (perf_counter() - c), end='')
         cl = max(len(c) for c in emb.values())
         print("maximum chainlength %d" % cl)
     except:
         print("failure")
 
     # we embed it using the block quotient,
-    c = clock()
+    c = perf_counter()
     emb = embed_with_quotient(graph, H, 16, 16, 4)
     # and then translate back to integer indices
-    print("quotient embedding %d seconds, maximum chainlength %d" % (clock() - c, max(len(c) for c in emb.values())))
+    print("quotient embedding %d seconds, maximum chainlength %d" % (perf_counter() - c, max(len(c) for c in emb.values())))
 
     # finally, we translate the embedding back to integer labels
     newemb = {v: [unlab[q] for q in c] for v, c in emb.items()}
