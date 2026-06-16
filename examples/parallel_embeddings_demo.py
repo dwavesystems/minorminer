@@ -19,6 +19,8 @@ This example demonstrates how to assess and visualize graph embeddings using
 """
 
 import dwave.graphs
+import matplotlib.pyplot as plt
+import networkx as nx
 
 from minorminer.utils.parallel_embeddings import (
     find_sublattice_embeddings,
@@ -118,18 +120,18 @@ def main():
             value_list
         ), "Duplicate target nodes in embeddings."
 
-        # Visualize embeddings if enabled (waiting for visualization function to be migrated to dwave-graphs)
-        # if visualize:
-        #     plt.figure(figsize=(12, 12))
-        #     visualize_embeddings(T, embeddings=embs)
+        # Visualize embeddings if enabled
+        if visualize:
+            plt.figure(figsize=(12, 12))
+            dwave.graphs.draw_parallel_embeddings(T, embeddings=embs, one_to_iterable=False)
 
-        #     # Create a subgraph of S with a limited number of edges for visualization
-        #     S_aux = nx.Graph()
-        #     S_aux.add_nodes_from(S)
-        #     S_aux.add_edges_from(list(S.edges)[:10])  # First 10 edges only
-        #     plt.figure(figsize=(12, 12))
-        #     visualize_embeddings(T, embeddings=embs, S=S_aux)
-        #     plt.show()
+            # Create a subgraph of S with a limited number of edges for visualization
+            S_aux = nx.Graph()
+            S_aux.add_nodes_from(S)
+            S_aux.add_edges_from(list(S.edges)[:10])  # First 10 edges only
+            plt.figure(figsize=(12, 12))
+            dwave.graphs.draw_parallel_embeddings(T, embeddings=embs, S=S_aux, one_to_iterable=False)
+            plt.show()
 
         # Perform direct search for embeddings
         embs_direct = find_sublattice_embeddings(S, T)
