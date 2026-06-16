@@ -2,3 +2,6 @@
 fixes:
   - |
     Use ``dwave-graphs`` instead of the deprecated ``dwave-networkx``.
+  - |
+    Rename ``dnx_layout`` to ``graph_layout``, but keep it as an alias for
+    backwards compatibility.

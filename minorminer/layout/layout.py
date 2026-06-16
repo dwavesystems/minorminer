@@ -237,14 +237,14 @@ def _p_norm_objective(layout_vector, G_distances, dim, p):
     return np.sum((G_distances - dist)**2), grad.ravel()
 
 
-def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
-    r"""The Chimera or Pegasus or Zephyr layout from ``dwave-graphs`` centered at the origin
+def graph_layout(G, dim=None, center=None, scale=None, **kwargs):
+    r"""The Chimera, Pegasus or Zephyr layout from ``dwave-graphs`` centered at the origin
     with ``scale`` as a function of the number of rows or columns. Note: As per 
     the implementation of ``dwave.graphs.*_layout``, if :math:`dim>2`, coordinates beyond 
     the second are 0.
 
-    By default, :func:`dnx_layout` is used to compute the layout for target 
-    Chimera or Pegasus or Zephyr graphs when :func:`minorminer.layout.find_embedding` is 
+    By default, :func:`graph_layout` is used to compute the layout for target
+    Chimera, Pegasus or Zephyr graphs when :func:`minorminer.layout.find_embedding` is 
     called.
 
     Args:
@@ -272,14 +272,14 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     
     Examples:
         This example creates a :class:`.Layout` object for a Pegasus graph, with 
-        coordinates computed using :func:`dnx_layout`.
+        coordinates computed using :func:`graph_layout`.
 
         >>> import dwave.graphs
         >>> import networkx as nx
         >>> import minorminer.layout as mml
         ...
         >>> P = dwave.graphs.pegasus_graph(4)
-        >>> layout = mml.Layout(P, mml.dnx_layout, center=(1,1), scale=2)
+        >>> layout = mml.Layout(P, mml.graph_layout, center=(1,1), scale=2)
 
     """
     graph_data = G.graph
@@ -324,6 +324,11 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     
     layout = Layout(G, dnx_layout)
     return layout.layout
+
+
+def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
+    """Alias for :func:`graph_layout`."""
+    return graph_layout(G, dim=dim, center=center, scale=scale, **kwargs)
 
 
 def _nx_to_dnx_layout(center, scale):

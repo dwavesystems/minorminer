@@ -17,7 +17,7 @@ import time
 import networkx as nx
 import minorminer as mm
 
-from .layout import Layout, dnx_layout, p_norm
+from .layout import Layout, dnx_layout, graph_layout, p_norm
 from .placement import Placement, closest, intersection
 
 
@@ -53,7 +53,7 @@ def find_embedding(
 
             Note:
                 If ``layout`` is a single function and T is a D-Wave graph, then the 
-                function passed in is only applied to S and the dnx_layout is 
+                function passed in is only applied to S and the ``graph_layout`` is
                 applied to T. To run a layout function explicitly on T, pass 
                 it in as a 2-tuple; i.e. (p_norm, p_norm).
 
@@ -171,9 +171,9 @@ def _parse_layout_parameter(S, T, layout, layout_kwargs):
     if isinstance(t_layout, Layout):
         T_layout = t_layout
     else:
-        # Use the dnx_layout if possible
+        # Use the graph_layout if possible
         if T.graph.get("family") in ("chimera", "pegasus", "zephyr"):
-            T_layout = Layout(T, layout=dnx_layout, **layout_kwargs)
+            T_layout = Layout(T, layout=graph_layout, **layout_kwargs)
         # Assumes t_layout a callable or implements a mapping interface
         else:
             T_layout = Layout(T, layout=t_layout, **layout_kwargs)

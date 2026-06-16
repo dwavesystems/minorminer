@@ -48,7 +48,7 @@ def intersection(S_layout, T_layout, **kwargs):
         >>> G = nx.hexagonal_lattice_graph(2,2)
         >>> G_layout = mml.Layout(G, mml.p_norm)
         >>> C = dwave.graphs.chimera_graph(2,2)
-        >>> C_layout = mml.Layout(C, mml.dnx_layout)
+        >>> C_layout = mml.Layout(C, mml.graph_layout)
         >>> placement = mml.Placement(G_layout, C_layout, placement=mml.intersection)
 
         ``placement`` may be passed in directly to :func:`minorminer.layout.find_embedding`. 
@@ -306,7 +306,7 @@ def closest(S_layout, T_layout, subset_size=(1, 1), num_neighbors=1, **kwargs):
         >>> G = nx.hexagonal_lattice_graph(2,2)
         >>> G_layout = mml.Layout(G, mml.p_norm)
         >>> C = dwave.graphs.chimera_graph(2,2)
-        >>> C_layout = mml.Layout(C, mml.dnx_layout)
+        >>> C_layout = mml.Layout(C, mml.graph_layout)
         >>> placement = mml.Placement(G_layout, C_layout, placement=mml.closest)
 
     """

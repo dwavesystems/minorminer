@@ -61,6 +61,7 @@ Functions for Creating Layouts
 ------------------------------
 
 .. autofunction:: p_norm
+.. autofunction:: graph_layout
 .. autofunction:: dnx_layout
 
 ....
