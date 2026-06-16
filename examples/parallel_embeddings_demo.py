@@ -13,11 +13,14 @@ The demo performs the following steps:
     - It visualizes the embeddings if visualization is enabled.
     - It validates the embeddings and displays the results.
 
-This example demonstrates how to assess and visualize graph embeddings using D-Wave's `dwave_networkx` library.
+This example demonstrates how to assess and visualize graph embeddings using
+``dwave-graphs`` library.
 
 """
 
-import dwave_networkx as dnx
+import dwave.graphs
+import matplotlib.pyplot as plt
+import networkx as nx
 
 from minorminer.utils.parallel_embeddings import (
     find_sublattice_embeddings,
@@ -41,9 +44,9 @@ def main():
         "zephyr": 1,
     }  # Minimum tile sizes for each topology
     generators = {
-        "chimera": dnx.chimera_graph,
-        "pegasus": dnx.pegasus_graph,
-        "zephyr": dnx.zephyr_graph,
+        "chimera": dwave.graphs.chimera_graph,
+        "pegasus": dwave.graphs.pegasus_graph,
+        "zephyr": dwave.graphs.zephyr_graph,
     }
 
     # Iterate over each source topology for embedding feasibility checks
@@ -117,18 +120,18 @@ def main():
             value_list
         ), "Duplicate target nodes in embeddings."
 
-        # Visualize embeddings if enabled (waiting for visualization function to be migrated to dwave networkx)
-        # if visualize:
-        #     plt.figure(figsize=(12, 12))
-        #     visualize_embeddings(T, embeddings=embs)
+        # Visualize embeddings if enabled
+        if visualize:
+            plt.figure(figsize=(12, 12))
+            dwave.graphs.draw_parallel_embeddings(T, embeddings=embs, one_to_iterable=False)
 
-        #     # Create a subgraph of S with a limited number of edges for visualization
-        #     S_aux = nx.Graph()
-        #     S_aux.add_nodes_from(S)
-        #     S_aux.add_edges_from(list(S.edges)[:10])  # First 10 edges only
-        #     plt.figure(figsize=(12, 12))
-        #     visualize_embeddings(T, embeddings=embs, S=S_aux)
-        #     plt.show()
+            # Create a subgraph of S with a limited number of edges for visualization
+            S_aux = nx.Graph()
+            S_aux.add_nodes_from(S)
+            S_aux.add_edges_from(list(S.edges)[:10])  # First 10 edges only
+            plt.figure(figsize=(12, 12))
+            dwave.graphs.draw_parallel_embeddings(T, embeddings=embs, S=S_aux, one_to_iterable=False)
+            plt.show()
 
         # Perform direct search for embeddings
         embs_direct = find_sublattice_embeddings(S, T)

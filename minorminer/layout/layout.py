@@ -12,14 +12,16 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import warnings
 from collections import abc
 
-import dwave_networkx as dnx
+import dwave.graphs
 import networkx as nx
 import numpy as np
 from scipy import optimize, spatial
 from math import ceil
 from minorminer._extern import rpack
+
 
 def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None, scale=None, **kwargs):
     r"""Embeds graph ``G`` in :math:`R^d` with the p-norm and minimizes a 
@@ -85,11 +87,11 @@ def p_norm(G, p=2, starting_layout=None, G_distances=None, dim=None, center=None
         are computed using p_norm.
 
         >>> import networkx as nx
-        >>> import dwave_networkx as dnx
+        >>> import dwave.graphs
         >>> import minorminer.layout as mml
         ...
         >>> G = nx.hexagonal_lattice_graph(2,2)
-        >>> C = dnx.chimera_graph(2,2)
+        >>> C = dwave.graphs.chimera_graph(2,2)
         >>> embedding = mml.find_embedding(G, 
         ...                                C, 
         ...                                layout=(mml.p_norm, mml.p_norm),
@@ -236,14 +238,14 @@ def _p_norm_objective(layout_vector, G_distances, dim, p):
     return np.sum((G_distances - dist)**2), grad.ravel()
 
 
-def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
-    r"""The Chimera or Pegasus or Zephyr layout from `dwave_networkx` centered at the origin
+def graph_layout(G, dim=None, center=None, scale=None, **kwargs):
+    r"""The Chimera, Pegasus or Zephyr layout from ``dwave-graphs`` centered at the origin
     with ``scale`` as a function of the number of rows or columns. Note: As per 
-    the implementation of `dnx.*_layout`, if :math:`dim>2`, coordinates beyond 
+    the implementation of ``dwave.graphs.*_layout``, if :math:`dim>2`, coordinates beyond 
     the second are 0.
 
-    By default, :func:`dnx_layout` is used to compute the layout for target 
-    Chimera or Pegasus or Zephyr graphs when :func:`minorminer.layout.find_embedding` is 
+    By default, :func:`graph_layout` is used to compute the layout for target
+    Chimera, Pegasus or Zephyr graphs when :func:`minorminer.layout.find_embedding` is 
     called.
 
     Args:
@@ -271,13 +273,14 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     
     Examples:
         This example creates a :class:`.Layout` object for a Pegasus graph, with 
-        coordinates computed using :func:`dnx_layout`.
+        coordinates computed using :func:`graph_layout`.
 
+        >>> import dwave.graphs
         >>> import networkx as nx
         >>> import minorminer.layout as mml
         ...
-        >>> P = dnx.pegasus_graph(4)
-        >>> layout = mml.Layout(P, mml.dnx_layout, center=(1,1), scale=2)
+        >>> P = dwave.graphs.pegasus_graph(4)
+        >>> layout = mml.Layout(P, mml.graph_layout, center=(1,1), scale=2)
 
     """
     graph_data = G.graph
@@ -286,7 +289,7 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     if G.graph.get("family") not in ("chimera", "pegasus", "zephyr"):
         raise ValueError(
             "This strategy is only implemented for Chimera, Pegasus"
-            " and Zephyr graphs constructed by dwave_networkx`.")
+            " and Zephyr graphs constructed by dwave-graphs.")
 
     dim, center = _set_dim_and_center(dim, center)
 
@@ -294,19 +297,20 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
         m, n = graph_data["rows"], graph_data["columns"]
         scale = max(n, m)/2
 
-    dnx_center, dnx_scale = _nx_to_dnx_layout(center, scale)
+    dnx_center, dnx_scale = _nx_to_graph_layout(center, scale)
 
     if family == "chimera":
-        dnx_layout = dnx.chimera_layout(
+        dnx_layout = dwave.graphs.chimera_layout(
             G, dim=dim, center=dnx_center, scale=dnx_scale)
     elif family == "pegasus":
-        dnx_layout = dnx.pegasus_layout(
+        dnx_layout = dwave.graphs.pegasus_layout(
             G, dim=dim, center=dnx_center, scale=dnx_scale)
     elif family == "zephyr":
-        dnx_layout = dnx.zephyr_layout(
+        dnx_layout = dwave.graphs.zephyr_layout(
             G, dim=dim, center=dnx_center, scale=dnx_scale)
     
-    # if the output of dnx_layout is not what it should be (at the moment there is a bug in dnx.zephyr_layout and dnx.pegasus_layout)
+    # if the output of dnx_layout is not what it should be (at the moment there
+    # is a bug in dwave.graphs.zephyr_layout and dwave.graphs.pegasus_layout)
     # https://github.com/dwavesystems/dwave-networkx/issues/239    
     dnx_layout_arr = np.array([(dnx_layout[v]-dnx_center)[:2] for v in G.nodes()]) #first two coordinates of layout-dnx_center
     x_min, y_min = np.min(dnx_layout_arr, axis=0)
@@ -323,9 +327,23 @@ def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
     return layout.layout
 
 
-def _nx_to_dnx_layout(center, scale):
+def dnx_layout(G, dim=None, center=None, scale=None, **kwargs):
+    """Alias for :func:`graph_layout`.
+
+    .. deprecated:: 0.2.22
+
+        This function will be removed in minorminer 0.3.0.
+    """
+    warnings.warn("'minorminer.layout.dnx_layout' is deprecated. "
+                  "Use 'minorminer.layout.graph_layout' instead",
+                  DeprecationWarning, stacklevel=2)
+
+    return graph_layout(G, dim=dim, center=center, scale=scale, **kwargs)
+
+
+def _nx_to_graph_layout(center, scale):
     r"""This function translates a center and a scale from the networkx convention, 
-    :math:`[center - scale, center + scale]^{\dim}`, to the `dwave_networkx` 
+    :math:`[center - scale, center + scale]^{\dim}`, to the ``dwave-graphs`` 
     convention, :math:`[center, center-scale] x [center, center+scale]^{\(dim-1)}`.
 
     Returns:

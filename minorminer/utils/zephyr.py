@@ -14,7 +14,7 @@
 #
 # ================================================================================================
 
-from dwave_networkx.generators.zephyr import zephyr_graph
+from dwave.graphs.topologies.zephyr import zephyr_graph
 import networkx as nx
 
 from minorminer.busclique import busgraph_cache

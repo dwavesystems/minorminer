@@ -41,20 +41,17 @@ with one additional requirement: the chain for each QUBO node
 must contain two blocks of the form (x1, y1, 0) and (x1, y1, 1).
 The function `embed_with_quotient` performs the reduction and
 supplies those additional requirements to `find_embedding`.
-
-
 """
 
-# before we get to anything else, let's get some imports out of the way.
-from past.builtins import xrange
+from time import perf_counter
+
+import dwave.graphs
 import networkx as nx
-import dwave_networkx as dnx
 from minorminer import find_embedding
-from time import clock
 
 
 def graph_coloring_qubo(graph, k):
-    """
+    r"""
     the QUBO for k-coloring a graph A is as follows:
 
     variables:
@@ -87,10 +84,10 @@ def chimera_blocks(M=16, N=16, L=4):
     """
     Generator for blocks for a chimera block quotient
     """
-    for x in xrange(M):
-        for y in xrange(N):
+    for x in range(M):
+        for y in range(N):
             for u in (0, 1):
-                yield tuple((x, y, u, k) for k in xrange(L))
+                yield tuple((x, y, u, k) for k in range(L))
 
 
 def chimera_block_quotient(G, blocks):
@@ -217,7 +214,7 @@ def embed_with_quotient(source_graph, target_graph, M=16, N=16, L=4, **args):
 
 if __name__ == "__main__":
     # first, we construct a Chimera graph
-    G = dnx.chimera_graph(16)
+    G = dwave.graphs.chimera_graph(16)
     labs = nx.get_node_attributes(G, 'chimera_index')
     unlab = {d: i for i, d in labs.items()}
     H = nx.relabel_nodes(G, labs)
@@ -227,21 +224,21 @@ if __name__ == "__main__":
 
     # for a basis of comparison, let's try to embed this without the quotient
     graph4 = graph_coloring_qubo(graph, 4)
-    c = clock()
+    c = perf_counter()
     emb = find_embedding(graph4.edges(), H.edges(),
                          verbose=0, chainlength_patience=30)
     try:
-        print("raw embedding %d seconds, " % (clock() - c), end='')
+        print("raw embedding %d seconds, " % (perf_counter() - c), end='')
         cl = max(len(c) for c in emb.values())
         print("maximum chainlength %d" % cl)
     except:
         print("failure")
 
     # we embed it using the block quotient,
-    c = clock()
+    c = perf_counter()
     emb = embed_with_quotient(graph, H, 16, 16, 4)
     # and then translate back to integer indices
-    print("quotient embedding %d seconds, maximum chainlength %d" % (clock() - c, max(len(c) for c in emb.values())))
+    print("quotient embedding %d seconds, maximum chainlength %d" % (perf_counter() - c, max(len(c) for c in emb.values())))
 
     # finally, we translate the embedding back to integer labels
     newemb = {v: [unlab[q] for q in c] for v, c in emb.items()}

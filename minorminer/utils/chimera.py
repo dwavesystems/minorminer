@@ -19,7 +19,7 @@ try:
 except ImportError:
     import collections as abc
 
-from dwave_networkx.generators.chimera import chimera_graph, chimera_coordinates
+from dwave.graphs.topologies.chimera import chimera_graph, chimera_coordinates
 import networkx as nx
 
 from minorminer.busclique import busgraph_cache
@@ -55,10 +55,10 @@ def find_clique_embedding(k, m=None, n=None, t=None, target_edges=None, target_g
 
         target_edges (iterable[edge]):
             A list of edges in the target Chimera graph. Nodes are labelled as
-            returned by :func:`~dwave_networkx.chimera_graph`.
+            returned by :func:`~dwave.graphs.chimera_graph`.
 
         target_graph (networkx.Graph):
-            A Chimera graph constructed by :func:`~dwave_networkx.chimera_graph`.
+            A Chimera graph constructed by :func:`~dwave.graphs.chimera_graph`.
 
     Returns:
         dict: An embedding mapping a clique to the Chimera lattice.
@@ -131,10 +131,10 @@ def find_biclique_embedding(a, b, m=None, n=None, t=None, target_edges=None, tar
 
         target_edges (iterable[edge]):
             A list of edges in the target Chimera graph. Nodes are labelled as
-            returned by :func:`~dwave_networkx.chimera_graph`.
+            returned by :func:`~dwave.graphs.chimera_graph`.
 
         target_graph (networkx.Graph):
-            A Chimera graph constructed by :func:`~dwave_networkx.chimera_graph`.
+            A Chimera graph constructed by :func:`~dwave.graphs.chimera_graph`.
 
     Returns:
         tuple: A 2-tuple containing:

@@ -13,16 +13,14 @@
 #    limitations under the License.
 
 import random
-import unittest
-from itertools import product
 
-import dwave_networkx as dnx
+import dwave.graphs
 import networkx as nx
 import numpy as np
 
 import minorminer.layout as mml
 from minorminer.layout.layout import (_center_layout, _dimension_layout,
-                                      _scale_layout, _graph_distance_matrix, dnx_layout)
+                                      _scale_layout, _graph_distance_matrix)
 from .common import TestLayoutPlacement
 
 
@@ -77,9 +75,9 @@ class TestLayout(TestLayoutPlacement):
         self.assertArrayEqual(layout.center, [12, 20])
         self.assertAlmostEqual(layout.scale, scale)
 
-    def test_dnx(self):
+    def test_dwave_graph_layout(self):
         """
-        Test the dnx layout.
+        Test the dwave graph layout.
         """
         # Some specs to test with
         dim = random.randint(3, 9)
@@ -88,32 +86,37 @@ class TestLayout(TestLayoutPlacement):
 
         # Default behavior
         # Chimera
-        mml.dnx_layout(self.C)
+        mml.graph_layout(self.C)
         # Pegasus
-        mml.dnx_layout(self.P)
+        mml.graph_layout(self.P)
         # Zephyr
-        mml.dnx_layout(self.Z)
+        mml.graph_layout(self.Z)
 
         # Passing in dim
-        mml.dnx_layout(self.C, dim=dim)
+        mml.graph_layout(self.C, dim=dim)
 
         # Passing in center
-        mml.dnx_layout(self.C, center=center)
+        mml.graph_layout(self.C, center=center)
 
         # Passing in scale
-        mml.dnx_layout(self.C, scale=scale)
+        mml.graph_layout(self.C, scale=scale)
+
+        # Alias
+        mml.dnx_layout(self.C)
+        mml.dnx_layout(self.P)
+        mml.dnx_layout(self.Z)
 
         # Test through the Layout object
-        layout = mml.Layout(self.C, mml.dnx_layout, dim=dim,
+        layout = mml.Layout(self.C, mml.graph_layout, dim=dim,
                             center=center, scale=scale)
         self.assertArrayEqual(layout.center, center)
         self.assertAlmostEqual(layout.scale, scale)
 
-        # Test non-dnx_graph
-        self.assertRaises(ValueError, mml.dnx_layout, self.S)
+        # Test non-dwave-graph
+        self.assertRaises(ValueError, mml.graph_layout, self.S)
 
         # Test dim and center mismatch
-        self.assertRaises(ValueError, mml.dnx_layout,
+        self.assertRaises(ValueError, mml.graph_layout,
                           self.C, dim=3, center=(0, 0))
 
     def test_precomputed_layout(self):
@@ -271,10 +274,15 @@ class TestLayout(TestLayoutPlacement):
         dist_mat = _graph_distance_matrix(G)
         self.assertTrue(np.array_equal(dist_mat, dist_mat.T), "The graph distance matrix is not symmetric")
         
-    def test_dnx_layout(self):
-        G = dnx.zephyr_graph(2)
+    def test_graph_layout(self):
+        G = dwave.graphs.zephyr_graph(2)
         scale=10
-        G_dnx_layout = dnx_layout(G, scale=scale)
+        G_dnx_layout = mml.graph_layout(G, scale=scale)
         G_dnx_layout_arr = np.array([G_dnx_layout[v] for v in G.nodes()])
         self.assertTrue(np.all((G_dnx_layout_arr >= -scale) & (G_dnx_layout_arr <= scale)),
                         msg=f"Values are not within [{-scale}, {scale}]^2")
+
+    def test_dnx_layout_deprecation(self):
+        G = dwave.graphs.zephyr_graph(2)
+        with self.assertWarns(DeprecationWarning):
+            mml.dnx_layout(G)

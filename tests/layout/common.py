@@ -14,7 +14,7 @@
 
 import unittest
 
-import dwave_networkx as dnx
+import dwave.graphs
 import networkx as nx
 import numpy as np
 
@@ -31,16 +31,16 @@ class TestLayoutPlacement(unittest.TestCase):
         self.S_components = nx.Graph([(2*i, 2*i+1) for i in range(10)])
         self.G = nx.Graph()
         self.H = nx.complete_graph(1)
-        self.C = dnx.chimera_graph(4)
-        self.C_coord = dnx.chimera_graph(4, coordinates=True)
-        self.C_blank = dnx.chimera_graph(4, data=False)
-        self.P = dnx.pegasus_graph(4)
-        self.P_coord = dnx.pegasus_graph(4, coordinates=True)
-        self.P_nice = dnx.pegasus_graph(4, nice_coordinates=True)
-        self.P_blank = dnx.pegasus_graph(4, data=False)
-        self.Z = dnx.zephyr_graph(4)
-        self.Z_coord = dnx.zephyr_graph(4, coordinates=True)
-        self.Z_blank = dnx.pegasus_graph(4, data=False)
+        self.C = dwave.graphs.chimera_graph(4)
+        self.C_coord = dwave.graphs.chimera_graph(4, coordinates=True)
+        self.C_blank = dwave.graphs.chimera_graph(4, data=False)
+        self.P = dwave.graphs.pegasus_graph(4)
+        self.P_coord = dwave.graphs.pegasus_graph(4, coordinates=True)
+        self.P_nice = dwave.graphs.pegasus_graph(4, nice_coordinates=True)
+        self.P_blank = dwave.graphs.pegasus_graph(4, data=False)
+        self.Z = dwave.graphs.zephyr_graph(4)
+        self.Z_coord = dwave.graphs.zephyr_graph(4, coordinates=True)
+        self.Z_blank = dwave.graphs.pegasus_graph(4, data=False)
 
         # Compute some layouts
         self.S_layout = mml.Layout(self.S)

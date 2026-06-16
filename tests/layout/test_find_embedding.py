@@ -15,7 +15,7 @@
 import random
 import unittest
 
-import dwave_networkx as dnx
+import dwave.graphs
 import networkx as nx
 import numpy as np
 
@@ -29,10 +29,10 @@ class TestFindEmb(TestLayoutPlacement):
         """
         Minimal find_embedding call
         """
-        # Test a dnx_graph
+        # Test a dwave-graph
         mml.find_embedding(self.S, self.C)
 
-        # Test a non-dnx_graph
+        # Test a non-dwave-graph
         mml.find_embedding(self.S_small, self.S)
 
     def test_timeout(self):
@@ -121,16 +121,16 @@ class TestFindEmb(TestLayoutPlacement):
         # 2-tuples
         # Two functions
         mml.find_embedding(self.S, self.C, layout=(
-            nx.circular_layout, dnx.chimera_layout))
+            nx.circular_layout, dwave.graphs.chimera_layout))
         # Two dictionaries
         mml.find_embedding(self.S, self.C, layout=(
-            nx.circular_layout(self.S), dnx.chimera_layout(self.C)))
+            nx.circular_layout(self.S), dwave.graphs.chimera_layout(self.C)))
         # Two layouts
         mml.find_embedding(self.S, self.C, layout=(
             self.S_layout, self.C_layout))
         # A function and a layout
         mml.find_embedding(self.S, self.C, layout=(
-            self.S_layout, dnx.chimera_layout(self.C)))
+            self.S_layout, dwave.graphs.chimera_layout(self.C)))
 
         # Failures
         # Too many things in layout

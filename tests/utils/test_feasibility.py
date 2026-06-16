@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import unittest
-import numpy as np
 
+import dwave.graphs
 import networkx as nx
-
-import dwave_networkx as dnx
+import numpy as np
 
 from minorminer.utils.feasibility import (
     embedding_feasibility_filter,
@@ -109,8 +108,8 @@ def random_split_major(G):
 class TestEmbeddings(unittest.TestCase):
     def test_embedding_feasibility_filter(self):
         m = 7  # Odd m
-        T = dnx.chimera_graph(m)
-        S = dnx.chimera_graph(m - 1)
+        T = dwave.graphs.chimera_graph(m)
+        S = dwave.graphs.chimera_graph(m - 1)
         for one_to_one in [True, False]:
             self.assertTrue(
                 embedding_feasibility_filter(S, T, one_to_one=one_to_one),
@@ -122,13 +121,13 @@ class TestEmbeddings(unittest.TestCase):
         for one_to_one in [True, False]:
             self.assertFalse(embedding_feasibility_filter(S, T, one_to_one=one_to_one))
         # Too many edges:
-        S = dnx.zephyr_graph(m // 2)
+        S = dwave.graphs.zephyr_graph(m // 2)
         for one_to_one in [True, False]:
             self.assertFalse(embedding_feasibility_filter(S, T, one_to_one=one_to_one))
         # Subtle failure case (by ordered degrees filter):
         m = 4
-        T = dnx.chimera_graph(m)
-        S = dnx.chimera_torus(m - 1)
+        T = dwave.graphs.chimera_graph(m)
+        S = dwave.graphs.chimera_torus(m - 1)
         self.assertTrue(
             S.number_of_edges() < T.number_of_edges()
             and S.number_of_nodes() < T.number_of_nodes()
@@ -155,7 +154,7 @@ class TestEmbeddings(unittest.TestCase):
 
     def test_lattice_size_lower_bound(self):
         L = np.random.randint(2) + 2
-        T = dnx.zephyr_graph(L - 1)
+        T = dwave.graphs.zephyr_graph(L - 1)
         self.assertEqual(L - 1, lattice_size_lower_bound(S=T, T=T, one_to_one=True))
         self.assertEqual(
             L - 1, lattice_size_lower_bound(S=T, topology="zephyr", one_to_one=True)
@@ -164,12 +163,12 @@ class TestEmbeddings(unittest.TestCase):
         with self.assertRaises(ValueError):
             lattice_size_lower_bound(S=T, T=T, topology="chimera")
 
-        T = dnx.pegasus_graph(L)
+        T = dwave.graphs.pegasus_graph(L)
         self.assertEqual(L, lattice_size_lower_bound(S=T, T=T, one_to_one=True))
         self.assertEqual(
             L, lattice_size_lower_bound(S=T, topology="pegasus", one_to_one=True)
         )
-        T = dnx.chimera_graph(L, L - 1, 1)
+        T = dwave.graphs.chimera_graph(L, L - 1, 1)
         self.assertEqual(L, lattice_size_lower_bound(S=T, T=T, one_to_one=True))
         self.assertEqual(
             L, lattice_size_lower_bound(S=T, topology="chimera", t=1, one_to_one=True)
@@ -184,11 +183,11 @@ class TestEmbeddings(unittest.TestCase):
             lattice_size_lower_bound(S=S, T=S, t=1)
 
         m = 6
-        S = dnx.chimera_graph(m)  # Embeds onto Zephyr[m//2]
+        S = dwave.graphs.chimera_graph(m)  # Embeds onto Zephyr[m//2]
         self.assertEqual(
             m // 2, lattice_size_lower_bound(S=S, topology="zephyr", one_to_one=True)
         )
-        T = dnx.zephyr_graph(m)
+        T = dwave.graphs.zephyr_graph(m)
         self.assertEqual(m // 2, lattice_size_lower_bound(S=S, T=T, one_to_one=True))
 
     def test_lattice_size_lower_bound_one_to_one_false(self):

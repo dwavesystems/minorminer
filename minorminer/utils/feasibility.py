@@ -15,11 +15,11 @@ r"""Determining embedding feasibility is NP-complete.
 Efficient methods and heuristics are collected together in this module,
 that provide necessary conditions and bounds on feasibility.
 This includes determination of a lower bound on the (square)
-lattice size required for chimera, pegasus and zephyr dwave_networkx graph
-types, and a feasibility filter for general graphs based on the degree
+lattice size required for Chimera, Pegasus and Zephyr topology graphs
+and a feasibility filter for general graphs based on the degree
 distributions of target and source graphs.
 """
-import dwave_networkx as dnx
+import dwave.graphs
 import networkx as nx
 import numpy as np
 from collections import Counter
@@ -119,7 +119,7 @@ def lattice_size_lower_bound(
 ) -> Optional[int]:
     """Returns a lower bound on the size necessary for embedding.
 
-    The lattice size is the parameter ``m`` of a dwave_networkx graph, also
+    The lattice size is the parameter ``m`` of a ``dwave-graphs`` graph, also
     called number of rows. The function returns a lower bound (necessary but
     not sufficient for embedding) using efficiently established graph
     properties such as the number of nodes, number of edges, node-degree
@@ -128,7 +128,7 @@ def lattice_size_lower_bound(
     Args:
         S: The source graph to embed.
         T: The target graph in which to embed. The graph must be of type
-            'zephyr', 'pegasus', or 'chimera' and constructed by dwave_networkx.
+            'zephyr', 'pegasus', or 'chimera' and constructed by ``dwave-graphs``.
         topology: The topology ('chimera', 'pegasus', or 'zephyr'). This is
             inferred from `T` by default. Any set value must be consistent with
             ``T`` (if ``T`` is not None).
@@ -186,7 +186,7 @@ def lattice_size_lower_bound(
             return None
 
         def generator(lattice_size):
-            return dnx.chimera_graph(m=lattice_size, n=lattice_size, t=t)
+            return dwave.graphs.chimera_graph(m=lattice_size, n=lattice_size, t=t)
 
         # A lower bound based on number of variables N = m*n*2*t
         lattice_size = np.ceil(np.sqrt(N / 4 / t))
@@ -194,7 +194,7 @@ def lattice_size_lower_bound(
     elif topology == "pegasus":
 
         def generator(lattice_size):
-            return dnx.pegasus_graph(m=lattice_size)
+            return dwave.graphs.pegasus_graph(m=lattice_size)
 
         # A lower bound based on number of variables N = (m*24-8)*(m-1)
         lattice_size = np.ceil(1 / 12 * (8 + np.sqrt(6 * N + 16)))
@@ -202,15 +202,14 @@ def lattice_size_lower_bound(
     elif topology == "zephyr":
 
         def generator(lattice_size):
-            return dnx.zephyr_graph(m=lattice_size, t=t)
+            return dwave.graphs.zephyr_graph(m=lattice_size, t=t)
 
         # A lower bound based on number of variables N = (2m+1)*m*4*t
         lattice_size = np.ceil((np.sqrt(2 * N / t + 1) - 1) / 4)
 
     else:
         raise ValueError(
-            "source graphs must be a graph constructed by "
-            "dwave_networkx as chimera, pegasus or zephyr type"
+            "source graph with topology of Chimera, Pegasus or Zephyr required"
         )
 
     # Evaluate tile feasibility (defect free subgraphs)

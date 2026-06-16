@@ -1,6 +1,14 @@
+import itertools
+import os
+import random
+import unittest
+
+import dwave.graphs
+import networkx as nx
+
 from minorminer import busclique
 from minorminer.utils import verify_embedding
-import unittest, random, itertools, dwave_networkx as dnx, networkx as nx, os
+
 
 def subgraph_node_yield(g, q):
     """
@@ -55,11 +63,11 @@ def relabel(g, node_label, edge_label, *args, **kwargs):
     edges = edge_label(g.edges())
 
     if g.graph['family'] == 'pegasus':
-        f = dnx.pegasus_graph
+        f = dwave.graphs.pegasus_graph
     elif g.graph['family'] == 'chimera':
-        f = dnx.chimera_graph
+        f = dwave.graphs.chimera_graph
     elif g.graph['family'] == 'zephyr':
-        f = dnx.zephyr_graph
+        f = dwave.graphs.zephyr_graph
     else:
         raise ValueError("g is not a pegasus, zephyr or chimera")
 
@@ -75,16 +83,16 @@ class TestBusclique(unittest.TestCase):
 
         busclique.busgraph_cache.clear_all_caches()
 
-        self.c16 = dnx.chimera_graph(16)
-        self.p16 = dnx.pegasus_graph(16)
-        self.z6 = dnx.zephyr_graph(6)
-        self.c16c = dnx.chimera_graph(16, coordinates=True, data = False)
-        self.c428 = dnx.chimera_graph(4, n = 2, t = 8)
-        self.c248 = dnx.chimera_graph(2, n = 4, t = 8)
-        self.c42A = dnx.chimera_graph(4, n = 2, t = 9)
-        c4c_0 = subgraph_node_yield(dnx.chimera_graph(4, coordinates = True), .95)
-        p4c_0 = subgraph_node_yield(dnx.pegasus_graph(4, coordinates = True), .95)
-        z4c_0 = subgraph_node_yield(dnx.zephyr_graph(4, coordinates = True), .95)
+        self.c16 = dwave.graphs.chimera_graph(16)
+        self.p16 = dwave.graphs.pegasus_graph(16)
+        self.z6 = dwave.graphs.zephyr_graph(6)
+        self.c16c = dwave.graphs.chimera_graph(16, coordinates=True, data = False)
+        self.c428 = dwave.graphs.chimera_graph(4, n = 2, t = 8)
+        self.c248 = dwave.graphs.chimera_graph(2, n = 4, t = 8)
+        self.c42A = dwave.graphs.chimera_graph(4, n = 2, t = 9)
+        c4c_0 = subgraph_node_yield(dwave.graphs.chimera_graph(4, coordinates=True), .95)
+        p4c_0 = subgraph_node_yield(dwave.graphs.pegasus_graph(4, coordinates=True), .95)
+        z4c_0 = subgraph_node_yield(dwave.graphs.zephyr_graph(4, coordinates=True), .95)
         c4c = [c4c_0,
                subgraph_edge_yield(c4c_0, .95),
                subgraph_edge_yield_few_bad(c4c_0, .95, 6)]
@@ -95,9 +103,9 @@ class TestBusclique(unittest.TestCase):
                subgraph_edge_yield(z4c_0, .95),
                subgraph_edge_yield_few_bad(z4c_0, .95, 6)]
 
-        p4coords = dnx.pegasus_coordinates(4)
-        c4coords = dnx.chimera_coordinates(4, 4, 4)
-        z4coords = dnx.zephyr_coordinates(4)
+        p4coords = dwave.graphs.pegasus_coordinates(4)
+        c4coords = dwave.graphs.chimera_coordinates(4, 4, 4)
+        z4coords = dwave.graphs.zephyr_coordinates(4)
 
         c4 = [relabel(c,
                       c4coords.iter_chimera_to_linear,
@@ -126,12 +134,12 @@ class TestBusclique(unittest.TestCase):
 
     def test_p16(self):
         def reconstruct(nodes):
-            return dnx.pegasus_graph(16, node_list = nodes)
+            return dwave.graphs.pegasus_graph(16, node_list=nodes)
         self.run_battery('p16', self.p16, reconstruct, 180, 17, 172, 15)
 
     def test_c16(self):
         def reconstruct(nodes):
-            return dnx.chimera_graph(16, node_list = nodes)
+            return dwave.graphs.chimera_graph(16, node_list=nodes)
         self.run_battery('c16', self.c16, reconstruct, 64, 17, 64, 16)
 
     def run_battery(self, name, g, reconstruct, cliquesize, cliquelength,
@@ -233,8 +241,8 @@ class TestBusclique(unittest.TestCase):
                           999, self.c42A, use_cache = False)
 
         def reconstructor(m, n, t):
-            return lambda nodes: dnx.chimera_graph(m, n = n, t = t,
-                                                   node_list = nodes)
+            return lambda nodes: dwave.graphs.chimera_graph(m, n=n, t=t,
+                                                            node_list=nodes)
         for g, params in (self.c428, (4, 2, 8)), (self.c248, (2, 4, 8)):
             reconstruct = reconstructor(*params)
             self.run_battery('c%d%d%d'%params, g, reconstruct, 16, 3, 16, None)
@@ -272,7 +280,7 @@ class TestBusclique(unittest.TestCase):
 
     def test_k4_bug(self):
         edges = [30, 2940], [30, 2955], [45, 2940], [45, 2955], [2940, 2955]
-        p = dnx.pegasus_graph(16, edge_list = edges)
+        p = dwave.graphs.pegasus_graph(16, edge_list=edges)
         k4 = busclique.find_clique_embedding(4, p)
 
         self.assertEqual(k4, {})
@@ -316,7 +324,7 @@ class TestBusclique(unittest.TestCase):
 
     def test_z3_determinism(self):
         #first, check an explicit sample found with find_nondeterminism
-        z3 = dnx.zephyr_graph(3)
+        z3 = dwave.graphs.zephyr_graph(3)
         z3.remove_nodes_from([11, 43, 61, 77, 102, 107, 143, 145, 162, 174, 178, 185, 240, 333])
         z3.remove_edges_from([
             (28, 29), (28, 264), (37, 40), (55, 259), (73, 76), (96, 99), (97, 98), (98, 302),
@@ -334,7 +342,7 @@ class TestBusclique(unittest.TestCase):
 
     def test_p4_determinism(self):
         #first, check an explicit sample found with find_nondeterminism
-        p4 = dnx.pegasus_graph(4)
+        p4 = dwave.graphs.pegasus_graph(4)
         p4.remove_nodes_from([
             38, 56, 69, 81, 92, 97, 107, 112, 113, 207, 209, 212, 240, 258, 264, 277, 281
         ])
@@ -354,7 +362,7 @@ class TestBusclique(unittest.TestCase):
 
     def test_c4_determinism(self):
         #first, check an explicit sample found with find_nondeterminism
-        c4 = dnx.chimera_graph(4)
+        c4 = dwave.graphs.chimera_graph(4)
         c4.remove_nodes_from([1, 47, 60, 62, 59, 107])
         c4.remove_edges_from([
             (0, 32), (24, 56), (26, 58), (32, 64), (37, 35), (39, 34), (44, 42), (53, 51),
@@ -461,14 +469,14 @@ class TestBusclique(unittest.TestCase):
             (180, 183), (187, 188), (194, 197), (198, 199), (216, 217),
             (217, 218), (222, 225), (237, 238), (238, 239), (270, 273)
         ]
-        p4 = dnx.pegasus_graph(4)
+        p4 = dwave.graphs.pegasus_graph(4)
         p4.remove_nodes_from(missing_nodes)
         p4.remove_edges_from(missing_edges)
         busclique._regularize_embedding(p4, emb)                  
 
     def test_topology_identifier(self):
         perfect_id = '38cad89632b234831d58675091f1bc581c96de65d4b2a0c06c0d94a7f97e21a7'
-        p16 = dnx.pegasus_graph(16, coordinates=True)
+        p16 = dwave.graphs.pegasus_graph(16, coordinates=True)
         bgc = busclique.busgraph_cache(p16)
         self.assertEqual(
             bgc.topology_identifier(),
@@ -508,7 +516,7 @@ class TestBusclique(unittest.TestCase):
             f'topology identifier did not change after removing non-odd edge {e}'
         )
 
-        p16 = dnx.pegasus_graph(16)
+        p16 = dwave.graphs.pegasus_graph(16)
         n = random.choice(list(p16.nodes))
         p16.remove_node(n)
         bgc_n = busclique.busgraph_cache(p16)
@@ -521,14 +529,14 @@ class TestBusclique(unittest.TestCase):
 
 def find_nondeterminism(family, size=4, tries=10):
     if family == 'pegasus':
-        generator = dnx.pegasus_graph
-        coordinates = dnx.pegasus_coordinates
+        generator = dwave.graphs.pegasus_graph
+        coordinates = dwave.graphs.pegasus_coordinates
     elif family == 'zephyr':
-        generator = dnx.zephyr_graph
-        coordinates = dnx.zephyr_coordinates
+        generator = dwave.graphs.zephyr_graph
+        coordinates = dwave.graphs.zephyr_coordinates
     elif family == 'chimera':
-        generator = dnx.chimera_graph
-        coordinates = dnx.chimera_coordinates
+        generator = dwave.graphs.chimera_graph
+        coordinates = dwave.graphs.chimera_coordinates
 
     for i in range(tries):
         H = generator(size, coordinates=True)

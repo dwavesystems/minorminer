@@ -1,6 +1,12 @@
+import random
+import unittest
+
+import dwave.graphs
+import networkx as nx
+
 from minorminer import subgraph
 from minorminer.utils import verify_embedding
-import unittest, random, itertools, dwave_networkx as dnx, networkx as nx, os
+
 
 def verify_homomorphism(emb, source, target, locallyinjective = False):
     for s in source:
@@ -85,8 +91,8 @@ class TestSubgraph(unittest.TestCase):
         verify_embedding(as_embedding(emb), path_5, path_10)
             
     def test_timeout(self):
-        source = dnx.chimera_graph(8)
-        target = dnx.chimera_graph(15, coordinates=True)
+        source = dwave.graphs.chimera_graph(8)
+        target = dwave.graphs.chimera_graph(15, coordinates=True)
         #pop out a vertex from the central tile to make a minimally-impossible
         #problem (no fully-yielded 8x8s) that GSS know how to reason about
         target.remove_node((7,7,0,0)) 
@@ -95,13 +101,13 @@ class TestSubgraph(unittest.TestCase):
 
     def test_noninjective(self):
         # find a 2-coloring of Chimera!
-        source = dnx.chimera_graph(4)
+        source = dwave.graphs.chimera_graph(4)
         target = nx.path_graph(2)
         emb = subgraph.find_subgraph(source, target, injectivity='noninjective')
         verify_homomorphism(emb, source, target)
 
         # find a 4-coloring of zephyr!
-        source = dnx.zephyr_graph(4, t=1)
+        source = dwave.graphs.zephyr_graph(4, t=1)
         target = nx.complete_graph(4)
         emb = subgraph.find_subgraph(source, target, injectivity='noninjective')
         verify_homomorphism(emb, source, target)
@@ -153,7 +159,7 @@ class TestSubgraph(unittest.TestCase):
         verify_homomorphism(emb, source, target, locallyinjective=True)
 
     def test_seed(self):
-        g = dnx.chimera_graph(3, 3, 1, coordinates=True)
+        g = dwave.graphs.chimera_graph(3, 3, 1, coordinates=True)
         emb = subgraph.find_subgraph(g, g, seed=54321, as_embedding=True)
         verify_embedding(emb, g, g)
 

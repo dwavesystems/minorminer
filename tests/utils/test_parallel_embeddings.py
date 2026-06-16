@@ -18,7 +18,7 @@ from parameterized import parameterized
 import numpy as np
 import networkx as nx
 
-import dwave_networkx as dnx
+import dwave.graphs
 from minorminer import find_embedding
 
 from minorminer.utils.parallel_embeddings import (
@@ -35,11 +35,11 @@ class TestLatticeSize(unittest.TestCase):
     # This is a very basic helper function
     def test_lattice_size(self):
         L = np.random.randint(2) + 2
-        T = dnx.zephyr_graph(L - 1)
+        T = dwave.graphs.zephyr_graph(L - 1)
         self.assertEqual(L - 1, lattice_size(T=T))
-        T = dnx.pegasus_graph(L)
+        T = dwave.graphs.pegasus_graph(L)
         self.assertEqual(L, lattice_size(T=T))
-        T = dnx.chimera_graph(L, L - 1, 1)
+        T = dwave.graphs.chimera_graph(L, L - 1, 1)
         self.assertEqual(L, lattice_size(T=T))
 
 
@@ -47,7 +47,7 @@ class TestEmbeddings(unittest.TestCase):
 
     def test_shuffle_graph(self):
         prng = np.random.default_rng()
-        T = dnx.zephyr_graph(1)
+        T = dwave.graphs.zephyr_graph(1)
         Ts = shuffle_graph(T, prng)
         self.assertEqual(list(T.nodes()), list(T.nodes()))
         self.assertEqual(list(T.edges()), list(T.edges()))
@@ -172,8 +172,8 @@ class TestEmbeddings(unittest.TestCase):
     def test_find_multiple_embeddings_advanced(self):
         # timeout (via embedder_kwargs)
         m = 3  # Feasible, but takes significantly more than a second
-        S = dnx.chimera_graph(2 * m)
-        T = dnx.zephyr_graph(m)
+        S = dwave.graphs.chimera_graph(2 * m)
+        T = dwave.graphs.zephyr_graph(m)
         embedder_kwargs = {"timeout": 1}
         embs = find_multiple_embeddings(S, T, embedder_kwargs=embedder_kwargs)
         self.assertEqual(len(embs), 0)
@@ -266,18 +266,18 @@ class TestEmbeddings(unittest.TestCase):
         for topology in ["chimera", "pegasus", "zephyr"]:
             if topology == "chimera":
                 min_sublattice_size = 1
-                S = dnx.chimera_graph(min_sublattice_size)
-                T = dnx.chimera_graph(min_sublattice_size + 1)
+                S = dwave.graphs.chimera_graph(min_sublattice_size)
+                T = dwave.graphs.chimera_graph(min_sublattice_size + 1)
                 num_emb = 4
             elif topology == "pegasus":
                 min_sublattice_size = 2
-                S = dnx.pegasus_graph(min_sublattice_size)
-                T = dnx.pegasus_graph(min_sublattice_size + 1)
+                S = dwave.graphs.pegasus_graph(min_sublattice_size)
+                T = dwave.graphs.pegasus_graph(min_sublattice_size + 1)
                 num_emb = 2
             elif topology == "zephyr":
                 min_sublattice_size = 1
-                S = dnx.zephyr_graph(min_sublattice_size)
-                T = dnx.zephyr_graph(min_sublattice_size + 1)
+                S = dwave.graphs.zephyr_graph(min_sublattice_size)
+                T = dwave.graphs.zephyr_graph(min_sublattice_size + 1)
                 num_emb = 2
 
             embs = find_sublattice_embeddings(S, T, sublattice_size=min_sublattice_size)
@@ -304,8 +304,8 @@ class TestEmbeddings(unittest.TestCase):
         # Check function responds correctly to tile specification
         min_sublattice_size = 1
         S = nx.from_edgelist({(i, i + 1) for i in range(5)})  # 6 nodes
-        T = dnx.chimera_graph(min_sublattice_size + 1)
-        tile = dnx.chimera_graph(min_sublattice_size, node_list=list(range(1, 8)))
+        T = dwave.graphs.chimera_graph(min_sublattice_size + 1)
+        tile = dwave.graphs.chimera_graph(min_sublattice_size, node_list=list(range(1, 8)))
         embs = find_sublattice_embeddings(
             S,
             T,
@@ -319,7 +319,7 @@ class TestEmbeddings(unittest.TestCase):
         self.assertTrue(
             all(n % 8 > 0 for n in nodes_used), "Every 8th node excluded by tile"
         )
-        tile5 = dnx.chimera_graph(min_sublattice_size, node_list=list(range(3, 8)))
+        tile5 = dwave.graphs.chimera_graph(min_sublattice_size, node_list=list(range(3, 8)))
         embs = find_sublattice_embeddings(
             S,
             T,
@@ -349,21 +349,21 @@ class TestEmbeddings(unittest.TestCase):
             find_sublattice_embeddings(
                 S, invalid_T, sublattice_size=min_sublattice_size, tile=tile
             )
-        small_T = dnx.chimera_graph(m=2, n=2)
-        small_S = dnx.chimera_graph(m=2, n=1)
+        small_T = dwave.graphs.chimera_graph(m=2, n=2)
+        small_S = dwave.graphs.chimera_graph(m=2, n=1)
         sublattice_size = 1  # Too small
         with self.assertWarns(Warning):
             find_sublattice_embeddings(
                 small_S, small_T, sublattice_size=sublattice_size, use_filter=True
             )
-        tile = dnx.chimera_graph(m=1)  # Too small
+        tile = dwave.graphs.chimera_graph(m=1)  # Too small
         with self.assertWarns(Warning):
             find_sublattice_embeddings(small_S, small_T, tile=tile, use_filter=True)
 
     def test_find_sublattice_embeddings_tile_embedding(self):
         # SUBGRAPHS #
         S = nx.from_edgelist({(i, i + 1) for i in range(3)})  # 4 node path
-        T = dnx.chimera_graph(2, t=2)
+        T = dwave.graphs.chimera_graph(2, t=2)
         tile_embedding = {0: 0, 1: 2, 2: 1, 3: 3}
         embs = find_sublattice_embeddings(
             S,
@@ -375,7 +375,7 @@ class TestEmbeddings(unittest.TestCase):
         )
         self.assertEqual(len(embs), 1)
 
-        T = dnx.chimera_graph(2, t=2, edge_list=[(0, 2), (1, 2), (1, 3)])  # Valid
+        T = dwave.graphs.chimera_graph(2, t=2, edge_list=[(0, 2), (1, 2), (1, 3)])  # Valid
         embs = find_sublattice_embeddings(
             S,
             T,
@@ -385,7 +385,7 @@ class TestEmbeddings(unittest.TestCase):
             tile_embedding=tile_embedding,
         )
         self.assertEqual(len(embs), 1)
-        T = dnx.chimera_graph(2, t=2, edge_list=[(0, 2), (1, 2), (0, 3)])
+        T = dwave.graphs.chimera_graph(2, t=2, edge_list=[(0, 2), (1, 2), (0, 3)])
         embs = find_sublattice_embeddings(
             S,
             T,
@@ -409,7 +409,7 @@ class TestEmbeddings(unittest.TestCase):
 
         # MINORS (CHAIN LENGTH <=2) #
         S = nx.from_edgelist([(0, 1)])
-        T = dnx.chimera_graph(2, t=2)
+        T = dwave.graphs.chimera_graph(2, t=2)
         tile_embedding = {0: (0,), 1: (1, 3)}
         embs = find_sublattice_embeddings(
             S,
@@ -420,7 +420,7 @@ class TestEmbeddings(unittest.TestCase):
             tile_embedding=tile_embedding,
         )
         self.assertEqual(len(embs), 1)
-        T = dnx.chimera_graph(2, t=2, edge_list=[(0, 3), (1, 3)])
+        T = dwave.graphs.chimera_graph(2, t=2, edge_list=[(0, 3), (1, 3)])
         embs = find_sublattice_embeddings(
             S,
             T,
@@ -430,7 +430,7 @@ class TestEmbeddings(unittest.TestCase):
             tile_embedding=tile_embedding,
         )
         self.assertEqual(len(embs), 1, "Embedding succeeds")
-        T = dnx.chimera_graph(2, t=2, edge_list=[(1, 3), (1, 2)])
+        T = dwave.graphs.chimera_graph(2, t=2, edge_list=[(1, 3), (1, 2)])
         for use_tile_embedding in [True, False]:
             embs = find_sublattice_embeddings(
                 S,
@@ -463,10 +463,10 @@ class TestEmbeddings(unittest.TestCase):
         # This is more challenging than other tests because candidate subgraphs are not disjointed
         # and cannot make use of all target nodes.
         m = 8
-        T = dnx.pegasus_graph(m)
+        T = dwave.graphs.pegasus_graph(m)
         m_sub = 2
         n_sub = 3
-        tile = S = dnx.chimera_graph(m=m_sub, n=n_sub)
+        tile = S = dwave.graphs.chimera_graph(m=m_sub, n=n_sub)
         embedder_kwargs = {
             "tile": tile,
             "max_num_emb": None,
@@ -486,16 +486,16 @@ class TestEmbeddings(unittest.TestCase):
         T_family = topology
         if topology == "chimera":
             min_sublattice_size = 1
-            S = dnx.chimera_graph(min_sublattice_size)
-            T = dnx.chimera_graph(min_sublattice_size + 1)
+            S = dwave.graphs.chimera_graph(min_sublattice_size)
+            T = dwave.graphs.chimera_graph(min_sublattice_size + 1)
             num_emb = 4
             tile = None
             T_kwargs = {}
         elif topology == "pegasus":
             min_sublattice_size = 2
-            S = dnx.pegasus_graph(min_sublattice_size, nice_coordinates=True)
+            S = dwave.graphs.pegasus_graph(min_sublattice_size, nice_coordinates=True)
             tile = S
-            T = dnx.pegasus_graph(min_sublattice_size + 1, nice_coordinates=True)
+            T = dwave.graphs.pegasus_graph(min_sublattice_size + 1, nice_coordinates=True)
             num_emb = 2
             T_kwargs = {
                 "nice_coordinates": True,
@@ -504,9 +504,9 @@ class TestEmbeddings(unittest.TestCase):
             }
         elif topology == "zephyr":
             min_sublattice_size = 1
-            S = dnx.zephyr_graph(min_sublattice_size, coordinates=True)
+            S = dwave.graphs.zephyr_graph(min_sublattice_size, coordinates=True)
             tile = S
-            T = dnx.zephyr_graph(min_sublattice_size + 1, coordinates=True)
+            T = dwave.graphs.zephyr_graph(min_sublattice_size + 1, coordinates=True)
             num_emb = 2
             T_kwargs = {"coordinates": True}
         if with_Tfamily is False:
