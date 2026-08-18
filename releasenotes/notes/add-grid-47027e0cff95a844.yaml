@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    Add ``minorminer.utils._clique.grid``, providing ``Grid``, a survey of a
+    (possibly faulty) Zephyr topology. ``Grid.from_graph`` walks the graph once
+    and precomputes the tables the clique embedder queries: present and missing
+    qubits, couplers, absent internal couplers, the maximal intact stretches
+    ("runs") of each external line, and position maps ranking the parallel
+    qubits on a line by how far they reach. It is intended for internal use in
+    hot loops, where re-walking the graph on every lookup would dominate;
+    L-shaped chain reachability is resolved per block pair on demand by
+    ``el_reachable`` and memoized.
