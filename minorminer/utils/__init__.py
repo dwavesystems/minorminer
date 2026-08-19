@@ -20,4 +20,3 @@ from minorminer.utils.exceptions import (MissingChainError, ChainOverlapError,
 DisconnectedChainError, InvalidNodeError, MissingEdgeError)
 from minorminer.utils.diagnostic import (diagnose_embedding, is_valid_embedding,
 verify_embedding)
-from minorminer.utils._clique.longest_strictly_increasing_subsequence import *

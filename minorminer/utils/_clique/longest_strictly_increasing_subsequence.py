@@ -71,14 +71,15 @@ Reference:
     (section "Efficient algorithms").
 """
 
-from typing import Any
+from typing import Any, Sequence
+import bisect
 
 __all__ = ["longest_strictly_increasing_subsequence"]
 
 
 def longest_strictly_increasing_subsequence(
-    sequence: list[Any],
-) -> tuple[list[Any], dict[int, int]]:
+    sequence: Sequence[Any],
+) -> tuple[list[Any], list[int]]:
     """Find a longest strictly-increasing subsequence of `sequence`.
 
     Args:
@@ -92,8 +93,8 @@ def longest_strictly_increasing_subsequence(
           * subsequence: the chosen values in order -- one longest
             strictly-increasing subsequence of the input. Ties are resolved
             deterministically (same input, same output).
-          * indices: maps each position in `subsequence` to the index it came
-            from in `sequence`, so sequence[indices[i]] == subsequence[i].
+          * indices: indices[i] is the index in ``sequence`` that position i of `subsequence` came
+            from, so sequence[indices[i]] == subsequence[i].
     """
 
     # For each value, the index of the value that precedes it in the growing
@@ -116,15 +117,9 @@ def longest_strictly_increasing_subsequence(
         # values land on an existing pile rather than starting a new one -- this
         # is what makes the result STRICTLY increasing. The pile tops are sorted
         # left-to-right by construction, so a binary search finds the slot.
-        lo = 1
-        hi = pile_count + 1
-        while lo < hi:
-            mid = lo + (hi - lo) // 2  # lo <= mid < hi
-            if sequence[smallest_tail_index[mid]] >= value:
-                hi = mid
-            else:
-                lo = mid + 1
-        pile = lo
+        pile = bisect.bisect_left(
+            smallest_tail_index, value, 1, pile_count +1, key=lambda idx: sequence[idx]
+            )
 
         # The value just left of this one in the subsequence is the top of the
         # previous pile.
@@ -143,7 +138,7 @@ def longest_strictly_increasing_subsequence(
     # Walk the predecessor chain back from the top of the last pile, filling the
     # subsequence right-to-left.
     subsequence = [None] * pile_count
-    indices = {}
+    indices = [0] * pile_count
     node = smallest_tail_index[pile_count]
     for position in range(pile_count - 1, -1, -1):
         indices[position] = node
