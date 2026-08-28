@@ -1,0 +1,10 @@
+---
+prelude: >
+    Efficient 1:1 embedding via a subgraph isomorphism is NP-hard in general but    can be significantly accelerated using the new node_label functionality in
+    find_subgraph that restricts searches according to graph geometry,
+    specifically known/presumed coloring restrictions in the mapping.
+features:
+  - |
+    Methods to label canonical D-Wave graphs according to qubit orientation,
+    canonical colorings and quotient graphs.
+    A wrapping of find_subgraph to search on the basis of such colorings.
