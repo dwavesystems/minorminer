@@ -71,10 +71,10 @@ Construction
 Grid.from_graph(graph)      builds + runs the full survey, caches everything.
 
 After from_graph, these attributes are available:
-  .present[kind]      ``{(x, y, k): r}``               present qubits -> linear index
-  .missing[kind]      frozenset of ``(x, y, k)``       absent qubits
-  .edges              set of ``(lo, hi)``              present couplers, r-index pairs
-  .missing_int        ``{(v, hp): (v_base, h_base)}``  missing internal couplers
+  .present_qubits[kind]       ``{(x, y, k): r}``               present qubits -> linear index
+  .missing_qubits[kind]       frozenset of ``(x, y, k)``       absent qubits
+  .edges                      set of ``(lo, hi)``              present couplers, r-index pairs
+  .missing_internal_couplers  ``{(v, hp): (v_base, h_base)}``  missing internal couplers
   .runs               ``runs[kind][coord][k] -> {(start, end), ...}``
   .pos                position_quo result: ``{side: {(x, y): {orig_k: pos}}}``
 
@@ -174,10 +174,10 @@ class Grid:
     abs_min: int
     abs_max: int
     labels: str  # output mode: "int"/"coordinates"/"cartesian"
-    present: dict[str, dict[Node, int]]  # present[kind][node] -> linear index r
-    missing: dict[str, frozenset[Node] | set[Node]]
+    present_qubits: dict[str, dict[Node, int]]  # present_qubits[kind][node] -> linear index r
+    missing_qubits: dict[str, frozenset[Node] | set[Node]]
     _edges: set[tuple[int, int]] | None  # present couplers as (lo, hi) r-pairs
-    missing_int: dict | None  # see _missing_int
+    missing_internal_couplers: dict | None  # see _missing_internal_couplers
     runs: Runs | None
     _el_cache: dict  # el_reachable memo
     pos: Pos | None
@@ -187,10 +187,10 @@ class Grid:
         "abs_min",
         "abs_max",
         "labels",
-        "present",
-        "missing",
+        "present_qubits",
+        "missing_qubits",
         "_edges",
-        "missing_int",
+        "missing_internal_couplers",
         "runs",
         "_el_cache",
         "pos",
@@ -207,12 +207,12 @@ class Grid:
         self.t = t
         self.abs_min = 0
         self.abs_max = 4 * m
-        self.labels = "int"  # output mode: "int" or "coordinates"
-        self.present = {k: {} for k in _KINDS}
-        self.missing = {k: set() for k in _KINDS}
+        self.labels = "int"  # output mode: "int", "coordinates", or "cartesian"
+        self.present_qubits = {k: {} for k in _KINDS}
+        self.missing_qubits = {k: set() for k in _KINDS}
         self._edges = None
         # survey outputs (filled by _run_survey)
-        self.missing_int = None
+        self.missing_internal_couplers = None
         self.runs = None
         self._el_cache = {}
         self.pos = None
@@ -222,17 +222,17 @@ class Grid:
         """Build a Grid from a networkx Zephyr graph and run the full survey.
 
         The graph must carry Zephyr topology metadata in graph.graph: family == "zephyr", rows (=
-        ``m``), tile (= ``t``), and labels in {"int", "coordinates"}. Raises ValueError if the
-        topology is not zephyr.
+        ``m``) and tile (= ``t``). Raises ValueError if the topology is not zephyr.
 
-        labels == "int": nodes are linear indices (as a D-Wave sampler's nodelist); matched directly
-        against the linear-index lattice walk. labels == "coordinates": nodes are Zephyr coordinates
-        ``(u, w, k, j, z)``; each is converted to cartesian ``(x, y, k)``, then to its linear index
-        r via the walk.
+        The label mode is inferred from the node type, not from graph metadata. Integer nodes are
+        linear indices (as a D-Wave sampler's nodelist), matched directly against the linear-index
+        lattice walk. 5-tuple nodes are Zephyr coordinates ``(u, w, k, j, z)``; each is converted to
+        cartesian ``(x, y, k)``, then to its linear index r via the walk. 3-tuple nodes are already
+        cartesian ``(x, y, k)``.
 
         Either way the internal representation is identical (cartesian nodes, linear-index r,
-        ``(r, r)`` edges); only find_clique's OUTPUT format follows `labels` (linear indices for
-        "int", Zephyr coordinates for "coordinates").
+        ``(r, r)`` edges); only find_clique's OUTPUT format follows the inferred mode (linear
+        indices for "int", Zephyr coordinates for "coordinates", cartesian for "cartesian").
         """
         info = graph.graph
         family = info.get("family")
@@ -250,7 +250,6 @@ class Grid:
         # spells it "coordinate"; other producers may differ or omit it). Integer
         # nodes -> linear-index mode; a 5-tuple (Zephyr u,w,k,j,z) -> zephyr
         # "coordinates" mode; a 3-tuple (cartesian x,y,k) -> "cartesian" mode.
-        # The labels string, if present, is used only as a sanity cross-check.
         sample = next(iter(graph.nodes()))
         if isinstance(sample, tuple):
             if len(sample) == 5:
@@ -270,45 +269,46 @@ class Grid:
                 f"an int (linear), a 5-tuple (Zephyr), or a 3-tuple (cartesian)"
             )
 
-        g = cls(m, t)
-        g.labels = labels
+        grid = cls(m, t)
+        grid.labels = labels
 
         if labels == "int":
             present_r = set(graph.nodes())
-            g._classify(present_r)
-            g._edges = {(a, b) if a < b else (b, a) for a, b in graph.edges()}
+            grid._classify(present_r)
+            grid._edges = {(a, b) if a < b else (b, a) for a, b in graph.edges()}
         elif labels == "cartesian":  # nodes are cartesian (x, y, k) already
-            g._classify_from_present_nodes(set(graph.nodes()))
+            grid._classify_from_present_nodes(set(graph.nodes()))
             # cartesian edges -> linear r pairs (internal edge set stays linear)
-            lin = g.cartesian_to_linear
             edges = set()
-            for ca, cb in graph.edges():
-                ra, rb = lin(ca), lin(cb)
-                if ra is None or rb is None:
+            for ccoord_a, ccoord_b in graph.edges():
+                lcoord_a = grid.cartesian_to_linear(ccoord_a)
+                lcoord_b = grid.cartesian_to_linear(ccoord_b)
+                if lcoord_a is None or lcoord_b is None:
                     continue
-                edges.add((ra, rb) if ra < rb else (rb, ra))
-            g._edges = edges
+                edges.add((lcoord_a, lcoord_b) if lcoord_a < lcoord_b else (lcoord_b, lcoord_a))
+            grid._edges = edges
         else:  # coordinates: nodes are Zephyr 5-tuples
-            g._classify_from_present_nodes({zephyr_to_cartesian(z) for z in graph.nodes()})
+            grid._classify_from_present_nodes({zephyr_to_cartesian(z) for z in graph.nodes()})
             # convert coordinate edges -> cartesian -> linear r pairs
-            lin = g.cartesian_to_linear
             edges = set()
-            for za, zb in graph.edges():
-                ra = lin(zephyr_to_cartesian(za))
-                rb = lin(zephyr_to_cartesian(zb))
-                if ra is None or rb is None:
+            for zcoord_a, zcoord_b in graph.edges():
+                lcoord_a = grid.cartesian_to_linear(zephyr_to_cartesian(zcoord_a))
+                lcoord_b = grid.cartesian_to_linear(zephyr_to_cartesian(zcoord_b))
+                if lcoord_a is None or lcoord_b is None:
                     continue
-                edges.add((ra, rb) if ra < rb else (rb, ra))
-            g._edges = edges
+                edges.add((lcoord_a, lcoord_b) if lcoord_a < lcoord_b else (lcoord_b, lcoord_a))
+            grid._edges = edges
 
-        g._freeze()
-        g._run_survey()
-        return g
+        grid._freeze()
+        grid._run_survey()
+        return grid
 
     def _classify(self, present_r: set[int]) -> None:
-        """Walk the full ideal lattice in linear-index order, sorting each node into its kind bucket
-        (present[kind] or missing[kind]) and recording the r -> cartesian map. A node is present iff
-        its linear index r is in present_r.
+        """Sort every ideal-lattice node into its kind bucket, in linear-index order.
+
+        Walks the full ideal lattice, filing each node under present_qubits[kind] or
+        missing_qubits[kind] and recording the r -> cartesian map. A node is present iff its linear
+        index r is in present_r.
 
         The walk order is what DEFINES r, and it must match the sampler's own indexing exactly --
         verticals first (``x = 0, 2, ...``; for each ``k``, the ``y % 4 == 1`` nodes then the
@@ -318,66 +318,76 @@ class Grid:
         self._walk(lambda r, node: r in present_r)
 
     def _classify_from_present_nodes(self, present_nodes: set[Node]) -> None:
-        """Same lattice walk / r numbering as _classify, but a node is present iff its cartesian
-        ``(x, y, k)`` is in present_nodes (used for coordinate- labeled graphs, where presence is
-        known by node, not by linear index)."""
+        """Classify by cartesian node membership instead of by linear index.
+
+        Same lattice walk / r numbering as _classify, but a node is present iff its cartesian
+        ``(x, y, k)`` is in present_nodes (used for coordinate-labeled graphs, where presence is
+        known by node, not by linear index).
+        """
         self._walk(lambda r, node: node in present_nodes)
 
     def _walk(self, is_present: Callable[[int, Node], bool]) -> None:
-        """Shared lattice walk: assign linear index r to every ideal node in the canonical order,
-        and file it as present/missing per the is_present(r, node) predicate. Populates
-        present[kind] and missing[kind]."""
+        """Assign linear index r to every ideal node and file it as present or missing.
+
+        Shared by both classify entry points: walks the canonical order and applies the
+        is_present(r, node) predicate. Populates present_qubits[kind] and missing_qubits[kind].
+        """
         m, t = self.m, self.t
-        M = 2 * m + 1
-        present, missing = self.present, self.missing
+        num_w = 2 * m + 1
+        present, missing = self.present_qubits, self.missing_qubits
         r = 0
-        for w in range(M):
+        for w in range(num_w):
             x = 2 * w
             for k in range(t):
                 for shift, kind in ((1, "v1"), (3, "v3")):
-                    pres, miss = present[kind], missing[kind]
+                    kind_present, kind_missing = present[kind], missing[kind]
                     for z in range(m):
                         node = (x, 4 * z + shift, k)
                         if is_present(r, node):
-                            pres[node] = r
+                            kind_present[node] = r
                         else:
-                            miss.add(node)
+                            kind_missing.add(node)
                         r += 1
-        for w in range(M):
+        for w in range(num_w):
             y = 2 * w
             for k in range(t):
                 for shift, kind in ((1, "h1"), (3, "h3")):
-                    pres, miss = present[kind], missing[kind]
+                    kind_present, kind_missing = present[kind], missing[kind]
                     for z in range(m):
                         node = (4 * z + shift, y, k)
                         if is_present(r, node):
-                            pres[node] = r
+                            kind_present[node] = r
                         else:
-                            miss.add(node)
+                            kind_missing.add(node)
                         r += 1
 
     def _freeze(self) -> None:
-        """Convert the mutable missing sets to frozensets after classification. Signals that the
-        missing buckets are final; membership tests are the hot use, and frozenset makes the
-        immutability explicit."""
-        self.missing = {k: frozenset(s) for k, s in self.missing.items()}
+        """Convert the mutable missing sets to frozensets after classification.
+
+        Signals that the missing buckets are final; membership tests are the hot use, and frozenset
+        makes the immutability explicit.
+        """
+        self.missing_qubits = {k: frozenset(s) for k, s in self.missing_qubits.items()}
 
     def _run_survey(self) -> None:
         """Run every survey pass in dependency order and cache the results.
 
-        Order matters: missing_int feeds el_reachable's reachability checks; survey_ext's runs feed
-        both el_reachable and position_quo. The ideal el-template geometry is fault-independent, so
-        it is not surveyed here; the el_template_length / el_reachable methods compute it on demand.
+        Order matters: missing_internal_couplers feeds el_reachable's reachability checks;
+        survey_ext's runs feed both el_reachable and position_quo. The ideal el-template geometry is
+        fault-independent, so it is not surveyed here; the el_template_length / el_reachable methods
+        compute it on demand.
         """
-        self.missing_int = self._missing_int()
+        self.missing_internal_couplers = self._missing_internal_couplers()
         self.runs = self._survey_ext()
         self.pos = self._position_quo()
 
     # -------------------------------------------------------------- accessors
     def kind_of(self, ccoord: Node) -> str:
-        """Return the kind ("v1"/"v3"/"h1"/"h3") of a cartesian coord from its parity. ``x`` even
-        -> vertical (``v1 if y % 4 == 1 else v3``); ``x`` odd -> horizontal
-        (``h1 if x % 4 == 1 else h3``). Pure coordinate arithmetic; no lookup."""
+        """Return the kind ("v1"/"v3"/"h1"/"h3") of a cartesian coord from its parity.
+
+        ``x`` even -> vertical (``v1 if y % 4 == 1 else v3``); ``x`` odd -> horizontal
+        (``h1 if x % 4 == 1 else h3``). Pure coordinate arithmetic; no lookup.
+        """
         x, y, _ = ccoord
         if (x & 1) == 0:
             return "v1" if (y & 3) == 1 else "v3"
@@ -385,11 +395,11 @@ class Grid:
 
     def cartesian_to_linear(self, ccoord: Node) -> int | None:
         """Linear index (lcoord) of a present cartesian coord, or None if absent/missing."""
-        return self.present[self.kind_of(ccoord)].get(ccoord)
+        return self.present_qubits[self.kind_of(ccoord)].get(ccoord)
 
     def is_present(self, ccoord: Node) -> bool:
         """True if the cartesian coord exists in the (faulty) grid."""
-        return ccoord in self.present[self.kind_of(ccoord)]
+        return ccoord in self.present_qubits[self.kind_of(ccoord)]
 
     @property
     def edges(self) -> set[tuple[int, int]]:
@@ -397,8 +407,10 @@ class Grid:
         return self._edges
 
     def has_edge(self, lcoord1: int, lcoord2: int) -> bool:
-        """True if a coupler exists between linear indices lcoord1 and lcoord2
-        (order-independent)."""
+        """True if a coupler exists between linear indices lcoord1 and lcoord2.
+
+        Order-independent.
+        """
         e = (lcoord1, lcoord2) if lcoord1 < lcoord2 else (lcoord2, lcoord1)
         return e in self._edges
 
@@ -406,55 +418,56 @@ class Grid:
     # Ideal, fault-independent geometry, computed on demand.
 
     def el_template_length(self, v_quo: QuoSpan, h_quo: QuoSpan) -> int | None:
-        """chain_length of the el_template ``(v_quo, h_quo)``, or None if the pair is not a real
-        el_template. (The None case doubles as the el_template test used by expand_el_templates.)"""
+        """chain_length of the el_template ``(v_quo, h_quo)``, or None if it is not a real one.
+
+        (The None case doubles as the el_template test used by expand_el_templates.)
+        """
         return el_geometry.el_template_length(self.m, v_quo, h_quo)
 
     # ----------------------------------------------------------- survey passes
-    def _missing_int(
+    def _missing_internal_couplers(
         self,
     ) -> dict[tuple[Node, Node], tuple[tuple[int, int, int], tuple[int, int, int]]]:
-        """Find internal couplers that SHOULD exist (ideal geometry) but are absent in the faulty
-        grid.
+        """Find internal couplers that SHOULD exist (ideal geometry) but are absent.
 
         Internal couplers join a vertical node ``v = (x, y, k)`` to a horizontal node
         ``hp = (x+-1, y+-1, kp)`` for every ``kp in range(t)``. For each present vertical node and
         each of its four diagonal horizontal neighbours (in bounds, present), we check whether the
         coupler exists in `edges`; if not, record it. Returns ``{(v, hp): (v_base, hp_base)}`` where
         the values are the quotient (``k``-folded) descriptors ``(x, v_shift, k)`` and
-        ``(hp_shift, yj, kp)``.
+        ``(hp_shift, hp_y, kp)``.
         """
         abs_min, abs_max, t = self.abs_min, self.abs_max, self.t
-        edges, present, missing = self._edges, self.present, self.missing
+        edges, present, missing = self._edges, self.present_qubits, self.missing_qubits
         H_KIND = {1: "h1", 3: "h3"}
         krange = range(t)
         OFFS = ((-1, -1), (-1, 1), (1, -1), (1, 1))
-        out = {}
+        missing_couplers = {}
         for v_shift, v_kind in ((1, "v1"), (3, "v3")):
             for v, v_r in present[v_kind].items():
                 x, y, k = v
                 for dx, dy in OFFS:
-                    xi = x + dx
-                    if xi < abs_min or xi > abs_max:
+                    hp_x = x + dx
+                    if hp_x < abs_min or hp_x > abs_max:
                         continue
-                    yj = y + dy
-                    if yj < abs_min or yj > abs_max:
+                    hp_y = y + dy
+                    if hp_y < abs_min or hp_y > abs_max:
                         continue
-                    hp_shift = xi & 3
+                    hp_shift = hp_x & 3
                     hp_nodes = present[H_KIND[hp_shift]]
                     hp_missing = missing[H_KIND[hp_shift]]
-                    base = (x, v_shift, k)
+                    v_base = (x, v_shift, k)
                     # internal couplers are all-to-all in k: v's k couples to
                     # every hp kp, so there is no k == kp guard here.
                     for kp in krange:
-                        hp = (xi, yj, kp)
+                        hp = (hp_x, hp_y, kp)
                         if hp in hp_missing:
                             continue
                         hp_r = hp_nodes[hp]
-                        er = (v_r, hp_r) if v_r < hp_r else (hp_r, v_r)
-                        if er not in edges:
-                            out[(v, hp)] = (base, (hp_shift, yj, kp))
-        return out
+                        coupler = (v_r, hp_r) if v_r < hp_r else (hp_r, v_r)
+                        if coupler not in edges:
+                            missing_couplers[(v, hp)] = (v_base, (hp_shift, hp_y, kp))
+        return missing_couplers
 
     def _survey_ext(self) -> Runs:
         """Walk every external line and split it into RUNS (maximal intact stretches).
@@ -469,52 +482,55 @@ class Grid:
         and position_quo consume.
         """
         abs_max, t, m = self.abs_max, self.t, self.m
-        edges, present, missing = self._edges, self.present, self.missing
+        edges, present, missing = self._edges, self.present_qubits, self.missing_qubits
         runs = {k: {} for k in _KINDS}
-        for dir_str, s0 in product(("v", "h"), (1, 3)):
-            kind = dir_str + str(s0)
-            _nodes, _missing = present[kind], missing[kind]
-            is_v = dir_str == "v"
-            for i in range(0, 4 * m + 1, 2):
-                coord_map = runs[kind].setdefault(i, {})
+        for direction, shift in product(("v", "h"), (1, 3)):
+            kind = direction + str(shift)
+            kind_nodes, kind_missing = present[kind], missing[kind]
+            is_vertical = direction == "v"
+            for fixed_coord in range(0, 4 * m + 1, 2):
+                coord_map = runs[kind].setdefault(fixed_coord, {})
                 for k in range(t):
-                    res = set()
-                    s = s0
-                    while s <= abs_max:
-                        node = (i, s, k) if is_v else (s, i, k)
-                        if node not in _missing:
-                            prev = s
+                    runs_for_k = set()
+                    coord = shift
+                    while coord <= abs_max:
+                        if is_vertical:
+                            node = (fixed_coord, coord, k)
+                        else:
+                            node = (coord, fixed_coord, k)
+                        if node not in kind_missing:
+                            prev = coord
                             inc = 4
                             end = prev
-                            next_s = None
+                            next_coord = None
                             while prev + inc <= abs_max:
-                                if is_v:
-                                    pn = (i, prev, k)
-                                    nn = (i, prev + inc, k)
+                                if is_vertical:
+                                    previous_node = (fixed_coord, prev, k)
+                                    next_node = (fixed_coord, prev + inc, k)
                                 else:
-                                    pn = (prev, i, k)
-                                    nn = (prev + inc, i, k)
-                                if nn in _missing:
+                                    previous_node = (prev, fixed_coord, k)
+                                    next_node = (prev + inc, fixed_coord, k)
+                                if next_node in kind_missing:
                                     # next node is a hole: end the run and resume
                                     # PAST it (a missing node can't start a run).
-                                    end, next_s = prev, prev + 2 * inc
+                                    end, next_coord = prev, prev + 2 * inc
                                     break
-                                if (_nodes[pn], _nodes[nn]) in edges:
+                                if (kind_nodes[previous_node], kind_nodes[next_node]) in edges:
                                     prev += inc
                                 else:
-                                    # coupler is broken but nn exists: end here and
-                                    # resume AT nn, which starts the next run.
-                                    end, next_s = prev, prev + inc
+                                    # coupler is broken but next_node exists: end here
+                                    # and resume AT it, which starts the next run.
+                                    end, next_coord = prev, prev + inc
                                     break
                             else:
-                                end, next_s = prev, None
-                            res.add((s, end))
-                            if next_s is None:
+                                end, next_coord = prev, None
+                            runs_for_k.add((coord, end))
+                            if next_coord is None:
                                 break
-                            s = next_s
+                            coord = next_coord
                         else:
-                            s += 4
-                    coord_map[k] = res
+                            coord += 4
+                    coord_map[k] = runs_for_k
         return runs
 
     def el_reachable(self, v: Node, h: Node) -> tuple[QuoSpan, QuoSpan, int, int] | None:
@@ -525,7 +541,7 @@ class Grid:
           * the block pair ``(v_block, h_block)`` has an el_template (i.e. the two lines cross in
             the ideal grid),
           * none of the four involved nodes v, vp, h, hp are missing,
-          * the connecting internal coupler is not in missing_int,
+          * the connecting internal coupler is not in missing_internal_couplers,
           * both required quotient runs are actually covered by real runs for the chosen ``v_k`` /
             ``h_k`` in the faulty grid.
 
@@ -542,26 +558,26 @@ class Grid:
 
         v_x, v_y, v_k = v
         h_x, h_y, h_k = h
-        tmpl = el_geometry.el_template(self.m, v_x, v_y, h_x, h_y)
+        template = el_geometry.el_template(self.m, v_x, v_y, h_x, h_y)
         result = None
-        if tmpl is not None:
+        if template is not None:
             # el_geometry.el_template returns (vp_y, hp_x, v_quo_span, h_quo_span);
             # everything else this method needs is carried inside the two spans
             # (v_quo_span = (v_x, v_shift, v_a, v_b); h_quo_span = (h_shift, h_y, h_a, h_b)).
-            vp_y, hp_x, v_quo_span, h_quo_span = tmpl
+            vp_y, hp_x, v_quo_span, h_quo_span = template
             _v_x, v_y_shift, v_a, v_b = v_quo_span
             h_x_shift, _h_y, h_a, h_b = h_quo_span
             v_kind = "v1" if v_y_shift == 1 else "v3"
             h_kind = "h1" if h_x_shift == 1 else "h3"
             vp = (v_x, vp_y, v_k)
             hp = (hp_x, h_y, h_k)
-            missing = self.missing
+            missing = self.missing_qubits
             if (
                 v not in missing[v_kind]
                 and vp not in missing[v_kind]
                 and h not in missing[h_kind]
                 and hp not in missing[h_kind]
-                and (vp, hp) not in self.missing_int
+                and (vp, hp) not in self.missing_internal_couplers
             ):
                 v_runs = self.runs[v_kind].get(v_x, {}).get(v_k, ())
                 h_runs = self.runs[h_kind].get(h_y, {}).get(h_k, ())
@@ -582,11 +598,11 @@ class Grid:
         self._el_cache = {}
 
     def _position_quo(self) -> Pos:
-        """Rank the ``t`` parallel qubits on each external line by how far they reach from each of
-        the four sides, and emit position maps.
+        """Rank each external line's qubits by reach from each side and emit position maps.
 
-        For every coordinate along a line, each present ``k`` has a distance to the near end of its
-        run: for verticals, distance from the bottom ("b") and top ("t"); for horizontals, from the
+        The ``t`` parallel qubits on a line are ranked by how far they reach from each of the four
+        sides. For every coordinate along a line, each present ``k`` has a distance to the near end
+        of its run: for verticals, from the bottom ("b") and top ("t"); for horizontals, from the
         left ("l") and right ("r"). The ``k``'s are ranked by that distance and reassigned physical
         positions via the Zephyr index formula, so downstream "position order" == "reach order".
         This is what lets the sliding-window embedding turn a 2D non-crossing constraint into a 1D
@@ -598,71 +614,73 @@ class Grid:
         abs_max, t = self.abs_max, self.t
         runs = self.runs
 
-        verb, vert, horl, horr = {}, {}, {}, {}
+        v_bottom, v_top, h_left, h_right = {}, {}, {}, {}
 
         # vertical: x even; two lines per x (v1, v3)
         for x in range(0, abs_max + 1, 2):
-            b_by_y, u_by_y = {}, {}
+            bottom_reach_by_y, top_reach_by_y = {}, {}
             for kind in ("v1", "v3"):
-                per_k = runs[kind].get(x, {})
-                for k, segset in per_k.items():
-                    for start, end in segset:
-                        yy = start
-                        while yy <= end:
-                            bd = b_by_y.get(yy)
-                            if bd is None:
-                                bd = b_by_y[yy] = {}
-                                u_by_y[yy] = {}
+                runs_by_k = runs[kind].get(x, {})
+                for k, runs_for_k in runs_by_k.items():
+                    for run_start, run_end in runs_for_k:
+                        y = run_start
+                        while y <= run_end:
+                            bottom_reach = bottom_reach_by_y.get(y)
+                            if bottom_reach is None:
+                                bottom_reach = bottom_reach_by_y[y] = {}
+                                top_reach_by_y[y] = {}
                             # reach distance to each end of this run:
-                            # bottom = yy - start, top (up) = end - yy
-                            bd[k] = yy - start
-                            u_by_y[yy][k] = end - yy
-                            yy += 4
-            for yy, bd in b_by_y.items():
-                verb[(x, yy)] = _ranked_pos_fast(x, yy, bd, t, True)
-                vert[(x, yy)] = _ranked_pos_fast(x, yy, u_by_y[yy], t, True)
+                            # bottom = y - run_start, top (up) = run_end - y
+                            bottom_reach[k] = y - run_start
+                            top_reach_by_y[y][k] = run_end - y
+                            y += 4
+            for y, bottom_reach in bottom_reach_by_y.items():
+                v_bottom[(x, y)] = _ranked_pos_fast(x, y, bottom_reach, t, True)
+                v_top[(x, y)] = _ranked_pos_fast(x, y, top_reach_by_y[y], t, True)
 
         # horizontal: y even; two lines per y (h1, h3)
         for y in range(0, abs_max + 1, 2):
-            l_by_x, r_by_x = {}, {}
+            left_reach_by_x, right_reach_by_x = {}, {}
             for kind in ("h1", "h3"):
-                per_k = runs[kind].get(y, {})
-                for k, segset in per_k.items():
-                    for start, end in segset:
-                        xx = start
-                        while xx <= end:
-                            ld = l_by_x.get(xx)
-                            if ld is None:
-                                ld = l_by_x[xx] = {}
-                                r_by_x[xx] = {}
-                            ld[k] = end - xx
-                            r_by_x[xx][k] = xx - start
-                            xx += 4
-            for xx, ld in l_by_x.items():
-                horl[(xx, y)] = _ranked_pos_fast(xx, y, ld, t, False)
-                horr[(xx, y)] = _ranked_pos_fast(xx, y, r_by_x[xx], t, False)
+                runs_by_k = runs[kind].get(y, {})
+                for k, runs_for_k in runs_by_k.items():
+                    for run_start, run_end in runs_for_k:
+                        x = run_start
+                        while x <= run_end:
+                            left_reach = left_reach_by_x.get(x)
+                            if left_reach is None:
+                                left_reach = left_reach_by_x[x] = {}
+                                right_reach_by_x[x] = {}
+                            left_reach[k] = run_end - x
+                            right_reach_by_x[x][k] = x - run_start
+                            x += 4
+            for x, left_reach in left_reach_by_x.items():
+                h_left[(x, y)] = _ranked_pos_fast(x, y, left_reach, t, False)
+                h_right[(x, y)] = _ranked_pos_fast(x, y, right_reach_by_x[x], t, False)
 
         # backfill empty dicts for uncovered in-range coords
         for x in range(0, abs_max + 1, 2):
-            for yy in range(1, abs_max + 1, 2):
-                key = (x, yy)
-                if key not in verb:
-                    verb[key] = {}
-                    vert[key] = {}
-        for xx in range(1, abs_max + 1, 2):
+            for y in range(1, abs_max + 1, 2):
+                key = (x, y)
+                if key not in v_bottom:
+                    v_bottom[key] = {}
+                    v_top[key] = {}
+        for x in range(1, abs_max + 1, 2):
             for y in range(0, abs_max + 1, 2):
-                key = (xx, y)
-                if key not in horl:
-                    horl[key] = {}
-                    horr[key] = {}
+                key = (x, y)
+                if key not in h_left:
+                    h_left[key] = {}
+                    h_right[key] = {}
 
-        return {"r": horr, "l": horl, "b": verb, "t": vert}
+        return {"r": h_right, "l": h_left, "b": v_bottom, "t": v_top}
 
 
 def _covers(runs_for_k: Iterable[Run], a: int, b: int) -> bool:
-    """True if some run ``(start, end)`` in the set fully spans ``[a, b]``
-    (``start <= a and end >= b``). Used to test whether the faulty grid provides an intact
-    stretch long enough for an el_template's required quo_span."""
+    """True if some run ``(start, end)`` in the set fully spans ``[a, b]``.
+
+    That is, ``start <= a and end >= b``. Used to test whether the faulty grid provides an intact
+    stretch long enough for an el_template's required quo_span.
+    """
     for s, e in runs_for_k:
         if s <= a and e >= b:
             return True
@@ -670,33 +688,34 @@ def _covers(runs_for_k: Iterable[Run], a: int, b: int) -> bool:
 
 
 def _ranked_pos_fast(
-    x: int, y: int, dist_by_k: dict[int, int], t: int, is_vertical: bool
+    x: int, y: int, reach_by_k: dict[int, int], t: int, is_vertical: bool
 ) -> dict[int, tuple[int, int]]:
-    """Rank the ``k``'s in dist_by_k by ascending distance and assign each a Zephyr position for its
-    rank.
+    """Rank the ``k``'s in reach_by_k by reach distance and assign each a position.
 
-    Each ``k`` gets the closed-form Zephyr index for its rank, with the constant part of the formula
+    Ranking is by ascending reach distance; each ``k`` then gets the closed-form Zephyr index for
+    its rank, with the constant part of the formula
     hoisted out of the loop: within one ``(x, y)`` only the ``2*rank`` term varies, so the base is
-    computed once and val steps by 2 per rank. Returns ``{orig_k: (a, b)}``; is_vertical selects
-    which tuple slot carries the varying value (verticals -> slot 0, horizontals -> slot 1).
+    computed once and the varying value steps by 2 per rank. Returns ``{orig_k: (a, b)}``;
+    is_vertical selects which tuple slot carries the varying value (verticals -> slot 0,
+    horizontals -> slot 1).
     """
     if is_vertical:
-        j = ((y - 1) & 3) // 2
-        start = 2 * (t + 1) * (j + 2 * (y // 4))
-        val0 = 1 + (t + 1) * x + j
-        out = {}
+        j = ((y - 1) & 3) // 2  # Zephyr j of this line
+        fixed_val = 2 * (t + 1) * (j + 2 * (y // 4))
+        varying_base = 1 + (t + 1) * x + j
+        pos_by_k = {}
         rank = 0
-        for k, _ in sorted(dist_by_k.items(), key=itemgetter(1)):
-            out[k] = (val0 + 2 * rank, start)
+        for k, _ in sorted(reach_by_k.items(), key=itemgetter(1)):
+            pos_by_k[k] = (varying_base + 2 * rank, fixed_val)
             rank += 1
-        return out
+        return pos_by_k
     else:
-        j = ((x - 1) & 3) // 2
-        start = 2 * (t + 1) * (j + 2 * (x // 4))
-        val0 = 1 + (t + 1) * y + j
-        out = {}
+        j = ((x - 1) & 3) // 2  # Zephyr j of this line
+        fixed_val = 2 * (t + 1) * (j + 2 * (x // 4))
+        varying_base = 1 + (t + 1) * y + j
+        pos_by_k = {}
         rank = 0
-        for k, _ in sorted(dist_by_k.items(), key=itemgetter(1)):
-            out[k] = (start, val0 + 2 * rank)
+        for k, _ in sorted(reach_by_k.items(), key=itemgetter(1)):
+            pos_by_k[k] = (fixed_val, varying_base + 2 * rank)
             rank += 1
-        return out
+        return pos_by_k
