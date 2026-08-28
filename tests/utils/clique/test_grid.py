@@ -37,50 +37,54 @@ from minorminer.utils._clique.grid import (
 # --------------------------------------------------------------------------
 def zephyr(m, t, drop_nodes=(), drop_edges=(), labels="cartesian"):
     drop_nodes = set(drop_nodes)
-    dropE = {(a, b) if a < b else (b, a) for (a, b) in drop_edges}
+    drop_edges = {(a, b) if a < b else (b, a) for (a, b) in drop_edges}
 
     full = zephyr_graph(m, t, coordinates=True, data=True)   # authoritative topology
-    z2i = dict(full.nodes(data="linear_index"))                  # Zephyr 5-tuple -> linear int
+    linear_index_by_zcoord = dict(full.nodes(data="linear_index"))
 
-    pres_z = [z for z in full.nodes() if zephyr_to_cartesian(z) not in drop_nodes]
-    presset = set(pres_z)
-    pres_e = []
-    for za, zb in full.edges():
-        if za not in presset or zb not in presset:
+    present_zcoords = [z for z in full.nodes() if zephyr_to_cartesian(z) not in drop_nodes]
+    present_zcoord_set = set(present_zcoords)
+    present_edges = []
+    for zcoord_a, zcoord_b in full.edges():
+        if zcoord_a not in present_zcoord_set or zcoord_b not in present_zcoord_set:
             continue
-        ca, cb = zephyr_to_cartesian(za), zephyr_to_cartesian(zb)
-        ce = (ca, cb) if ca < cb else (cb, ca)
-        if ce in dropE:
+        ccoord_a, ccoord_b = zephyr_to_cartesian(zcoord_a), zephyr_to_cartesian(zcoord_b)
+        edge = (ccoord_a, ccoord_b) if ccoord_a < ccoord_b else (ccoord_b, ccoord_a)
+        if edge in drop_edges:
             continue
-        pres_e.append((za, zb))
+        present_edges.append((zcoord_a, zcoord_b))
 
     if labels == "coordinates":
-        return zephyr_graph(m, t, node_list=pres_z, edge_list=pres_e, coordinates=True)
+        return zephyr_graph(m, t, node_list=present_zcoords, edge_list=present_edges,
+                            coordinates=True)
     if labels == "int":
-        nl = [z2i[z] for z in pres_z]
-        el = [(z2i[a], z2i[b]) for (a, b) in pres_e]
-        return zephyr_graph(m, t, node_list=nl, edge_list=el, coordinates=False)
+        node_list = [linear_index_by_zcoord[z] for z in present_zcoords]
+        edge_list = [
+            (linear_index_by_zcoord[a], linear_index_by_zcoord[b]) for (a, b) in present_edges
+        ]
+        return zephyr_graph(m, t, node_list=node_list, edge_list=edge_list, coordinates=False)
     # cartesian: dwave.graphs has no cartesian labelling, so relabel a coordinate
     # graph's nodes to (x, y, k) -- grid infers "cartesian" from the 3-tuple.
-    gz = zephyr_graph(m, t, node_list=pres_z, edge_list=pres_e, coordinates=True)
-    return nx.relabel_nodes(gz, {z: zephyr_to_cartesian(z) for z in gz.nodes()})
+    zgraph = zephyr_graph(m, t, node_list=present_zcoords, edge_list=present_edges,
+                          coordinates=True)
+    return nx.relabel_nodes(zgraph, {z: zephyr_to_cartesian(z) for z in zgraph.nodes()})
 
 
 def verticals(g):
-    return list(g.present["v1"]) + list(g.present["v3"])
+    return list(g.present_qubits["v1"]) + list(g.present_qubits["v3"])
 
 
 def horizontals(g):
-    return list(g.present["h1"]) + list(g.present["h3"])
+    return list(g.present_qubits["h1"]) + list(g.present_qubits["h3"])
 
 
 def find_reachable(g, min_v_arm=0):
     for v in verticals(g):
         for h in horizontals(g):
-            tmpl = el_geometry.el_template(g.m, v[0], v[1], h[0], h[1])
-            if tmpl is None:
+            template = el_geometry.el_template(g.m, v[0], v[1], h[0], h[1])
+            if template is None:
                 continue
-            vp_y, hp_x, v_quo, h_quo = tmpl
+            vp_y, hp_x, v_quo, h_quo = template
             if v_quo[3] - v_quo[2] < min_v_arm:
                 continue
             if g.el_reachable(v, h) is None:
@@ -156,8 +160,8 @@ class TestGrid(unittest.TestCase):
     def test_from_graph_cartesian_perfect(self):
         g = self.g
         self.assertEqual((g.m, g.t, g.labels), (self.m, self.t, "cartesian"))
-        self.assertTrue(all(len(s) == 0 for s in g.missing.values()))
-        self.assertEqual(len(g.missing_int), 0)
+        self.assertTrue(all(len(s) == 0 for s in g.missing_qubits.values()))
+        self.assertEqual(len(g.missing_internal_couplers), 0)
 
     @parameterized.expand([("int",), ("coordinates",)])
     def test_label_mode_matches_cartesian(self, labels):
@@ -166,7 +170,14 @@ class TestGrid(unittest.TestCase):
         gc = Grid.from_graph(zephyr(self.m, self.t, drop_n, drop_e, "cartesian"))
         go = Grid.from_graph(zephyr(self.m, self.t, drop_n, drop_e, labels))
         self.assertEqual(go.labels, labels)
-        for attr in ("present", "missing", "_edges", "runs", "missing_int", "pos"):
+        for attr in (
+            "present_qubits",
+            "missing_qubits",
+            "_edges",
+            "runs",
+            "missing_internal_couplers",
+            "pos",
+        ):
             self.assertEqual(getattr(gc, attr), getattr(go, attr))
 
     def test_columns_metadata_fallback(self):
@@ -254,18 +265,18 @@ class TestGrid(unittest.TestCase):
         # a shift that cannot match its own endpoints -> not a real template
         self.assertIsNone(self.g.el_template_length((0, 3, 1, 1), (1, 0, 1, 1)))
 
-    # ---------------- _missing_int ----------------
-    def test_missing_int_records_missing_internal_coupler(self):
+    # ---------------- _missing_internal_couplers ----------------
+    def test_missing_internal_couplers_records_missing_internal_coupler(self):
         v, hp = (2, 5, 0), (3, 6, 0)                        # diagonal internal pair
         g = Grid.from_graph(zephyr(self.m, self.t, drop_edges=[(v, hp)]))
-        self.assertIn((v, hp), g.missing_int)
-        self.assertEqual(g.missing_int[(v, hp)], ((2, 1, 0), (3, 6, 0)))
+        self.assertIn((v, hp), g.missing_internal_couplers)
+        self.assertEqual(g.missing_internal_couplers[(v, hp)], ((2, 1, 0), (3, 6, 0)))
 
-    def test_missing_int_skips_absent_horizontal_neighbor(self):
+    def test_missing_internal_couplers_skips_absent_horizontal_neighbor(self):
         # removing a diagonal horizontal node must be skipped (not recorded, no
-        # KeyError); the grid still builds and missing_int stays empty.
+        # KeyError); the grid still builds and missing_internal_couplers stays empty.
         g = Grid.from_graph(zephyr(self.m, self.t, drop_nodes=[(3, 6, 0)]))
-        self.assertEqual(len(g.missing_int), 0)
+        self.assertEqual(len(g.missing_internal_couplers), 0)
 
     # ---------------- _survey_ext ----------------
     @parameterized.expand([
@@ -300,7 +311,7 @@ class TestGrid(unittest.TestCase):
             g = Grid.from_graph(zephyr(self.m, self.t, drop_nodes=[vp]))
         elif reason == "missing_internal":
             g = Grid.from_graph(zephyr(self.m, self.t, drop_edges=[(vp, hp)]))
-            self.assertIn((vp, hp), g.missing_int)
+            self.assertIn((vp, hp), g.missing_internal_couplers)
         else:  # run_not_covered: break an external coupler inside the vertical arm
             g = Grid.from_graph(zephyr(self.m, self.t,
                                        drop_edges=[(v, (v[0], v[1] + 4, v[2]))]))
@@ -362,8 +373,10 @@ class TestGrid(unittest.TestCase):
         for n in cart_nodes:
             ideal_by_kind.setdefault(g.kind_of(n), set()).add(n)
         for kind in ("v1", "v3", "h1", "h3"):
-            self.assertEqual(set(g.present[kind]) | set(g.missing[kind]), ideal_by_kind[kind])
-            self.assertEqual(set(g.present[kind]) & set(g.missing[kind]), set())
+            self.assertEqual(
+                set(g.present_qubits[kind]) | set(g.missing_qubits[kind]), ideal_by_kind[kind]
+            )
+            self.assertEqual(set(g.present_qubits[kind]) & set(g.missing_qubits[kind]), set())
 
         # runs: ordered, endpoints present, consecutive nodes actually coupled
         for kind, per_coord in g.runs.items():
@@ -381,8 +394,8 @@ class TestGrid(unittest.TestCase):
                                                            g.cartesian_to_linear(node)))
                             prev = node
 
-        # missing_int only references present nodes and genuinely-absent couplers
-        for (v, hp), _desc in g.missing_int.items():
+        # missing_internal_couplers only references present nodes and genuinely-absent couplers
+        for (v, hp), _desc in g.missing_internal_couplers.items():
             self.assertTrue(g.is_present(v))
             self.assertTrue(g.is_present(hp))
             self.assertFalse(g.has_edge(g.cartesian_to_linear(v), g.cartesian_to_linear(hp)))
