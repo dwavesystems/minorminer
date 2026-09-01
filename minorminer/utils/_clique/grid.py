@@ -176,7 +176,7 @@ class Grid:
     labels: str  # output mode: "int"/"coordinates"/"cartesian"
     present_qubits: dict[str, dict[Node, int]]  # present_qubits[kind][node] -> linear index r
     missing_qubits: dict[str, frozenset[Node] | set[Node]]
-    _edges: set[tuple[int, int]] | None  # present couplers as (lo, hi) r-pairs
+    edges: set[tuple[int, int]] | None  # present couplers as (lo, hi) r-pairs
     missing_internal_couplers: dict | None  # see _missing_internal_couplers
     runs: Runs | None
     _el_cache: dict  # el_reachable memo
@@ -189,7 +189,7 @@ class Grid:
         "labels",
         "present_qubits",
         "missing_qubits",
-        "_edges",
+        "edges",
         "missing_internal_couplers",
         "runs",
         "_el_cache",
@@ -210,7 +210,7 @@ class Grid:
         self.labels = "int"  # output mode: "int", "coordinates", or "cartesian"
         self.present_qubits = {k: {} for k in _KINDS}
         self.missing_qubits = {k: set() for k in _KINDS}
-        self._edges = None
+        self.edges = None
         # survey outputs (filled by _run_survey)
         self.missing_internal_couplers = None
         self.runs = None
@@ -275,7 +275,7 @@ class Grid:
         if labels == "int":
             present_r = set(graph.nodes())
             grid._classify(present_r)
-            grid._edges = {(a, b) if a < b else (b, a) for a, b in graph.edges()}
+            grid.edges = {(a, b) if a < b else (b, a) for a, b in graph.edges()}
         elif labels == "cartesian":  # nodes are cartesian (x, y, k) already
             grid._classify_from_present_nodes(set(graph.nodes()))
             # cartesian edges -> linear r pairs (internal edge set stays linear)
@@ -286,7 +286,7 @@ class Grid:
                 if lcoord_a is None or lcoord_b is None:
                     continue
                 edges.add((lcoord_a, lcoord_b) if lcoord_a < lcoord_b else (lcoord_b, lcoord_a))
-            grid._edges = edges
+            grid.edges = edges
         else:  # coordinates: nodes are Zephyr 5-tuples
             grid._classify_from_present_nodes({zephyr_to_cartesian(z) for z in graph.nodes()})
             # convert coordinate edges -> cartesian -> linear r pairs
@@ -297,9 +297,8 @@ class Grid:
                 if lcoord_a is None or lcoord_b is None:
                     continue
                 edges.add((lcoord_a, lcoord_b) if lcoord_a < lcoord_b else (lcoord_b, lcoord_a))
-            grid._edges = edges
+            grid.edges = edges
 
-        grid._freeze()
         grid._run_survey()
         return grid
 
@@ -330,7 +329,8 @@ class Grid:
         """Assign linear index r to every ideal node and file it as present or missing.
 
         Shared by both classify entry points: walks the canonical order and applies the
-        is_present(r, node) predicate. Populates present_qubits[kind] and missing_qubits[kind].
+        is_present(r, node) predicate. Populates present_qubits[kind] and finalizes
+        missing_qubits[kind] as frozensets (membership tests are the only downstream use).
         """
         m, t = self.m, self.t
         num_w = 2 * m + 1
@@ -361,12 +361,8 @@ class Grid:
                             kind_missing.add(node)
                         r += 1
 
-    def _freeze(self) -> None:
-        """Convert the mutable missing sets to frozensets after classification.
-
-        Signals that the missing buckets are final; membership tests are the hot use, and frozenset
-        makes the immutability explicit.
-        """
+        # freeze the missing buckets as soon as they're built: membership tests are
+        # the only downstream use, and frozenset makes the immutability explicit
         self.missing_qubits = {k: frozenset(s) for k, s in self.missing_qubits.items()}
 
     def _run_survey(self) -> None:
@@ -401,18 +397,13 @@ class Grid:
         """True if the cartesian coord exists in the (faulty) grid."""
         return ccoord in self.present_qubits[self.kind_of(ccoord)]
 
-    @property
-    def edges(self) -> set[tuple[int, int]]:
-        """The set of present couplers as ``(lo, hi)`` linear-index pairs."""
-        return self._edges
-
     def has_edge(self, lcoord1: int, lcoord2: int) -> bool:
         """True if a coupler exists between linear indices lcoord1 and lcoord2.
 
         Order-independent.
         """
         e = (lcoord1, lcoord2) if lcoord1 < lcoord2 else (lcoord2, lcoord1)
-        return e in self._edges
+        return e in self.edges
 
     # ------------------------------------------------- el-template geometry
     # Ideal, fault-independent geometry, computed on demand.
@@ -438,7 +429,7 @@ class Grid:
         ``(hp_shift, hp_y, kp)``.
         """
         abs_min, abs_max, t = self.abs_min, self.abs_max, self.t
-        edges, present, missing = self._edges, self.present_qubits, self.missing_qubits
+        edges, present, missing = self.edges, self.present_qubits, self.missing_qubits
         H_KIND = {1: "h1", 3: "h3"}
         krange = range(t)
         OFFS = ((-1, -1), (-1, 1), (1, -1), (1, 1))
@@ -482,7 +473,7 @@ class Grid:
         and position_quo consume.
         """
         abs_max, t, m = self.abs_max, self.t, self.m
-        edges, present, missing = self._edges, self.present_qubits, self.missing_qubits
+        edges, present, missing = self.edges, self.present_qubits, self.missing_qubits
         runs = {k: {} for k in _KINDS}
         for direction, shift in product(("v", "h"), (1, 3)):
             kind = direction + str(shift)

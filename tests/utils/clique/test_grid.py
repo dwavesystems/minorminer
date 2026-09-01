@@ -173,7 +173,7 @@ class TestGrid(unittest.TestCase):
         for attr in (
             "present_qubits",
             "missing_qubits",
-            "_edges",
+            "edges",
             "runs",
             "missing_internal_couplers",
             "pos",
@@ -210,7 +210,7 @@ class TestGrid(unittest.TestCase):
         G.add_node((0, 0, 0))                        # invalid parity -> unclassified
         G.add_edge((0, 1, 0), (0, 0, 0))
         g = Grid.from_graph(G)
-        self.assertEqual(g._edges, self.g._edges)    # bogus edge dropped
+        self.assertEqual(g.edges, self.g.edges)    # bogus edge dropped
         self.assertIsNone(g.cartesian_to_linear((0, 0, 0)))
 
     def test_coordinates_edge_to_out_of_range_node_skipped(self):
@@ -243,7 +243,7 @@ class TestGrid(unittest.TestCase):
         self.assertFalse(self.g.is_present((2, 5, 99)))
 
     def test_edges_property(self):
-        self.assertIs(self.g.edges, self.g._edges)
+        self.assertIs(self.g.edges, self.g.edges)
         self.assertIsInstance(self.g.edges, set)
 
     def test_has_edge_order_independent(self):
