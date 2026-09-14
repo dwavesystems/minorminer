@@ -14,17 +14,12 @@
 
 import math
 import unittest
+import numpy as np
 
 from parameterized import parameterized
 
 import minorminer.utils.embedding_quality as eq
 from minorminer.utils.embedding_quality import build_quality, _percentile_sorted, _canonical_edge
-
-try:
-    import numpy as np
-    _HAVE_NUMPY = True
-except ImportError:
-    _HAVE_NUMPY = False
 
 
 def chain(length):
@@ -86,10 +81,9 @@ class TestEmbeddingQuality(unittest.TestCase):
 
     # -- percentile -------------------------------------------------------
     @parameterized.expand(_PERCENTILE_CASES)
-    @unittest.skipUnless(_HAVE_NUMPY, "numpy not installed")
     def test_percentile_matches_numpy(self, values, p):
         sv = sorted(values)
-        expected = float(np.percentile(values, p)) if _HAVE_NUMPY else None
+        expected = float(np.percentile(values, p))
         self.assertTrue(
             math.isclose(_percentile_sorted(sv, p), expected,
                          rel_tol=1e-12, abs_tol=1e-12),
@@ -192,6 +186,11 @@ class TestEmbeddingQuality(unittest.TestCase):
 
     def test_faultiness_edge_key_order_independent(self):
         fm = {"edges": {(self.N2, self.N0): 0.4}}
+        q = build_quality("faultiness", fault_map=fm)
+        self.assertAlmostEqual(q([[self.N0, self.N2]])[0], 0.4)
+
+    def test_faultiness_edge_under_both_orders_counted_once(self):
+        fm = {"edges": {(self.N0, self.N2): 0.4, (self.N2, self.N0): 0.4}}
         q = build_quality("faultiness", fault_map=fm)
         self.assertAlmostEqual(q([[self.N0, self.N2]])[0], 0.4)
 

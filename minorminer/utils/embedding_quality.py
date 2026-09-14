@@ -75,7 +75,8 @@ class FaultMap(TypedDict, total=False):
     ``total=False``: either key may be absent (a missing key means "no faults of
     that kind"). Weights are in ``[0, 1]`` (0 = healthy, 1 = worst); they are the
     caller's responsibility and are not validated. An edge key is an unordered
-    node pair (either endpoint order is accepted; it is canonicalized on lookup).
+    node pair: either endpoint order is accepted, and an edge listed under both
+    orders is one edge, counted once.
     """
 
     nodes: dict[Any, float]  # node label -> fault weight
@@ -143,24 +144,24 @@ def _canonical_edge(u: Any, v: Any) -> frozenset[Any]:
 def _prep_faultiness(
     fault_map: FaultMap | None,
     missing_edges: Iterable[tuple[Any, Any]] | None,
-) -> tuple[
-    dict[Any, float], list[tuple[Any, Any, float]], set[frozenset[Any]]
-]:
+) -> tuple[dict[Any, float], dict[frozenset[Any], float]]:
     """Pre-process a fault map into the form :func:`_faultiness` consumes.
 
-    Does all the once-only work -- extracting the node/edge sub-dicts and
-    canonicalizing edges + missing edges -- so this runs once when :func:`build_quality`
+    Does all the once-only work -- extracting the node/edge sub-dicts,
+    canonicalizing both the fault edges and the missing edges, and dropping the
+    latter from the former -- so this runs once when :func:`build_quality`
     resolves the metric, not once per embedding scored. Returns
-    ``(node_weights, edge_entries, missing)`` where:
+    ``(node_weights, edge_weights)`` where:
 
     * ``node_weights`` maps node -> weight (used as-is);
-    * ``edge_entries`` is a list of ``(u, v, weight)`` with the endpoints kept
-      so :func:`_faultiness` can test them against the used-node set without
-      re-splitting a key;
-    * ``missing`` is a set of canonical (frozenset) edge keys to skip.
+    * ``edge_weights`` maps a canonical (frozenset) edge key -> weight, with
+      every missing edge already removed.
 
-    Edge keys are matched against ``missing`` by canonical form, so either
-    endpoint order works in either input.
+    Keying edges canonically means either endpoint order works in either input,
+    and that a fault map listing an edge under BOTH orientations contributes its
+    weight once, not twice. Two such entries collide on one key, so the later
+    one in iteration order wins -- plain dict semantics; giving one edge two
+    different weights is a caller error, not something this resolves.
     """
     if fault_map is None:
         fault_map = {}
@@ -170,26 +171,28 @@ def _prep_faultiness(
     if missing_edges:
         missing = {_canonical_edge(u, v) for (u, v) in missing_edges}
 
-    edge_entries = []
+    edge_weights = {}
     for (u, v), weight in fault_map.get("edges", {}).items():
-        if _canonical_edge(u, v) in missing:
+        edge = _canonical_edge(u, v)
+        if edge in missing:
             continue  # edge absent -> cannot be faulty; drop it once, here
-        edge_entries.append((u, v, weight))
+        edge_weights[edge] = weight
 
-    return node_weights, edge_entries, missing
+    return node_weights, edge_weights
 
 
 def _faultiness(
     chains: Iterable[Iterable[Any]],
     node_weights: dict[Any, float],
-    edge_entries: list[tuple[Any, Any, float]],
+    edge_weights: dict[frozenset[Any], float],
 ) -> float:
     """Sum fault weight over the embedding, against PRE-PROCESSED inputs from
-    :func:`_prep_faultiness` (node weights, and edge entries already stripped
-    of missing edges).
+    :func:`_prep_faultiness` (node weights, and canonical edge weights already
+    stripped of missing edges).
 
     Iterating the (small) fault entries rather than all used-node pairs keeps
-    this ``O(faults)``, not ``O(nodes^2)``.
+    this ``O(faults)``, not ``O(nodes^2)``. An edge counts when its canonical
+    key is a subset of the used nodes, i.e. both endpoints are used.
     """
     used = {node for c in chains for node in c}
 
@@ -198,8 +201,8 @@ def _faultiness(
         if node in used:
             total += weight
 
-    for u, v, weight in edge_entries:
-        if u in used and v in used:
+    for edge, weight in edge_weights.items():
+        if edge <= used:
             total += weight
 
     return total
@@ -232,8 +235,8 @@ def faultiness(
         fault_map: fault weights, shape ``{"nodes": {...}, "edges": {...}}`` (see
             :class:`FaultMap`). Weights are the caller's responsibility --
             out-of-range values are summed as given, not validated. An edge key
-            is an unordered node pair, canonicalized on lookup, so either order
-            works.
+            is an unordered node pair, so either order works and an edge listed
+            under both orders is counted once.
         missing_edges: unordered node pairs whose edge is ABSENT between two
             present nodes. Such an edge is skipped in the sum, since an edge that
             isn't there cannot contribute fault. ``None`` means "assume every edge
@@ -249,10 +252,8 @@ def faultiness(
         node you do not use contributes nothing regardless, and a node in the
         weight map is assumed to be a real, usable qubit.
     """
-    node_weights, edge_entries, _missing = _prep_faultiness(
-        fault_map, missing_edges
-    )
-    return _faultiness(chains, node_weights, edge_entries)
+    node_weights, edge_weights = _prep_faultiness(fault_map, missing_edges)
+    return _faultiness(chains, node_weights, edge_weights)
 
 
 def _resolve(
@@ -283,12 +284,10 @@ def _resolve(
 
     if name == "faultiness":
         # pre-process the fault map ONCE here; the metric closes over the result
-        node_weights, edge_entries, _missing = _prep_faultiness(
-            fault_map, missing_edges
-        )
+        node_weights, edge_weights = _prep_faultiness(fault_map, missing_edges)
         return (
             _CHAINS,
-            lambda chains: _faultiness(chains, node_weights, edge_entries),
+            lambda chains: _faultiness(chains, node_weights, edge_weights),
         )
 
     known = sorted(LENGTH_METRICS) + ["faultiness"]
@@ -341,7 +340,7 @@ def build_quality(
         names = tuple(criteria)
     if not names:
         raise ValueError(
-            "embedding_quality_criteria must name at least one criterion"
+            "criteria must name at least one criterion"
         )
 
     metrics = [_resolve(n, fault_map, missing_edges) for n in names]
