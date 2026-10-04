@@ -19,15 +19,17 @@ Grid: a (possibly faulty) Zephyr topology surveyed into fast-access structures.
 Vocabulary
 ----------
 Throughout this module (and the rest of the clique embedder) coordinates are Zephyr Cartesian
-coordinates — plain ``(x, y, k)`` tuples following the convention in
-:meth:`dwave.graphs.zephyr_coordinates.zephyr_to_cartesian`
+coordinates — plain ``(x, y, k)`` tuples following the convention of
+:class:`dwave.graphs.ZephyrCartesianCoord`.
 
 Naming: a "quo"/"quotient" prefix means ``k``-agnostic -- the object with its ``k`` index folded
 out, standing for every ``k`` at once. Terms carrying it (quo external path, quo_span below) are
 ``k``-agnostic by definition, so their entries do not repeat it.
 
-node / qubit      ``(x, y, k)``          a Zephyr node in Cartesian coordinates, ``k in range(t)``
-block             ``(x, y)``             quotient node (ignores ``k``)
+node / qubit
+    ``(x, y, k)``: a Zephyr node in Cartesian coordinates, ``k in range(t)``.
+block
+    ``(x, y)``: quotient node (ignores ``k``).
 
 Orientation is fixed by parity: a vertical node has ``x`` even and ``y`` odd; a horizontal node has
 ``x`` odd and ``y`` even.
@@ -38,9 +40,11 @@ vertical kinds v1 and v3, offset by 2 in ``y`` and each stepping by 4. Likewise 
 of the odd coordinate of a block by 4 is called the shift. This orientation-plus-shift label is a
 node's kind.
 
-kind              "v1"|"v3"|"h1"|"h3"    orientation + which of the two shifts
-                  vertical  : ``x`` even, ``y`` odd, ``shift = y % 4`` (so ``shift in {1, 3}``)
-                  horizontal: ``x`` odd,  ``y`` even, ``shift = x % 4`` (so ``shift in {1, 3}``)
+kind
+    "v1"|"v3"|"h1"|"h3": orientation + which of the two shifts.
+
+    - vertical  : ``x`` even, ``y`` odd, ``shift = y % 4`` (so ``shift in {1, 3}``)
+    - horizontal: ``x`` odd,  ``y`` even, ``shift = x % 4`` (so ``shift in {1, 3}``)
 
 An external path through a node is a path that contains it and uses only external couplers. It is
 therefore either vertical -- through nodes sharing ``x = fixed_coord`` and ``k``, with ``y``
@@ -49,58 +53,40 @@ with ``x`` differing by multiples of 4. In an ideal Zephyr all nodes sharing a
 ``(kind, fixed_coord, k)`` lie on one external path; in a faulty one, yield loss (missing nodes or
 external couplers) can break that path into pieces. Each maximal such piece is a RUN.
 
-quo external path ``(kind, fixed_coord)``  an external path with ``k`` folded out;
-                                         two per column/row (the two shifts)
-run               ``(start, end)``         a MAXIMAL external path at a given
-                                         ``(kind, fixed_coord, k)``; grid.runs holds these
-quo_span          ``(fixed, shift, a, b)`` a span ``[a, b]`` on a quo external path that a
-                                         chain requires -- not necessarily maximal;
-                                         realized when some run covers it (_covers /
-                                         el_reachable)
-elbow             elbow(v, h): the pair ``(vp, hp)`` with vp on v's external path and
-                  hp on h's external path (ideal Zephyr), joined by an internal edge --
-                  where the el-path hops from v's path to h's. ``vp = (v_x, vp_y)``,
-                  ``hp = (hp_x, h_y)``; returned as ``(vp_y, hp_x)``.
-el_template       ``(v_quo_span, h_quo_span)`` quotient recipe for an L-shaped chain
-chain             an instantiated path (el_template + chosen ``v_k``, ``h_k``)
-el_reachable      method ``el_reachable(v, h) -> (v_quo_span, h_quo_span, v_k, h_k)`` or None:
-                  whether the L-shaped v->h path exists in the faulty grid
+quo external path
+    ``(kind, fixed_coord)``: An external path with ``k`` folded out; two per column/row (the two
+    shifts).
+
+run
+    ``(start, end)``: A MAXIMAL external path at a given ``(kind, fixed_coord, k)``; grid.runs holds
+    these.
+
+quo_span
+    A :data:`.el_geometry.QuoSpan` -- a span ``[a, b]`` on a quo external path that a chain requires
+    (not necessarily maximal); realized when some run covers it. Vertical spans are
+    ``(v_x, shift, a, b)``, horizontal spans ``(shift, h_y, a, b)``.
+
+el_reachable
+    Method ``el_reachable(v, h) -> (v_quo_span, h_quo_span, v_k, h_k) | None``: whether the L-shaped
+    v->h path (along v's line, one internal hop at the elbow, along h's line) survives in *this*
+    faulty grid -- the fault-dependent counterpart to el_geometry's ideal geometry.
 
 Construction
 ------------
-Grid.from_graph(graph)      builds + runs the full survey, caches everything.
-
-After from_graph, these attributes are available:
-  .present_qubits[kind]       ``{(x, y, k): r}``               present qubits -> linear index
-  .missing_qubits[kind]       frozenset of ``(x, y, k)``       absent qubits
-  .edges                      set of ``(lo, hi)``              present couplers, r-index pairs
-  .missing_internal_couplers  ``{(v, hp): (v_base, h_base)}``  missing internal couplers
-  .runs               ``runs[kind][coord][k] -> {(start, end), ...}``
-  .pos                position_quo result: ``{side: {(x, y): {orig_k: pos}}}``
-
-Geometry methods (ideal el-template geometry, computed on demand; a query is a few arithmetic ops):
-  .el_template_length(v_quo, h_quo) -> chain_length, or None if not an el_template
-  .el_reachable(v, h)             -> ``(v_quo_span, h_quo_span, v_k, h_k)`` or None
-el_reachable is memoized per grid (see its docstring).
-
-Performance notes
------------------
-- from_graph runs the full survey once. The L-shaped reachability between blocks is resolved per
-  pair on demand by el_reachable and cached, not surveyed.
-- The ideal el-template geometry (elbows, el_template, lengths) depends only on ``m`` (independent
-  of which nodes/edges are faulty) and is computed on demand through the methods above. Every result
-  is ``O(1)`` arithmetic from its key; el_reachable's own memo keeps repeated queries cheap.
+``Grid(G)`` builds the object and runs the full survey, caching everything.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from itertools import product
 from operator import itemgetter
 from typing import TYPE_CHECKING
 
+from dwave.graphs import zephyr_coordinates
+
 from minorminer.utils._clique import el_geometry
 from minorminer.utils._clique.el_geometry import QuoSpan
+import numbers
 
 if TYPE_CHECKING:
     import networkx as nx
@@ -108,7 +94,6 @@ if TYPE_CHECKING:
 
 # --- type aliases -----------------------------------------------------------
 Node = tuple[int, int, int]  # cartesian qubit (x, y, k)
-ZCoord = tuple[int, int, int, int, int]  # Zephyr coordinate (u, w, k, j, z)
 Block = tuple[int, int]  # quotient node (x, y), k ignored
 Run = tuple[int, int]  # an intact stretch (start, end) on a line
 # runs[kind][coord][k] -> {(start, end), ...}
@@ -116,200 +101,76 @@ Runs = dict[str, dict[int, dict[int, set[Run]]]]
 # pos[side][(x, y)][orig_k] -> position 2-tuple
 Pos = dict[str, dict[Block, dict[int, tuple[int, int]]]]
 
-_KINDS = ("v1", "v3", "h1", "h3")
-_MISSING = object()  # el_reachable cache: .get() default only, never stored -> distinguishes
-# "not computed" from a cached result (which may be None = unreachable)
-
-
-def zephyr_to_cartesian(zcoord: ZCoord) -> Node:
-    """Convert a Zephyr coordinate ``(u, w, k, j, z)`` to cartesian ``(x, y, k)``.
-
-    ``u = 0`` is a vertical qubit, ``u = 1`` horizontal. Assumes a valid Zephyr coordinate.
-    """
-    u, w, k, j, z = zcoord
-    if u == 0:
-        x = 2 * w
-        y = 4 * z + 2 * j + 1
-    else:
-        x = 4 * z + 2 * j + 1
-        y = 2 * w
-    return (x, y, k)
-
-
-def cartesian_to_zephyr(ccoord: Node) -> ZCoord:
-    """Convert a cartesian coordinate ``(x, y, k)`` to Zephyr ``(u, w, k, j, z)``.
-
-    ``x`` even -> vertical (``u = 0``); ``x`` odd -> horizontal (``u = 1``). Assumes a valid
-    cartesian coordinate. Inverse of zephyr_to_cartesian.
-    """
-    x, y, k = ccoord
-    if x % 2 == 0:
-        u = 0
-        w = x // 2
-        j = ((y - 1) % 4) // 2
-        z = y // 4
-    else:
-        u = 1
-        w = y // 2
-        j = ((x - 1) % 4) // 2
-        z = x // 4
-    return (u, w, k, j, z)
+_NODE_KINDS = ("v1", "v3", "h1", "h3")  # kinds of nodes
+_V_KIND_BY_SHIFT = {1: "v1", 3: "v3"}  # vertical kind from y % 4
+_H_KIND_BY_SHIFT = {1: "h1", 3: "h3"}  # horizontal kind from x % 4
+# (dx, dy) from a vertical node to its four diagonal horizontal neighbours (internal couplers)
+_INTERNAL_COUPLER_OFFSETS = ((-1, -1), (-1, 1), (1, -1), (1, 1))
+# Default for el_reachable's cache lookup: cache.get(key, _EL_REACHABLE_NOT_CACHED). Its own unique
+# object, never stored in the cache, so getting it back means the (v, h) pair hasn't been computed
+# yet. None can't play this role because None is a real cached result (indicating the pair is
+# unreachable).
+_EL_REACHABLE_NOT_CACHED = object()
 
 
 class Grid:
     """A (possibly faulty) Zephyr chip surveyed once at construction into fast lookup structures.
 
-    "Faulty" means some qubits or couplers may be absent; "surveyed" means from_graph walks the
-    whole graph a single time and precomputes the tables (present/missing qubits, couplers, per-line
-    runs, ...) that the rest of the algorithm queries, rather than re-walking the graph on every
-    lookup.
+    "Faulty" means some qubits or couplers may be absent; construction walks the whole graph a
+    single time and precomputes the tables (present/missing qubits, couplers, per-line runs, ...)
+    that the rest of the algorithm queries, rather than re-walking the graph on every lookup.
 
-    Build with Grid.from_graph(graph). See the module docstring for the full list of attributes and
-    the vocabulary.
+    Args:
+        G: A networkx Zephyr graph.
     """
 
-    # attribute types (bare annotations; the storage is __slots__ below)
-    m: int
-    t: int
-    abs_min: int
-    abs_max: int
-    labels: str  # output mode: "int"/"coordinates"/"cartesian"
-    present_qubits: dict[str, dict[Node, int]]  # present_qubits[kind][node] -> linear index r
-    missing_qubits: dict[str, frozenset[Node] | set[Node]]
-    edges: set[tuple[int, int]] | None  # present couplers as (lo, hi) r-pairs
-    missing_internal_couplers: dict | None  # see _missing_internal_couplers
-    runs: Runs | None
-    _el_cache: dict  # el_reachable memo
-    pos: Pos | None
-    __slots__ = (
-        "m",
-        "t",
-        "abs_min",
-        "abs_max",
-        "labels",
-        "present_qubits",
-        "missing_qubits",
-        "edges",
-        "missing_internal_couplers",
-        "runs",
-        "_el_cache",
-        "pos",
-    )
+    def __init__(self, G: nx.Graph) -> None:
+        # family/rows/tile checks + label-mode inference
+        self.m, self.t, self.labels = _parse_zephyr_metadata(G)
+        self.abs_min: int = 0  # smallest valid coordinate
+        self.abs_max: int = 4 * self.m  # largest valid coordinate
+        self.present_qubits: dict[str, dict[Node, int]] = {k: {} for k in _NODE_KINDS}
+        self.missing_qubits: dict[str, frozenset[Node] | set[Node]] = {
+            k: set() for k in _NODE_KINDS
+        }
+        self._el_cache: dict[tuple[Node, Node], tuple[QuoSpan, QuoSpan, int, int] | None] = {}
 
-    # ------------------------------------------------------------------ build
-    def __init__(self, m: int, t: int) -> None:
-        """Create an empty Grid for a tile-size-``t`` Zephyr of grid size ``m``.
-
-        Coordinates range over ``[0, 4m]``. This only allocates the empty containers; from_graph
-        calls _classify and _run_survey to populate them. Prefer the from_graph factory.
-        """
-        self.m = m
-        self.t = t
-        self.abs_min = 0
-        self.abs_max = 4 * m
-        self.labels = "int"  # output mode: "int", "coordinates", or "cartesian"
-        self.present_qubits = {k: {} for k in _KINDS}
-        self.missing_qubits = {k: set() for k in _KINDS}
-        self.edges = None
-        # survey outputs (filled by _run_survey)
-        self.missing_internal_couplers = None
-        self.runs = None
-        self._el_cache = {}
-        self.pos = None
-
-    @classmethod
-    def from_graph(cls, graph: nx.Graph) -> Grid:
-        """Build a Grid from a networkx Zephyr graph and run the full survey.
-
-        The graph must carry Zephyr topology metadata in graph.graph: family == "zephyr", rows (=
-        ``m``) and tile (= ``t``). Raises ValueError if the topology is not zephyr.
-
-        The label mode is inferred from the node type, not from graph metadata. Integer nodes are
-        linear indices (as a D-Wave sampler's nodelist), matched directly against the linear-index
-        lattice walk. 5-tuple nodes are Zephyr coordinates ``(u, w, k, j, z)``; each is converted to
-        cartesian ``(x, y, k)``, then to its linear index r via the walk. 3-tuple nodes are already
-        cartesian ``(x, y, k)``.
-
-        Either way the internal representation is identical (cartesian nodes, linear-index r,
-        ``(r, r)`` edges); only find_clique's OUTPUT format follows the inferred mode (linear
-        indices for "int", Zephyr coordinates for "coordinates", cartesian for "cartesian").
-        """
-        info = graph.graph
-        family = info.get("family")
-        if family != "zephyr":
-            raise ValueError(f"Expected a graph with zephyr topology, got family={family!r}")
-        m = info.get("rows")
-        if m is None:
-            m = info.get("columns")
-        t = info.get("tile")
-        if m is None or t is None:
-            raise ValueError("zephyr graph missing 'rows'/'columns'/'tile' metadata")
-
-        # Decide the label mode from the ACTUAL node type/shape, which is
-        # unambiguous, rather than trusting graph.graph["labels"] (dwave_networkx
-        # spells it "coordinate"; other producers may differ or omit it). Integer
-        # nodes -> linear-index mode; a 5-tuple (Zephyr u,w,k,j,z) -> zephyr
-        # "coordinates" mode; a 3-tuple (cartesian x,y,k) -> "cartesian" mode.
-        sample = next(iter(graph.nodes()))
-        if isinstance(sample, tuple):
-            if len(sample) == 5:
-                labels = "coordinates"  # Zephyr 5-tuple
-            elif len(sample) == 3:
-                labels = "cartesian"  # cartesian (x, y, k)
-            else:
-                raise ValueError(
-                    f"cannot infer zephyr label mode from tuple node {sample!r}; "
-                    f"expected a 5-tuple (Zephyr) or 3-tuple (cartesian)"
-                )
-        elif isinstance(sample, (int,)) and not isinstance(sample, bool):
-            labels = "int"
-        else:
-            raise ValueError(
-                f"cannot infer zephyr label mode from node {sample!r}; expected "
-                f"an int (linear), a 5-tuple (Zephyr), or a 3-tuple (cartesian)"
-            )
-
-        grid = cls(m, t)
-        grid.labels = labels
-
-        if labels == "int":
-            present_r = set(graph.nodes())
-            grid._classify(present_r)
-            grid.edges = {(a, b) if a < b else (b, a) for a, b in graph.edges()}
-        elif labels == "cartesian":  # nodes are cartesian (x, y, k) already
-            grid._classify_from_present_nodes(set(graph.nodes()))
-            # cartesian edges -> linear r pairs (internal edge set stays linear)
+        if self.labels == "int":
+            present_r = set(G.nodes())
+            self._classify(present_r)
+            edges = {(a, b) if a < b else (b, a) for a, b in G.edges()}
+        else:  # tuple nodes: cartesian (x, y, k) directly, or Zephyr 5-tuples to convert
+            if self.labels == "coordinates":
+                to_cartesian = zephyr_coordinates.zephyr_to_cartesian
+            else:  # cartesian: nodes are already (x, y, k)
+                to_cartesian = lambda node: node
+            self._classify_from_present_nodes({to_cartesian(n) for n in G.nodes()})
+            # node edges -> cartesian -> linear r pairs (internal edge set stays linear)
             edges = set()
-            for ccoord_a, ccoord_b in graph.edges():
-                lcoord_a = grid.cartesian_to_linear(ccoord_a)
-                lcoord_b = grid.cartesian_to_linear(ccoord_b)
+            for node_a, node_b in G.edges():
+                lcoord_a = self.cartesian_to_linear(to_cartesian(node_a))
+                lcoord_b = self.cartesian_to_linear(to_cartesian(node_b))
                 if lcoord_a is None or lcoord_b is None:
                     continue
                 edges.add((lcoord_a, lcoord_b) if lcoord_a < lcoord_b else (lcoord_b, lcoord_a))
-            grid.edges = edges
-        else:  # coordinates: nodes are Zephyr 5-tuples
-            grid._classify_from_present_nodes({zephyr_to_cartesian(z) for z in graph.nodes()})
-            # convert coordinate edges -> cartesian -> linear r pairs
-            edges = set()
-            for zcoord_a, zcoord_b in graph.edges():
-                lcoord_a = grid.cartesian_to_linear(zephyr_to_cartesian(zcoord_a))
-                lcoord_b = grid.cartesian_to_linear(zephyr_to_cartesian(zcoord_b))
-                if lcoord_a is None or lcoord_b is None:
-                    continue
-                edges.add((lcoord_a, lcoord_b) if lcoord_a < lcoord_b else (lcoord_b, lcoord_a))
-            grid.edges = edges
+        self.edges: set[tuple[int, int]] = edges
 
-        grid._run_survey()
-        return grid
+        # Order matters: missing_internal_couplers feeds el_reachable's reachability checks;
+        # _survey_ext's runs feed both el_reachable and _position_quo. The ideal el-template
+        # geometry is fault-independent, so it is not surveyed here; the el_template_length /
+        # el_reachable methods compute it on demand.
+        self.missing_internal_couplers = self._missing_internal_couplers()
+        self.runs = self._survey_ext()
+        self.pos = self._position_quo()
 
     def _classify(self, present_r: set[int]) -> None:
         """Sort every ideal-lattice node into its kind bucket, in linear-index order.
 
         Walks the full ideal lattice, filing each node under present_qubits[kind] or
-        missing_qubits[kind] and recording the r -> cartesian map. A node is present iff its linear
-        index r is in present_r.
+        missing_qubits[kind] and recording each present node's linear index r. A node is present iff
+        its linear index r is in present_r.
 
-        The walk order is what DEFINES r, and it must match the sampler's own indexing exactly --
+        The walk order is what DEFINES r, and it must match the graph's own indexing exactly --
         verticals first (``x = 0, 2, ...``; for each ``k``, the ``y % 4 == 1`` nodes then the
         ``y % 4 == 3`` nodes), then horizontals (``y = 0, 2, ...``; for each ``k``, ``x % 4 == 1``
         then ``x % 4 == 3``). Do not reorder without re-verifying r.
@@ -339,7 +200,7 @@ class Grid:
         for w in range(num_w):
             x = 2 * w
             for k in range(t):
-                for shift, kind in ((1, "v1"), (3, "v3")):
+                for shift, kind in _V_KIND_BY_SHIFT.items():
                     kind_present, kind_missing = present[kind], missing[kind]
                     for z in range(m):
                         node = (x, 4 * z + shift, k)
@@ -351,7 +212,7 @@ class Grid:
         for w in range(num_w):
             y = 2 * w
             for k in range(t):
-                for shift, kind in ((1, "h1"), (3, "h3")):
+                for shift, kind in _H_KIND_BY_SHIFT.items():
                     kind_present, kind_missing = present[kind], missing[kind]
                     for z in range(m):
                         node = (4 * z + shift, y, k)
@@ -365,19 +226,6 @@ class Grid:
         # the only downstream use, and frozenset makes the immutability explicit
         self.missing_qubits = {k: frozenset(s) for k, s in self.missing_qubits.items()}
 
-    def _run_survey(self) -> None:
-        """Run every survey pass in dependency order and cache the results.
-
-        Order matters: missing_internal_couplers feeds el_reachable's reachability checks;
-        survey_ext's runs feed both el_reachable and position_quo. The ideal el-template geometry is
-        fault-independent, so it is not surveyed here; the el_template_length / el_reachable methods
-        compute it on demand.
-        """
-        self.missing_internal_couplers = self._missing_internal_couplers()
-        self.runs = self._survey_ext()
-        self.pos = self._position_quo()
-
-    # -------------------------------------------------------------- accessors
     def kind_of(self, ccoord: Node) -> str:
         """Return the kind ("v1"/"v3"/"h1"/"h3") of a cartesian coord from its parity.
 
@@ -405,17 +253,11 @@ class Grid:
         e = (lcoord1, lcoord2) if lcoord1 < lcoord2 else (lcoord2, lcoord1)
         return e in self.edges
 
-    # ------------------------------------------------- el-template geometry
     # Ideal, fault-independent geometry, computed on demand.
-
     def el_template_length(self, v_quo: QuoSpan, h_quo: QuoSpan) -> int | None:
-        """chain_length of the el_template ``(v_quo, h_quo)``, or None if it is not a real one.
-
-        (The None case doubles as the el_template test used by expand_el_templates.)
-        """
+        """Block count of the el_template ``(v_quo, h_quo)``, or None if it is not a real one."""
         return el_geometry.el_template_length(self.m, v_quo, h_quo)
 
-    # ----------------------------------------------------------- survey passes
     def _missing_internal_couplers(
         self,
     ) -> dict[tuple[Node, Node], tuple[tuple[int, int, int], tuple[int, int, int]]]:
@@ -424,20 +266,18 @@ class Grid:
         Internal couplers join a vertical node ``v = (x, y, k)`` to a horizontal node
         ``hp = (x+-1, y+-1, kp)`` for every ``kp in range(t)``. For each present vertical node and
         each of its four diagonal horizontal neighbours (in bounds, present), we check whether the
-        coupler exists in `edges`; if not, record it. Returns ``{(v, hp): (v_base, hp_base)}`` where
-        the values are the quotient (``k``-folded) descriptors ``(x, v_shift, k)`` and
+        coupler exists in ``edges``; if not, record it. Returns ``{(v, hp): (v_base, hp_base)}``
+        where the values are the quotient (``k``-folded) descriptors ``(x, v_shift, k)`` and
         ``(hp_shift, hp_y, kp)``.
         """
         abs_min, abs_max, t = self.abs_min, self.abs_max, self.t
         edges, present, missing = self.edges, self.present_qubits, self.missing_qubits
-        H_KIND = {1: "h1", 3: "h3"}
         krange = range(t)
-        OFFS = ((-1, -1), (-1, 1), (1, -1), (1, 1))
         missing_couplers = {}
-        for v_shift, v_kind in ((1, "v1"), (3, "v3")):
+        for v_shift, v_kind in _V_KIND_BY_SHIFT.items():
             for v, v_r in present[v_kind].items():
                 x, y, k = v
-                for dx, dy in OFFS:
+                for dx, dy in _INTERNAL_COUPLER_OFFSETS:
                     hp_x = x + dx
                     if hp_x < abs_min or hp_x > abs_max:
                         continue
@@ -445,8 +285,9 @@ class Grid:
                     if hp_y < abs_min or hp_y > abs_max:
                         continue
                     hp_shift = hp_x & 3
-                    hp_nodes = present[H_KIND[hp_shift]]
-                    hp_missing = missing[H_KIND[hp_shift]]
+                    hp_kind = _H_KIND_BY_SHIFT[hp_shift]
+                    hp_nodes = present[hp_kind]
+                    hp_missing = missing[hp_kind]
                     v_base = (x, v_shift, k)
                     # internal couplers are all-to-all in k: v's k couples to
                     # every hp kp, so there is no k == kp guard here.
@@ -470,58 +311,57 @@ class Grid:
 
         Returns runs, where ``runs[kind][coord][k]`` -> set of ``(start, end)`` run intervals. This
         nested shape mirrors how nodes are keyed (``kind -> coord -> k``) and is what el_reachable
-        and position_quo consume.
+        and _position_quo consume.
         """
-        abs_max, t, m = self.abs_max, self.t, self.m
+        abs_min, abs_max, t = self.abs_min, self.abs_max, self.t
         edges, present, missing = self.edges, self.present_qubits, self.missing_qubits
-        runs = {k: {} for k in _KINDS}
-        for direction, shift in product(("v", "h"), (1, 3)):
-            kind = direction + str(shift)
-            kind_nodes, kind_missing = present[kind], missing[kind]
-            is_vertical = direction == "v"
-            for fixed_coord in range(0, 4 * m + 1, 2):
-                coord_map = runs[kind].setdefault(fixed_coord, {})
-                for k in range(t):
-                    runs_for_k = set()
-                    coord = shift
-                    while coord <= abs_max:
-                        if is_vertical:
-                            node = (fixed_coord, coord, k)
-                        else:
-                            node = (coord, fixed_coord, k)
-                        if node not in kind_missing:
-                            prev = coord
-                            inc = 4
-                            end = prev
-                            next_coord = None
-                            while prev + inc <= abs_max:
-                                if is_vertical:
-                                    previous_node = (fixed_coord, prev, k)
-                                    next_node = (fixed_coord, prev + inc, k)
-                                else:
-                                    previous_node = (prev, fixed_coord, k)
-                                    next_node = (prev + inc, fixed_coord, k)
-                                if next_node in kind_missing:
-                                    # next node is a hole: end the run and resume
-                                    # PAST it (a missing node can't start a run).
-                                    end, next_coord = prev, prev + 2 * inc
-                                    break
-                                if (kind_nodes[previous_node], kind_nodes[next_node]) in edges:
-                                    prev += inc
-                                else:
-                                    # coupler is broken but next_node exists: end here
-                                    # and resume AT it, which starts the next run.
-                                    end, next_coord = prev, prev + inc
-                                    break
+        runs = {k: {} for k in _NODE_KINDS}
+        for is_vertical, kind_by_shift in ((True, _V_KIND_BY_SHIFT), (False, _H_KIND_BY_SHIFT)):
+            for shift, kind in kind_by_shift.items():
+                kind_nodes, kind_missing = present[kind], missing[kind]
+                for fixed_coord in range(abs_min, abs_max + 1, 2):
+                    coord_map = runs[kind].setdefault(fixed_coord, {})
+                    for k in range(t):
+                        runs_for_k = set()
+                        coord = shift
+                        while coord <= abs_max:
+                            if is_vertical:
+                                node = (fixed_coord, coord, k)
                             else:
-                                end, next_coord = prev, None
-                            runs_for_k.add((coord, end))
-                            if next_coord is None:
-                                break
-                            coord = next_coord
-                        else:
-                            coord += 4
-                    coord_map[k] = runs_for_k
+                                node = (coord, fixed_coord, k)
+                            if node not in kind_missing:
+                                prev = coord
+                                inc = 4
+                                end = prev
+                                next_coord = None
+                                while prev + inc <= abs_max:
+                                    if is_vertical:
+                                        previous_node = (fixed_coord, prev, k)
+                                        next_node = (fixed_coord, prev + inc, k)
+                                    else:
+                                        previous_node = (prev, fixed_coord, k)
+                                        next_node = (prev + inc, fixed_coord, k)
+                                    if next_node in kind_missing:
+                                        # next node is a hole: end the run and resume
+                                        # PAST it (a missing node can't start a run).
+                                        end, next_coord = prev, prev + 2 * inc
+                                        break
+                                    if (kind_nodes[previous_node], kind_nodes[next_node]) in edges:
+                                        prev += inc
+                                    else:
+                                        # coupler is broken but next_node exists: end here
+                                        # and resume AT it, which starts the next run.
+                                        end, next_coord = prev, prev + inc
+                                        break
+                                else:
+                                    end, next_coord = prev, None
+                                runs_for_k.add((coord, end))
+                                if next_coord is None:
+                                    break
+                                coord = next_coord
+                            else:
+                                coord += 4
+                        coord_map[k] = runs_for_k
         return runs
 
     def el_reachable(self, v: Node, h: Node) -> tuple[QuoSpan, QuoSpan, int, int] | None:
@@ -538,13 +378,12 @@ class Grid:
 
         Lazy + memoized. The block pair determines the el_template uniquely; the el_template is
         computed on demand, so a query is a handful of arithmetic ops. Results (including ``None``,
-        stored as a sentinel) are cached, so repeated queries across overlapping windows in a sweep
-        are effectively free. Returns the reachability descriptor.
-        Returns ``(v_quo_span, h_quo_span, v_k, h_k)`` if reachable, else None.
+        for unreachable) are cached, so repeated queries across overlapping windows in a sweep are
+        effectively free. Returns ``(v_quo_span, h_quo_span, v_k, h_k)`` if reachable, else None.
         """
         cache = self._el_cache
-        hit = cache.get((v, h), _MISSING)
-        if hit is not _MISSING:  # cached: a descriptor tuple, or None (unreachable)
+        hit = cache.get((v, h), _EL_REACHABLE_NOT_CACHED)
+        if hit is not _EL_REACHABLE_NOT_CACHED:  # cached: a descriptor tuple, or None (unreachable)
             return hit
 
         v_x, v_y, v_k = v
@@ -558,8 +397,8 @@ class Grid:
             vp_y, hp_x, v_quo_span, h_quo_span = template
             _v_x, v_y_shift, v_a, v_b = v_quo_span
             h_x_shift, _h_y, h_a, h_b = h_quo_span
-            v_kind = "v1" if v_y_shift == 1 else "v3"
-            h_kind = "h1" if h_x_shift == 1 else "h3"
+            v_kind = _V_KIND_BY_SHIFT[v_y_shift]
+            h_kind = _H_KIND_BY_SHIFT[h_x_shift]
             vp = (v_x, vp_y, v_k)
             hp = (hp_x, h_y, h_k)
             missing = self.missing_qubits
@@ -586,7 +425,7 @@ class Grid:
         would grow without bound. Calling this once per window keeps it scoped to a single window's
         work. Cheap -- it just drops the dict; results are recomputed on demand as needed.
         """
-        self._el_cache = {}
+        self._el_cache.clear()
 
     def _position_quo(self) -> Pos:
         """Rank each external line's qubits by reach from each side and emit position maps.
@@ -610,7 +449,7 @@ class Grid:
         # vertical: x even; two lines per x (v1, v3)
         for x in range(0, abs_max + 1, 2):
             bottom_reach_by_y, top_reach_by_y = {}, {}
-            for kind in ("v1", "v3"):
+            for kind in _V_KIND_BY_SHIFT.values():
                 runs_by_k = runs[kind].get(x, {})
                 for k, runs_for_k in runs_by_k.items():
                     for run_start, run_end in runs_for_k:
@@ -632,7 +471,7 @@ class Grid:
         # horizontal: y even; two lines per y (h1, h3)
         for y in range(0, abs_max + 1, 2):
             left_reach_by_x, right_reach_by_x = {}, {}
-            for kind in ("h1", "h3"):
+            for kind in _H_KIND_BY_SHIFT.values():
                 runs_by_k = runs[kind].get(y, {})
                 for k, runs_for_k in runs_by_k.items():
                     for run_start, run_end in runs_for_k:
@@ -684,11 +523,10 @@ def _ranked_pos_fast(
     """Rank the ``k``'s in reach_by_k by reach distance and assign each a position.
 
     Ranking is by ascending reach distance; each ``k`` then gets the closed-form Zephyr index for
-    its rank, with the constant part of the formula
-    hoisted out of the loop: within one ``(x, y)`` only the ``2*rank`` term varies, so the base is
-    computed once and the varying value steps by 2 per rank. Returns ``{orig_k: (a, b)}``;
-    is_vertical selects which tuple slot carries the varying value (verticals -> slot 0,
-    horizontals -> slot 1).
+    its rank, with the constant part of the formula hoisted out of the loop: within one ``(x, y)``
+    only the ``2*rank`` term varies, so the base is computed once and the varying value steps by 2
+    per rank. Returns ``{orig_k: (a, b)}``; is_vertical selects which tuple slot carries the varying
+    value (verticals -> slot 0, horizontals -> slot 1).
     """
     if is_vertical:
         j = ((y - 1) & 3) // 2  # Zephyr j of this line
@@ -700,13 +538,66 @@ def _ranked_pos_fast(
             pos_by_k[k] = (varying_base + 2 * rank, fixed_val)
             rank += 1
         return pos_by_k
-    else:
-        j = ((x - 1) & 3) // 2  # Zephyr j of this line
-        fixed_val = 2 * (t + 1) * (j + 2 * (x // 4))
-        varying_base = 1 + (t + 1) * y + j
-        pos_by_k = {}
-        rank = 0
-        for k, _ in sorted(reach_by_k.items(), key=itemgetter(1)):
-            pos_by_k[k] = (fixed_val, varying_base + 2 * rank)
-            rank += 1
-        return pos_by_k
+
+    j = ((x - 1) & 3) // 2  # Zephyr j of this line
+    fixed_val = 2 * (t + 1) * (j + 2 * (x // 4))
+    varying_base = 1 + (t + 1) * y + j
+    pos_by_k = {}
+    rank = 0
+    for k, _ in sorted(reach_by_k.items(), key=itemgetter(1)):
+        pos_by_k[k] = (fixed_val, varying_base + 2 * rank)
+        rank += 1
+    return pos_by_k
+
+
+def _parse_zephyr_metadata(G: nx.Graph) -> tuple[int, int, str]:
+    """Validate a Zephyr graph's metadata and infer its node-label mode.
+
+    The label mode is inferred from the node type, not from graph metadata: integer nodes are linear
+    indices ("int"), 5-tuples are Zephyr coordinates ``(u, w, k, j, z)`` ("coordinates"), and
+    3-tuples are cartesian ``(x, y, k)`` ("cartesian").
+
+    Args:
+        G: A networkx Zephyr graph.
+
+    Returns:
+        ``(m, t, labels)``: the Zephyr grid size, the tile size, and the label mode.
+
+    Raises:
+        ValueError: If the graph is not a Zephyr graph, lacks size metadata, or has nodes of an
+            unrecognized type.
+    """
+    info = G.graph
+    family = info.get("family")
+    if family != "zephyr":
+        raise ValueError(f"Expected a graph with zephyr topology, got family={family!r}")
+    m = info.get("rows")
+    if m is None:
+        m = info.get("columns")
+    t = info.get("tile")
+    if m is None or t is None:
+        raise ValueError("zephyr graph missing 'rows'/'columns'/'tile' metadata")
+
+    # handle empty graphs
+    if not G:
+        raise ValueError("cannot build a Grid from an empty graph")
+
+    # Decide the label mode from the ACTUAL node type/shape, which is
+    # unambiguous, rather than trusting graph.graph["labels"] (dwave.graphs
+    # spells it "coordinate"; other producers may differ or omit it).
+    sample = next(iter(G.nodes()))
+    if isinstance(sample, tuple):
+        if len(sample) == 5:
+            return m, t, "coordinates"
+        if len(sample) == 3:
+            return m, t, "cartesian"
+        raise ValueError(
+            f"cannot infer zephyr label mode from tuple node {sample!r}; "
+            f"expected a 5-tuple (Zephyr) or 3-tuple (cartesian)"
+        )
+    if isinstance(sample, numbers.Integral) and not isinstance(sample, bool):
+        return m, t, "int"
+    raise ValueError(
+        f"cannot infer zephyr label mode from node {sample!r}; expected "
+        f"an int (linear), a 5-tuple (Zephyr), or a 3-tuple (cartesian)"
+    )
