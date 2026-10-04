@@ -32,7 +32,7 @@ classifiers = [
 ]
 requires-python = ">= 3.10"
 dependencies = [
-    "dwave-graphs>=1,<2",
+    "dwave-graphs>=1.2,<2",
     "fasteners>=0.15",
     "homebase>=1.0.1",
     "networkx>=3.2,<4", # oldest that supports numpy 2
