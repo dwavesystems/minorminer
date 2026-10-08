@@ -40,7 +40,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
     def test_node_labels_by_orientation_zephyr_matches_orientation_axis(self):
         graph = zephyr_graph(2, 2, coordinates=True)
 
-        labels = node_labels_by_orientation(graph, as_str=False)
+        labels = node_labels_by_orientation(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
@@ -49,7 +49,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
     def test_node_labels_by_orientation_chimera_matches_orientation_axis(self):
         graph = chimera_graph(2, t=2, coordinates=True)
 
-        labels = node_labels_by_orientation(graph, as_str=False)
+        labels = node_labels_by_orientation(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
@@ -60,7 +60,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
         # whole graph.
         graph = chimera_graph(2, t=2, coordinates=True)
 
-        labels = node_labels_by_coloring(graph, as_str=False)
+        labels = node_labels_by_coloring(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
@@ -72,7 +72,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
     def test_node_labels_by_coloring_pegasus_matches_per_node_four_color(self):
         graph = pegasus_graph(3, coordinates=True)
 
-        labels = node_labels_by_coloring(graph, as_str=False)
+        labels = node_labels_by_coloring(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
@@ -81,27 +81,18 @@ class TestNodeLabelHelpers(unittest.TestCase):
     def test_node_labels_by_coloring_zephyr_matches_per_node_four_color(self):
         graph = zephyr_graph(2, 2, coordinates=True)
 
-        labels = node_labels_by_coloring(graph, as_str=False)
+        labels = node_labels_by_coloring(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
             self.assertEqual(labels[node], zephyr_four_color(node))
-
-    def test_node_labels_by_coloring_as_str_converts_labels_to_strings(self):
-        graph = chimera_graph(2, t=2, coordinates=True)
-
-        labels = node_labels_by_coloring(graph, as_str=True)
-
-        self.assertEqual(set(labels), set(graph.nodes()))
-        self.assertTrue(all(isinstance(v, str) for v in labels.values()))
-        self.assertEqual(set(labels.values()), {"0", "1"})
 
     def test_node_labels_by_coloring_falls_back_to_greedy_color_without_family(self):
         # A plain graph without D-Wave family metadata should use
         # nx.greedy_color as a fallback.
         graph = nx.cycle_graph(6)
 
-        labels = node_labels_by_coloring(graph, as_str=False)
+        labels = node_labels_by_coloring(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         expected = nx.greedy_color(graph)
@@ -110,9 +101,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
     def test_node_labels_by_quotient_remaps_zephyr_boundaries(self):
         graph = zephyr_graph(2, 2, coordinates=True)
 
-        labels = node_labels_by_quotient(
-            graph, expand_boundary_search=True, as_str=False
-        )
+        labels = node_labels_by_quotient(graph, expand_boundary_search=True)
 
         self.assertEqual(labels[(0, 0, 0, 0, 0)], (0, 1, 0, 0))
         self.assertEqual(labels[(0, 4, 0, 0, 0)], (0, 3, 0, 0))
@@ -121,24 +110,16 @@ class TestNodeLabelHelpers(unittest.TestCase):
     def test_node_labels_by_quotient_chimera_drops_qubit_index(self):
         graph = chimera_graph(2, t=2, coordinates=True)
 
-        labels = node_labels_by_quotient(graph, as_str=False)
+        labels = node_labels_by_quotient(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
             self.assertEqual(labels[node], node[:3])
 
-    def test_node_labels_by_orientation_as_str_converts_labels_to_strings(self):
-        graph = chimera_graph(2, t=2, coordinates=True)
-
-        labels = node_labels_by_orientation(graph, as_str=True)
-
-        self.assertEqual(set(labels), set(graph.nodes()))
-        self.assertTrue(all(isinstance(v, str) for v in labels.values()))
-
     def test_node_labels_by_orientation_falls_back_to_greedy_color_without_family(self):
         graph = nx.cycle_graph(6)
 
-        labels = node_labels_by_orientation(graph, as_str=False)
+        labels = node_labels_by_orientation(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         self.assertEqual(set(labels.values()), {0, 1})
@@ -147,12 +128,12 @@ class TestNodeLabelHelpers(unittest.TestCase):
         graph = nx.cycle_graph(5)
 
         with self.assertRaises(ValueError):
-            node_labels_by_orientation(graph, as_str=False)
+            node_labels_by_orientation(graph)
 
     def test_node_labels_by_quotient_pegasus_drops_odd_qubit_bit(self):
         graph = pegasus_graph(3, coordinates=True)
 
-        labels = node_labels_by_quotient(graph, as_str=False)
+        labels = node_labels_by_quotient(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
@@ -162,21 +143,11 @@ class TestNodeLabelHelpers(unittest.TestCase):
     def test_node_labels_by_quotient_zephyr_without_boundary_expansion(self):
         graph = zephyr_graph(2, 2, coordinates=True)
 
-        labels = node_labels_by_quotient(
-            graph, expand_boundary_search=False, as_str=False
-        )
+        labels = node_labels_by_quotient(graph, expand_boundary_search=False)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
             self.assertEqual(labels[node], node[:2] + node[3:])
-
-    def test_node_labels_by_quotient_as_str_converts_labels_to_strings(self):
-        graph = chimera_graph(2, t=2, coordinates=True)
-
-        labels = node_labels_by_quotient(graph, as_str=True)
-
-        self.assertEqual(set(labels), set(graph.nodes()))
-        self.assertTrue(all(isinstance(v, str) for v in labels.values()))
 
     def test_node_labels_by_quotient_raises_for_unrecognized_family(self):
         graph = nx.path_graph(4)
@@ -327,8 +298,8 @@ class TestLabelingRepresentationInvariance(unittest.TestCase):
     def _assert_invariant(self, fn):
         for family, build, shape in _FAMILY_CASES:
             with self.subTest(function=fn.__name__, family=family):
-                coord_labels = fn(build(True), as_str=False)
-                int_labels = fn(build(False), as_str=False)
+                coord_labels = fn(build(True))
+                int_labels = fn(build(False))
                 to_coord = graph_label_mapping(family, shape, "int", "coordinate")
                 remapped = {to_coord(k): v for k, v in int_labels.items()}
                 self.assertEqual(remapped, coord_labels)
@@ -352,7 +323,7 @@ class TestIntLabeledGraphs(unittest.TestCase):
         for family, build, _shape in _FAMILY_CASES:
             with self.subTest(family=family):
                 graph = build(False)
-                labels = node_labels_by_orientation(graph, as_str=False)
+                labels = node_labels_by_orientation(graph)
                 self.assertEqual(set(labels), set(graph.nodes()))
                 self.assertEqual(set(labels.values()), {0, 1})
 
@@ -361,7 +332,7 @@ class TestIntLabeledGraphs(unittest.TestCase):
             for family, build, _shape in _FAMILY_CASES:
                 with self.subTest(function=fn.__name__, family=family):
                     graph = build(False)
-                    labels = fn(graph, as_str=False)
+                    labels = fn(graph)
                     self.assertEqual(set(labels), set(graph.nodes()))
 
     def test_find_labeled_subgraph_int_labels_all_methods(self):
@@ -378,26 +349,14 @@ class TestIntLabeledGraphs(unittest.TestCase):
 
 
 class TestNiceLabeledPegasus(unittest.TestCase):
-    """Coverage for nice-coordinate Pegasus graphs and explicit metadata overrides."""
+    """Coverage for nice-coordinate Pegasus graphs and inferred metadata."""
 
     def test_coloring_and_quotient_support_nice_labels(self):
         graph = pegasus_graph(3, nice_coordinates=True)
         for fn in (node_labels_by_coloring, node_labels_by_quotient):
             with self.subTest(function=fn.__name__):
-                labels = fn(graph, as_str=False)
+                labels = fn(graph)
                 self.assertEqual(set(labels), set(graph.nodes()))
-
-    def test_explicit_family_label_shape_override_metadata(self):
-        graph = chimera_graph(2, t=2, coordinates=False)
-        labels = node_labels_by_coloring(
-            graph,
-            as_str=False,
-            graph_family="chimera",
-            graph_labels="int",
-            graph_shape=(2, 2, 2),
-        )
-        self.assertEqual(set(labels), set(graph.nodes()))
-        self.assertEqual(set(labels.values()), {0, 1})
 
     def test_quotient_defaults_to_coordinate_without_labels_metadata(self):
         # A supported-family graph missing "labels" metadata is treated as
@@ -405,7 +364,7 @@ class TestNiceLabeledPegasus(unittest.TestCase):
         graph = chimera_graph(2, t=2, coordinates=True)
         del graph.graph["labels"]
 
-        labels = node_labels_by_quotient(graph, as_str=False)
+        labels = node_labels_by_quotient(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():

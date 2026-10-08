@@ -56,7 +56,10 @@ def get_graph_shape(graph: nx.Graph) -> None | tuple:
 
 
 def graph_label_mapping(
-    graph_family: str, graph_shape: tuple, label_one: str, label_two: str
+    graph_family: Literal["chimera", "pegasus", "zephyr"],
+    graph_shape: tuple,
+    label_one: Literal["int", "coordinate", "nice"],
+    label_two: Literal["int", "coordinate", "nice"],
 ) -> Callable:
     """Return a function that maps a node label of int/coordinate/nice type to another.
 
@@ -111,11 +114,7 @@ def graph_label_mapping(
 
 def node_labels_by_orientation(
     graph: nx.Graph,
-    as_str: bool = True,
-    graph_labels: str | None = None,
-    graph_family: str | None = None,
-    graph_shape: tuple | None = None,
-) -> dict[Hashable, str] | dict[Hashable, int]:
+) -> dict[Hashable, int]:
     """Generate node labels from graph orientation classes.
 
     For supported D-Wave graph families, this function labels nodes by their
@@ -126,26 +125,21 @@ def node_labels_by_orientation(
     exactly two color classes, which serve as orientation labels.
 
     Args:
-        graph: Input graph whose nodes will be labeled by orientation.
-        as_str: If ``True``, convert orientation labels to strings before returning. If
-            ``False``, preserve the integer labels. Defaults to ``True``.
-        graph_labels: The node label type ("int", "coordinate" or "nice"). If ``None``, the label type is inferred from the graph's metadata.
-        graph_family: The graph family ("chimera", "pegasus", or "zephyr"). If ``None``, the family is inferred from the graph's metadata.
-        graph_shape: The shape of the graph. If ``None``, the shape is inferred from the graph's metadata.
+        graph: Input graph whose nodes will be labeled by orientation. The graph
+            family, node label type and shape are inferred from the graph's metadata.
+            If the graph family is not inferred from the metadata, the function
+            will fall back to a greedy coloring approach.
 
     Returns:
-        A dictionary mapping graph nodes to orientation labels.
+        A dictionary mapping graph nodes to integer orientation labels.
 
     Raises:
         ValueError: If greedy coloring is used and produces
             more than two colors.
     """
-    if graph_family is None:
-        graph_family = graph.graph.get("family", None)
-    if graph_labels is None:
-        graph_labels = graph.graph.get("labels", None)
-    if graph_shape is None:
-        graph_shape = get_graph_shape(graph)
+    graph_family = graph.graph.get("family", None)
+    graph_labels = graph.graph.get("labels", None)
+    graph_shape = get_graph_shape(graph)
     match graph_family:
         case "chimera" | "pegasus" | "zephyr":
             to_coord = graph_label_mapping(
@@ -160,19 +154,12 @@ def node_labels_by_orientation(
                     "Orientation labeling requires a bipartite graph, but greedy "
                     "coloring produced more than 2 colors"
                 )
-    if as_str:
-        return {k: str(v) for k, v in col.items()}
-    else:
-        return col
+    return col
 
 
 def node_labels_by_coloring(
     graph: nx.Graph,
-    as_str: bool = True,
-    graph_labels: str | None = None,
-    graph_family: str | None = None,
-    graph_shape: tuple | None = None,
-) -> dict[Hashable, str] | dict[Hashable, int]:
+) -> dict[Hashable, int]:
     """Generate node labels from a family-specific graph coloring.
 
     For supported D-Wave graph families, canonical 2-coloring for Chimera and 4-coloring
@@ -184,24 +171,18 @@ def node_labels_by_coloring(
     generic fallback.
 
     Args:
-        graph: Input graph to color. The family graph metadata is used to select
-            a family-specific coloring method where available.
-        as_str: If ``True``, convert color labels to strings before returning. If
-            ``False``, preserve the integer color labels. Defaults to ``True``.
-        graph_family: The graph family ("chimera", "pegasus", or "zephyr"). If ``None``, the family is inferred from the graph's metadata.
-        graph_labels: The node label type ("int", "coordinate" or "nice"). If ``None``, the label type is inferred from the graph's metadata.
-        graph_shape: The shape of the graph. If ``None``, the shape is inferred from the graph's metadata.
+        graph: Input graph to color. The family, node label type and shape are
+            inferred from the graph's metadata and used to select a family-specific
+            coloring method where available. The function will fall back to a greedy
+            coloring approach if the family is not recognized.
     Raises:
         ValueError: If the graph family is not supported.
     Returns:
-        A dictionary mapping graph nodes to color labels.
+        A dictionary mapping graph nodes to integer color labels.
     """
-    if graph_family is None:
-        graph_family = graph.graph.get("family", None)
-    if graph_labels is None:
-        graph_labels = graph.graph.get("labels", None)
-    if graph_shape is None:
-        graph_shape = get_graph_shape(graph)
+    graph_family = graph.graph.get("family", None)
+    graph_labels = graph.graph.get("labels", None)
+    graph_shape = get_graph_shape(graph)
     if graph_family in (
         "chimera",
         "pegasus",
@@ -220,20 +201,13 @@ def node_labels_by_coloring(
     else:
         col = nx.greedy_color(graph)
 
-    if as_str:
-        return {k: str(v) for k, v in col.items()}
-
     return col
 
 
 def node_labels_by_quotient(
     graph: nx.Graph,
     expand_boundary_search: bool = True,
-    as_str: bool = True,
-    graph_labels: str | None = None,
-    graph_family: str | None = None,
-    graph_shape: tuple | None = None,
-) -> dict[Hashable, str] | dict[Hashable, tuple]:
+) -> dict[Hashable, tuple]:
     """Generate quotient graph labels for nodes based on graph family and structure.
 
     This function assigns quotient labels to nodes, grouping qubits by
@@ -244,35 +218,26 @@ def node_labels_by_quotient(
     those assignments also allow for embeddings.
 
     Args:
-        graph: A Chimera, Pegasus or Zephyr NetworkX graph.
+        graph: A Chimera, Pegasus or Zephyr NetworkX graph. The family, node label
+            type and shape are inferred from the graph's metadata.
         expand_boundary_search: If ``True`` and the graph family is ``"zephyr"``,
             boundary quotient nodes are remapped to adjacent (interior perpendicular
             block offset) nodes. Defaults to ``True``.
-        as_str: If ``True``, labels are converted to strings. If ``False``, labels
-            remain as tuples. Defaults to ``True``.
-        graph_labels: The node label type ("int", "coordinate" or "nice"). If ``None``, the label type is inferred from the graph's metadata.
-        graph_family: The graph family ("chimera", "pegasus", or "zephyr"). If ``None``, the family is inferred from the graph's metadata.
-        graph_shape: The shape of the graph. If ``None``, the shape is inferred from the graph's metadata.
     Returns:
-        A dictionary mapping node coordinates to quotient labels. The type of the labels
-        depends on the ``as_str`` parameter: if ``True``, labels are strings; if ``False``,
-        labels are tuples.
+        A dictionary mapping node coordinates to tuple quotient labels.
 
     Raises:
         ValueError: If graph family is not found in metadata or is not 'zephyr',
             'pegasus', or 'chimera'.
     """
-    if graph_family is None:
-        graph_family = graph.graph.get("family", None)
+    graph_family = graph.graph.get("family", None)
     if graph_family in (
         "chimera",
         "pegasus",
         "zephyr",
     ):
-        if graph_labels is None:
-            graph_labels = graph.graph.get("labels", None)
-        if graph_shape is None:
-            graph_shape = get_graph_shape(graph)
+        graph_labels = graph.graph.get("labels", None)
+        graph_shape = get_graph_shape(graph)
         if graph_labels is None:
             graph_labels = "coordinate"
         if graph_labels != "coordinate":
@@ -304,12 +269,7 @@ def node_labels_by_quotient(
             graph_family, graph_shape, "coordinate", graph_labels
         )
         col = {to_label(k): v for k, v in col.items()}
-    if as_str:
-        # Whitespace-free: find_subgraph's underlying vertex-label parser rejects labels
-        # containing spaces, which the default tuple repr would otherwise include.
-        return {k: str(v).replace(" ", "") for k, v in col.items()}
-    else:
-        return col
+    return col
 
 
 def find_labeled_subgraph(
@@ -385,5 +345,11 @@ def find_labeled_subgraph(
                 )
             case _:
                 raise ValueError(f"Unknown coloring method {labeling_method}")
+        # Whitespace-free: find_subgraph's underlying vertex-label parser rejects
+        # labels containing spaces, which tuple reprs would otherwise include.
+        node_labels = tuple(
+            {k: str(v).replace(" ", "") for k, v in labels.items()}
+            for labels in node_labels
+        )
 
     return find_subgraph(source, target, node_labels=node_labels, **kwargs)
