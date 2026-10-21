@@ -21,7 +21,7 @@ from dwave.graphs import zephyr_coordinates, zephyr_graph
 from parameterized import parameterized
 
 from minorminer.utils._clique import el_geometry
-from minorminer.utils._clique.grid import Grid, _covers, _ranked_pos_fast
+from minorminer.utils._clique.grid import Grid, _block_side_order, _covers
 
 
 # --------------------------------------------------------------------------
@@ -126,19 +126,33 @@ class TestGrid(unittest.TestCase):
     def test_covers(self, _name, runs, a, b, expected):
         self.assertEqual(_covers(runs, a, b), expected)
 
-    @parameterized.expand([("vertical", True), ("horizontal", False)])
-    def test_ranked_pos_fast(self, _name, vertical):
-        if vertical:
-            out = _ranked_pos_fast(2, 5, {0: 5, 1: 1, 2: 3}, 4, True)
-            const_slot, var_slot = 1, 0
-        else:
-            out = _ranked_pos_fast(5, 2, {0: 5, 1: 1, 2: 3}, 4, False)
-            const_slot, var_slot = 0, 1
-        self.assertEqual(set(out), {0, 1, 2})
-        self.assertEqual(len({out[k][const_slot] for k in out}), 1)  # constant slot
-        # ranked by ascending distance: k=1 (1) < k=2 (3) < k=0 (5)
-        self.assertLess(out[1][var_slot], out[2][var_slot])
-        self.assertLess(out[2][var_slot], out[0][var_slot])
+    @parameterized.expand(
+        [
+            # across_side 5 -> j = 0, base = 1 + 5 * 2 + 0 = 11
+            ("j0", 2, 5, 11),
+            # across_side 7 -> j = 1, base = 1 + 5 * 2 + 1 = 12
+            ("j1", 2, 7, 12),
+        ]
+    )
+    def test_block_side_order(self, _name, along_side, across_side, base):
+        out = _block_side_order(along_side, across_side, {0: 5, 1: 1, 2: 3}, 4)
+        # ranked by ascending reach: k=1 (1) < k=2 (3) < k=0 (5), stepping by 2
+        self.assertEqual(out, {1: base, 2: base + 2, 0: base + 4})
+
+    def test_side_order_ranks_follow_each_blocks_reach(self):
+        m, t = 6, 2
+        g = Grid(zephyr(m, t, drop_edges=[((2, 5, 0), (2, 9, 0)), ((2, 1, 1), (2, 5, 1))]))
+        self.assertEqual(g.runs["v1"][2][0], {(1, 5), (9, 21)})
+        self.assertEqual(g.runs["v1"][2][1], {(1, 1), (5, 21)})
+
+        base = 1 + (t + 1) * 2 + 0  # x = 2; y % 4 == 1, so j = 0
+        top = g.side_order["t"]
+        self.assertEqual(top[(2, 1)], {1: base, 0: base + 2})
+        self.assertEqual(top[(2, 5)], {0: base, 1: base + 2})
+        # the same numbers, held by different k's
+        self.assertEqual(set(top[(2, 1)].values()), set(top[(2, 5)].values()))
+        self.assertNotEqual(top[(2, 1)], top[(2, 5)])
+
 
     def test_cartesian_perfect(self):
         g = self.g
@@ -160,11 +174,11 @@ class TestGrid(unittest.TestCase):
             for runs_by_k in runs_by_coord.values():
                 for k in range(t):
                     self.assertEqual(runs_by_k[k], {(shift, shift + 4 * (m - 1))})
-        # every block on every side has a position for all t qubits
-        for side in ("r", "l", "b", "t"):
-            self.assertTrue(g.pos[side])
-            for positions in g.pos[side].values():
-                self.assertEqual(len(positions), t)
+        # every block on every side has a side order for all t qubits
+        for side in ("t", "b", "l", "r"):
+            self.assertTrue(g.side_order[side])
+            for orders in g.side_order[side].values():
+                self.assertEqual(len(orders), t)
 
     @parameterized.expand([("int",), ("coordinates",)])
     def test_label_mode_matches_cartesian(self, labels):
@@ -179,7 +193,7 @@ class TestGrid(unittest.TestCase):
             "edges",
             "runs",
             "missing_internal_couplers",
-            "pos",
+            "side_order",
         ):
             self.assertEqual(getattr(gc, attr), getattr(go, attr))
 
@@ -254,6 +268,64 @@ class TestGrid(unittest.TestCase):
         r3 = self.g.cartesian_to_linear((10, 5, 0))  # far, uncoupled
         self.assertFalse(self.g.has_edge(r1, r3))
 
+    def test_neighbors_match_graph(self):
+        # cartesian labels, so G's adjacency is directly comparable; the other label modes
+        # build the same grid (test_label_mode_matches_cartesian)
+        dropped = (2, 5, 0)
+        drop_e = [((2, 1, 1), (2, 5, 1)), ((2, 1, 1), (3, 2, 0)), ((1, 2, 0), (3, 2, 0))]
+        G = zephyr(self.m, self.t, drop_nodes=[dropped], drop_edges=drop_e)
+        g = Grid(G)
+        for c in G.nodes():
+            nbrs = g.neighbors(c)
+            self.assertEqual(len(nbrs), len(set(nbrs)))
+            self.assertEqual(set(nbrs), set(G[c]))
+        self.assertEqual(g.neighbors(dropped), [])
+
+    @parameterized.expand(
+        [
+            # dy = -4 would leave the grid (y = -1); the coupler to (9, 4, 1) is missing
+            (
+                "interior",
+                (8, 3, 0),
+                [
+                    (7, 2, 0), (7, 2, 1), (7, 4, 0), (7, 4, 1), (9, 2, 0),
+                    (9, 2, 1), (9, 4, 0), (8, 1, 0), (8, 5, 0), (8, 7, 0),
+                ],
+            ),
+            # x = 12 is the right edge: no dx = +1, and dy = +4 would give y = 13
+            (
+                "boundary",
+                (12, 9, 1),
+                [
+                    (11, 8, 0), (11, 8, 1), (11, 10, 0), (11, 10, 1),
+                    (12, 7, 1), (12, 11, 1), (12, 5, 1),
+                ],
+            ),
+            # 11 neighbors in the ideal grid; the missing coupler to (8, 3, 0) leaves 10;
+            # dx = +4 would give x = 13, off the grid
+            (
+                "missing_coupler",
+                (9, 4, 1),
+                [
+                    (8, 3, 1), (8, 5, 0), (8, 5, 1), (10, 3, 0), (10, 3, 1),
+                    (10, 5, 0), (10, 5, 1), (7, 4, 1), (11, 4, 1), (5, 4, 1),
+                ],
+            ),
+            ("absent_vertical", (6, 5, 1), []),
+            ("absent_horizontal", (5, 2, 0), []),
+        ]
+    )
+    def test_neighbors_hand_checked(self, _name, node, expected):
+        g = Grid(
+            zephyr(
+                self.m,
+                self.t,
+                drop_nodes=[(5, 2, 0), (6, 5, 1)],
+                drop_edges=[((8, 3, 0), (9, 4, 1))],
+            )
+        )
+        self.assertCountEqual(g.neighbors(node), expected)
+
     def test_el_template_length_valid_and_none(self):
         info = find_reachable(self.g, min_v_arm=4)
         self.assertIsNotNone(info)
@@ -267,8 +339,7 @@ class TestGrid(unittest.TestCase):
     def test_missing_internal_couplers_records_missing_internal_coupler(self):
         v, hp = (2, 5, 0), (3, 6, 0)  # diagonal internal pair
         g = Grid(zephyr(self.m, self.t, drop_edges=[(v, hp)]))
-        self.assertIn((v, hp), g.missing_internal_couplers)
-        self.assertEqual(g.missing_internal_couplers[(v, hp)], ((2, 1, 0), (3, 6, 0)))
+        self.assertEqual(g.missing_internal_couplers, frozenset({(v, hp)}))
 
     def test_missing_internal_couplers_skips_absent_horizontal_neighbor(self):
         # removing a diagonal horizontal node must be skipped (not recorded, no
@@ -292,7 +363,7 @@ class TestGrid(unittest.TestCase):
         info = find_reachable(self.g, min_v_arm=4)
         self.assertIsNotNone(info)
         v, h = info["v"], info["h"]
-        self.assertEqual(self.g.el_reachable(v, h), (info["v_quo"], info["h_quo"], v[2], h[2]))
+        self.assertEqual(self.g.el_reachable(v, h), (info["v_quo"], info["h_quo"]))
 
     def test_el_reachable_no_template_returns_none(self):
         pair = find_unreachable(self.g)
@@ -332,25 +403,25 @@ class TestGrid(unittest.TestCase):
         self.g.clear_el_cache()
         self.assertEqual(self.g._el_cache, {})
 
-    def test_position_quo_structure(self):
-        pos = self.g.pos
-        self.assertEqual(set(pos), {"r", "l", "b", "t"})
-        self.assertIn((2, 5), pos["b"])
-        self.assertIn((2, 5), pos["t"])
-        for _k, val in pos["b"][(2, 5)].items():
-            self.assertEqual(len(val), 2)
-        self.assertIn((1, 2), pos["l"])
-        self.assertIn((1, 2), pos["r"])
+    def test_survey_side_order_structure(self):
+        side_order = self.g.side_order
+        self.assertEqual(set(side_order), {"t", "b", "l", "r"})
+        self.assertIn((2, 5), side_order["t"])
+        self.assertIn((2, 5), side_order["b"])
+        for order in side_order["b"][(2, 5)].values():
+            self.assertIsInstance(order, int)
+        self.assertIn((1, 2), side_order["l"])
+        self.assertIn((1, 2), side_order["r"])
 
-    def test_position_quo_backfills_empty_lines(self):
+    def test_survey_side_order_omits_uncovered_blocks(self):
         drop = [(4, y, k) for y in range(0, 4 * self.m + 1) for k in range(self.t)] + [
             (x, 4, k) for x in range(0, 4 * self.m + 1) for k in range(self.t)
         ]
         g = Grid(zephyr(self.m, self.t, drop_nodes=drop))
-        self.assertEqual(g.pos["b"][(4, 1)], {})  # emptied vertical column
-        self.assertEqual(g.pos["t"][(4, 1)], {})
-        self.assertEqual(g.pos["l"][(1, 4)], {})  # emptied horizontal row
-        self.assertEqual(g.pos["r"][(1, 4)], {})
+        self.assertNotIn((4, 1), g.side_order["t"])  # emptied vertical column
+        self.assertNotIn((4, 1), g.side_order["b"])
+        self.assertNotIn((1, 4), g.side_order["l"])  # emptied horizontal row
+        self.assertNotIn((1, 4), g.side_order["r"])
 
     def test_random_faulty_grid_invariants(self):
         m, t = 4, 4
@@ -395,7 +466,7 @@ class TestGrid(unittest.TestCase):
                             prev = node
 
         # missing_internal_couplers only references present nodes and genuinely-absent couplers
-        for (v, hp), _desc in g.missing_internal_couplers.items():
+        for v, hp in g.missing_internal_couplers:
             self.assertTrue(g.is_present(v))
             self.assertTrue(g.is_present(hp))
             self.assertFalse(g.has_edge(g.cartesian_to_linear(v), g.cartesian_to_linear(hp)))
@@ -407,8 +478,7 @@ class TestGrid(unittest.TestCase):
             for h in Hs[:15]:
                 res = g.el_reachable(v, h)
                 if res is not None:
-                    v_quo, h_quo, vk, hk = res
+                    v_quo, h_quo = res
                     self.assertEqual((len(v_quo), len(h_quo)), (4, 4))
-                    self.assertEqual((vk, hk), (v[2], h[2]))
                     checked += 1
         self.assertGreater(checked, 0)
