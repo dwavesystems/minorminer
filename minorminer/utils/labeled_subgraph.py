@@ -112,9 +112,18 @@ def graph_label_mapping(
     )
 
 
+def _find_subgraph_label(value: Hashable) -> str:
+    """Cast a label to a ``find_subgraph``-safe string.
+
+    ``find_subgraph`` requires string vertex labels and its parser rejects labels
+    containing whitespace, so the value is stringified and spaces are stripped.
+    """
+    return str(value).replace(" ", "")
+
+
 def node_labels_by_orientation(
     graph: nx.Graph,
-) -> dict[Hashable, int]:
+) -> dict[Hashable, str]:
     """Generate node labels from graph orientation classes.
 
     For supported D-Wave graph families, this function labels nodes by their
@@ -140,7 +149,7 @@ def node_labels_by_orientation(
             will fall back to a bipartite coloring approach.
 
     Returns:
-        A dictionary mapping graph nodes to integer orientation labels.
+        A dictionary mapping graph nodes to string orientation labels.
 
     Raises:
         ValueError: If the bipartite coloring fallback is used and the graph is
@@ -165,12 +174,12 @@ def node_labels_by_orientation(
                 raise ValueError(
                     "Orientation labeling requires a bipartite graph"
                 )
-    return col
+    return {n: _find_subgraph_label(c) for n, c in col.items()}
 
 
 def node_labels_by_coloring(
     graph: nx.Graph,
-) -> dict[Hashable, int]:
+) -> dict[Hashable, str]:
     """Generate node labels from a family-specific graph coloring.
 
     For supported D-Wave graph families, canonical 2-coloring for Chimera and 4-coloring
@@ -197,7 +206,7 @@ def node_labels_by_coloring(
         ValueError: If the bipartite coloring fallback is used and the graph is
             not bipartite.
     Returns:
-        A dictionary mapping graph nodes to integer color labels.
+        A dictionary mapping graph nodes to string color labels.
     """
     graph_family = graph.graph.get("family", None)
     graph_labels = graph.graph.get("labels", None)
@@ -227,13 +236,13 @@ def node_labels_by_coloring(
                 "Coloring fallback requires a bipartite graph"
             )
 
-    return col
+    return {n: _find_subgraph_label(c) for n, c in col.items()}
 
 
 def node_labels_by_quotient(
     graph: nx.Graph,
     expand_boundary_search: bool = True,
-) -> dict[Hashable, tuple]:
+) -> dict[Hashable, str]:
     """Generate quotient graph labels for nodes based on graph family and structure.
 
     This function assigns quotient labels to nodes, grouping qubits by
@@ -250,7 +259,7 @@ def node_labels_by_quotient(
             boundary quotient nodes are remapped to adjacent (interior perpendicular
             block offset) nodes. Defaults to ``True``.
     Returns:
-        A dictionary mapping node coordinates to tuple quotient labels.
+        A dictionary mapping node labels to string quotient labels.
 
     Raises:
         ValueError: If graph family is not found in metadata or is not 'zephyr',
@@ -295,7 +304,7 @@ def node_labels_by_quotient(
             graph_family, graph_shape, "coordinate", graph_labels
         )
         col = {to_label(k): v for k, v in col.items()}
-    return col
+    return {k: _find_subgraph_label(v) for k, v in col.items()}
 
 
 def find_labeled_subgraph(
@@ -340,12 +349,14 @@ def find_labeled_subgraph(
                 For high performance applications consider direct
                 specification of the coloring via the node_labels argument.
         node_labels: A tuple of dicts mapping nodes in source and target graphs
-            to labels.
+            to labels. Labels may be any hashable value; each is cast to a
+            ``find_subgraph``-safe string (stringified with whitespace removed)
+            before the search, so a source and target node are matched only when
+            their string labels are equal.
         **kwargs: Additional keyword arguments to pass to find_subgraph.
             Use of a timeout > 0 is recommended.
     """
     if node_labels is None:
-        # use provided coloring
         match labeling_method:
             case "orientation":
                 node_labels = tuple(
@@ -374,11 +385,11 @@ def find_labeled_subgraph(
                 )
             case _:
                 raise ValueError(f"Unknown coloring method {labeling_method}")
-        # Whitespace-free: find_subgraph's underlying vertex-label parser rejects
-        # labels containing spaces, which tuple reprs would otherwise include.
-        node_labels = tuple(
-            {k: str(v).replace(" ", "") for k, v in labels.items()}
-            for labels in node_labels
-        )
+    # Standardize on find_subgraph-safe string labels, for both the labelings
+    # computed above and any user-supplied node_labels.
+    safe_node_labels = tuple(
+        {k: _find_subgraph_label(v) for k, v in labels.items()}
+        for labels in node_labels
+    )
 
-    return find_subgraph(source, target, node_labels=node_labels, **kwargs)
+    return find_subgraph(source, target, node_labels=safe_node_labels, **kwargs)
