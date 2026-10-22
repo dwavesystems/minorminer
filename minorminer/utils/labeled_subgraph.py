@@ -211,7 +211,9 @@ def node_labels_by_coloring(
         considered; the two color classes are numbered independently and are not
         aligned between a source and a target graph. This labeling is therefore
         in general only sufficient for symmetric bipartite graphs, and a failure
-        to find an embedding under it does not rule one out.
+        to find an embedding under it does not rule one out. Any family string
+        that is not ``"chimera"``, ``"pegasus"`` or ``"zephyr"`` (including a
+        misspelling) silently uses this fallback rather than raising.
 
     Args:
         graph: Input graph to color. The family, node label type and shape are
@@ -332,11 +334,12 @@ def find_labeled_subgraph(
     target: nx.Graph,
     labeling_method: Literal["orientation", "quotient", "coloring"] = "orientation",
     node_labels: tuple[dict, dict] | None = None,
+    expand_boundary_search: bool = True,
     **kwargs,
 ) -> dict[Hashable, Hashable]:
     """Find a subgraph of target isomorphic to source that preserves node colors.
 
-    This is a helper function that calls :code:``find_subgraph`` with ``node_labels``.
+    This is a helper function that calls ``find_subgraph`` with ``node_labels``.
     Node labeling can significantly accelerate the search when well chosen. The
     supported labeling methods are intended for bipartite graphs and D-Wave source
     graphs (Zephyr, Pegasus, and Chimera) embedded onto D-Wave target graphs. However,
@@ -365,7 +368,10 @@ def find_labeled_subgraph(
                 be of type Chimera, Pegasus or Zephyr. Qubits are labeled
                 by orientation and horizontal displacement. Note that this is
                 only a good choice if the grid parameter (number of rows
-                and columns) of source and target are matched.
+                and columns) of source and target are matched. For Zephyr
+                graphs the ``expand_boundary_search`` argument controls whether
+                boundary quotient nodes are collapsed with adjacent interior
+                nodes.
             - 'coloring': According to canonical 2-colorings of Chimera,
                 or the 4-coloring of Pegasus/Zephyr. Note that these colorings
                 are not unique. If the graph orientation
@@ -379,6 +385,12 @@ def find_labeled_subgraph(
             ``find_subgraph``-safe string (stringified with whitespace removed)
             before the search, so a source and target node are matched only when
             their string labels are equal.
+        expand_boundary_search: Forwarded to :func:`node_labels_by_quotient` when
+            ``labeling_method='quotient'``; ignored by all other labeling methods
+            and when ``node_labels`` is provided. If ``True`` and the graph family
+            is ``"zephyr"``, boundary quotient nodes are remapped to adjacent
+            interior nodes, enlarging the set of admissible embeddings. Defaults
+            to ``True``.
         **kwargs: Additional keyword arguments to pass to find_subgraph.
             Use of a timeout > 0 is recommended.
     """
@@ -396,13 +408,12 @@ def find_labeled_subgraph(
                         "Source and target graph families should match for quotient "
                         "coloring"
                     )
-                if target_family not in ("chimera", "pegasus", "zephyr"):
-                    raise ValueError(
-                        "Quotient coloring is only implemented for Chimera, Pegasus "
-                        "and Zephyr graph families"
-                    )
+                # Supported-family validation is left to node_labels_by_quotient.
                 node_labels = tuple(
-                    node_labels_by_quotient(G) for G in (source, target)
+                    node_labels_by_quotient(
+                        G, expand_boundary_search=expand_boundary_search
+                    )
+                    for G in (source, target)
                 )
             case "coloring":
                 node_labels = tuple(

@@ -44,7 +44,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], node[0])
+            self.assertEqual(labels[node], str(node[0]))
 
     def test_node_labels_by_orientation_chimera_matches_orientation_axis(self):
         graph = chimera_graph(2, t=2, coordinates=True)
@@ -53,7 +53,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], node[2])
+            self.assertEqual(labels[node], str(node[2]))
 
     def test_node_labels_by_coloring_chimera_matches_per_node_two_color(self):
         # Regression test: coloring must be computed per node, not once for the
@@ -64,10 +64,10 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], chimera_two_color(node))
+            self.assertEqual(labels[node], str(chimera_two_color(node)))
         # Sanity check that the coloring is not degenerate (i.e. not all nodes
         # share one color).
-        self.assertEqual(set(labels.values()), {0, 1})
+        self.assertEqual(set(labels.values()), {"0", "1"})
 
     def test_node_labels_by_coloring_pegasus_matches_per_node_four_color(self):
         graph = pegasus_graph(3, coordinates=True)
@@ -76,7 +76,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], pegasus_four_color(node))
+            self.assertEqual(labels[node], str(pegasus_four_color(node)))
 
     def test_node_labels_by_coloring_zephyr_matches_per_node_four_color(self):
         graph = zephyr_graph(2, 2, coordinates=True)
@@ -85,17 +85,17 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], zephyr_four_color(node))
+            self.assertEqual(labels[node], str(zephyr_four_color(node)))
 
-    def test_node_labels_by_coloring_falls_back_to_greedy_color_without_family(self):
+    def test_node_labels_by_coloring_falls_back_to_bipartite_color_without_family(self):
         # A plain graph without D-Wave family metadata should use
-        # nx.greedy_color as a fallback.
+        # nx.bipartite.color as a fallback.
         graph = nx.cycle_graph(6)
 
         labels = node_labels_by_coloring(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
-        expected = nx.greedy_color(graph)
+        expected = {n: str(c) for n, c in nx.bipartite.color(graph).items()}
         self.assertEqual(labels, expected)
 
     def test_node_labels_by_quotient_remaps_zephyr_boundaries(self):
@@ -103,9 +103,9 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         labels = node_labels_by_quotient(graph, expand_boundary_search=True)
 
-        self.assertEqual(labels[(0, 0, 0, 0, 0)], (0, 1, 0, 0))
-        self.assertEqual(labels[(0, 4, 0, 0, 0)], (0, 3, 0, 0))
-        self.assertEqual(labels[(0, 2, 0, 0, 0)], (0, 2, 0, 0))
+        self.assertEqual(labels[(0, 0, 0, 0, 0)], "(0,1,0,0)")
+        self.assertEqual(labels[(0, 4, 0, 0, 0)], "(0,3,0,0)")
+        self.assertEqual(labels[(0, 2, 0, 0, 0)], "(0,2,0,0)")
 
     def test_node_labels_by_quotient_chimera_drops_qubit_index(self):
         graph = chimera_graph(2, t=2, coordinates=True)
@@ -114,15 +114,15 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], node[:3])
+            self.assertEqual(labels[node], str(node[:3]).replace(" ", ""))
 
-    def test_node_labels_by_orientation_falls_back_to_greedy_color_without_family(self):
+    def test_node_labels_by_orientation_falls_back_to_bipartite_color_without_family(self):
         graph = nx.cycle_graph(6)
 
         labels = node_labels_by_orientation(graph)
 
         self.assertEqual(set(labels), set(graph.nodes()))
-        self.assertEqual(set(labels.values()), {0, 1})
+        self.assertEqual(set(labels.values()), {"0", "1"})
 
     def test_node_labels_by_orientation_raises_for_non_bipartite_fallback(self):
         graph = nx.cycle_graph(5)
@@ -138,7 +138,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
             u, w, k, z = node
-            self.assertEqual(labels[node], (u, w, k // 2, z))
+            self.assertEqual(labels[node], str((u, w, k // 2, z)).replace(" ", ""))
 
     def test_node_labels_by_quotient_zephyr_without_boundary_expansion(self):
         graph = zephyr_graph(2, 2, coordinates=True)
@@ -147,7 +147,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], node[:2] + node[3:])
+            self.assertEqual(labels[node], str(node[:2] + node[3:]).replace(" ", ""))
 
     def test_node_labels_by_quotient_raises_for_unrecognized_family(self):
         graph = nx.path_graph(4)
@@ -325,7 +325,7 @@ class TestIntLabeledGraphs(unittest.TestCase):
                 graph = build(False)
                 labels = node_labels_by_orientation(graph)
                 self.assertEqual(set(labels), set(graph.nodes()))
-                self.assertEqual(set(labels.values()), {0, 1})
+                self.assertEqual(set(labels.values()), {"0", "1"})
 
     def test_coloring_and_quotient_support_int_labels(self):
         for fn in (node_labels_by_coloring, node_labels_by_quotient):
@@ -368,4 +368,4 @@ class TestNiceLabeledPegasus(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], node[:3])
+            self.assertEqual(labels[node], str(node[:3]).replace(" ", ""))
