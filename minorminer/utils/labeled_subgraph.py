@@ -120,22 +120,31 @@ def node_labels_by_orientation(
     For supported D-Wave graph families, this function labels nodes by their
     physical qubit orientation in processor implementations (vertical or horizontal).
 
-    For non-D-Wave graph families, a greedy coloring is used as a fallback. In
+    For non-D-Wave graph families, a bipartite coloring is used as a fallback. In
     that case, the graph must be bipartite so that the resulting coloring has
     exactly two color classes, which serve as orientation labels.
+
+    Note:
+        Only one of the two possible bipartite colorings is considered; the two
+        color classes are numbered independently and are not aligned between a
+        source and a target graph. This labeling is therefore in general only
+        sufficient for symmetric bipartite graphs. For asymmetric graphs the
+        opposite class numbering may be required, so a failure to find an
+        embedding under this labeling does not rule one out. The same limitation
+        applies to any explicitly provided two coloring.
 
     Args:
         graph: Input graph whose nodes will be labeled by orientation. The graph
             family, node label type and shape are inferred from the graph's metadata.
             If the graph family is not inferred from the metadata, the function
-            will fall back to a greedy coloring approach.
+            will fall back to a bipartite coloring approach.
 
     Returns:
         A dictionary mapping graph nodes to integer orientation labels.
 
     Raises:
-        ValueError: If greedy coloring is used and produces
-            more than two colors.
+        ValueError: If the bipartite coloring fallback is used and the graph is
+            not bipartite.
     """
     graph_family = graph.graph.get("family", None)
     graph_labels = graph.graph.get("labels", None)
@@ -148,11 +157,13 @@ def node_labels_by_orientation(
             axis = 2 if graph_family == "chimera" else 0
             col = {n: to_coord(n)[axis] for n in graph.nodes()}
         case _:
-            col = nx.greedy_color(graph)
-            if len(set(col.values())) != 2:
+            # Only one of the two bipartite colorings is considered (see Note);
+            # this is in general only sufficient for symmetric bipartite graphs.
+            try:
+                col = nx.bipartite.color(graph)
+            except nx.NetworkXError:
                 raise ValueError(
-                    "Orientation labeling requires a bipartite graph, but greedy "
-                    "coloring produced more than 2 colors"
+                    "Orientation labeling requires a bipartite graph"
                 )
     return col
 
@@ -167,16 +178,24 @@ def node_labels_by_coloring(
     coloring not related by isomorphism, so failure to find a coloring is
     not sufficient to rule out any 2 (or 4) colored subgraph isomorphism.
 
-    For graphs without recognized D-Wave family metadata, a greedy coloring is used as a
-    generic fallback.
+    For graphs without recognized D-Wave family metadata, a bipartite coloring is used
+    as a generic fallback.
+
+    Note:
+        For the bipartite fallback, only one of the two possible colorings is
+        considered; the two color classes are numbered independently and are not
+        aligned between a source and a target graph. This labeling is therefore
+        in general only sufficient for symmetric bipartite graphs, and a failure
+        to find an embedding under it does not rule one out.
 
     Args:
         graph: Input graph to color. The family, node label type and shape are
             inferred from the graph's metadata and used to select a family-specific
-            coloring method where available. The function will fall back to a greedy
+            coloring method where available. The function will fall back to a bipartite
             coloring approach if the family is not recognized.
     Raises:
-        ValueError: If the graph family is not supported.
+        ValueError: If the bipartite coloring fallback is used and the graph is
+            not bipartite.
     Returns:
         A dictionary mapping graph nodes to integer color labels.
     """
@@ -199,7 +218,14 @@ def node_labels_by_coloring(
             case "zephyr":
                 col = {n: zephyr_four_color(to_coord(n)) for n in graph.nodes()}
     else:
-        col = nx.greedy_color(graph)
+        # Only one of the two bipartite colorings is considered (see Note); this
+        # is in general only sufficient for symmetric bipartite graphs.
+        try:
+            col = nx.bipartite.color(graph)
+        except nx.NetworkXError:
+            raise ValueError(
+                "Coloring fallback requires a bipartite graph"
+            )
 
     return col
 
@@ -296,8 +322,10 @@ def find_labeled_subgraph(
                 map to variables of the same orientation in target.
                 If the graph orientation is unclear (the graph is not
                 Chimera, Pegasus or Zephyr) the orientation is assigned by
-                a greedy min-coloring and an error is thrown if there are
-                not precisely two colors.
+                a bipartite coloring and an error is thrown if the graph is
+                not bipartite. Only one of the two colorings is considered,
+                which is in general only sufficient for symmetric bipartite
+                graphs.
             - 'quotient': Quotient labeling is used. The graphs must
                 be of type Chimera, Pegasus or Zephyr. Qubits are labeled
                 by orientation and horizontal displacement. Note that this is
@@ -306,8 +334,9 @@ def find_labeled_subgraph(
             - 'coloring': According to canonical 2-colorings of Chimera,
                 or the 4-coloring of Pegasus/Zephyr. Note that these colorings
                 are not unique. If the graph orientation
-                is unclear, the coloring is assigned by a greedy min-coloring.
-                A greedy coloring is not guaranteed to be unique or optimal.
+                is unclear, the coloring is assigned by a bipartite coloring.
+                Only one of the two colorings is considered, which is in general
+                only sufficient for symmetric bipartite graphs.
                 For high performance applications consider direct
                 specification of the coloring via the node_labels argument.
         node_labels: A tuple of dicts mapping nodes in source and target graphs
