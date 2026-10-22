@@ -12,6 +12,19 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""Subgraph search with node labelings that constrain the search.
+
+The labeling helpers in this module rely on graph metadata (the ``family``,
+``labels`` and shape fields) to produce canonical labelings for the D-Wave
+topologies (Chimera, Pegasus and Zephyr). Such graphs should be generated with
+the :mod:`dwave.graphs` topology generators (``dwave.graphs.chimera_graph``,
+``dwave.graphs.pegasus_graph`` and ``dwave.graphs.zephyr_graph``), which
+populate this metadata. Graphs built by other means, or with that metadata
+removed or altered, may not carry sufficient information for a family-specific
+labeling; in that case the generic (bipartite coloring) fallback is used where
+available.
+"""
+
 from typing import Callable, Hashable, Literal
 
 from minorminer.subgraph import find_subgraph
@@ -144,9 +157,10 @@ def node_labels_by_orientation(
 
     Args:
         graph: Input graph whose nodes will be labeled by orientation. The graph
-            family, node label type and shape are inferred from the graph's metadata.
-            If the graph family is not inferred from the metadata, the function
-            will fall back to a bipartite coloring approach.
+            family, node label type and shape are inferred from the graph's metadata
+            (as populated by the :mod:`dwave.graphs` generators). If the graph family
+            is not inferred from the metadata, the function will fall back to a
+            bipartite coloring approach.
 
     Returns:
         A dictionary mapping graph nodes to string orientation labels.
@@ -160,6 +174,8 @@ def node_labels_by_orientation(
     graph_shape = get_graph_shape(graph)
     match graph_family:
         case "chimera" | "pegasus" | "zephyr":
+            if graph_labels is None:
+                graph_labels = "coordinate"
             to_coord = graph_label_mapping(
                 graph_family, graph_shape, graph_labels, "coordinate"
             )
@@ -199,7 +215,8 @@ def node_labels_by_coloring(
 
     Args:
         graph: Input graph to color. The family, node label type and shape are
-            inferred from the graph's metadata and used to select a family-specific
+            inferred from the graph's metadata (as populated by the
+            :mod:`dwave.graphs` generators) and used to select a family-specific
             coloring method where available. The function will fall back to a bipartite
             coloring approach if the family is not recognized.
     Raises:
@@ -216,6 +233,8 @@ def node_labels_by_coloring(
         "pegasus",
         "zephyr",
     ):
+        if graph_labels is None:
+            graph_labels = "coordinate"
         to_coord = graph_label_mapping(
             graph_family, graph_shape, graph_labels, "coordinate"
         )
@@ -254,7 +273,8 @@ def node_labels_by_quotient(
 
     Args:
         graph: A Chimera, Pegasus or Zephyr NetworkX graph. The family, node label
-            type and shape are inferred from the graph's metadata.
+            type and shape are inferred from the graph's metadata (as populated by
+            the :mod:`dwave.graphs` generators).
         expand_boundary_search: If ``True`` and the graph family is ``"zephyr"``,
             boundary quotient nodes are remapped to adjacent (interior perpendicular
             block offset) nodes. Defaults to ``True``.
@@ -323,6 +343,12 @@ def find_labeled_subgraph(
     in general it may be necessary to consider uncolored search or several
     application-specific node labelings to find embeddings.
 
+    For the ``orientation``, ``quotient`` and ``coloring`` methods on D-Wave
+    families, ``source`` and ``target`` should be generated with the
+    :mod:`dwave.graphs` topology generators (``chimera_graph``, ``pegasus_graph``
+    and ``zephyr_graph``), which populate the ``family``, ``labels`` and shape
+    metadata these methods require.
+
     Args:
         source: Source graph.
         target: Target graph.
@@ -363,15 +389,14 @@ def find_labeled_subgraph(
                     node_labels_by_orientation(G) for G in (source, target)
                 )
             case "quotient":
-                if (
-                    "family" not in target.graph
-                    or target.graph["family"] != source.graph["family"]
-                ):
+                source_family = source.graph.get("family")
+                target_family = target.graph.get("family")
+                if target_family is None or target_family != source_family:
                     raise ValueError(
                         "Source and target graph families should match for quotient "
                         "coloring"
                     )
-                if target.graph["family"] not in ("chimera", "pegasus", "zephyr"):
+                if target_family not in ("chimera", "pegasus", "zephyr"):
                     raise ValueError(
                         "Quotient coloring is only implemented for Chimera, Pegasus "
                         "and Zephyr graph families"
