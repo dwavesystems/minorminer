@@ -22,54 +22,7 @@ from parameterized import parameterized
 
 from minorminer.utils._clique import el_geometry
 from minorminer.utils._clique.grid import Grid, _block_side_order, _covers
-
-
-# --------------------------------------------------------------------------
-# helpers: build ideal / faulty Zephyr graphs via dwave.graphs, in any label mode.
-# Faults are expressed in cartesian (x, y, k) coordinates -- grid's internal space --
-# and mapped into whatever label mode the graph is built in.
-# --------------------------------------------------------------------------
-def zephyr(m, t, drop_nodes=(), drop_edges=(), labels="cartesian"):
-    drop_nodes = set(drop_nodes)
-    drop_edges = {(a, b) if a < b else (b, a) for (a, b) in drop_edges}
-
-    full = zephyr_graph(m, t, coordinates=True, data=True)  # authoritative topology
-    linear_index_by_zcoord = dict(full.nodes(data="linear_index"))
-
-    present_zcoords = [
-        z for z in full.nodes() if zephyr_coordinates.zephyr_to_cartesian(z) not in drop_nodes
-    ]
-    present_zcoord_set = set(present_zcoords)
-    present_edges = []
-    for zcoord_a, zcoord_b in full.edges():
-        if zcoord_a not in present_zcoord_set or zcoord_b not in present_zcoord_set:
-            continue
-        ccoord_a, ccoord_b = zephyr_coordinates.zephyr_to_cartesian(
-            zcoord_a
-        ), zephyr_coordinates.zephyr_to_cartesian(zcoord_b)
-        edge = (ccoord_a, ccoord_b) if ccoord_a < ccoord_b else (ccoord_b, ccoord_a)
-        if edge in drop_edges:
-            continue
-        present_edges.append((zcoord_a, zcoord_b))
-
-    if labels == "coordinates":
-        return zephyr_graph(
-            m, t, node_list=present_zcoords, edge_list=present_edges, coordinates=True
-        )
-    if labels == "int":
-        node_list = [linear_index_by_zcoord[z] for z in present_zcoords]
-        edge_list = [
-            (linear_index_by_zcoord[a], linear_index_by_zcoord[b]) for (a, b) in present_edges
-        ]
-        return zephyr_graph(m, t, node_list=node_list, edge_list=edge_list, coordinates=False)
-    # cartesian: dwave.graphs has no cartesian labelling, so relabel a coordinate
-    # graph's nodes to (x, y, k) -- grid infers "cartesian" from the 3-tuple.
-    zgraph = zephyr_graph(
-        m, t, node_list=present_zcoords, edge_list=present_edges, coordinates=True
-    )
-    return nx.relabel_nodes(
-        zgraph, {z: zephyr_coordinates.zephyr_to_cartesian(z) for z in zgraph.nodes()}
-    )
+from .faulty_zephyr import faulty_zephyr
 
 
 def verticals(g):
@@ -113,7 +66,7 @@ def find_unreachable(g):
 class TestGrid(unittest.TestCase):
     def setUp(self):
         self.m, self.t = 3, 2
-        self.g = Grid(zephyr(self.m, self.t))
+        self.g = Grid(faulty_zephyr(self.m, self.t))
 
     @parameterized.expand(
         [
@@ -141,7 +94,7 @@ class TestGrid(unittest.TestCase):
 
     def test_side_order_ranks_follow_each_blocks_reach(self):
         m, t = 6, 2
-        g = Grid(zephyr(m, t, drop_edges=[((2, 5, 0), (2, 9, 0)), ((2, 1, 1), (2, 5, 1))]))
+        g = Grid(faulty_zephyr(m, t, drop_edges=[((2, 5, 0), (2, 9, 0)), ((2, 1, 1), (2, 5, 1))]))
         self.assertEqual(g.runs["v1"][2][0], {(1, 5), (9, 21)})
         self.assertEqual(g.runs["v1"][2][1], {(1, 1), (5, 21)})
 
@@ -153,7 +106,6 @@ class TestGrid(unittest.TestCase):
         self.assertEqual(set(top[(2, 1)].values()), set(top[(2, 5)].values()))
         self.assertNotEqual(top[(2, 1)], top[(2, 5)])
 
-
     def test_cartesian_perfect(self):
         g = self.g
         self.assertEqual((g.m, g.t, g.labels), (self.m, self.t, "cartesian"))
@@ -163,7 +115,7 @@ class TestGrid(unittest.TestCase):
     @parameterized.expand([("int",), ("coordinates",), ("cartesian",)])
     def test_perfect_graph_smoke(self, labels):
         m, t = 2, 4
-        G = zephyr(m, t, labels=labels)
+        G = faulty_zephyr(m, t, labels=labels)
         g = Grid(G)
         self.assertEqual(g.labels, labels)
         # every coupler made it into the linear edge set
@@ -184,8 +136,12 @@ class TestGrid(unittest.TestCase):
     def test_label_mode_matches_cartesian(self, labels):
         drop_n = [(2, 5, 0)]
         drop_e = [((2, 1, 0), (2, 9, 0))]
-        gc = Grid(zephyr(self.m, self.t, drop_n, drop_e, "cartesian"))
-        go = Grid(zephyr(self.m, self.t, drop_n, drop_e, labels))
+        gc = Grid(
+            faulty_zephyr(self.m, self.t, drop_nodes=drop_n, drop_edges=drop_e, labels="cartesian")
+        )
+        go = Grid(
+            faulty_zephyr(self.m, self.t, drop_nodes=drop_n, drop_edges=drop_e, labels=labels)
+        )
         self.assertEqual(go.labels, labels)
         for attr in (
             "present_qubits",
@@ -198,7 +154,7 @@ class TestGrid(unittest.TestCase):
             self.assertEqual(getattr(gc, attr), getattr(go, attr))
 
     def test_columns_metadata_fallback(self):
-        G = zephyr(self.m, self.t)
+        G = faulty_zephyr(self.m, self.t)
         G.graph.pop("rows", None)  # force the columns fallback
         G.graph["columns"] = self.m
         g = Grid(G)
@@ -223,7 +179,7 @@ class TestGrid(unittest.TestCase):
             Grid(G)
 
     def test_cartesian_edge_to_unclassified_node_skipped(self):
-        G = zephyr(self.m, self.t, labels="cartesian")
+        G = faulty_zephyr(self.m, self.t, labels="cartesian")
         G.add_node((0, 0, 0))  # invalid parity -> unclassified
         G.add_edge((0, 1, 0), (0, 0, 0))
         g = Grid(G)
@@ -233,7 +189,7 @@ class TestGrid(unittest.TestCase):
     def test_coordinates_edge_to_out_of_range_node_skipped(self):
         # a Zephyr coord with z == m maps outside [0, 4m] and is never classified,
         # so its edge is skipped during coordinate ingestion.
-        G = zephyr(self.m, self.t, labels="coordinates")
+        G = faulty_zephyr(self.m, self.t, labels="coordinates")
         far = (0, 0, 0, 0, self.m)  # -> cartesian (0, 4m+1, 0)
         G.add_node(far)
         G.add_edge((0, 0, 0, 0, 0), far)
@@ -273,7 +229,7 @@ class TestGrid(unittest.TestCase):
         # build the same grid (test_label_mode_matches_cartesian)
         dropped = (2, 5, 0)
         drop_e = [((2, 1, 1), (2, 5, 1)), ((2, 1, 1), (3, 2, 0)), ((1, 2, 0), (3, 2, 0))]
-        G = zephyr(self.m, self.t, drop_nodes=[dropped], drop_edges=drop_e)
+        G = faulty_zephyr(self.m, self.t, drop_nodes=[dropped], drop_edges=drop_e)
         g = Grid(G)
         for c in G.nodes():
             nbrs = g.neighbors(c)
@@ -288,8 +244,16 @@ class TestGrid(unittest.TestCase):
                 "interior",
                 (8, 3, 0),
                 [
-                    (7, 2, 0), (7, 2, 1), (7, 4, 0), (7, 4, 1), (9, 2, 0),
-                    (9, 2, 1), (9, 4, 0), (8, 1, 0), (8, 5, 0), (8, 7, 0),
+                    (7, 2, 0),
+                    (7, 2, 1),
+                    (7, 4, 0),
+                    (7, 4, 1),
+                    (9, 2, 0),
+                    (9, 2, 1),
+                    (9, 4, 0),
+                    (8, 1, 0),
+                    (8, 5, 0),
+                    (8, 7, 0),
                 ],
             ),
             # x = 12 is the right edge: no dx = +1, and dy = +4 would give y = 13
@@ -297,8 +261,13 @@ class TestGrid(unittest.TestCase):
                 "boundary",
                 (12, 9, 1),
                 [
-                    (11, 8, 0), (11, 8, 1), (11, 10, 0), (11, 10, 1),
-                    (12, 7, 1), (12, 11, 1), (12, 5, 1),
+                    (11, 8, 0),
+                    (11, 8, 1),
+                    (11, 10, 0),
+                    (11, 10, 1),
+                    (12, 7, 1),
+                    (12, 11, 1),
+                    (12, 5, 1),
                 ],
             ),
             # 11 neighbors in the ideal grid; the missing coupler to (8, 3, 0) leaves 10;
@@ -307,8 +276,16 @@ class TestGrid(unittest.TestCase):
                 "missing_coupler",
                 (9, 4, 1),
                 [
-                    (8, 3, 1), (8, 5, 0), (8, 5, 1), (10, 3, 0), (10, 3, 1),
-                    (10, 5, 0), (10, 5, 1), (7, 4, 1), (11, 4, 1), (5, 4, 1),
+                    (8, 3, 1),
+                    (8, 5, 0),
+                    (8, 5, 1),
+                    (10, 3, 0),
+                    (10, 3, 1),
+                    (10, 5, 0),
+                    (10, 5, 1),
+                    (7, 4, 1),
+                    (11, 4, 1),
+                    (5, 4, 1),
                 ],
             ),
             ("absent_vertical", (6, 5, 1), []),
@@ -317,7 +294,7 @@ class TestGrid(unittest.TestCase):
     )
     def test_neighbors_hand_checked(self, _name, node, expected):
         g = Grid(
-            zephyr(
+            faulty_zephyr(
                 self.m,
                 self.t,
                 drop_nodes=[(5, 2, 0), (6, 5, 1)],
@@ -338,13 +315,13 @@ class TestGrid(unittest.TestCase):
 
     def test_missing_internal_couplers_records_missing_internal_coupler(self):
         v, hp = (2, 5, 0), (3, 6, 0)  # diagonal internal pair
-        g = Grid(zephyr(self.m, self.t, drop_edges=[(v, hp)]))
+        g = Grid(faulty_zephyr(self.m, self.t, drop_edges=[(v, hp)]))
         self.assertEqual(g.missing_internal_couplers, frozenset({(v, hp)}))
 
     def test_missing_internal_couplers_skips_absent_horizontal_neighbor(self):
         # removing a diagonal horizontal node must be skipped (not recorded, no
         # KeyError); the grid still builds and missing_internal_couplers stays empty.
-        g = Grid(zephyr(self.m, self.t, drop_nodes=[(3, 6, 0)]))
+        g = Grid(faulty_zephyr(self.m, self.t, drop_nodes=[(3, 6, 0)]))
         self.assertEqual(len(g.missing_internal_couplers), 0)
 
     @parameterized.expand(
@@ -356,7 +333,7 @@ class TestGrid(unittest.TestCase):
         ]
     )
     def test_survey_ext_runs(self, _name, drop_nodes, drop_edges, expected):
-        g = Grid(zephyr(self.m, self.t, drop_nodes, drop_edges))
+        g = Grid(faulty_zephyr(self.m, self.t, drop_nodes=drop_nodes, drop_edges=drop_edges))
         self.assertEqual(g.runs["v1"].get(2, {}).get(0), expected)
 
     def test_el_reachable_reachable_returns_descriptor(self):
@@ -376,12 +353,12 @@ class TestGrid(unittest.TestCase):
         self.assertIsNotNone(info)
         v, h, vp, hp = info["v"], info["h"], info["vp"], info["hp"]
         if reason == "missing_node":
-            g = Grid(zephyr(self.m, self.t, drop_nodes=[vp]))
+            g = Grid(faulty_zephyr(self.m, self.t, drop_nodes=[vp]))
         elif reason == "missing_internal":
-            g = Grid(zephyr(self.m, self.t, drop_edges=[(vp, hp)]))
+            g = Grid(faulty_zephyr(self.m, self.t, drop_edges=[(vp, hp)]))
             self.assertIn((vp, hp), g.missing_internal_couplers)
         else:  # run_not_covered: break an external coupler inside the vertical arm
-            g = Grid(zephyr(self.m, self.t, drop_edges=[(v, (v[0], v[1] + 4, v[2]))]))
+            g = Grid(faulty_zephyr(self.m, self.t, drop_edges=[(v, (v[0], v[1] + 4, v[2]))]))
             self.assertTrue(g.is_present(v) and g.is_present(vp))
         self.assertIsNone(g.el_reachable(v, h))
 
@@ -417,7 +394,7 @@ class TestGrid(unittest.TestCase):
         drop = [(4, y, k) for y in range(0, 4 * self.m + 1) for k in range(self.t)] + [
             (x, 4, k) for x in range(0, 4 * self.m + 1) for k in range(self.t)
         ]
-        g = Grid(zephyr(self.m, self.t, drop_nodes=drop))
+        g = Grid(faulty_zephyr(self.m, self.t, drop_nodes=drop))
         self.assertNotIn((4, 1), g.side_order["t"])  # emptied vertical column
         self.assertNotIn((4, 1), g.side_order["b"])
         self.assertNotIn((1, 4), g.side_order["l"])  # emptied horizontal row
@@ -435,7 +412,11 @@ class TestGrid(unittest.TestCase):
         drop_nodes = {n for n in cart_nodes if rng.random() < 0.05}  # ~95% node yield
         remaining = [e for e in cart_edges if e[0] not in drop_nodes and e[1] not in drop_nodes]
         drop_edges = {e for e in remaining if rng.random() < 0.01}  # ~99% coupler yield
-        g = Grid(zephyr(m, t, drop_nodes, drop_edges, "coordinates"))
+        g = Grid(
+            faulty_zephyr(
+                m, t, drop_nodes=drop_nodes, drop_edges=drop_edges, labels="coordinates"
+                )
+            )
 
         ideal_by_kind = {}
         for n in cart_nodes:
