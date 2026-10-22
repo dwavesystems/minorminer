@@ -14,3 +14,4 @@
 
 
 from minorminer.utils._clique.maximum_bipartite_matching import maximum_bipartite_matching
+from minorminer.utils._clique.longest_strictly_increasing_subsequence import *
