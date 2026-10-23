@@ -25,6 +25,8 @@ labeling; in that case the generic (bipartite coloring) fallback is used where
 available.
 """
 
+import string
+import urllib.parse
 from typing import Callable, Hashable, Literal
 
 from minorminer.subgraph import find_subgraph
@@ -129,7 +131,8 @@ def safe_find_subgraph_label(value: Hashable) -> str:
     """Cast a label to a ``find_subgraph``-safe string.
 
     ``find_subgraph`` requires string vertex labels and its parser rejects labels
-    containing whitespace, so the value is stringified and spaces are stripped.
+    containing whitespace, so the value is stringified and percent-encoded,
+    leaving letters, digits and punctuation intact while escaping whitespace.
     """
     safe_list = string.ascii_letters + string.digits + string.punctuation
     return urllib.parse.quote(str(value), safe=safe_list)

@@ -31,6 +31,7 @@ from minorminer.utils.labeled_subgraph import (
     node_labels_by_coloring,
     node_labels_by_orientation,
     node_labels_by_quotient,
+    safe_find_subgraph_label,
 )
 
 
@@ -103,9 +104,9 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         labels = node_labels_by_quotient(graph, expand_boundary_search=True)
 
-        self.assertEqual(labels[(0, 0, 0, 0, 0)], "(0,1,0,0)")
-        self.assertEqual(labels[(0, 4, 0, 0, 0)], "(0,3,0,0)")
-        self.assertEqual(labels[(0, 2, 0, 0, 0)], "(0,2,0,0)")
+        self.assertEqual(labels[(0, 0, 0, 0, 0)], safe_find_subgraph_label((0, 1, 0, 0)))
+        self.assertEqual(labels[(0, 4, 0, 0, 0)], safe_find_subgraph_label((0, 3, 0, 0)))
+        self.assertEqual(labels[(0, 2, 0, 0, 0)], safe_find_subgraph_label((0, 2, 0, 0)))
 
     def test_node_labels_by_quotient_chimera_drops_qubit_index(self):
         graph = chimera_graph(2, t=2, coordinates=True)
@@ -114,7 +115,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], str(node[:3]).replace(" ", ""))
+            self.assertEqual(labels[node], safe_find_subgraph_label(node[:3]))
 
     def test_node_labels_by_orientation_falls_back_to_bipartite_color_without_family(self):
         graph = nx.cycle_graph(6)
@@ -138,7 +139,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
             u, w, k, z = node
-            self.assertEqual(labels[node], str((u, w, k // 2, z)).replace(" ", ""))
+            self.assertEqual(labels[node], safe_find_subgraph_label((u, w, k // 2, z)))
 
     def test_node_labels_by_quotient_zephyr_without_boundary_expansion(self):
         graph = zephyr_graph(2, 2, coordinates=True)
@@ -147,7 +148,7 @@ class TestNodeLabelHelpers(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], str(node[:2] + node[3:]).replace(" ", ""))
+            self.assertEqual(labels[node], safe_find_subgraph_label(node[:2] + node[3:]))
 
     def test_node_labels_by_quotient_raises_for_unrecognized_family(self):
         graph = nx.path_graph(4)
@@ -368,4 +369,4 @@ class TestNiceLabeledPegasus(unittest.TestCase):
 
         self.assertEqual(set(labels), set(graph.nodes()))
         for node in graph.nodes():
-            self.assertEqual(labels[node], str(node[:3]).replace(" ", ""))
+            self.assertEqual(labels[node], safe_find_subgraph_label(node[:3]))
