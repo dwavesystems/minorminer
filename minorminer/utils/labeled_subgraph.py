@@ -131,7 +131,8 @@ def _find_subgraph_label(value: Hashable) -> str:
     ``find_subgraph`` requires string vertex labels and its parser rejects labels
     containing whitespace, so the value is stringified and spaces are stripped.
     """
-    return str(value).replace(" ", "")
+    safe_list = string.ascii_letters + string.digits + string.punctuation
+    return urllib.parse.quote(str(value), safe=safe_list)
 
 
 def node_labels_by_orientation(
