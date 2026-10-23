@@ -125,7 +125,7 @@ def graph_label_mapping(
     )
 
 
-def _find_subgraph_label(value: Hashable) -> str:
+def safe_find_subgraph_label(value: Hashable) -> str:
     """Cast a label to a ``find_subgraph``-safe string.
 
     ``find_subgraph`` requires string vertex labels and its parser rejects labels
@@ -191,7 +191,7 @@ def node_labels_by_orientation(
                 raise ValueError(
                     "Orientation labeling requires a bipartite graph"
                 )
-    return {n: _find_subgraph_label(c) for n, c in col.items()}
+    return {n: safe_find_subgraph_label(c) for n, c in col.items()}
 
 
 def node_labels_by_coloring(
@@ -258,7 +258,7 @@ def node_labels_by_coloring(
                 "Coloring fallback requires a bipartite graph"
             )
 
-    return {n: _find_subgraph_label(c) for n, c in col.items()}
+    return {n: safe_find_subgraph_label(c) for n, c in col.items()}
 
 
 def node_labels_by_quotient(
@@ -327,7 +327,7 @@ def node_labels_by_quotient(
             graph_family, graph_shape, "coordinate", graph_labels
         )
         col = {to_label(k): v for k, v in col.items()}
-    return {k: _find_subgraph_label(v) for k, v in col.items()}
+    return {k: safe_find_subgraph_label(v) for k, v in col.items()}
 
 
 def find_labeled_subgraph(
@@ -425,7 +425,7 @@ def find_labeled_subgraph(
     # Standardize on find_subgraph-safe string labels, for both the labelings
     # computed above and any user-supplied node_labels.
     safe_node_labels = tuple(
-        {k: _find_subgraph_label(v) for k, v in labels.items()}
+        {k: safe_find_subgraph_label(v) for k, v in labels.items()}
         for labels in node_labels
     )
 
