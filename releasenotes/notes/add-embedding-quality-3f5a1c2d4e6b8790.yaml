@@ -1,0 +1,13 @@
+---
+features:
+  - |
+    Add ``minorminer.utils.embedding_quality``, a module of name-based quality
+    criteria for ranking embeddings. ``build_quality`` turns one or more
+    criterion names (e.g. ``"max_chain_length"``, ``"mean_chain_length"``,
+    ``"percentile_93_chain_length"``, ``"faultiness"``) into a callable that
+    maps an embedding to a sort key, with multiple names forming a hierarchy
+    resolved by lexicographic tuple ordering. Smaller keys are better.
+  - |
+    Add ``minorminer.utils.faultiness``, which scores an embedding by the total
+    fault weight it sits on, summing per-node and per-edge weights supplied in a
+    ``fault_map``.
