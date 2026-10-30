@@ -18,7 +18,10 @@ import unittest
 from parameterized import parameterized
 
 from minorminer.utils._clique.grid import Grid
-from minorminer.utils._clique.interchain_bridges import chains_are_adjacent, find_interchain_bridges
+from minorminer.utils._clique.interchain_bridges import (MAX_IMPLEMENTED_BRIDGE_NODES,
+                                                         chains_are_adjacent,
+                                                         find_interchain_bridges)
+
 from .faulty_zephyr import faulty_zephyr
 
 # faulty Z(3, 2): two missing nodes and one missing internal coupler
@@ -30,7 +33,7 @@ _MISSING_EDGES = [((8, 3, 0), (9, 4, 1))]
 _CHAIN_B = [(10, 7, 1), (9, 6, 0)]
 _DIRECT_CHAIN_A = [(3, 6, 0), (5, 6, 0)]  # (5, 6, 0) -- (9, 6, 0) is an external coupler
 _CHAIN_A = [(3, 6, 0)]
-_LONG_CHAIN_A = [(1, 6, 0), (3, 6, 0)]  # (1, 6, 0) is adjacent to (5, 6, 0) but no bridge node
+_LONG_CHAIN_A = [(1, 6, 0), (3, 6, 0)]
 
 # _CHAIN_A, nothing used
 _ONE_NODE_BRIDGES = [((5, 6, 0),), ((7, 6, 0),)]
@@ -81,7 +84,6 @@ _BRIDGE_CASES = [
     ("nothing_used_cap_0", _CHAIN_A, set(), 0, []),
     ("nothing_used_cap_1", _CHAIN_A, set(), 1, _ONE_NODE_BRIDGES),
     ("nothing_used_cap_2", _CHAIN_A, set(), 2, _ONE_NODE_BRIDGES + _TWO_NODE_BRIDGES),
-    ("nothing_used_cap_3", _CHAIN_A, set(), 3, _ONE_NODE_BRIDGES + _TWO_NODE_BRIDGES),
     ("used_node_cap_0", _CHAIN_A, _USED, 0, []),
     ("used_node_cap_1", _CHAIN_A, _USED, 1, [((7, 6, 0),)]),
     ("used_node_cap_2", _CHAIN_A, _USED, 2, [((7, 6, 0),)] + _USED_TWO_NODE_BRIDGES),
@@ -103,20 +105,24 @@ _BRIDGE_CASES = [
 class TestFindInterchainBridges(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.grid = Grid(
-            faulty_zephyr(_M, _T, drop_nodes=_MISSING_NODES, drop_edges=_MISSING_EDGES)
-        )
+        cls.grid = Grid(faulty_zephyr(_M, _T, drop_nodes=_MISSING_NODES, drop_edges=_MISSING_EDGES))
 
     @parameterized.expand(_BRIDGE_CASES)
     def test_bridges(self, _name, chain_a, used_nodes, cap, expected):
         result = find_interchain_bridges(self.grid, chain_a, _CHAIN_B, used_nodes, cap)
         self.assertCountEqual(result, expected)
         lengths = [len(bridge) for bridge in result]
-        self.assertEqual(lengths, sorted(lengths))  # fewest bridge nodes first
+        self.assertEqual(lengths, sorted(lengths))  # shortest bridges first
 
     def test_default_cap(self):
         result = find_interchain_bridges(self.grid, _CHAIN_A, _CHAIN_B, set())
         self.assertCountEqual(result, _ONE_NODE_BRIDGES + _TWO_NODE_BRIDGES)
+
+    def test_cap_above_implemented_raises(self):
+        with self.assertRaises(NotImplementedError):
+            find_interchain_bridges(
+                self.grid, _DIRECT_CHAIN_A, _CHAIN_B, set(), MAX_IMPLEMENTED_BRIDGE_NODES + 1
+            )
 
 
 class TestChainsAreAdjacent(unittest.TestCase):
