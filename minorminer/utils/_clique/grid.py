@@ -202,12 +202,12 @@ class Grid:
     def _walk(self, is_present_fn: Callable[[int, Node], bool]) -> None:
         """Assign a linear coordinate to every ideal-Zephyr node and file it as present or missing.
 
-        The walk order is what DEFINES each node's linear coordinate, and it must match the graph's
+        The walk order is what defines each node's linear coordinate, and it must match the graph's
         own indexing exactly -- verticals first, then horizontals.
 
         Shared by both classify entry points: Walks the canonical order and applies the
-        is_present_fn(lcoord, node) function. Populates present_qubits[kind] and finalizes
-        missing_qubits[kind] as frozensets (membership tests are the only downstream use).
+        ``is_present_fn(lcoord, node)`` function. Populates ``present_qubits[kind]`` and finalizes
+        ``missing_qubits[kind]`` as frozensets (membership tests are the only downstream use).
 
         Args:
             is_present_fn: A function ``(lcoord, node) -> bool`` deciding whether the node at linear
@@ -323,6 +323,7 @@ class Grid:
         node_lcoord = self.cartesian_to_linear(ccoord)
         if node_lcoord is None:
             return []
+
         x, y, k = ccoord
         to_linear, has_edge = self.cartesian_to_linear, self.has_edge
         same_k_offsets = _V_SAME_K_OFFSETS if self.is_vertical(ccoord) else _H_SAME_K_OFFSETS
@@ -333,6 +334,7 @@ class Grid:
                 nbr_lcoord = to_linear(nbr)
                 if nbr_lcoord is not None and has_edge(node_lcoord, nbr_lcoord):
                     out.append(nbr)
+
         for dx, dy in same_k_offsets:
             nbr = (x + dx, y + dy, k)
             nbr_lcoord = to_linear(nbr)
@@ -375,9 +377,11 @@ class Grid:
                     hp_x = x + dx
                     if hp_x < abs_min or hp_x > abs_max:
                         continue
+
                     hp_y = y + dy
                     if hp_y < abs_min or hp_y > abs_max:
                         continue
+
                     hp_kind = _H_KIND_BY_SHIFT[hp_x & 3]
                     hp_nodes = present[hp_kind]
                     hp_missing = missing[hp_kind]
@@ -387,12 +391,14 @@ class Grid:
                         hp = (hp_x, hp_y, kp)
                         if hp in hp_missing:
                             continue
+
                         hp_lcoord = hp_nodes[hp]
                         coupler = (
                             (v_lcoord, hp_lcoord) if v_lcoord < hp_lcoord else (hp_lcoord, v_lcoord)
                         )
                         if coupler not in edges:
                             missing_couplers.add((v, hp))
+
         return frozenset(missing_couplers)
 
     def _survey_ext(self) -> Runs:
