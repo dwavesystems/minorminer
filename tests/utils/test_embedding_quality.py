@@ -12,19 +12,12 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import math
 import unittest
 
 from parameterized import parameterized
 
 import minorminer.utils.embedding_quality as eq
-from minorminer.utils.embedding_quality import build_quality, _percentile_sorted, _canonical_edge
-
-try:
-    import numpy as np
-    _HAVE_NUMPY = True
-except ImportError:
-    _HAVE_NUMPY = False
+from minorminer.utils.embedding_quality import build_quality, _canonical_edge
 
 
 def chain(length):
@@ -33,16 +26,6 @@ def chain(length):
 
 def embedding(*lengths):
     return [chain(n) for n in lengths]
-
-
-# (values, p) grid for the percentile-vs-numpy equivalence test.
-_PERCENTILE_CASES = [
-    (values, p)
-    for values in ([5], [1, 2], [3, 1, 2], [10, 20, 30, 40],
-                   [7, 7, 7, 7, 7], [1, 2, 2, 3, 5, 8, 13, 21])
-    for p in (0, 1, 25, 50, 75, 93, 99, 100)
-]
-
 
 class TestEmbeddingQuality(unittest.TestCase):
 
@@ -83,23 +66,6 @@ class TestEmbeddingQuality(unittest.TestCase):
         a = q(embedding(3, 5))
         b = q(embedding(1, 9))
         self.assertLess(a, b)
-
-    # -- percentile -------------------------------------------------------
-    @parameterized.expand(_PERCENTILE_CASES)
-    @unittest.skipUnless(_HAVE_NUMPY, "numpy not installed")
-    def test_percentile_matches_numpy(self, values, p):
-        sv = sorted(values)
-        expected = float(np.percentile(values, p)) if _HAVE_NUMPY else None
-        self.assertTrue(
-            math.isclose(_percentile_sorted(sv, p), expected,
-                         rel_tol=1e-12, abs_tol=1e-12),
-            msg=f"_percentile_sorted({sv}, {p})="
-                f"{_percentile_sorted(sv, p)} != numpy {expected}",
-        )
-
-    def test_percentile_single_value(self):
-        for p in (0, 50, 100):
-            self.assertEqual(_percentile_sorted([7], p), 7)
 
     def test_percentile_criterion_end_to_end(self):
         q = build_quality("percentile_50_chain_length")
@@ -192,6 +158,11 @@ class TestEmbeddingQuality(unittest.TestCase):
 
     def test_faultiness_edge_key_order_independent(self):
         fm = {"edges": {(self.N2, self.N0): 0.4}}
+        q = build_quality("faultiness", fault_map=fm)
+        self.assertAlmostEqual(q([[self.N0, self.N2]])[0], 0.4)
+
+    def test_faultiness_edge_under_both_orders_counted_once(self):
+        fm = {"edges": {(self.N0, self.N2): 0.4, (self.N2, self.N0): 0.4}}
         q = build_quality("faultiness", fault_map=fm)
         self.assertAlmostEqual(q([[self.N0, self.N2]])[0], 0.4)
 

@@ -14,7 +14,7 @@
 
 """Name-based quality criteria for ranking embeddings.
 
-An embedding is a collection of chains; a chain is a collection of nodes
+An embedding maps each chain id to a chain; a chain is a collection of nodes
 (``len(chain)`` is its length). "Quality" ranks embeddings so a search can keep
 the best one(s) per size. The convention is fixed and load-bearing: **smaller is
 better**.
@@ -66,20 +66,27 @@ Fault-weighted (needs ``fault_map``, see :func:`build_quality`):
 __all__ = ["build_quality", "faultiness"]
 
 import re
-from typing import Any, Callable, Iterable, Mapping, TypedDict
+from collections.abc import Callable, Hashable, Iterable, Mapping
+from typing import TypedDict
+
+import numpy as np
+
+Embedding = Mapping[Hashable, Iterable[Hashable]] | Iterable[Iterable[Hashable]]
+"""An embedding: an iterable of chains, or a ``{chain_id: chain}`` mapping."""
 
 
 class FaultMap(TypedDict, total=False):
     """Fault weights for a graph, as consumed by the ``faultiness`` criterion.
 
-    ``total=False``: either key may be absent (a missing key means "no faults of
-    that kind"). Weights are in ``[0, 1]`` (0 = healthy, 1 = worst); they are the
+    Both keys are optional; an absent key means no faults of that kind.
+    Weights are in ``[0, 1]`` (0 = healthy, 1 = worst); they are the
     caller's responsibility and are not validated. An edge key is an unordered
-    node pair (either endpoint order is accepted; it is canonicalized on lookup).
+    node pair: either endpoint order is accepted, and an edge listed under both
+    orders is one edge, counted once.
     """
 
-    nodes: dict[Any, float]  # node label -> fault weight
-    edges: dict[tuple[Any, Any], float]  # (node, node) -> fault weight
+    nodes: dict[Hashable, float]  # node label -> fault weight
+    edges: dict[tuple[Hashable, Hashable], float]  # (node, node) -> fault weight
 
 
 # ==========================================================================
@@ -89,7 +96,7 @@ class FaultMap(TypedDict, total=False):
 # mean is float). That is intentional: quality keys only ever compare a
 # criterion against itself across embeddings, and int/float compare and sort
 # together fine, so the annotations use the conventional `float` == "a number".
-LENGTH_METRICS: dict[str, Callable[[list[int]], float]] = {
+_LENGTH_METRICS: dict[str, Callable[[list[int]], float]] = {
     "max_chain_length": lambda lengths: max(lengths),
     "mean_chain_length": lambda lengths: sum(lengths) / len(lengths),
 }
@@ -102,36 +109,14 @@ _PERCENTILE_RE = re.compile(r"^percentile_(\d+)_chain_length$")
 # and returns that choice as one of these three tags alongside the metric
 # function. build_quality's `quality` then reads the tag to know which argument
 # to pass. Defining the tags as named constants (instead of writing the strings
-# "lengths"/"sorted_lengths"/"chains" directly in both places) means a typo
+# "lengths"/"chains" directly in both places) means a typo
 # becomes an immediate NameError rather than a silent mismatch that would feed a
 # metric the wrong argument.
 _LENGTHS = "lengths"
-_SORTED_LENGTHS = "sorted_lengths"
 _CHAINS = "chains"
 
 
-def _percentile_sorted(sorted_values: list[float], percentile: float) -> float:
-    """``p``-th percentile (``p`` in ``[0, 100]``) of an ALREADY-SORTED, non-
-    empty list, by linear interpolation between the two closest ranks.
-
-    :func:`build_quality`'s inner function sorts the length list at most once
-    per embedding and passes it here, so several percentile criteria in one
-    hierarchy share a single sort.
-    """
-    num_values = len(sorted_values)
-    if num_values == 1:
-        return sorted_values[0]
-    rank = (percentile / 100) * (num_values - 1)  # fractional rank in [0, n-1]
-    lo = int(rank)  # floor of rank -> the lower index
-    frac = rank - lo  # how far past lo we are, in [0, 1)
-    if lo + 1 >= num_values:  # p == 100 (or rounding to the top rank)
-        return sorted_values[-1]
-    return sorted_values[lo] + frac * (
-        sorted_values[lo + 1] - sorted_values[lo]
-    )
-
-
-def _canonical_edge(u: Any, v: Any) -> frozenset[Any]:
+def _canonical_edge(u: Hashable, v: Hashable) -> frozenset[Hashable]:
     """Canonical (order-independent) key for the undirected edge {u, v}.
 
     A frozenset is canonical by construction -- {u, v} and {v, u} are equal --
@@ -142,54 +127,57 @@ def _canonical_edge(u: Any, v: Any) -> frozenset[Any]:
 
 def _prep_faultiness(
     fault_map: FaultMap | None,
-    missing_edges: Iterable[tuple[Any, Any]] | None,
-) -> tuple[
-    dict[Any, float], list[tuple[Any, Any, float]], set[frozenset[Any]]
-]:
+    missing_edges: Iterable[tuple[Hashable, Hashable]] | None,
+) -> tuple[dict[Hashable, float], dict[frozenset[Hashable], float]]:
     """Pre-process a fault map into the form :func:`_faultiness` consumes.
 
-    Does all the once-only work -- extracting the node/edge sub-dicts and
-    canonicalizing edges + missing edges -- so this runs once when :func:`build_quality`
+    Does all the once-only work -- extracting the node/edge sub-dicts,
+    canonicalizing both the fault edges and the missing edges, and dropping the
+    latter from the former -- so this runs once when :func:`build_quality`
     resolves the metric, not once per embedding scored. Returns
-    ``(node_weights, edge_entries, missing)`` where:
+    ``(node_weights, edge_weights)`` where:
 
-    * ``node_weights`` maps node -> weight (used as-is);
-    * ``edge_entries`` is a list of ``(u, v, weight)`` with the endpoints kept
-      so :func:`_faultiness` can test them against the used-node set without
-      re-splitting a key;
-    * ``missing`` is a set of canonical (frozenset) edge keys to skip.
+    * ``node_weights`` maps node -> weight (a copy, so later changes to
+      ``fault_map`` do not affect it);
+    * ``edge_weights`` maps a canonical (frozenset) edge key -> weight, with
+      every missing edge already removed.
 
-    Edge keys are matched against ``missing`` by canonical form, so either
-    endpoint order works in either input.
+    Keying edges canonically means either endpoint order works in either input,
+    and that a fault map listing an edge under BOTH orientations contributes its
+    weight once, not twice. Two such entries collide on one key, so the later
+    one in iteration order wins -- plain dict semantics; giving one edge two
+    different weights is a caller error, not something this resolves.
     """
     if fault_map is None:
         fault_map = {}
-    node_weights = fault_map.get("nodes", {})
+    node_weights = dict(fault_map.get("nodes", {}))
 
     missing = set()
-    if missing_edges:
+    if missing_edges is not None:
         missing = {_canonical_edge(u, v) for (u, v) in missing_edges}
 
-    edge_entries = []
+    edge_weights = {}
     for (u, v), weight in fault_map.get("edges", {}).items():
-        if _canonical_edge(u, v) in missing:
+        edge = _canonical_edge(u, v)
+        if edge in missing:
             continue  # edge absent -> cannot be faulty; drop it once, here
-        edge_entries.append((u, v, weight))
+        edge_weights[edge] = weight
 
-    return node_weights, edge_entries, missing
+    return node_weights, edge_weights
 
 
 def _faultiness(
-    chains: Iterable[Iterable[Any]],
-    node_weights: dict[Any, float],
-    edge_entries: list[tuple[Any, Any, float]],
+    chains: Iterable[Iterable[Hashable]],
+    node_weights: dict[Hashable, float],
+    edge_weights: dict[frozenset[Hashable], float],
 ) -> float:
     """Sum fault weight over the embedding, against PRE-PROCESSED inputs from
-    :func:`_prep_faultiness` (node weights, and edge entries already stripped
-    of missing edges).
+    :func:`_prep_faultiness` (node weights, and canonical edge weights already
+    stripped of missing edges).
 
     Iterating the (small) fault entries rather than all used-node pairs keeps
-    this ``O(faults)``, not ``O(nodes^2)``.
+    this ``O(faults)``, not ``O(nodes^2)``. An edge counts when its canonical
+    key is a subset of the used nodes, i.e. both endpoints are used.
     """
     used = {node for c in chains for node in c}
 
@@ -198,17 +186,18 @@ def _faultiness(
         if node in used:
             total += weight
 
-    for u, v, weight in edge_entries:
-        if u in used and v in used:
+    for edge, weight in edge_weights.items():
+        if edge <= used:
             total += weight
 
     return total
 
 
 def faultiness(
-    chains: Iterable[Iterable[Any]],
+    chains: Iterable[Iterable[Hashable]],
+    *,
     fault_map: FaultMap | None = None,
-    missing_edges: Iterable[tuple[Any, Any]] | None = None,
+    missing_edges: Iterable[tuple[Hashable, Hashable]] | None = None,
 ) -> float:
     """Total fault weight the embedding sits on, summed over its nodes and its
     present edges. Smaller is better::
@@ -227,13 +216,13 @@ def faultiness(
     repeatedly-evaluated quality function pays the setup cost only once.
 
     Args:
-        chains: the embedding, an iterable of chains (each an iterable of node
-            labels).
+        chains: the chains to score, an iterable of chains (each an iterable
+            of node labels). Pass ``embedding.values()`` for a mapping.
         fault_map: fault weights, shape ``{"nodes": {...}, "edges": {...}}`` (see
             :class:`FaultMap`). Weights are the caller's responsibility --
             out-of-range values are summed as given, not validated. An edge key
-            is an unordered node pair, canonicalized on lookup, so either order
-            works.
+            is an unordered node pair, so either order works and an edge listed
+            under both orders is counted once.
         missing_edges: unordered node pairs whose edge is ABSENT between two
             present nodes. Such an edge is skipped in the sum, since an edge that
             isn't there cannot contribute fault. ``None`` means "assume every edge
@@ -249,62 +238,55 @@ def faultiness(
         node you do not use contributes nothing regardless, and a node in the
         weight map is assumed to be a real, usable qubit.
     """
-    node_weights, edge_entries, _missing = _prep_faultiness(
-        fault_map, missing_edges
-    )
-    return _faultiness(chains, node_weights, edge_entries)
+    node_weights, edge_weights = _prep_faultiness(fault_map, missing_edges)
+    return _faultiness(chains, node_weights, edge_weights)
 
 
 def _resolve(
     name: str,
     fault_map: FaultMap | None,
-    missing_edges: Iterable[tuple[Any, Any]] | None,
+    missing_edges: Iterable[tuple[Hashable, Hashable]] | None,
 ) -> tuple[str, Callable]:
     """Resolve a criterion NAME to a ``(kind, func)`` pair (smaller is better).
 
-    ``kind`` is one of the module constants ``_LENGTHS`` / ``_SORTED_LENGTHS``
-    / ``_CHAINS``, telling :func:`build_quality`'s inner function which
-    argument to pass ``func``: the raw length list, the sorted length list, or
-    the chains themselves. This lets the quality function compute lengths (and
-    sort them) at most once per embedding and share them across criteria.
+    ``kind`` is one of the module constants ``_LENGTHS`` / ``_CHAINS``,
+    telling :func:`build_quality`'s inner function which argument to pass
+    ``func``: the list of chain lengths, or the chains themselves. This lets the
+    quality function compute lengths once per embedding and share them across
+    criteria.
+
     Raises :exc:`ValueError` on an unknown name.
     """
-    if name in LENGTH_METRICS:
-        return (_LENGTHS, LENGTH_METRICS[name])
+    if name in _LENGTH_METRICS:
+        return (_LENGTHS, _LENGTH_METRICS[name])
 
     m = _PERCENTILE_RE.match(name)
     if m:
         p = int(m.group(1))
         if not (0 <= p <= 100):
-            raise ValueError(
-                f"percentile must be in [0, 100], got {p} in '{name}'"
-            )
-        return (_SORTED_LENGTHS, lambda sl, _p=p: _percentile_sorted(sl, _p))
+            raise ValueError(f"percentile must be in [0, 100], got {p} in '{name}'")
+        return (_LENGTHS, lambda lengths, _p=p: float(np.percentile(lengths, _p)))
 
     if name == "faultiness":
         # pre-process the fault map ONCE here; the metric closes over the result
-        node_weights, edge_entries, _missing = _prep_faultiness(
-            fault_map, missing_edges
-        )
+        node_weights, edge_weights = _prep_faultiness(fault_map, missing_edges)
         return (
             _CHAINS,
-            lambda chains: _faultiness(chains, node_weights, edge_entries),
+            lambda chains: _faultiness(chains, node_weights, edge_weights),
         )
 
-    known = sorted(LENGTH_METRICS) + ["faultiness"]
+    known = sorted(_LENGTH_METRICS) + ["faultiness"]
     raise ValueError(
-        f"unknown quality criterion '{name}'. Known: {known} "
-        f"or 'percentile_<p>_chain_length'."
+        f"unknown quality criterion '{name}'. Known: {known} " f"or 'percentile_<p>_chain_length'."
     )
 
 
 def build_quality(
     criteria: str | Iterable[str],
+    *,
     fault_map: FaultMap | None = None,
-    missing_edges: Iterable[tuple[Any, Any]] | None = None,
-) -> Callable[
-    [Mapping[Any, Iterable[Any] | Iterable[Iterable[Any]]]], tuple[float, ...]
-]:
+    missing_edges: Iterable[tuple[Hashable, Hashable]] | None = None,
+) -> Callable[[Embedding], tuple[float, ...]]:
     """Build a quality function from a criterion name or an ordered collection.
 
     Args:
@@ -340,37 +322,24 @@ def build_quality(
     else:
         names = tuple(criteria)
     if not names:
-        raise ValueError(
-            "embedding_quality_criteria must name at least one criterion"
-        )
+        raise ValueError("criteria must name at least one criterion")
 
-    metrics = [_resolve(n, fault_map, missing_edges) for n in names]
+    if missing_edges is not None:
+        missing_edges = tuple(missing_edges)
+
+    metrics = [_resolve(n, fault_map=fault_map, missing_edges=missing_edges) for n in names]
     worst = (float("inf"),) * len(metrics)
-    need_sorted = any(kind == _SORTED_LENGTHS for kind, _ in metrics)
 
-    def quality(
-        embedding: Mapping[Any, Iterable[Any]] | Iterable[Iterable[Any]],
-    ) -> tuple[float, ...]:
-        chains = list(
-            embedding.values() if isinstance(embedding, Mapping) else embedding
-        )
+    def quality(embedding: Embedding) -> tuple[float, ...]:
+        chains = list(embedding.values() if isinstance(embedding, Mapping) else embedding)
         if not chains:  # empty embedding: worst possible
             return worst
 
         lengths = [len(c) for c in chains]
         if 0 in lengths:  # a zero-length chain is malformed: worst possible
             return worst
-        sorted_lengths = sorted(lengths) if need_sorted else None
 
-        key = []
-        for kind, func in metrics:
-            if kind == _LENGTHS:
-                key.append(func(lengths))
-            elif kind == _SORTED_LENGTHS:
-                key.append(func(sorted_lengths))
-            else:  # _CHAINS
-                key.append(func(chains))
-        return tuple(key)
+        return tuple(func(lengths) if kind == _LENGTHS else func(chains) for kind, func in metrics)
 
     quality.__name__ = "quality[" + ",".join(names) + "]"
     quality.__doc__ = (
