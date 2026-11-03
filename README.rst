@@ -69,11 +69,22 @@ and then install with `pip`.
 .. code-block:: bash
 
 
-    pip install -r requirements.txt
     pip install .
     # optionally, run the tests to check your build
-    pip install -r tests/requirements.txt
+    pip install --group test
     pytest tests
+
+For development, an editable install rebuilds the extensions when you import
+``minorminer`` after a change. It needs the build tools installed first
+(``pip install --group`` needs pip 25.1 or later).
+
+.. code-block:: bash
+
+    pip install --group dev
+    pip install --editable . --no-build-isolation
+
+If you built ``minorminer`` in place with ``setup.py`` before, run
+``git clean -fdX minorminer/`` first to remove the old build files.
 
 
 Examples

@@ -165,7 +165,8 @@ jobs:
           name: run tests
           command: |
             . env/bin/activate
-            pip install -r tests/requirements.txt
+            pip install pip --upgrade
+            pip install --group test
             pytest tests/
 
   test-dependencies:
@@ -194,7 +195,8 @@ jobs:
           name: run tests
           command: |
             . env/bin/activate
-            pip install -r tests/requirements.txt
+            pip install pip --upgrade
+            pip install --group test
             pytest tests/
 
 workflows:
