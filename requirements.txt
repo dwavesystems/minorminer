@@ -1,8 +1,8 @@
-numpy==2.4.6            # latest as of June 2026
-scipy==1.16.2
+numpy==2.4.6            # latest that support Python 3.11
+scipy==1.17.1
 networkx==3.4.2
-dwave-graphs==1.0.0
+dwave-graphs==1.2.0
 fasteners==0.19
 homebase==1.0.1
-Cython==3.0.11
+Cython==3.3.1
 reno==4.1.0  # for changelog
