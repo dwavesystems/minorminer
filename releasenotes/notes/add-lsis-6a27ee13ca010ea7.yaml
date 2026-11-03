@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Add ``minorminer.utils._clique.longest_strictly_increasing_subsequence``, a
+    patience-sort implementation of the longest strictly-increasing subsequence
+    problem in ``O(n log n)``. It returns both one longest subsequence and the
+    mapping from each output position back to its index in the input. Ties are
+    resolved deterministically.

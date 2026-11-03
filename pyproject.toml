@@ -23,16 +23,16 @@ classifiers = [
     "Operating System :: MacOS",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
 ]
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 dependencies = [
-    "dwave-graphs>=1,<2",
+    "dwave-graphs>=1.2,<2",
     "fasteners>=0.15",
     "homebase>=1.0.1",
     "networkx>=3.2,<4", # oldest that supports numpy 2

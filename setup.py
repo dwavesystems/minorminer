@@ -143,6 +143,7 @@ setup(
     packages=['minorminer',
               'minorminer.layout',
               'minorminer.utils',
+              'minorminer.utils._clique',
               'minorminer._extern',
               'minorminer._extern.rpack',
               ],

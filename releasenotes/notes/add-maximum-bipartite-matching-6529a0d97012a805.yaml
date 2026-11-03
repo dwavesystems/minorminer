@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Add ``minorminer.utils._clique.maximum_bipartite_matching``, a
+    Hopcroft-Karp implementation that finds one maximum matching in a
+    bipartite graph given the two vertex sets and an adjacency mapping. It is
+    intended for internal use in hot loops where the inputs are already in the
+    required form, avoiding the graph-construction overhead of
+    ``networkx.algorithms.bipartite.hopcroft_karp_matching``.
