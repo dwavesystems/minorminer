@@ -1,10 +1,11 @@
 [build-system]
 requires = [
-    "setuptools>=46.4.0",
-    "wheel",
     "Cython>=3.0.6",
+    "meson~=1.11.0",
+    "meson-python~=0.19.0",
+    "ninja~=1.13.0",
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "mesonpy"
 
 [project]
 name = "minorminer"
@@ -71,5 +72,8 @@ archs = "AMD64"
 # before-build = "pip install delvewheel"
 # repair-wheel-command = "delvewheel repair {wheel}"
 
-[tool.setuptools.dynamic]
-version = {attr = "minorminer.__version__"}
+[tool.meson-python.args]
+# Statically link the MSVC runtime (/MT) and define NDEBUG in every build, as setup.py did.
+# meson-python passes -Db_vscrt=md and -Db_ndebug=if-release unless told otherwise, so
+# these repeat the values in meson.build's default_options.
+setup = ['-Db_vscrt=mt', '-Db_ndebug=true']

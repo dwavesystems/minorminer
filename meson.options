@@ -1,0 +1,8 @@
+option(
+    'safe-coords',
+    type: 'boolean',
+    value: false,
+    description:
+        'Define SAFE_COORDS for the minorminer and busclique extensions, ' +
+        'so busclique uses separate checked types for x and y coordinates.',
+)

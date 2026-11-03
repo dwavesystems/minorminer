@@ -64,16 +64,16 @@ To install from this repository, you will need to first fetch the submodules
     git submodule init
     git submodule update
 
-and then run the `setuptools` script.
+and then install with `pip`.
 
 .. code-block:: bash
 
 
     pip install -r requirements.txt
-    python setup.py install
+    pip install .
     # optionally, run the tests to check your build
     pip install -r tests/requirements.txt
-    python -m pytest .
+    pytest tests
 
 
 Examples
