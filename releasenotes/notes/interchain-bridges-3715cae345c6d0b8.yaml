@@ -1,0 +1,14 @@
+---
+features:
+  - |
+    Add ``minorminer.utils._clique.interchain_bridges``, providing
+    ``chains_are_adjacent`` and ``find_interchain_bridges``.
+    ``chains_are_adjacent`` decides whether some working coupler joins two
+    chains in a (possibly faulty) Zephyr graph. An interchain bridge between two
+    chains is the sequence of internal nodes of a path that starts in one chain,
+    ends in the other, and passes only through qubits not used by any chain.
+    ``find_interchain_bridges`` returns every distinct bridge of at most two
+    qubits between two chains, fewest qubits first, including non-minimal
+    two-qubit bridges whose extra qubit may also help connect a third chain; the
+    clique embedder uses these bridges to reconnect chain pairs left unconnected
+    by missing couplers.
