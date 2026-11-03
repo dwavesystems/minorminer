@@ -1,0 +1,3 @@
+---
+fixes:
+  - Fix ``find_embedding::findEmbedding()`` in the C++ library aborting in debug builds, such as GCC 15 at ``-O0``, because of an invalid ``std::uniform_int_distribution`` range.
