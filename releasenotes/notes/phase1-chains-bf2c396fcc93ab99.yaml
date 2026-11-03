@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Add internal building blocks for a fault-tolerant Zephyr clique embedder:
+    chain segments (``minorminer.utils._clique.chain``), window and corner types
+    (``minorminer.utils._clique.windows``), and ``skeleton_chains``
+    (``minorminer.utils._clique.skeleton``), which finds a largest monotone set of
+    L-shaped chains bending around one corner of a window. These modules are
+    private and not part of the public API.
+
