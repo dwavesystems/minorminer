@@ -22,15 +22,16 @@ from parameterized import parameterized
 
 from minorminer.utils._clique import el_geometry
 from minorminer.utils._clique.grid import Grid, _block_side_order, _covers
+
 from .faulty_zephyr import faulty_zephyr
 
 
 def verticals(g):
-    return list(g.present_qubits["v1"]) + list(g.present_qubits["v3"])
+    return [n for n in g.present_qubits if g.is_vertical(n)]
 
 
 def horizontals(g):
-    return list(g.present_qubits["h1"]) + list(g.present_qubits["h3"])
+    return [n for n in g.present_qubits if not g.is_vertical(n)]
 
 
 def find_reachable(g, min_v_arm=0):
@@ -109,7 +110,7 @@ class TestGrid(unittest.TestCase):
     def test_cartesian_perfect(self):
         g = self.g
         self.assertEqual((g.m, g.t, g.labels), (self.m, self.t, "cartesian"))
-        self.assertTrue(all(len(s) == 0 for s in g.missing_qubits.values()))
+        self.assertEqual(len(g.missing_qubits), 0)
         self.assertEqual(len(g.missing_internal_couplers), 0)
 
     @parameterized.expand([("int",), ("coordinates",), ("cartesian",)])
@@ -358,8 +359,9 @@ class TestGrid(unittest.TestCase):
             g = Grid(faulty_zephyr(self.m, self.t, drop_edges=[(vp, hp)]))
             self.assertIn((vp, hp), g.missing_internal_couplers)
         else:  # run_not_covered: break an external coupler inside the vertical arm
-            g = Grid(faulty_zephyr(self.m, self.t, drop_edges=[(v, (v[0], v[1] + 4, v[2]))]))
-            self.assertTrue(g.is_present(v) and g.is_present(vp))
+            step = 4 if v[1] == info["v_quo"][2] else -4
+            g = Grid(faulty_zephyr(self.m, self.t, drop_edges=[(v, (v[0], v[1] + step, v[2]))]))
+
         self.assertIsNone(g.el_reachable(v, h))
 
     def test_el_reachable_caches_result_and_none(self):
@@ -413,19 +415,15 @@ class TestGrid(unittest.TestCase):
         remaining = [e for e in cart_edges if e[0] not in drop_nodes and e[1] not in drop_nodes]
         drop_edges = {e for e in remaining if rng.random() < 0.01}  # ~99% coupler yield
         g = Grid(
-            faulty_zephyr(
-                m, t, drop_nodes=drop_nodes, drop_edges=drop_edges, labels="coordinates"
-                )
-            )
+            faulty_zephyr(m, t, drop_nodes=drop_nodes, drop_edges=drop_edges, labels="coordinates")
+        )
 
-        ideal_by_kind = {}
-        for n in cart_nodes:
-            ideal_by_kind.setdefault(g.kind_of(n), set()).add(n)
-        for kind in ("v1", "v3", "h1", "h3"):
-            self.assertEqual(
-                set(g.present_qubits[kind]) | set(g.missing_qubits[kind]), ideal_by_kind[kind]
-            )
-            self.assertEqual(set(g.present_qubits[kind]) & set(g.missing_qubits[kind]), set())
+        linear_to_cartesian = zephyr_coordinates(m, t).linear_to_cartesian
+        expected_present = set(cart_nodes) - drop_nodes
+        self.assertEqual(set(g.present_qubits), expected_present)
+        self.assertEqual(g.missing_qubits, frozenset(drop_nodes))
+        for node, lcoord in g.present_qubits.items():
+            self.assertEqual(linear_to_cartesian(lcoord), node)
 
         # runs: ordered, endpoints present, consecutive nodes actually coupled
         for kind, per_coord in g.runs.items():
@@ -446,11 +444,27 @@ class TestGrid(unittest.TestCase):
                                 )
                             prev = node
 
+                        # maximal: the node just past each end is absent or not coupled to it
+                        for end, outside in ((s, s - 4), (e, e + 4)):
+                            end_node = (coord, end, k) if is_v else (end, coord, k)
+                            out_node = (coord, outside, k) if is_v else (outside, coord, k)
+                            out_lcoord = g.cartesian_to_linear(out_node)
+                            self.assertFalse(
+                                out_lcoord is not None
+                                and g.has_edge(g.cartesian_to_linear(end_node), out_lcoord)
+                            )
+
         # missing_internal_couplers only references present nodes and genuinely-absent couplers
         for v, hp in g.missing_internal_couplers:
             self.assertTrue(g.is_present(v))
             self.assertTrue(g.is_present(hp))
             self.assertFalse(g.has_edge(g.cartesian_to_linear(v), g.cartesian_to_linear(hp)))
+
+        # complete: every dropped internal coupler between present nodes is recorded
+        for a, b in drop_edges:
+            if g.is_vertical(a) != g.is_vertical(b):  # internal couplers flip orientation
+                v, hp = (a, b) if g.is_vertical(a) else (b, a)
+                self.assertIn((v, hp), g.missing_internal_couplers)
 
         # el_reachable returns a well-formed descriptor or None (sampled)
         Vs, Hs = verticals(g), horizontals(g)

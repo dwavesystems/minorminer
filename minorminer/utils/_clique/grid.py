@@ -139,10 +139,8 @@ class Grid:
         self.m, self.t, self.labels = _parse_zephyr_metadata(G)
         self.abs_min: int = 0  # smallest valid coordinate
         self.abs_max: int = 4 * self.m  # largest valid coordinate
-        self.present_qubits: dict[str, dict[Node, int]] = {k: {} for k in _NODE_KINDS}
-        self.missing_qubits: dict[str, frozenset[Node] | set[Node]] = {
-            k: set() for k in _NODE_KINDS
-        }
+        self.present_qubits: dict[Node, int] = {}
+        self.missing_qubits: frozenset[Node] = frozenset()
         self._el_cache: dict[tuple[Node, Node], tuple[QuoSpan, QuoSpan] | None] = {}
 
         if self.labels == "int":
@@ -175,11 +173,9 @@ class Grid:
         self.side_order = self._survey_side_order()
 
     def _classify_present_linear(self, present_nodes_linear: set[int]) -> None:
-        """Sort every ideal-Zephyr node into its kind bucket, in linear-coordinate order.
+        """File every ideal-Zephyr node as present or missing, by linear coordinate.
 
-        Walks the full ideal Zephyr, filing each node under present_qubits[kind] or
-        missing_qubits[kind] and recording each present node's linear coordinate. A node is present
-        iff its linear coordinate is in present_nodes_linear.
+        A node is present iff its linear coordinate is in ``present_nodes_linear``.
 
         Args:
             present_nodes_linear: The present qubits represented with their linear coordinates.
@@ -202,48 +198,28 @@ class Grid:
     def _walk(self, is_present_fn: Callable[[int, Node], bool]) -> None:
         """Assign a linear coordinate to every ideal-Zephyr node and file it as present or missing.
 
-        The walk order is what defines each node's linear coordinate, and it must match the graph's
-        own indexing exactly -- verticals first, then horizontals.
-
-        Shared by both classify entry points: Walks the canonical order and applies the
-        ``is_present_fn(lcoord, node)`` function. Populates ``present_qubits[kind]`` and finalizes
-        ``missing_qubits[kind]`` as frozensets (membership tests are the only downstream use).
+        Linear coordinates follow ``zephyr_coordinates.linear_to_cartesian``, so they match the
+        graph's own indexing by construction. Shared by both classify entry points: fills
+        ``present_qubits`` (``{node: lcoord}``) and sets ``missing_qubits`` to a frozenset of the
+        absent nodes.
 
         Args:
             is_present_fn: A function ``(lcoord, node) -> bool`` deciding whether the node at linear
                 coordinate ``lcoord`` with cartesian coordinate ``node`` is present.
         """
         m, t = self.m, self.t
-        num_w = 2 * m + 1
-        present, missing = self.present_qubits, self.missing_qubits
-        lcoord = 0
-        for w in range(num_w):
-            x = 2 * w
-            for k in range(t):
-                for shift, kind in _V_KIND_BY_SHIFT.items():
-                    kind_present, kind_missing = present[kind], missing[kind]
-                    for z in range(m):
-                        node = (x, 4 * z + shift, k)
-                        if is_present_fn(lcoord, node):
-                            kind_present[node] = lcoord
-                        else:
-                            kind_missing.add(node)
-                        lcoord += 1
-        for w in range(num_w):
-            y = 2 * w
-            for k in range(t):
-                for shift, kind in _H_KIND_BY_SHIFT.items():
-                    kind_present, kind_missing = present[kind], missing[kind]
-                    for z in range(m):
-                        node = (4 * z + shift, y, k)
-                        if is_present_fn(lcoord, node):
-                            kind_present[node] = lcoord
-                        else:
-                            kind_missing.add(node)
-                        lcoord += 1
-        # freeze the missing buckets as soon as they're built: membership tests are
-        # the only downstream use, and frozenset makes the immutability explicit
-        self.missing_qubits = {k: frozenset(s) for k, s in self.missing_qubits.items()}
+        linear_to_cartesian = zephyr_coordinates(m, t).linear_to_cartesian
+        present = self.present_qubits
+        missing = set()
+        for lcoord in range(4 * t * m * (2 * m + 1)):  # number of nodes of the ideal zephyr
+            node = linear_to_cartesian(lcoord)
+            if is_present_fn(lcoord, node):
+                present[node] = lcoord
+            else:
+                missing.add(node)
+
+        # membership tests are the only downstream use; frozenset makes that explicit
+        self.missing_qubits = frozenset(missing)
 
     def is_vertical(self, ccoord: Node) -> bool:
         """Decides whether a node is vertical.
@@ -282,7 +258,7 @@ class Grid:
         Returns:
             The linear coordinate of ``ccoord``, or ``None`` if the ``ccoord`` is absent.
         """
-        return self.present_qubits[self.kind_of(ccoord)].get(ccoord)
+        return self.present_qubits.get(ccoord)
 
     def is_present(self, ccoord: Node) -> bool:
         """True if the cartesian coord exists in the (faulty) grid.
@@ -293,7 +269,7 @@ class Grid:
         Returns:
             ``True`` if ``ccoord`` exists in the faulty grid, else ``False``.
         """
-        return ccoord in self.present_qubits[self.kind_of(ccoord)]
+        return ccoord in self.present_qubits
 
     def has_edge(self, lcoord1: int, lcoord2: int) -> bool:
         """Decides if a coupler exists between two nodes, given by linear coordinates.
@@ -359,45 +335,37 @@ class Grid:
         """Find internal couplers that SHOULD exist (ideal geometry) but are absent.
 
         Internal couplers join a vertical node ``v = (x, y, k)`` to a horizontal node
-        ``hp = (x+-1, y+-1, kp)`` for every ``kp in range(t)``. For each present vertical node and
-        each of its four diagonal horizontal neighbours (in bounds, present), we check whether the
-        coupler exists in ``edges``; if not, record it.
+        ``hp = (x+-1, y+-1, kp)`` for every ``kp in range(t)``. For each present vertical node,
+        every present ``hp`` at its four diagonal positions should couple to it; out-of-range and
+        absent ``hp`` are skipped by the ``present_qubits`` lookup. Any coupler not in ``edges`` is
+        recorded.
 
         Returns:
             The missing internal couplers as ``(v, hp)`` pairs, vertical node first.
         """
-        abs_min, abs_max, t = self.abs_min, self.abs_max, self.t
-        edges, present, missing = self.edges, self.present_qubits, self.missing_qubits
-        krange = range(t)
+        edges, present, is_vertical = self.edges, self.present_qubits, self.is_vertical
+        krange = range(self.t)
         missing_couplers = set()
-        for v_kind in _V_KIND_BY_SHIFT.values():
-            for v, v_lcoord in present[v_kind].items():
-                x, y, k = v
-                for dx, dy in _INTERNAL_COUPLER_OFFSETS:
-                    hp_x = x + dx
-                    if hp_x < abs_min or hp_x > abs_max:
+        for v, v_lcoord in present.items():
+            if not is_vertical(v):
+                continue
+
+            x, y, _ = v
+            for dx, dy in _INTERNAL_COUPLER_OFFSETS:
+                hp_x, hp_y = x + dx, y + dy
+                # internal couplers are all-to-all in k: v's k couples to
+                # every hp kp, so there is no k == kp guard here.
+                for kp in krange:
+                    hp = (hp_x, hp_y, kp)
+                    hp_lcoord = present.get(hp)
+                    if hp_lcoord is None:
                         continue
 
-                    hp_y = y + dy
-                    if hp_y < abs_min or hp_y > abs_max:
-                        continue
-
-                    hp_kind = _H_KIND_BY_SHIFT[hp_x & 3]
-                    hp_nodes = present[hp_kind]
-                    hp_missing = missing[hp_kind]
-                    # internal couplers are all-to-all in k: v's k couples to
-                    # every hp kp, so there is no k == kp guard here.
-                    for kp in krange:
-                        hp = (hp_x, hp_y, kp)
-                        if hp in hp_missing:
-                            continue
-
-                        hp_lcoord = hp_nodes[hp]
-                        coupler = (
-                            (v_lcoord, hp_lcoord) if v_lcoord < hp_lcoord else (hp_lcoord, v_lcoord)
-                        )
-                        if coupler not in edges:
-                            missing_couplers.add((v, hp))
+                    coupler = (
+                        (v_lcoord, hp_lcoord) if v_lcoord < hp_lcoord else (hp_lcoord, v_lcoord)
+                    )
+                    if coupler not in edges:
+                        missing_couplers.add((v, hp))
 
         return frozenset(missing_couplers)
 
@@ -405,64 +373,49 @@ class Grid:
         """Walk every external line and split it into RUNS (maximal intact stretches).
 
         An external line is ``(kind, fixed_coord)``; nodes on it step by 4 in the varying
-        coordinate. Starting from each present node, we walk forward while the next node exists and
-        the connecting external coupler is present; a break (missing node or missing coupler) ends
-        the current run and starts scanning for the next one.
+        coordinate. Each line is scanned once per ``k``: a run stays open while consecutive nodes
+        are present and coupled; a missing node or a missing external coupler closes it, and the
+        next present node opens a new one.
 
         Returns:
-            ``runs[kind][coord][k]`` -> set of ``(start, end)`` run intervals. This nested shape
-            mirrors how nodes are keyed (``kind -> coord -> k``) and is what :meth:`el_reachable`
-            and :meth:`_survey_side_order` consume.
+            ``runs[kind][coord][k]`` -> set of ``(start, end)`` run intervals, the shape
+            :meth:`el_reachable` and :meth:`_survey_side_order` consume.
         """
         abs_min, abs_max, t = self.abs_min, self.abs_max, self.t
-        edges, present, missing = self.edges, self.present_qubits, self.missing_qubits
-        runs = {k: {} for k in _NODE_KINDS}
+        edges, present = self.edges, self.present_qubits
+        runs = {kind: {} for kind in _NODE_KINDS}
         for vertical, kind_by_shift in ((True, _V_KIND_BY_SHIFT), (False, _H_KIND_BY_SHIFT)):
             for shift, kind in kind_by_shift.items():
-                kind_nodes, kind_missing = present[kind], missing[kind]
                 for fixed_coord in range(abs_min, abs_max + 1, 2):
-                    coord_map = runs[kind].setdefault(fixed_coord, {})
+                    coord_map = runs[kind][fixed_coord] = {}
+
                     for k in range(t):
                         runs_for_k = set()
-                        coord = shift
-                        while coord <= abs_max:
-                            if vertical:
-                                node = (fixed_coord, coord, k)
-                            else:
-                                node = (coord, fixed_coord, k)
-                            if node not in kind_missing:
-                                prev = coord
-                                inc = 4
-                                end = prev
-                                next_coord = None
-                                while prev + inc <= abs_max:
-                                    if vertical:
-                                        previous_node = (fixed_coord, prev, k)
-                                        next_node = (fixed_coord, prev + inc, k)
-                                    else:
-                                        previous_node = (prev, fixed_coord, k)
-                                        next_node = (prev + inc, fixed_coord, k)
-                                    if next_node in kind_missing:
-                                        # next node is a hole: end the run and resume
-                                        # PAST it (a missing node can't start a run).
-                                        end, next_coord = prev, prev + 2 * inc
-                                        break
-                                    if (kind_nodes[previous_node], kind_nodes[next_node]) in edges:
-                                        prev += inc
-                                    else:
-                                        # coupler is broken but next_node exists: end here
-                                        # and resume AT it, which starts the next run.
-                                        end, next_coord = prev, prev + inc
-                                        break
-                                else:
-                                    end, next_coord = prev, None
-                                runs_for_k.add((coord, end))
-                                if next_coord is None:
-                                    break
-                                coord = next_coord
-                            else:
-                                coord += 4
+                        start = prev = prev_lcoord = None
+
+                        for coord in range(shift, abs_max + 1, 4):
+                            node = (fixed_coord, coord, k) if vertical else (coord, fixed_coord, k)
+                            lcoord = present.get(node)
+                            # linear coordinates grow along a line, so (prev, this) is canonical
+                            if start is not None and (
+                                lcoord is None or (prev_lcoord, lcoord) not in edges
+                            ):
+                                runs_for_k.add((start, prev))
+                                start = None
+
+                            if lcoord is None:
+                                continue
+
+                            if start is None:
+                                start = coord
+
+                            prev, prev_lcoord = coord, lcoord
+
+                        if start is not None:
+                            runs_for_k.add((start, prev))
+
                         coord_map[k] = runs_for_k
+
         return runs
 
     def el_reachable(self, v: Node, h: Node) -> tuple[QuoSpan, QuoSpan] | None:
@@ -514,10 +467,10 @@ class Grid:
             hp = (hp_x, h_y, h_k)
             missing = self.missing_qubits
             if (
-                v not in missing[v_kind]
-                and vp not in missing[v_kind]
-                and h not in missing[h_kind]
-                and hp not in missing[h_kind]
+                v not in missing
+                and vp not in missing
+                and h not in missing
+                and hp not in missing
                 and (vp, hp) not in self.missing_internal_couplers
             ):
                 v_runs = self.runs[v_kind].get(v_x, {}).get(v_k, ())
