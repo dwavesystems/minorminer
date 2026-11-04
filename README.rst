@@ -83,9 +83,6 @@ For development, an editable install rebuilds the extensions when you import
     pip install --group dev
     pip install --editable . --no-build-isolation
 
-If you built ``minorminer`` in place with ``setup.py`` before, run
-``git clean -fdX minorminer/`` first to remove the old build files.
-
 
 Examples
 --------
