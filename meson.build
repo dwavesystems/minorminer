@@ -23,10 +23,10 @@ py = import('python').find_installation(pure: false)
 c = meson.get_compiler('c')
 cpp = meson.get_compiler('cpp')
 
-# The gcc/clang flags setup.py used for the C++ extensions. MSVC doesn't support them,
-# so get_supported_arguments() leaves them out there, as setup.py did.
+# The gcc/clang flag setup.py used for the C++ extensions. MSVC doesn't support it,
+# so get_supported_arguments() leaves it out there, as setup.py did.
 add_project_arguments(
-    cpp.get_supported_arguments('-Wno-format-security', '-fomit-frame-pointer'),
+    cpp.get_supported_arguments('-fomit-frame-pointer'),
     language: 'cpp',
 )
 # setuptools also passed Python's own -fno-strict-overflow (signed integer overflow wraps
