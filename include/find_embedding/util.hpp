@@ -171,7 +171,8 @@ class optional_parameters {
         if (verbose >= 4)
             throw CorruptParametersException(
                     "this build of minorminer only supports verbose=0, 1, 2 or 3.  "
-                    "build with CPPDEBUG=1 for debugging output");
+                    "build with CPPDEBUG defined for debugging output, e.g. "
+                    "pip install . -Csetup-args=-Dbuildtype=debug");
 #endif
     }
     //^^leave this constructor by the declarations

@@ -1,5 +1,0 @@
-pydata-sphinx-theme==0.16.1
-sphinx==8.2.3
-
-breathe>4.35
-cython>=0.28.5
