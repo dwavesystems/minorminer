@@ -108,7 +108,7 @@ archs = "AMD64"
 # repair-wheel-command = "delvewheel repair {wheel}"
 
 [tool.meson-python.args]
-# Statically link the MSVC runtime (/MT) and define NDEBUG in every build, as setup.py did.
-# meson-python passes -Db_vscrt=md and -Db_ndebug=if-release unless told otherwise, so
-# these repeat the values in meson.build's default_options.
-setup = ['-Db_vscrt=mt', '-Db_ndebug=true']
+# Statically link the MSVC runtime (/MT), as setup.py did.
+# meson-python passes -Db_vscrt=md unless told otherwise, so
+# this repeats the value in meson.build's default_options.
+setup = ['-Db_vscrt=mt']

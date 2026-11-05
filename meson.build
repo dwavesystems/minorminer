@@ -4,9 +4,7 @@ project(
     default_options: [
         'cpp_std=c++17',
         'buildtype=release',
-        # -DNDEBUG in every build, as setup.py did. Debug builds still get minorminer's own
-        # asserts, because CPPDEBUG undefines NDEBUG in include/debug.hpp.
-        'b_ndebug=true',
+        'b_ndebug=if-release',  # add -DNDEBUG when building for "release", which we do by default
         'b_vscrt=mt',  # statically link the MSVC runtime (/MT), as setup.py did for the C++ extensions
         'optimization=3',
         'warning_level=1',  # equivalent to -Wall
