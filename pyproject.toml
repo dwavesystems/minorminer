@@ -1,10 +1,46 @@
 [build-system]
 requires = [
-    "setuptools>=46.4.0",
-    "wheel",
+    # Same as dependency-groups.build
     "Cython>=3.0.6",
+    "meson~=1.11.0",
+    "meson-python~=0.19.0",
+    "ninja~=1.13.0",
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "mesonpy"
+
+[dependency-groups]
+build = [
+    # Same as build-system.requires
+    "Cython>=3.0.6",
+    "meson~=1.11.0",
+    "meson-python~=0.19.0",
+    "ninja~=1.13.0",
+]
+changelog = [
+    "reno==4.1.0",
+]
+dev = [
+    # Install requirements
+    "numpy==2.4.6",  # latest that support Python 3.11
+    "scipy==1.17.1",
+    "networkx==3.4.2",
+    "dwave-graphs==1.2.0",
+    "fasteners==0.19",
+    "homebase==1.0.1",
+    {include-group = "build"},
+    {include-group = "changelog"},
+]
+docs = [
+    "pydata-sphinx-theme==0.16.1",
+    "sphinx==8.2.3",
+    "breathe>4.35",
+    "cython>=0.28.5",
+]
+test = [
+    "pytest>=6.0.0",
+    "pytest-subtests",
+    "parameterized==0.7.4",
+]
 
 [project]
 name = "minorminer"
@@ -53,7 +89,7 @@ Download = "https://github.com/dwavesystems/minorminer/releases"
 [tool.cibuildwheel]
 build-verbosity = "1"
 skip = "pp* *musllinux*"
-before-test = "pip install -r {project}/tests/requirements.txt"
+test-groups = ["test"]
 test-command = "pytest {project}/tests"
 
 [tool.cibuildwheel.linux]
@@ -71,5 +107,8 @@ archs = "AMD64"
 # before-build = "pip install delvewheel"
 # repair-wheel-command = "delvewheel repair {wheel}"
 
-[tool.setuptools.dynamic]
-version = {attr = "minorminer.__version__"}
+[tool.meson-python.args]
+# Statically link the MSVC runtime (/MT), as setup.py did.
+# meson-python passes -Db_vscrt=md unless told otherwise, so
+# this repeats the value in meson.build's default_options.
+setup = ['-Db_vscrt=mt']

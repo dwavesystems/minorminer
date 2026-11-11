@@ -34,7 +34,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# distutils: language = c++
 # cython: language_level = 3
 
 from libcpp cimport bool
