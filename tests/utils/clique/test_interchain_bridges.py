@@ -18,8 +18,7 @@ import unittest
 from parameterized import parameterized
 
 from minorminer.utils._clique.grid import Grid
-from minorminer.utils._clique.interchain_bridges import (MAX_IMPLEMENTED_BRIDGE_NODES,
-                                                         chains_are_adjacent,
+from minorminer.utils._clique.interchain_bridges import (chains_are_adjacent,
                                                          find_interchain_bridges)
 
 from .faulty_zephyr import faulty_zephyr
@@ -121,7 +120,7 @@ class TestFindInterchainBridges(unittest.TestCase):
     def test_cap_above_implemented_raises(self):
         with self.assertRaises(NotImplementedError):
             find_interchain_bridges(
-                self.grid, _DIRECT_CHAIN_A, _CHAIN_B, set(), MAX_IMPLEMENTED_BRIDGE_NODES + 1
+                self.grid, _DIRECT_CHAIN_A, _CHAIN_B, set(), 3
             )
 
 

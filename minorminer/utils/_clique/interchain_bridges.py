@@ -35,9 +35,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from minorminer.utils._clique.grid import Grid, Node
 
-# deepest bridge implemented: a -- m1 -- m2 -- b
-MAX_IMPLEMENTED_BRIDGE_NODES = 2
-
 
 def chains_are_adjacent(grid: Grid, chain_a: Iterable[Node], chain_b: Iterable[Node]) -> bool:
     """Decide whether some working coupler joins two chains.
@@ -52,7 +49,6 @@ def chains_are_adjacent(grid: Grid, chain_a: Iterable[Node], chain_b: Iterable[N
         ``False``.
     """
     ccoord_to_lcoord = grid.cartesian_to_linear
-    edges = grid.edges
     lcoords_a = [lcoord for lcoord in map(ccoord_to_lcoord, chain_a) if lcoord is not None]
     for node_b in chain_b:
         lcoord_b = ccoord_to_lcoord(node_b)
@@ -80,8 +76,8 @@ def find_interchain_bridges(
     listed in path order from the ``chain_a`` end to the ``chain_b`` end. The empty bridge ``()``
     comes from a path with no internal nodes, i.e. a single edge joining the two chains.
 
-    This function returns every distinct bridge with at most ``max_interchain_bridge_nodes``
-    nodes. Paths that differ only in their endpoints give the same bridge, which is listed once.
+    This function returns every distinct bridge with at most two nodes.
+    Paths that differ only in their endpoints give the same bridge, which is listed once.
     If the chains are already adjacent, only the empty bridge is returned.
 
     Non-minimal bridges are included: a two-node bridge ``(m1, m2)`` is listed even when ``m1``
@@ -94,6 +90,7 @@ def find_interchain_bridges(
         chain_b: The other chain.
         used_nodes: Nodes already used by other chains; a bridge cannot use them.
         max_interchain_bridge_nodes: Maximum number of internal nodes in a bridge.
+            Must be at most 2.
             With 0, only the adjacency check is done: the result is ``[()]``
             if the chains are adjacent and ``[]`` otherwise.
 
@@ -103,17 +100,19 @@ def find_interchain_bridges(
 
         - ``()``: The two chains are already adjacent (no bridge needed). If present, it is
           the only element.
-        - ``(m1,)``: One internal node.
-        - ``(m1, m2)``: Two internal nodes, ``m1`` adjacent to ``chain_a`` and ``m2`` adjacent
-          to ``chain_b``.
+        - ``(m_1,)``: One internal node.
+        - ``(m_1, ..., m_n)`` with ``n <= max_interchain_bridge_nodes <= 2``: n internal
+        nodes, ``m_1`` adjacent to ``chain_a``, ``m_n`` adjacent to ``chain_b``, and
+        ``m_i`` adjacent to ``m_{i+1}`` for ``1 <= i <= n-1``.
+
+
 
     Raises:
-        NotImplementedError: If ``max_interchain_bridge_nodes`` exceeds
-            ``MAX_IMPLEMENTED_BRIDGE_NODES``.
+        NotImplementedError: If ``max_interchain_bridge_nodes`` exceeds 2.
     """
-    if max_interchain_bridge_nodes > MAX_IMPLEMENTED_BRIDGE_NODES:
+    if max_interchain_bridge_nodes > 2:
         raise NotImplementedError(
-            f"bridges with more than {MAX_IMPLEMENTED_BRIDGE_NODES} nodes are not implemented, "
+            "bridges with more than 2 nodes are not implemented, "
             f"got {max_interchain_bridge_nodes=}."
         )
 
