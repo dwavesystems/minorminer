@@ -44,8 +44,9 @@ from operator import itemgetter
 from typing import TYPE_CHECKING
 
 from minorminer.utils._clique.chain import Chain, Segment
-from minorminer.utils._clique.longest_strictly_increasing_subsequence import \
-    longest_strictly_increasing_subsequence
+from minorminer.utils._clique.longest_strictly_increasing_subsequence import (
+    longest_strictly_increasing_subsequence,
+)
 from minorminer.utils._clique.windows import corner_orientation
 
 if TYPE_CHECKING:

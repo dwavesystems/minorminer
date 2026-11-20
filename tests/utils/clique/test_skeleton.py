@@ -16,7 +16,6 @@
 import itertools
 import unittest
 
-
 from minorminer.utils._clique.chain import chain_nodes
 from minorminer.utils._clique.grid import Grid
 from minorminer.utils._clique.skeleton import skeleton_chains

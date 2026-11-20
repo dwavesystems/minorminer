@@ -18,7 +18,6 @@ import unittest
 from minorminer.utils._clique.chain import Segment, chain_nodes
 
 
-
 class TestSegment(unittest.TestCase):
     def test_vertical_nodes(self):
         self.assertEqual(Segment(True, 4, 2, 1, 9).nodes(), [(4, 1, 2), (4, 5, 2), (4, 9, 2)])

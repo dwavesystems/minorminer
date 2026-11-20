@@ -34,7 +34,7 @@ import random
 from math import ceil
 
 Window = tuple[int, int, int, int]  # (x0, x1, y0, y1)
-Corner = tuple[str, str]  # (bt, lr)
+Corner = tuple[Literal["t", "b"], Literal["l", "r"]]
 
 CORNERS: tuple[Corner, Corner, Corner, Corner] = (("t", "l"), ("t", "r"), ("b", "l"), ("b", "r"))
 
@@ -59,7 +59,7 @@ def corner_orientation(corner: Corner) -> tuple[int, int]:
 def candidate_windows(
     m: int, t: int, min_size: int, aspect_band: int, seed: int | None = None
 ) -> list[Window]:
-    """All windows that could hold a clique of at least ``min_size`` chains, shuffled.
+    """Return all windows that could hold a clique of at least ``min_size`` chains.
 
     A side spanning ``n`` even coordinates holds at most ``2 t n`` chains (see
     :func:`window_bound`), so every side must span at least ``ceil(min_size / (2 t))`` of them.
@@ -77,7 +77,8 @@ def candidate_windows(
         seed: Seed for the shuffle, so the order is reproducible. ``None`` leaves the windows
             unshuffled, in order of size and then start position.
     Returns:
-        The windows in a seeded random order; empty if no window can reach ``min_size``.
+        The windows, in a seeded random order if ``seed`` is given, otherwise by size and
+        then start position; empty if no window can reach ``min_size``.
     """
     min_side = max(2, 2 * (ceil(min_size / (2 * t)) - 1))
     if min_side > 4 * m:
@@ -116,7 +117,7 @@ def window_bound(window: Window, t: int) -> int:
         t: Zephyr tile size.
 
     Returns:
-        The bound.
+        The maximum number of chains a clique in ``window`` can have.
     """
     x0, x1, y0, y1 = window
     n_x = (x1 - x0) // 2 + 1

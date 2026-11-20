@@ -75,7 +75,7 @@ Chain = tuple[Segment, ...]  # an ordered collection of segments
 
 
 def chain_nodes(chain: Chain) -> list[Node]:
-    """All nodes of a chain, segment by segment.
+    """Return all nodes of a chain, segment by segment.
 
     Args:
         chain: The chain.
