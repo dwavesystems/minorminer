@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import random
 from math import ceil
+from typing import Literal
 
 Window = tuple[int, int, int, int]  # (x0, x1, y0, y1)
 Corner = tuple[Literal["t", "b"], Literal["l", "r"]]
