@@ -282,7 +282,7 @@ def _resolve(
 
 
 def build_quality(
-    criteria: str | Iterable[str],
+    criteria: str | Sequence[str],
     *,
     fault_map: FaultMap | None = None,
     missing_edges: Iterable[tuple[Hashable, Hashable]] | None = None,
