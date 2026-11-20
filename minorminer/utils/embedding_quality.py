@@ -66,7 +66,7 @@ Fault-weighted (needs ``fault_map``, see :func:`build_quality`):
 __all__ = ["build_quality", "faultiness"]
 
 import re
-from collections.abc import Callable, Hashable, Iterable, Mapping
+from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from typing import TypedDict
 
 import numpy as np
@@ -307,6 +307,7 @@ def build_quality(
         ``(+inf, ...)`` of the right arity, so it never ranks above a real one.
 
     Raises:
+        TypeError: if ``criteria`` is neither a ``str`` nor a sequence (e.g. a set).
         ValueError: if ``criteria`` is empty or names an unknown criterion.
 
     Examples::
@@ -319,8 +320,13 @@ def build_quality(
     """
     if isinstance(criteria, str):
         names = (criteria,)
-    else:
+    elif isinstance(criteria, Sequence):
         names = tuple(criteria)
+    else:
+        raise TypeError(
+            "criteria must be a str or an ordered sequence (e.g. tuple or list), "
+            f"got {type(criteria).__name__}"
+        )
     if not names:
         raise ValueError("criteria must name at least one criterion")
 
