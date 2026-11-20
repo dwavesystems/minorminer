@@ -59,8 +59,7 @@ def chains_are_adjacent(grid: Grid, chain_a: Iterable[Node], chain_b: Iterable[N
         if lcoord_b is None:
             continue
         for lcoord_a in lcoords_a:
-            edge = (lcoord_a, lcoord_b) if lcoord_a < lcoord_b else (lcoord_b, lcoord_a)
-            if edge in edges:
+            if grid.has_edge(lcoord_a, lcoord_b)
                 return True
     return False
 
