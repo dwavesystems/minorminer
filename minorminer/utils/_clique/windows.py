@@ -41,7 +41,7 @@ CORNERS: tuple[Corner, Corner, Corner, Corner] = (("t", "l"), ("t", "r"), ("b", 
 
 
 def corner_orientation(corner: Corner) -> tuple[int, int]:
-    """Axis signs that make "increasing" point toward a corner.
+    """Return the axis signs that make "increasing" point toward a corner.
 
     Multiplying ``x`` by ``dir_x`` and ``y`` by ``dir_y`` maps every corner onto the same
     orientation, so one longest-increasing-subsequence formulation serves all four corners.
@@ -104,7 +104,7 @@ def candidate_windows(
 
 
 def window_bound(window: Window, t: int) -> int:
-    """Upper bound on the size of a clique found in a window.
+    """Return an upper bound on the number of skeleton chains in a window.
 
     ``2 t min(n_x, n_y)`` where ``n_x`` and ``n_y`` count the even coordinates along each side.
     For skeleton chains this is a proof: their vertical endpoints are distinct nodes in the two

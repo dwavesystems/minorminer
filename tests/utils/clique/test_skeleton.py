@@ -10,20 +10,31 @@
 #    distributed under the License is distributed on an "AS IS" BASIS,
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
-#    limitations under the License.import itertools
+#    limitations under the License.
 
 
+import functools
 import itertools
 import unittest
+
+from parameterized import parameterized
 
 from minorminer.utils._clique.chain import chain_nodes
 from minorminer.utils._clique.grid import Grid
 from minorminer.utils._clique.skeleton import skeleton_chains
 from minorminer.utils._clique.windows import CORNERS, candidate_windows, window_bound
+
 from .faulty_zephyr import faulty_zephyr
 
+
+@functools.cache
+def _perfect_grid(m, t):
+    """Return a fault-free Zephyr grid, built once per ``(m, t)`` and shared across test cases."""
+    return Grid(faulty_zephyr(m, t))
+
+
 def _ideally_adjacent(nodes_a, nodes_b) -> bool:
-    """Whether the IDEAL grid has an internal coupler between the two node sets.
+    """Test whether the IDEAL grid has an internal coupler between the two node sets.
 
     Internal couplers join every vertical (x, y, k) to every horizontal (x +- 1, y +- 1, k').
     Unlike a coupler lookup, this ignores faults, so it tests the skeleton's geometry.
@@ -33,8 +44,6 @@ def _ideally_adjacent(nodes_a, nodes_b) -> bool:
 
 class TestSkeletonChains(unittest.TestCase):
     def assert_well_formed(self, grid, window, chains):
-        """Chains are present, disjoint, internally connected el-chains at the window, and
-        every two of them meet where the ideal grid has an internal coupler."""
         lcoord = grid.cartesian_to_linear
         x0, x1, y0, y1 = window
         self.assertLessEqual(len(chains), window_bound(window, grid.t))
@@ -62,26 +71,19 @@ class TestSkeletonChains(unittest.TestCase):
         for a, b in itertools.combinations(map(chain_nodes, chains), 2):
             self.assertTrue(_ideally_adjacent(a, b))
 
-    def test_perfect_grid_attains_bound(self):
-        for m, t in ((2, 4), (3, 2)):
-            grid = Grid(faulty_zephyr(m, t))
-            window = (2, 4 * m - 2, 2, 4 * m - 2)
-            for corner in CORNERS:
-                with self.subTest(m=m, t=t, corner=corner):
-                    chains = skeleton_chains(grid, window, corner)
-                    self.assert_well_formed(grid, window, chains)
-                    self.assertEqual(len(chains), window_bound(window, t))
-
-    def test_perfect_grid_reaches_capacity_at_every_width(self):
+    @parameterized.expand(
+        (m, t, side, corner)
+        for m, t in ((2, 4), (3, 2), (4, 2), (3, 4))
+        for side in range(2, 4 * m - 4 + 1, 2)
+        for corner in CORNERS
+    )
+    def test_perfect_grid_attains_bound(self, m, t, side, corner):
         # away from the chip boundary, a window of even width w holds 2 t n chains, n = w / 2 + 1
-        for m, t in ((3, 2), (4, 2), (3, 4)):
-            grid = Grid(faulty_zephyr(m, t))
-            for side in range(2, 4 * m - 4 + 1, 2):
-                window = (2, 2 + side, 2, 2 + side)
-                for corner in CORNERS:
-                    with self.subTest(m=m, t=t, side=side, corner=corner):
-                        chains = skeleton_chains(grid, window, corner)
-                        self.assertEqual(len(chains), window_bound(window, t))
+        grid = _perfect_grid(m, t)
+        window = (2, 2 + side, 2, 2 + side)
+        chains = skeleton_chains(grid, window, corner)
+        self.assert_well_formed(grid, window, chains)
+        self.assertEqual(len(chains), window_bound(window, t))
 
     def test_faulty_grids(self):
         # every window and corner, uniform and clustered faults
@@ -109,7 +111,13 @@ class TestSkeletonChains(unittest.TestCase):
                         self.assert_well_formed(grid, window, chains)
 
     def test_deterministic(self):
-        grid = Grid(faulty_zephyr(3, 4, node_fault_rate=0.05, edge_fault_rate=0.01, seed=4, clustered=True))
+        """Check that repeated calls return the same chains.
+
+        This guards the contract if the LIS step gains randomized tie-breaking.
+        """
+        grid = Grid(
+            faulty_zephyr(3, 4, node_fault_rate=0.05, edge_fault_rate=0.01, seed=4, clustered=True)
+        )
         window, corner = (2, 10, 0, 8), ("b", "r")
         self.assertEqual(
             skeleton_chains(grid, window, corner), skeleton_chains(grid, window, corner)

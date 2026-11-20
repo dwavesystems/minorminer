@@ -60,7 +60,7 @@ class Segment(NamedTuple):
     end: int
 
     def nodes(self) -> list[Node]:
-        """The segment's nodes in order of increasing varying coordinate.
+        """Return the segment's nodes in order of increasing varying coordinate.
 
         Returns:
             The nodes ``(x, y, k)`` of the segment.
@@ -78,7 +78,7 @@ def chain_nodes(chain: Chain) -> list[Node]:
     """Return all nodes of a chain, segment by segment.
 
     Args:
-        chain: The chain.
+        chain: The chain to get the nodes of.
 
     Returns:
         The nodes of every segment of ``chain``, in segment order.

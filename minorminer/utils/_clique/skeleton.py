@@ -91,8 +91,20 @@ def skeleton_chains(grid: Grid, window: Window, corner: Corner) -> list[Chain]:
                         continue
                     v_quo, h_quo = reach
                     chain = (
-                        Segment(True, v_quo[0], v_k, v_quo[2], v_quo[3]),
-                        Segment(False, h_quo[1], h_k, h_quo[2], h_quo[3]),
+                        Segment(
+                            vertical=True,
+                            fixed_coord=v_quo[0],
+                            k=v_k,
+                            start=v_quo[2],
+                            end=v_quo[3],
+                        ),
+                        Segment(
+                            vertical=False,
+                            fixed_coord=h_quo[1],
+                            k=h_k,
+                            start=h_quo[2],
+                            end=h_quo[3],
+                        ),
                     )
                     candidates_by_v_key[v_key].append((h_key, chain))
 
@@ -112,14 +124,15 @@ def skeleton_chains(grid: Grid, window: Window, corner: Corner) -> list[Chain]:
 
 
 def _endpoint_blocks(grid: Grid, window: Window, corner: Corner) -> tuple[list[Block], list[Block]]:
-    """Blocks that can hold a skeleton chain's endpoints.
+    """Return the blocks that can hold a skeleton chain's endpoints.
 
     Vertical endpoints sit in the two rows of vertical blocks adjacent to the corner's
     horizontal window edge; horizontal endpoints in the two columns of horizontal blocks
     adjacent to its vertical window edge. Rows or columns outside the grid are dropped.
 
     Args:
-        grid: The grid.
+        grid: The grid whose coordinate bounds (``abs_min``, ``abs_max``) clip the blocks;
+            only its extent is used, not its faults.
         window: The window to find the blocks around its edges.
         corner: The corner the skeleton chains bend around.
 
