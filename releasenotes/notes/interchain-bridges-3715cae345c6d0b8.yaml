@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Add `minorminer.utils._clique.interchain_bridges.chains_are_adjacent()`, which decides 
+    whether some working coupler joins two chains in a (possibly faulty) Zephyr graph.
+
+    Add `minorminer.utils._clique.interchain_bridges.find_interchain_bridges()`, which 
+    returns every distinct bridge of at most two qubits between two chains.
