@@ -5,7 +5,7 @@ project(
         'cpp_std=c++17',
         'buildtype=release',
         'b_ndebug=if-release',  # add -DNDEBUG when building for "release", which we do by default
-        'b_vscrt=mt',  # statically link the MSVC runtime (/MT), as setup.py did for the C++ extensions
+        'b_vscrt=mt',  # statically link the MSVC runtime (/MT), so the wheels don't need its DLLs
         'optimization=3',
         'warning_level=1',  # equivalent to -Wall
     ],
@@ -23,34 +23,23 @@ py = import('python').find_installation(pure: false)
 c = meson.get_compiler('c')
 cpp = meson.get_compiler('cpp')
 
-# The gcc/clang flag setup.py used for the C++ extensions. MSVC doesn't support it,
-# so get_supported_arguments() leaves it out there, as setup.py did.
 add_project_arguments(
     cpp.get_supported_arguments('-fomit-frame-pointer'),
     language: 'cpp',
 )
-# setuptools also passed Python's own -fno-strict-overflow (signed integer overflow wraps
-# instead of being undefined behaviour), so keep it in every build.
 add_project_arguments(c.get_supported_arguments('-fno-strict-overflow'), language: 'c')
 add_project_arguments(cpp.get_supported_arguments('-fno-strict-overflow'), language: 'cpp')
-# setup.py's release flags, kept as they were (-Ofast includes -ffast-math). Only for
-# release builds (the default, and what wheels use); other build types keep meson's flags.
 if get_option('buildtype') == 'release'
     add_project_arguments(cpp.get_supported_arguments('-Ofast', '-g1'), language: 'cpp')
 endif
 
-# Whole-program optimisation for MSVC release builds, as setuptools used.
 if cpp.get_id() == 'msvc' and get_option('buildtype') == 'release'
     add_project_arguments('/GL', language: ['c', 'cpp'])
     add_project_link_arguments('/LTCG', language: ['c', 'cpp'])
 endif
 
-# find_embedding (its threads parameter) and the Glasgow solver use std::thread.
 threads_dep = dependency('threads')
 
-# minorminer's own headers, used by the _minorminer and busclique extensions.
-# The .pxi files include them relative to minorminer/ ("../include/...", "src/..."),
-# where setup.py wrote the generated C++; meson writes it to the build directory instead.
 minorminer_args = cpp.get_supported_arguments('-fno-rtti')
 if get_option('buildtype') == 'debug'
     minorminer_args += '-DCPPDEBUG'
@@ -59,14 +48,16 @@ if get_option('safe-coords')
     minorminer_args += '-DSAFE_COORDS'
 endif
 minorminer_dep = declare_dependency(
+    # The .pxi files include minorminer's headers relative to minorminer/ ("../include/...",
+    # "src/..."), but meson writes the generated C++ to the build directory, so minorminer/ is on
+    # the include path.
     include_directories: ['minorminer/'],
     compile_args: minorminer_args,
     dependencies: [threads_dep],
 )
 
 # The Glasgow Subgraph Solver (a git submodule), compiled into the subgraph extension.
-# is_system gives -isystem on gcc/clang, as setup.py used, so warnings from its headers are
-# not reported there.
+# is_system gives -isystem on gcc/clang, so warnings from its headers are not reported there.
 glasgow_dep = declare_dependency(
     include_directories: include_directories(
         'external/',

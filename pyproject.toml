@@ -20,7 +20,6 @@ changelog = [
     "reno==4.1.0",
 ]
 dev = [
-    # Install requirements
     "numpy==2.4.6",  # latest that support Python 3.11
     "scipy==1.17.1",
     "networkx==3.4.2",
@@ -108,7 +107,7 @@ archs = "AMD64"
 # repair-wheel-command = "delvewheel repair {wheel}"
 
 [tool.meson-python.args]
-# Statically link the MSVC runtime (/MT), as setup.py did.
+# Statically link the MSVC runtime (/MT).
 # meson-python passes -Db_vscrt=md unless told otherwise, so
 # this repeats the value in meson.build's default_options.
 setup = ['-Db_vscrt=mt']
