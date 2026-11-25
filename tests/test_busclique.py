@@ -161,7 +161,7 @@ class TestBusclique(unittest.TestCase):
                     emb = emb_f()
                     verify_embedding(emb, s, h)
                     if check_cl:
-                        self.assertEqual(max_chainlength(emb), cl)
+                        check_cl(max_chainlength(emb), cl)
 
         biclique_init_ok = False
         test = self.biclique_battery(g, reconstruct)
@@ -187,24 +187,27 @@ class TestBusclique(unittest.TestCase):
         cl = max_chainlength(emb0)
         N = range(size)
         yield emb0, size, cl
-        yield g, lambda:emb0, 'g:bcg.lc', True
-        yield g, lambda:bgcg.find_clique_embedding(size), 'g:bcg.fce', True
-        yield g, lambda:busclique.find_clique_embedding(size, g), 'g:bc.fce', True
+        yield g, lambda:emb0, 'g:bcg.lc', self.assertEqual
+        yield g, lambda:bgcg.find_clique_embedding(size), 'g:bcg.fce', self.assertEqual
+        yield g, lambda:busclique.find_clique_embedding(size, g), 'g:bc.fce', self.assertEqual
         if test_nocache:
             yield (g,
                    lambda:busclique.find_clique_embedding(size, g, use_cache = False),
-                   'g:bc.fce,nc', True)
-        yield g, lambda:bgcg.largest_clique_by_chainlength(cl), 'g:bc.lcbc', True
+                   'g:bc.fce,nc', self.assertEqual)
+        yield g, lambda:bgcg.largest_clique_by_chainlength(cl), 'g:bc.lcbc', self.assertEqual
         nodes = set(itertools.chain.from_iterable(emb0.values()))
         h = reconstruct(nodes)
         bgch = busclique.busgraph_cache(h)
-        yield h, lambda:busclique.find_clique_embedding(N, h), 'h:bc.fce', True
+        # h contains g's clique, so h never needs longer chains, but
+        # it can find shorter ones when busclique only samples on g
+        # (more than 6 missing internal edges)
+        yield h, lambda:busclique.find_clique_embedding(N, h), 'h:bc.fce', self.assertLessEqual
         if test_nocache:
             yield (h, lambda:busclique.find_clique_embedding(N, h, use_cache = False),
-                   'h:bc.fce,nc', True)
-        yield h, lambda:bgch.largest_clique(), 'h:bgc.lc', True
-        yield h, lambda:bgch.find_clique_embedding(N), 'h:bgc.fce', True
-        yield h, lambda:bgch.largest_clique_by_chainlength(cl), 'h:bgc.lcbc', True
+                   'h:bc.fce,nc', self.assertLessEqual)
+        yield h, lambda:bgch.largest_clique(), 'h:bgc.lc', self.assertLessEqual
+        yield h, lambda:bgch.find_clique_embedding(N), 'h:bgc.fce', self.assertLessEqual
+        yield h, lambda:bgch.largest_clique_by_chainlength(cl), 'h:bgc.lcbc', self.assertLessEqual
 
     def biclique_battery(self, g, reconstruct):
         bgcg = busclique.busgraph_cache(g)
