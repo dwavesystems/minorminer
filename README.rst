@@ -64,16 +64,24 @@ To install from this repository, you will need to first fetch the submodules
     git submodule init
     git submodule update
 
-and then run the `setuptools` script.
+and then install with `pip`.
 
 .. code-block:: bash
 
 
-    pip install -r requirements.txt
-    python setup.py install
+    pip install .
     # optionally, run the tests to check your build
-    pip install -r tests/requirements.txt
-    python -m pytest .
+    pip install --group test
+    pytest tests
+
+For development, an editable install rebuilds the extensions when you import
+``minorminer`` after a change. It needs the build tools installed first
+(``pip install --group`` needs pip 25.1 or later).
+
+.. code-block:: bash
+
+    pip install --group dev
+    pip install --editable . --no-build-isolation
 
 
 Examples

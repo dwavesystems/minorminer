@@ -1,0 +1,15 @@
+---
+features:
+  - |
+    Build with ``meson`` rather than ``setuptools``.
+upgrade:
+  - |
+    Building from source no longer reads the ``SAFE_COORDS`` and ``CPPDEBUG``
+    environment variables. Instead of ``SAFE_COORDS``, use the ``safe-coords``
+    Meson option, for example ``pip install . -Csetup-args=-Dsafe-coords=true``.
+    Instead of ``CPPDEBUG``, use a debug build, for example
+    ``pip install . -Csetup-args=-Dbuildtype=debug``.
+  - |
+    Building from source now needs ``meson-python``, ``meson`` and ``ninja``
+    instead of ``setuptools``. pip installs them automatically unless you use
+    ``--no-build-isolation``.

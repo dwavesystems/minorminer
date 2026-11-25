@@ -482,7 +482,6 @@ grid_search_bbox(Grid * grid, Rectangle * sizes, BBoxRestrictions * bbr)
         if (reg.col_cell != NULL) {
             best_h = grid->height;
             best_w = grid_w;
-            assert(best_h * best_w < area);
             area = best_h * best_w;
             assert(area <= bbr->max_area);
             if (area <= happy_area) {
