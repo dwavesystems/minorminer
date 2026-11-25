@@ -17,6 +17,7 @@
 #include <chrono>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <random>

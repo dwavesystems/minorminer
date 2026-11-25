@@ -1,0 +1,3 @@
+---
+fixes:
+  - Fix the C++ header ``find_embedding/util.hpp`` not compiling with GCC 14 unless ``<memory>`` was already included.

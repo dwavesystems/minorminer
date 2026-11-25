@@ -1,0 +1,5 @@
+---
+upgrade:
+  - Require CMake 3.10 or later for the C++ library's CMake build, and CMake 3.13 or later to build its tests.
+fixes:
+  - Support CMake 4 in the C++ library's CMake build (issue #298).
